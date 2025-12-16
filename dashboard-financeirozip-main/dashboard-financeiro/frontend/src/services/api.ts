@@ -197,6 +197,35 @@ export const apiService = {
     return response.data;
   },
 
+  // Estatísticas por origem
+  getEstatisticasPorOrigem: async (filtros: {
+    empresa?: number;
+    centro_custo?: number;
+    credor?: string;
+    id_documento?: string;
+    origem_dado?: string;
+    tipo_baixa?: string;
+    ano?: string;
+    mes?: string;
+    data_inicio?: string;
+    data_fim?: string;
+  }): Promise<Array<{ origem: string; valor: number; quantidade: number }>> => {
+    const params = new URLSearchParams();
+    if (filtros.empresa) params.append('empresa', filtros.empresa.toString());
+    if (filtros.centro_custo) params.append('centro_custo', filtros.centro_custo.toString());
+    if (filtros.credor) params.append('credor', filtros.credor);
+    if (filtros.id_documento) params.append('id_documento', filtros.id_documento);
+    if (filtros.origem_dado) params.append('origem_dado', filtros.origem_dado);
+    if (filtros.tipo_baixa) params.append('tipo_baixa', filtros.tipo_baixa);
+    if (filtros.ano) params.append('ano', filtros.ano);
+    if (filtros.mes) params.append('mes', filtros.mes);
+    if (filtros.data_inicio) params.append('data_inicio', filtros.data_inicio);
+    if (filtros.data_fim) params.append('data_fim', filtros.data_fim);
+
+    const response = await api.get(`/estatisticas-por-origem?${params.toString()}`);
+    return response.data;
+  },
+
   // Top credores
   getTopCredores: async (filtros: {
     empresa?: number;

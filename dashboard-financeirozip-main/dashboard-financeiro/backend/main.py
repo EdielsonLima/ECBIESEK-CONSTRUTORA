@@ -856,6 +856,112 @@ def get_estatisticas_por_empresa(
         cursor.close()
         conn.close()
 
+@app.get("/api/estatisticas-por-origem")
+def get_estatisticas_por_origem(
+    empresa: Optional[int] = None,
+    centro_custo: Optional[int] = None,
+    credor: Optional[str] = None,
+    id_documento: Optional[str] = None,
+    origem_dado: Optional[str] = None,
+    tipo_baixa: Optional[str] = None,
+    ano: Optional[str] = None,
+    mes: Optional[str] = None,
+    data_inicio: Optional[str] = None,
+    data_fim: Optional[str] = None
+):
+    """Retorna estatísticas de contas pagas agrupadas por origem"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        conditions = []
+        params = []
+
+        if empresa is not None:
+            conditions.append("cc.id_sienge_empresa = %s")
+            params.append(empresa)
+
+        if centro_custo is not None:
+            conditions.append("cp.id_interno_centro_custo = %s")
+            params.append(centro_custo)
+
+        if credor:
+            conditions.append("cp.credor ILIKE %s")
+            params.append(f"%{credor}%")
+
+        if id_documento:
+            docs = [doc.strip() for doc in id_documento.split(',')]
+            doc_conditions = []
+            for doc in docs:
+                doc_conditions.append("TRIM(cp.id_documento) = %s")
+                params.append(doc)
+            conditions.append(f"({' OR '.join(doc_conditions)})")
+
+        if origem_dado:
+            origens = [origem.strip() for origem in origem_dado.split(',')]
+            origem_conditions = []
+            for origem in origens:
+                origem_conditions.append("TRIM(cp.id_origem) = %s")
+                params.append(origem)
+            conditions.append(f"({' OR '.join(origem_conditions)})")
+
+        if tipo_baixa:
+            tipos = [int(t.strip()) for t in tipo_baixa.split(',')]
+            tipo_placeholders = ', '.join(['%s'] * len(tipos))
+            conditions.append(f"cp.id_tipo_baixa IN ({tipo_placeholders})")
+            params.extend(tipos)
+
+        if ano:
+            anos = [int(a.strip()) for a in ano.split(',')]
+            ano_placeholders = ', '.join(['%s'] * len(anos))
+            conditions.append(f"EXTRACT(YEAR FROM cp.data_pagamento) IN ({ano_placeholders})")
+            params.extend(anos)
+
+        if mes:
+            meses = [int(m.strip()) for m in mes.split(',')]
+            mes_placeholders = ', '.join(['%s'] * len(meses))
+            conditions.append(f"EXTRACT(MONTH FROM cp.data_pagamento) IN ({mes_placeholders})")
+            params.extend(meses)
+
+        if data_inicio:
+            conditions.append("cp.data_pagamento >= %s")
+            params.append(data_inicio)
+
+        if data_fim:
+            conditions.append("cp.data_pagamento <= %s")
+            params.append(data_fim)
+
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+
+        query = f"""
+            SELECT 
+                COALESCE(TRIM(cp.id_origem), 'Sem Origem') as origem,
+                COALESCE(SUM(cp.valor_liquido), 0) as valor_total,
+                COUNT(*) as quantidade
+            FROM contas_pagas cp
+            LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE {where_clause}
+            GROUP BY TRIM(cp.id_origem)
+            ORDER BY valor_total DESC
+        """
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+
+        resultado = []
+        for row in rows:
+            resultado.append({
+                'origem': row['origem'],
+                'valor': decimal_to_float(row['valor_total']),
+                'quantidade': row['quantidade']
+            })
+
+        return resultado
+
+    finally:
+        cursor.close()
+        conn.close()
+
 @app.get("/api/top-credores")
 def get_top_credores(
     empresa: Optional[int] = None,
