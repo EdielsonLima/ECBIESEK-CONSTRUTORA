@@ -51,6 +51,7 @@ export const ContasAPagar: React.FC = () => {
   const [filtroMes, setFiltroMes] = useState<number[]>([]);
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [todasContas, setTodasContas] = useState<ContaPagar[]>([]);
+  const [mesDropdownAberto, setMesDropdownAberto] = useState(false);
 
   const meses = [
     { valor: 1, nome: 'Janeiro' },
@@ -344,40 +345,64 @@ export const ContasAPagar: React.FC = () => {
             ))}
           </select>
         </div>
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            Mes {filtroMes.length > 0 && filtroMes.length < 12 && <span className="text-blue-600">({filtroMes.length})</span>}
-          </label>
-          <select
-            multiple
-            value={filtroMes.map(String)}
-            onChange={(e) => {
-              const selected = Array.from(e.target.selectedOptions, option => Number(option.value));
-              setFiltroMes(selected);
-            }}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-            style={{ minHeight: '80px' }}
+        <div className="relative">
+          <label className="mb-2 block text-sm font-medium text-gray-700">Mes</label>
+          <button
+            type="button"
+            onClick={() => setMesDropdownAberto(!mesDropdownAberto)}
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-blue-500 focus:outline-none"
           >
-            {meses.map((mes) => (
-              <option key={mes.valor} value={mes.valor}>{mes.nome}</option>
-            ))}
-          </select>
-          <div className="mt-1 flex gap-2">
-            <button
-              type="button"
-              onClick={() => setFiltroMes(meses.map(m => m.valor))}
-              className="text-xs text-blue-600 hover:underline"
+            <span className={filtroMes.length > 0 ? 'text-gray-900' : 'text-gray-500'}>
+              {filtroMes.length === 0 ? 'Todos' : filtroMes.length === 12 ? 'Todos' : `${filtroMes.length} selecionado(s)`}
+            </span>
+            <svg
+              className={`absolute right-3 top-9 h-5 w-5 transition-transform ${mesDropdownAberto ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              Todos
-            </button>
-            <button
-              type="button"
-              onClick={() => setFiltroMes([])}
-              className="text-xs text-gray-500 hover:underline"
-            >
-              Limpar
-            </button>
-          </div>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {mesDropdownAberto && (
+            <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg">
+              <div className="border-b border-gray-200 p-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFiltroMes(meses.map(m => m.valor))}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  Todos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFiltroMes([])}
+                  className="text-xs text-gray-500 hover:underline"
+                >
+                  Limpar
+                </button>
+              </div>
+              <div className="max-h-48 overflow-y-auto p-2">
+                {meses.map((mes) => (
+                  <label key={mes.valor} className="flex cursor-pointer items-center gap-2 py-1 hover:bg-gray-50 rounded px-1">
+                    <input
+                      type="checkbox"
+                      checked={filtroMes.includes(mes.valor)}
+                      onChange={() => {
+                        if (filtroMes.includes(mes.valor)) {
+                          setFiltroMes(filtroMes.filter(m => m !== mes.valor));
+                        } else {
+                          setFiltroMes([...filtroMes, mes.valor]);
+                        }
+                      }}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">{mes.nome}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
       <div className="mt-4 flex gap-3">
