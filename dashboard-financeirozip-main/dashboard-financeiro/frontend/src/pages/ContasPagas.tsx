@@ -31,6 +31,23 @@ interface TopCredor {
   quantidade: number;
 }
 
+interface RankingCredor {
+  credor: string;
+  valor_pago: number;
+  valor_acrescimo: number;
+  valor_desconto: number;
+  quantidade: number;
+  rank: number;
+  percentual: number;
+  percentual_acumulado: number;
+}
+
+interface RankingCredoresData {
+  credores: RankingCredor[];
+  total_geral: number;
+  total_credores: number;
+}
+
 interface ComparacaoAnual {
   mes_nome: string;
   ano_atual: number;
@@ -52,7 +69,7 @@ export const ContasPagas: React.FC = () => {
   const [estatisticas, setEstatisticas] = useState<Estatisticas | null>(null);
   const [dadosPorMes, setDadosPorMes] = useState<DadosPorMes[]>([]);
   const [dadosPorEmpresa, setDadosPorEmpresa] = useState<DadosPorEmpresa[]>([]);
-  const [topCredores, setTopCredores] = useState<TopCredor[]>([]);
+  const [rankingCredores, setRankingCredores] = useState<RankingCredoresData | null>(null);
   const [comparacaoAnual, setComparacaoAnual] = useState<ComparacaoAnual[]>([]);
   const [comparacaoMensal, setComparacaoMensal] = useState<ComparacaoMensal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -187,7 +204,7 @@ export const ContasPagas: React.FC = () => {
         limite: 500,
       };
 
-      const [contasData, estatData, mesData, empresaData, credoresData, compAnualData, compMensalData] = await Promise.all([
+      const [contasData, estatData, mesData, empresaData, compAnualData, compMensalData, rankingData] = await Promise.all([
         apiService.getContasPagasFiltradas(filtros),
         apiService.getEstatisticasContasPagas(filtros),
         apiService.getEstatisticasPorMes({
@@ -210,18 +227,6 @@ export const ContasPagas: React.FC = () => {
           data_inicio: filtroDataInicio || undefined,
           data_fim: filtroDataFim || undefined,
         }),
-        apiService.getTopCredores({
-          empresa: filtroEmpresa,
-          centro_custo: filtroCentroCusto,
-          id_documento: filtroIdDocumento.length > 0 ? filtroIdDocumento.join(',') : undefined,
-          origem_dado: filtroOrigemDado.length > 0 ? filtroOrigemDado.join(',') : undefined,
-          tipo_baixa: filtroTipoBaixa.length > 0 ? filtroTipoBaixa.join(',') : undefined,
-          ano: filtroAno.length > 0 ? filtroAno.join(',') : undefined,
-          mes: filtroMes.length > 0 ? filtroMes.join(',') : undefined,
-          data_inicio: filtroDataInicio || undefined,
-          data_fim: filtroDataFim || undefined,
-          limite: 1000,
-        }),
         apiService.getComparacaoAnual({
           empresa: filtroEmpresa,
           centro_custo: filtroCentroCusto,
@@ -238,15 +243,26 @@ export const ContasPagas: React.FC = () => {
           origem_dado: filtroOrigemDado.length > 0 ? filtroOrigemDado.join(',') : undefined,
           tipo_baixa: filtroTipoBaixa.length > 0 ? filtroTipoBaixa.join(',') : undefined,
         }),
+        apiService.getRankingCredores({
+          empresa: filtroEmpresa,
+          centro_custo: filtroCentroCusto,
+          id_documento: filtroIdDocumento.length > 0 ? filtroIdDocumento.join(',') : undefined,
+          origem_dado: filtroOrigemDado.length > 0 ? filtroOrigemDado.join(',') : undefined,
+          tipo_baixa: filtroTipoBaixa.length > 0 ? filtroTipoBaixa.join(',') : undefined,
+          ano: filtroAno.length > 0 ? filtroAno.join(',') : undefined,
+          mes: filtroMes.length > 0 ? filtroMes.join(',') : undefined,
+          data_inicio: filtroDataInicio || undefined,
+          data_fim: filtroDataFim || undefined,
+        }),
       ]);
 
       setContas(contasData);
       setEstatisticas(estatData);
       setDadosPorMes(mesData);
       setDadosPorEmpresa(empresaData);
-      setTopCredores(credoresData);
       setComparacaoAnual(compAnualData);
       setComparacaoMensal(compMensalData);
+      setRankingCredores(rankingData);
     } catch (err) {
       setError('Erro ao carregar contas pagas');
       console.error(err);
@@ -1478,50 +1494,119 @@ export const ContasPagas: React.FC = () => {
           </div>
         )}
 
-        {topCredores.length > 0 && (
-          <div className="rounded-lg bg-white p-6 shadow">
-            <h3 className="mb-2 text-xl font-semibold text-gray-900">Top 10 Credores por Valor</h3>
-            <p className="mb-4 text-sm text-gray-500">Maiores fornecedores em volume financeiro</p>
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="py-3 text-left text-sm font-medium text-gray-500">#</th>
-                    <th className="py-3 text-left text-sm font-medium text-gray-500">Credor</th>
-                    <th className="py-3 text-right text-sm font-medium text-gray-500">Valor Total</th>
-                    <th className="py-3 text-right text-sm font-medium text-gray-500">Qtd. Titulos</th>
-                    <th className="py-3 text-left text-sm font-medium text-gray-500">% do Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {topCredores.map((credor, index) => {
-                    const percentual = estatisticas && estatisticas.valor_liquido > 0
-                      ? (credor.valor / estatisticas.valor_liquido) * 100
-                      : 0;
-                    return (
-                      <tr key={credor.credor} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-4 text-sm text-gray-600">{index + 1}</td>
-                        <td className="py-4 text-sm font-medium text-gray-900">{credor.credor}</td>
-                        <td className="py-4 text-right text-sm font-semibold text-green-600">{formatCurrency(credor.valor)}</td>
-                        <td className="py-4 text-right text-sm text-gray-600">{credor.quantidade.toLocaleString('pt-BR')}</td>
-                        <td className="py-4">
-                          <div className="flex items-center">
-                            <div className="mr-2 h-3 w-32 overflow-hidden rounded-full bg-gray-200">
-                              <div 
-                                className="h-full rounded-full bg-blue-500" 
-                                style={{ width: `${Math.min(percentual, 100)}%` }}
-                              />
-                            </div>
-                            <span className="text-sm text-gray-500">{percentual.toFixed(1)}%</span>
-                          </div>
-                        </td>
+        {rankingCredores && rankingCredores.credores.length > 0 && (
+          <>
+            <div className="rounded-lg bg-gray-900 p-6 shadow">
+              <h3 className="mb-2 text-xl font-semibold text-white">Ranking Completo de Credores</h3>
+              <p className="mb-4 text-sm text-gray-400">
+                {rankingCredores.total_credores} credores | Total: {formatCurrency(rankingCredores.total_geral)}
+              </p>
+              <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+                <table className="min-w-full">
+                  <thead className="sticky top-0 bg-gray-800">
+                    <tr className="border-b border-gray-700">
+                      <th className="py-3 px-2 text-left text-sm font-medium text-gray-300">Rank</th>
+                      <th className="py-3 px-2 text-left text-sm font-medium text-gray-300">Credor</th>
+                      <th className="py-3 px-2 text-right text-sm font-medium text-gray-300">Acrescimo</th>
+                      <th className="py-3 px-2 text-right text-sm font-medium text-gray-300">Descontos</th>
+                      <th className="py-3 px-2 text-right text-sm font-medium text-gray-300">Vlr Pago</th>
+                      <th className="py-3 px-2 text-right text-sm font-medium text-gray-300">% Pago</th>
+                      <th className="py-3 px-2 text-right text-sm font-medium text-gray-300">% Acum</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rankingCredores.credores.map((credor) => (
+                      <tr key={`${credor.credor}-${credor.rank}`} className="border-b border-gray-800 hover:bg-gray-800">
+                        <td className="py-3 px-2 text-sm text-gray-400">{credor.rank}</td>
+                        <td className="py-3 px-2 text-sm font-medium text-white">{credor.credor}</td>
+                        <td className="py-3 px-2 text-right text-sm text-gray-400">{formatCurrency(credor.valor_acrescimo)}</td>
+                        <td className="py-3 px-2 text-right text-sm text-gray-400">{formatCurrency(credor.valor_desconto)}</td>
+                        <td className="py-3 px-2 text-right text-sm font-semibold text-cyan-400">{formatCurrency(credor.valor_pago)}</td>
+                        <td className="py-3 px-2 text-right text-sm text-gray-300">{credor.percentual.toFixed(2)}%</td>
+                        <td className="py-3 px-2 text-right text-sm text-gray-300">{credor.percentual_acumulado.toFixed(2)}%</td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    ))}
+                    <tr className="bg-gray-800 font-semibold">
+                      <td className="py-3 px-2 text-sm text-gray-300" colSpan={2}>Total</td>
+                      <td className="py-3 px-2 text-right text-sm text-gray-300">
+                        {formatCurrency(rankingCredores.credores.reduce((acc, c) => acc + c.valor_acrescimo, 0))}
+                      </td>
+                      <td className="py-3 px-2 text-right text-sm text-gray-300">
+                        {formatCurrency(rankingCredores.credores.reduce((acc, c) => acc + c.valor_desconto, 0))}
+                      </td>
+                      <td className="py-3 px-2 text-right text-sm text-cyan-400">{formatCurrency(rankingCredores.total_geral)}</td>
+                      <td className="py-3 px-2 text-right text-sm text-gray-300">100,00%</td>
+                      <td className="py-3 px-2 text-right text-sm text-gray-300">100,00%</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+
+            <div className="rounded-lg bg-white p-6 shadow">
+              <h3 className="mb-2 text-xl font-semibold text-gray-900">Grafico de Pareto - Credores</h3>
+              <p className="mb-4 text-sm text-gray-500">Analise de concentracao de pagamentos por credor</p>
+              <div className="h-96">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart 
+                    data={rankingCredores.credores.slice(0, 20)} 
+                    margin={{ top: 20, right: 60, left: 20, bottom: 120 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="credor" 
+                      tick={{ fontSize: 9 }}
+                      angle={-45}
+                      textAnchor="end"
+                      interval={0}
+                      height={100}
+                    />
+                    <YAxis 
+                      yAxisId="left"
+                      tickFormatter={(value) => formatCurrencyShort(value)} 
+                      tick={{ fontSize: 11 }}
+                    />
+                    <YAxis 
+                      yAxisId="right"
+                      orientation="right"
+                      domain={[0, 100]}
+                      tickFormatter={(value) => `${value}%`}
+                      tick={{ fontSize: 11 }}
+                    />
+                    <Tooltip
+                      formatter={(value: number, name: string) => {
+                        if (name === 'valor_pago') return [formatCurrency(value), 'Valor Pago'];
+                        if (name === 'percentual_acumulado') return [`${value.toFixed(2)}%`, '% Acumulado'];
+                        return [value, name];
+                      }}
+                      labelFormatter={(label) => label}
+                    />
+                    <Legend />
+                    <Bar 
+                      yAxisId="left"
+                      dataKey="valor_pago" 
+                      fill="#06B6D4" 
+                      name="Valor Pago"
+                      radius={[4, 4, 0, 0]}
+                    >
+                      {rankingCredores.credores.slice(0, 20).map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Bar>
+                    <Line 
+                      yAxisId="right"
+                      type="monotone" 
+                      dataKey="percentual_acumulado" 
+                      stroke="#EF4444" 
+                      strokeWidth={3}
+                      name="% Acumulado"
+                      dot={{ r: 4, fill: '#EF4444' }}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </>
         )}
       </div>
     );
