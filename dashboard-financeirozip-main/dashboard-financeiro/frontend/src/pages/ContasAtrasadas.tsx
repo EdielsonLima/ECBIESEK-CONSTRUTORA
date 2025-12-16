@@ -48,8 +48,32 @@ export const ContasAtrasadas: React.FC = () => {
   const [centrosCusto, setCentrosCusto] = useState<CentroCustoOption[]>([]);
   const [filtroEmpresa, setFiltroEmpresa] = useState<number | null>(null);
   const [filtroCentroCusto, setFiltroCentroCusto] = useState<number | null>(null);
+  const [filtroAno, setFiltroAno] = useState<number | null>(null);
+  const [filtroMes, setFiltroMes] = useState<number[]>([]);
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [todasContas, setTodasContas] = useState<ContaPagar[]>([]);
+  const [mesDropdownAberto, setMesDropdownAberto] = useState(false);
   const [ordenacao, setOrdenacao] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'dias_atraso', direcao: 'desc' });
+
+  const meses = [
+    { valor: 1, nome: 'Janeiro' },
+    { valor: 2, nome: 'Fevereiro' },
+    { valor: 3, nome: 'Marco' },
+    { valor: 4, nome: 'Abril' },
+    { valor: 5, nome: 'Maio' },
+    { valor: 6, nome: 'Junho' },
+    { valor: 7, nome: 'Julho' },
+    { valor: 8, nome: 'Agosto' },
+    { valor: 9, nome: 'Setembro' },
+    { valor: 10, nome: 'Outubro' },
+    { valor: 11, nome: 'Novembro' },
+    { valor: 12, nome: 'Dezembro' },
+  ];
+
+  const anosDisponiveis = () => {
+    const anoAtual = new Date().getFullYear();
+    return [anoAtual - 2, anoAtual - 1, anoAtual, anoAtual + 1];
+  };
 
   const ordenarContas = (contasParaOrdenar: ContaPagar[]) => {
     return [...contasParaOrdenar].sort((a, b) => {
@@ -158,94 +182,11 @@ export const ContasAtrasadas: React.FC = () => {
     carregarFiltros();
   }, []);
 
-  const buscarDados = async () => {
+  const carregarDados = async () => {
     try {
       setLoading(true);
       const data = await apiService.getContas('em_atraso', 500);
-      
-      let contasFiltradas = data;
-      if (filtroEmpresa) {
-        contasFiltradas = contasFiltradas.filter(c => c.id_interno_empresa === filtroEmpresa);
-      }
-      if (filtroCentroCusto) {
-        contasFiltradas = contasFiltradas.filter(c => c.id_interno_centro_custo === filtroCentroCusto);
-      }
-      
-      setContas(contasFiltradas);
-
-      const totalDiasAtraso = contasFiltradas.reduce((acc, c) => acc + calcularDiasAtraso(c.data_vencimento as any), 0);
-      const stats: Estatisticas = {
-        quantidade_titulos: contasFiltradas.length,
-        valor_total: contasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0),
-        valor_medio: contasFiltradas.length > 0 
-          ? contasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0) / contasFiltradas.length 
-          : 0,
-        dias_atraso_medio: contasFiltradas.length > 0 ? Math.round(totalDiasAtraso / contasFiltradas.length) : 0,
-      };
-      setEstatisticas(stats);
-
-      const credorMap = new Map<string, { valor: number; quantidade: number; dias_atraso_max: number }>();
-      contasFiltradas.forEach(c => {
-        const credor = c.credor || 'Sem Credor';
-        const diasAtraso = calcularDiasAtraso(c.data_vencimento as any);
-        const atual = credorMap.get(credor) || { valor: 0, quantidade: 0, dias_atraso_max: 0 };
-        credorMap.set(credor, {
-          valor: atual.valor + (c.valor_total || 0),
-          quantidade: atual.quantidade + 1,
-          dias_atraso_max: Math.max(atual.dias_atraso_max, diasAtraso),
-        });
-      });
-      const credorArray = Array.from(credorMap.entries())
-        .map(([credor, data]) => ({ credor, ...data }))
-        .sort((a, b) => b.valor - a.valor)
-        .slice(0, 15);
-      setDadosPorCredor(credorArray);
-
-      const empresaMap = new Map<string, { valor: number; quantidade: number }>();
-      contasFiltradas.forEach(c => {
-        const empresa = c.nome_empresa || 'Sem Empresa';
-        const atual = empresaMap.get(empresa) || { valor: 0, quantidade: 0 };
-        empresaMap.set(empresa, {
-          valor: atual.valor + (c.valor_total || 0),
-          quantidade: atual.quantidade + 1,
-        });
-      });
-      const empresaArray = Array.from(empresaMap.entries())
-        .map(([empresa, data]) => ({ empresa, ...data }))
-        .sort((a, b) => b.valor - a.valor);
-      setDadosPorEmpresa(empresaArray);
-
-      const faixas = [
-        { faixa: '1-7 dias', min: 1, max: 7, ordem: 1 },
-        { faixa: '8-15 dias', min: 8, max: 15, ordem: 2 },
-        { faixa: '16-30 dias', min: 16, max: 30, ordem: 3 },
-        { faixa: '31-60 dias', min: 31, max: 60, ordem: 4 },
-        { faixa: '61-90 dias', min: 61, max: 90, ordem: 5 },
-        { faixa: '+90 dias', min: 91, max: Infinity, ordem: 6 },
-      ];
-      
-      const faixaMap = new Map<string, { valor: number; quantidade: number; ordem: number }>();
-      faixas.forEach(f => faixaMap.set(f.faixa, { valor: 0, quantidade: 0, ordem: f.ordem }));
-      
-      contasFiltradas.forEach(c => {
-        const dias = calcularDiasAtraso(c.data_vencimento as any);
-        const faixa = faixas.find(f => dias >= f.min && dias <= f.max);
-        if (faixa) {
-          const atual = faixaMap.get(faixa.faixa)!;
-          faixaMap.set(faixa.faixa, {
-            valor: atual.valor + (c.valor_total || 0),
-            quantidade: atual.quantidade + 1,
-            ordem: atual.ordem,
-          });
-        }
-      });
-      
-      const faixaArray = Array.from(faixaMap.entries())
-        .map(([faixa, data]) => ({ faixa, ...data }))
-        .filter(d => d.quantidade > 0)
-        .sort((a, b) => a.ordem - b.ordem);
-      setDadosPorFaixaAtraso(faixaArray);
-
+      setTodasContas(data);
     } catch (err) {
       setError('Erro ao carregar contas atrasadas');
       console.error(err);
@@ -254,18 +195,128 @@ export const ContasAtrasadas: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    buscarDados();
-  }, []);
-
-  const aplicarFiltros = () => {
-    buscarDados();
+  const aplicarFiltrosLocais = (
+    dados: ContaPagar[],
+    empresa: number | null,
+    cc: number | null,
+    ano: number | null,
+    mesesSelecionados: number[]
+  ) => {
+    let contasFiltradas = [...dados];
+    
+    if (empresa) {
+      contasFiltradas = contasFiltradas.filter(c => c.id_interno_empresa === empresa);
+    }
+    if (cc) {
+      contasFiltradas = contasFiltradas.filter(c => c.id_interno_centro_custo === cc);
+    }
+    if (ano) {
+      contasFiltradas = contasFiltradas.filter(c => {
+        if (!c.data_vencimento) return false;
+        const dataVenc = new Date(c.data_vencimento);
+        return dataVenc.getFullYear() === ano;
+      });
+    }
+    if (mesesSelecionados.length > 0) {
+      contasFiltradas = contasFiltradas.filter(c => {
+        if (!c.data_vencimento) return false;
+        const dataVenc = new Date(c.data_vencimento);
+        return mesesSelecionados.includes(dataVenc.getMonth() + 1);
+      });
+    }
+    
+    return contasFiltradas;
   };
+
+  useEffect(() => {
+    if (todasContas.length === 0) return;
+    
+    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroAno, filtroMes);
+    setContas(contasFiltradas);
+
+    const totalDiasAtraso = contasFiltradas.reduce((acc, c) => acc + calcularDiasAtraso(c.data_vencimento as any), 0);
+    const stats: Estatisticas = {
+      quantidade_titulos: contasFiltradas.length,
+      valor_total: contasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0),
+      valor_medio: contasFiltradas.length > 0 
+        ? contasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0) / contasFiltradas.length 
+        : 0,
+      dias_atraso_medio: contasFiltradas.length > 0 ? Math.round(totalDiasAtraso / contasFiltradas.length) : 0,
+    };
+    setEstatisticas(stats);
+
+    const credorMap = new Map<string, { valor: number; quantidade: number; dias_atraso_max: number }>();
+    contasFiltradas.forEach(c => {
+      const credor = c.credor || 'Sem Credor';
+      const diasAtraso = calcularDiasAtraso(c.data_vencimento as any);
+      const atual = credorMap.get(credor) || { valor: 0, quantidade: 0, dias_atraso_max: 0 };
+      credorMap.set(credor, {
+        valor: atual.valor + (c.valor_total || 0),
+        quantidade: atual.quantidade + 1,
+        dias_atraso_max: Math.max(atual.dias_atraso_max, diasAtraso),
+      });
+    });
+    const credorArray = Array.from(credorMap.entries())
+      .map(([credor, data]) => ({ credor, ...data }))
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 15);
+    setDadosPorCredor(credorArray);
+
+    const empresaMap = new Map<string, { valor: number; quantidade: number }>();
+    contasFiltradas.forEach(c => {
+      const empresa = c.nome_empresa || 'Sem Empresa';
+      const atual = empresaMap.get(empresa) || { valor: 0, quantidade: 0 };
+      empresaMap.set(empresa, {
+        valor: atual.valor + (c.valor_total || 0),
+        quantidade: atual.quantidade + 1,
+      });
+    });
+    const empresaArray = Array.from(empresaMap.entries())
+      .map(([empresa, data]) => ({ empresa, ...data }))
+      .sort((a, b) => b.valor - a.valor);
+    setDadosPorEmpresa(empresaArray);
+
+    const faixas = [
+      { faixa: '1-7 dias', min: 1, max: 7, ordem: 1 },
+      { faixa: '8-15 dias', min: 8, max: 15, ordem: 2 },
+      { faixa: '16-30 dias', min: 16, max: 30, ordem: 3 },
+      { faixa: '31-60 dias', min: 31, max: 60, ordem: 4 },
+      { faixa: '61-90 dias', min: 61, max: 90, ordem: 5 },
+      { faixa: '+90 dias', min: 91, max: Infinity, ordem: 6 },
+    ];
+    
+    const faixaMap = new Map<string, { valor: number; quantidade: number; ordem: number }>();
+    faixas.forEach(f => faixaMap.set(f.faixa, { valor: 0, quantidade: 0, ordem: f.ordem }));
+    
+    contasFiltradas.forEach(c => {
+      const dias = calcularDiasAtraso(c.data_vencimento as any);
+      const faixa = faixas.find(f => dias >= f.min && dias <= f.max);
+      if (faixa) {
+        const atual = faixaMap.get(faixa.faixa)!;
+        faixaMap.set(faixa.faixa, {
+          valor: atual.valor + (c.valor_total || 0),
+          quantidade: atual.quantidade + 1,
+          ordem: atual.ordem,
+        });
+      }
+    });
+    
+    const faixaArray = Array.from(faixaMap.entries())
+      .map(([faixa, data]) => ({ faixa, ...data }))
+      .filter(d => d.quantidade > 0)
+      .sort((a, b) => a.ordem - b.ordem);
+    setDadosPorFaixaAtraso(faixaArray);
+  }, [todasContas, filtroEmpresa, filtroCentroCusto, filtroAno, filtroMes]);
+
+  useEffect(() => {
+    carregarDados();
+  }, []);
 
   const limparFiltros = () => {
     setFiltroEmpresa(null);
     setFiltroCentroCusto(null);
-    setTimeout(buscarDados, 100);
+    setFiltroAno(null);
+    setFiltroMes([]);
   };
 
   if (loading) {
@@ -293,7 +344,7 @@ export const ContasAtrasadas: React.FC = () => {
         <SearchableSelect
           options={empresas}
           value={filtroEmpresa ?? undefined}
-          onChange={(value) => { setFiltroEmpresa(value as number | null); setTimeout(buscarDados, 100); }}
+          onChange={(value) => setFiltroEmpresa(value as number | null)}
           label="Empresa"
           placeholder="Selecione uma empresa..."
           emptyText="Todas"
@@ -301,26 +352,91 @@ export const ContasAtrasadas: React.FC = () => {
         <SearchableSelect
           options={centrosCusto}
           value={filtroCentroCusto ?? undefined}
-          onChange={(value) => { setFiltroCentroCusto(value as number | null); setTimeout(buscarDados, 100); }}
+          onChange={(value) => setFiltroCentroCusto(value as number | null)}
           label="Centro de Custo"
           placeholder="Selecione um centro de custo..."
           emptyText="Todos"
         />
+        <div>
+          <label className="mb-2 block text-sm font-medium text-gray-700">Ano</label>
+          <select
+            value={filtroAno ?? ''}
+            onChange={(e) => setFiltroAno(e.target.value ? Number(e.target.value) : null)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-red-500 focus:outline-none"
+          >
+            <option value="">Todos</option>
+            {anosDisponiveis().map((ano) => (
+              <option key={ano} value={ano}>{ano}</option>
+            ))}
+          </select>
+        </div>
+        <div className="relative">
+          <label className="mb-2 block text-sm font-medium text-gray-700">Mes</label>
+          <button
+            type="button"
+            onClick={() => setMesDropdownAberto(!mesDropdownAberto)}
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-red-500 focus:outline-none"
+          >
+            <span className={filtroMes.length > 0 ? 'text-gray-900' : 'text-gray-500'}>
+              {filtroMes.length === 0 ? 'Todos' : filtroMes.length === 12 ? 'Todos' : `${filtroMes.length} selecionado(s)`}
+            </span>
+            <svg
+              className={`absolute right-3 top-9 h-5 w-5 transition-transform ${mesDropdownAberto ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {mesDropdownAberto && (
+            <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg">
+              <div className="border-b border-gray-200 p-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFiltroMes(meses.map(m => m.valor))}
+                  className="text-xs text-red-600 hover:underline"
+                >
+                  Todos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFiltroMes([])}
+                  className="text-xs text-gray-500 hover:underline"
+                >
+                  Limpar
+                </button>
+              </div>
+              <div className="max-h-48 overflow-y-auto p-2">
+                {meses.map((mes) => (
+                  <label key={mes.valor} className="flex cursor-pointer items-center gap-2 py-1 hover:bg-gray-50 rounded px-1">
+                    <input
+                      type="checkbox"
+                      checked={filtroMes.includes(mes.valor)}
+                      onChange={() => {
+                        if (filtroMes.includes(mes.valor)) {
+                          setFiltroMes(filtroMes.filter(m => m !== mes.valor));
+                        } else {
+                          setFiltroMes([...filtroMes, mes.valor]);
+                        }
+                      }}
+                      className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                    />
+                    <span className="text-sm text-gray-700">{mes.nome}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
       <div className="mt-4 flex gap-3">
-        <button
-          type="button"
-          onClick={aplicarFiltros}
-          className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
-        >
-          Aplicar Filtros
-        </button>
         <button
           type="button"
           onClick={limparFiltros}
           className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
         >
-          Limpar
+          Limpar Filtros
         </button>
       </div>
     </div>
@@ -343,12 +459,21 @@ export const ContasAtrasadas: React.FC = () => {
     
     const empresaNome = getEmpresaNome(filtroEmpresa);
     if (empresaNome) {
-      tags.push({ label: 'Empresa', value: empresaNome, onRemove: () => { setFiltroEmpresa(null); setTimeout(buscarDados, 100); } });
+      tags.push({ label: 'Empresa', value: empresaNome, onRemove: () => setFiltroEmpresa(null) });
     }
     
     const ccNome = getCentroCustoNome(filtroCentroCusto);
     if (ccNome) {
-      tags.push({ label: 'Centro de Custo', value: ccNome, onRemove: () => { setFiltroCentroCusto(null); setTimeout(buscarDados, 100); } });
+      tags.push({ label: 'Centro de Custo', value: ccNome, onRemove: () => setFiltroCentroCusto(null) });
+    }
+
+    if (filtroAno) {
+      tags.push({ label: 'Ano', value: String(filtroAno), onRemove: () => setFiltroAno(null) });
+    }
+
+    if (filtroMes.length > 0 && filtroMes.length < 12) {
+      const mesesNomes = filtroMes.map(m => meses.find(mes => mes.valor === m)?.nome || '').join(', ');
+      tags.push({ label: 'Meses', value: mesesNomes, onRemove: () => setFiltroMes([]) });
     }
 
     if (tags.length === 0) return null;
