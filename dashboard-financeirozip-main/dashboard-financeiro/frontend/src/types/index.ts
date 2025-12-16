@@ -128,3 +128,28 @@ export interface KPIResumo {
   status_meta?: string;
   calculo_automatico?: string;
 }
+
+export interface ContaReceber {
+  cliente: string;
+  id_cliente?: number;
+  data_vencimento?: string;
+  data_recebimento?: string;
+  valor_total: number;
+  lancamento?: string;
+  numero_documento?: string;
+  id_documento?: string;
+  id_plano_financeiro?: string;
+  id_interno_empresa?: number;
+  id_interno_centro_custo?: number;
+  nome_empresa?: string;
+  nome_centrocusto?: string;
+}
+
+export interface MetricasReceber {
+  total_recebido: number;
+  total_a_receber: number;
+  total_em_atraso: number;
+  quantidade_recebido: number;
+  quantidade_a_receber: number;
+  quantidade_em_atraso: number;
+}

@@ -8,7 +8,8 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpen, setIsOpen }) => {
-  const [contasSubmenuOpen, setContasSubmenuOpen] = useState(true);
+  const [contasPagarSubmenuOpen, setContasPagarSubmenuOpen] = useState(true);
+  const [contasReceberSubmenuOpen, setContasReceberSubmenuOpen] = useState(true);
 
   const menuItems = [
     {
@@ -21,8 +22,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
       ),
     },
     {
-      id: 'contas',
+      id: 'contas-pagar',
       label: 'Contas a Pagar',
+      submenuKey: 'pagar',
       icon: (
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -32,6 +34,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
         { id: 'contas-a-pagar', label: 'A Pagar' },
         { id: 'contas-pagas', label: 'Pagas' },
         { id: 'contas-atrasadas', label: 'Atrasadas' },
+      ],
+    },
+    {
+      id: 'contas-receber',
+      label: 'Contas a Receber',
+      submenuKey: 'receber',
+      icon: (
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      submenu: [
+        { id: 'contas-a-receber', label: 'A Receber' },
+        { id: 'contas-recebidas', label: 'Recebidas' },
+        { id: 'recebimentos-atrasados', label: 'Atrasadas' },
       ],
     },
     {
@@ -72,63 +89,72 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
 
         {/* Menu Items */}
         <nav className="mt-4 px-2">
-          {menuItems.map((item) => (
-            <div key={item.id}>
-              {/* Menu Item Principal */}
-              <button
-                onClick={() => {
-                  if (item.submenu) {
-                    setContasSubmenuOpen(!contasSubmenuOpen);
-                  } else {
-                    onNavigate(item.id);
-                  }
-                }}
-                className={`mb-1 flex w-full items-center rounded-lg px-3 py-3 transition-colors ${
-                  currentPage === item.id
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-300 hover:bg-gray-800'
-                }`}
-              >
-                <span className="flex-shrink-0">{item.icon}</span>
-                {isOpen && (
-                  <>
-                    <span className="ml-3 flex-1 text-left">{item.label}</span>
-                    {item.submenu && (
-                      <svg
-                        className={`h-5 w-5 transition-transform ${
-                          contasSubmenuOpen ? 'rotate-90' : ''
-                        }`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    )}
-                  </>
-                )}
-              </button>
+          {menuItems.map((item) => {
+            const isSubmenuOpen = item.submenuKey === 'pagar' ? contasPagarSubmenuOpen : 
+                                  item.submenuKey === 'receber' ? contasReceberSubmenuOpen : false;
+            
+            return (
+              <div key={item.id}>
+                {/* Menu Item Principal */}
+                <button
+                  onClick={() => {
+                    if (item.submenu) {
+                      if (item.submenuKey === 'pagar') {
+                        setContasPagarSubmenuOpen(!contasPagarSubmenuOpen);
+                      } else if (item.submenuKey === 'receber') {
+                        setContasReceberSubmenuOpen(!contasReceberSubmenuOpen);
+                      }
+                    } else {
+                      onNavigate(item.id);
+                    }
+                  }}
+                  className={`mb-1 flex w-full items-center rounded-lg px-3 py-3 transition-colors ${
+                    currentPage === item.id
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-300 hover:bg-gray-800'
+                  }`}
+                >
+                  <span className="flex-shrink-0">{item.icon}</span>
+                  {isOpen && (
+                    <>
+                      <span className="ml-3 flex-1 text-left">{item.label}</span>
+                      {item.submenu && (
+                        <svg
+                          className={`h-5 w-5 transition-transform ${
+                            isSubmenuOpen ? 'rotate-90' : ''
+                          }`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      )}
+                    </>
+                  )}
+                </button>
 
-              {/* Submenu */}
-              {item.submenu && isOpen && contasSubmenuOpen && (
-                <div className="ml-4 mt-1 space-y-1">
-                  {item.submenu.map((subItem) => (
-                    <button
-                      key={subItem.id}
-                      onClick={() => onNavigate(subItem.id)}
-                      className={`flex w-full items-center rounded-lg px-3 py-2 text-sm transition-colors ${
-                        currentPage === subItem.id
-                          ? 'bg-blue-600 text-white'
-                          : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                      }`}
-                    >
-                      <span className="ml-6">{subItem.label}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+                {/* Submenu */}
+                {item.submenu && isOpen && isSubmenuOpen && (
+                  <div className="ml-4 mt-1 space-y-1">
+                    {item.submenu.map((subItem) => (
+                      <button
+                        key={subItem.id}
+                        onClick={() => onNavigate(subItem.id)}
+                        className={`flex w-full items-center rounded-lg px-3 py-2 text-sm transition-colors ${
+                          currentPage === subItem.id
+                            ? 'bg-blue-600 text-white'
+                            : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                        }`}
+                      >
+                        <span className="ml-6">{subItem.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
       </div>
 
