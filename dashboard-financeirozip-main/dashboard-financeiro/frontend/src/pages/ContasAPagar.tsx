@@ -137,9 +137,9 @@ export const ContasAPagar: React.FC = () => {
         const dias = calcularDiasAteVencimento(c.data_vencimento as any);
         switch (prazo) {
           case 'hoje': return dias === 0;
-          case '7dias': return dias >= 0 && dias <= 7;
-          case '15dias': return dias >= 0 && dias <= 15;
-          case '30dias': return dias >= 0 && dias <= 30;
+          case '7dias': return dias >= 1 && dias <= 7;
+          case '15dias': return dias >= 1 && dias <= 15;
+          case '30dias': return dias >= 1 && dias <= 30;
           default: return true;
         }
       });
