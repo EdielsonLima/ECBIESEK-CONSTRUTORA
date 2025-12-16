@@ -59,3 +59,8 @@ exposeLocalhost = true
 deploymentTarget = "autoscale"
 run = ["sh", "-c", "cd dashboard-financeirozip-main/dashboard-financeiro/backend && python -m uvicorn main:app --host 0.0.0.0 --port 5000"]
 build = ["sh", "-c", "npm --prefix dashboard-financeirozip-main/dashboard-financeiro/frontend install && npm --prefix dashboard-financeirozip-main/dashboard-financeiro/frontend run build"]
+
+[userenv]
+
+[userenv.shared]
+JWT_SECRET_KEY = "1337b26dd9218202fd2a32e2a0311140dc44e560a4c8a5150e8f699aa4c3537a"

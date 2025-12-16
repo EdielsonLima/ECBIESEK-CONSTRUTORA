@@ -1,7 +1,8 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime, date, timedelta
@@ -10,8 +11,19 @@ from psycopg2.extras import RealDictCursor
 from decimal import Decimal
 import os
 from pathlib import Path
+from passlib.context import CryptContext
+from jose import JWTError, jwt
 
 app = FastAPI(title="Dashboard Financeiro - Construtora")
+
+# Configuração de segurança JWT
+JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'fallback-secret-key-change-in-production')
+JWT_ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 horas
+
+# Configuração de hash de senha
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 # Configurar CORS
 app.add_middleware(
@@ -76,6 +88,29 @@ class OrigemMetaUpdate(BaseModel):
     origens: Optional[List[str]] = None
     meta_percentual: Optional[float] = None
 
+# Modelos de autenticação
+class UserCreate(BaseModel):
+    email: str
+    nome: str
+    senha: str
+
+class UserLogin(BaseModel):
+    email: str
+    senha: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    email: Optional[str] = None
+
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    nome: str
+    ativo: bool
+
 # Funções auxiliares
 def get_db_connection():
     """Cria conexão com o banco de dados externo (dados financeiros)"""
@@ -129,6 +164,217 @@ def create_origem_metas_table():
         conn.close()
 
 create_origem_metas_table()
+
+# ============ AUTENTICAÇÃO ============
+
+def create_users_table():
+    """Cria tabela de usuários no banco Replit se não existir"""
+    if not REPLIT_DB_URL:
+        print("Banco de dados Replit não configurado, pulando criação de tabela usuarios")
+        return
+    conn = get_replit_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id SERIAL PRIMARY KEY,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                nome VARCHAR(255) NOT NULL,
+                senha_hash VARCHAR(255) NOT NULL,
+                ativo BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.commit()
+        print("Tabela usuarios criada/verificada com sucesso")
+    except Exception as e:
+        conn.rollback()
+        print(f"Erro ao criar tabela usuarios: {e}")
+    finally:
+        cursor.close()
+        conn.close()
+
+create_users_table()
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verifica se a senha corresponde ao hash"""
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password: str) -> str:
+    """Gera hash da senha"""
+    return pwd_context.hash(password)
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """Cria token JWT"""
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    return encoded_jwt
+
+def get_user_by_email(email: str):
+    """Busca usuário por email"""
+    if not REPLIT_DB_URL:
+        return None
+    conn = get_replit_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id, email, nome, senha_hash, ativo FROM usuarios WHERE email = %s", (email,))
+        return cursor.fetchone()
+    finally:
+        cursor.close()
+        conn.close()
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    """Obtém usuário atual a partir do token JWT"""
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Não autenticado",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token inválido",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido ou expirado",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    user = get_user_by_email(email)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Usuário não encontrado",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
+
+async def get_current_user_optional(token: str = Depends(oauth2_scheme)):
+    """Obtém usuário atual se autenticado, ou None se não"""
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            return None
+        return get_user_by_email(email)
+    except JWTError:
+        return None
+
+# Endpoints de autenticação
+@app.post("/api/auth/register")
+def register_user(user: UserCreate):
+    """Registra novo usuário"""
+    if not REPLIT_DB_URL:
+        raise HTTPException(status_code=500, detail="Banco de dados não configurado")
+    
+    existing_user = get_user_by_email(user.email)
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email já cadastrado")
+    
+    if len(user.senha) < 6:
+        raise HTTPException(status_code=400, detail="Senha deve ter pelo menos 6 caracteres")
+    
+    senha_hash = get_password_hash(user.senha)
+    
+    conn = get_replit_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            INSERT INTO usuarios (email, nome, senha_hash)
+            VALUES (%s, %s, %s)
+            RETURNING id
+        """, (user.email.lower(), user.nome, senha_hash))
+        new_id = cursor.fetchone()['id']
+        conn.commit()
+        
+        access_token = create_access_token(data={"sub": user.email.lower()})
+        return {"access_token": access_token, "token_type": "bearer", "user": {"id": new_id, "email": user.email.lower(), "nome": user.nome}}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.post("/api/auth/login")
+def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    """Login de usuário"""
+    user = get_user_by_email(form_data.username.lower())
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email ou senha incorretos",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    if not verify_password(form_data.password, user['senha_hash']):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email ou senha incorretos",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    if not user['ativo']:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Usuário desativado",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    access_token = create_access_token(data={"sub": user['email']})
+    return {"access_token": access_token, "token_type": "bearer", "user": {"id": user['id'], "email": user['email'], "nome": user['nome']}}
+
+@app.post("/api/auth/login-json")
+def login_json(user_login: UserLogin):
+    """Login de usuário via JSON"""
+    user = get_user_by_email(user_login.email.lower())
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email ou senha incorretos",
+        )
+    
+    if not verify_password(user_login.senha, user['senha_hash']):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email ou senha incorretos",
+        )
+    
+    if not user['ativo']:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Usuário desativado",
+        )
+    
+    access_token = create_access_token(data={"sub": user['email']})
+    return {"access_token": access_token, "token_type": "bearer", "user": {"id": user['id'], "email": user['email'], "nome": user['nome']}}
+
+@app.get("/api/auth/me")
+async def get_me(current_user: dict = Depends(get_current_user)):
+    """Retorna dados do usuário autenticado"""
+    return {"id": current_user['id'], "email": current_user['email'], "nome": current_user['nome'], "ativo": current_user['ativo']}
+
+@app.get("/api/auth/check")
+async def check_auth(current_user: dict = Depends(get_current_user_optional)):
+    """Verifica se usuário está autenticado"""
+    if current_user:
+        return {"authenticated": True, "user": {"id": current_user['id'], "email": current_user['email'], "nome": current_user['nome']}}
+    return {"authenticated": False}
 
 # Endpoints
 @app.get("/api/health")

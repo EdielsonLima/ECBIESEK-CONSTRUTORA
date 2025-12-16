@@ -10,6 +10,92 @@ const api = axios.create({
   },
 });
 
+// Interceptor para adicionar token de autenticação
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Interceptor para tratar erros de autenticação
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Interfaces de autenticação
+export interface User {
+  id: number;
+  email: string;
+  nome: string;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: User;
+}
+
+export interface AuthCheckResponse {
+  authenticated: boolean;
+  user?: User;
+}
+
+// Serviços de autenticação
+export const authService = {
+  login: async (email: string, senha: string): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/login-json', { email, senha });
+    localStorage.setItem('access_token', response.data.access_token);
+    localStorage.setItem('user', JSON.stringify(response.data.user));
+    return response.data;
+  },
+
+  register: async (email: string, nome: string, senha: string): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/register', { email, nome, senha });
+    localStorage.setItem('access_token', response.data.access_token);
+    localStorage.setItem('user', JSON.stringify(response.data.user));
+    return response.data;
+  },
+
+  logout: () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+  },
+
+  checkAuth: async (): Promise<AuthCheckResponse> => {
+    try {
+      const response = await api.get<AuthCheckResponse>('/auth/check');
+      return response.data;
+    } catch {
+      return { authenticated: false };
+    }
+  },
+
+  getStoredUser: (): User | null => {
+    const user = localStorage.getItem('user');
+    return user ? JSON.parse(user) : null;
+  },
+
+  isAuthenticated: (): boolean => {
+    return !!localStorage.getItem('access_token');
+  }
+};
+
 export const apiService = {
   // Métricas principais
   getMetricas: async (): Promise<DashboardMetrics> => {
