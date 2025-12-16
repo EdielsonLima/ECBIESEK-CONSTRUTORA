@@ -52,6 +52,64 @@ export const ContasAPagar: React.FC = () => {
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [todasContas, setTodasContas] = useState<ContaPagar[]>([]);
   const [mesDropdownAberto, setMesDropdownAberto] = useState(false);
+  const [ordenacao, setOrdenacao] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'data_vencimento', direcao: 'asc' });
+
+  const ordenarContas = (contasParaOrdenar: ContaPagar[]) => {
+    return [...contasParaOrdenar].sort((a, b) => {
+      let valorA: any;
+      let valorB: any;
+      
+      switch (ordenacao.campo) {
+        case 'credor':
+          valorA = (a.credor || '').toLowerCase();
+          valorB = (b.credor || '').toLowerCase();
+          break;
+        case 'data_vencimento':
+          valorA = new Date(a.data_vencimento || 0).getTime();
+          valorB = new Date(b.data_vencimento || 0).getTime();
+          break;
+        case 'dias':
+          valorA = calcularDiasAteVencimento(a.data_vencimento as any);
+          valorB = calcularDiasAteVencimento(b.data_vencimento as any);
+          break;
+        case 'valor_total':
+          valorA = a.valor_total || 0;
+          valorB = b.valor_total || 0;
+          break;
+        case 'numero_documento':
+          valorA = (a.numero_documento || '').toLowerCase();
+          valorB = (b.numero_documento || '').toLowerCase();
+          break;
+        case 'nome_empresa':
+          valorA = (a.nome_empresa || '').toLowerCase();
+          valorB = (b.nome_empresa || '').toLowerCase();
+          break;
+        default:
+          return 0;
+      }
+      
+      if (valorA < valorB) return ordenacao.direcao === 'asc' ? -1 : 1;
+      if (valorA > valorB) return ordenacao.direcao === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
+  const toggleOrdenacao = (campo: string) => {
+    setOrdenacao(prev => ({
+      campo,
+      direcao: prev.campo === campo && prev.direcao === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  const renderSortIcon = (campo: string) => (
+    <span className="ml-1 inline-block">
+      {ordenacao.campo === campo ? (
+        ordenacao.direcao === 'asc' ? '▲' : '▼'
+      ) : (
+        <span className="text-gray-300">▼</span>
+      )}
+    </span>
+  );
 
   const meses = [
     { valor: 1, nome: 'Janeiro' },
@@ -538,16 +596,28 @@ export const ContasAPagar: React.FC = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-blue-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Credor</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Vencimento</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Dias</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Valor</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Documento</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Empresa</th>
+                <th onClick={() => toggleOrdenacao('credor')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                  Credor{renderSortIcon('credor')}
+                </th>
+                <th onClick={() => toggleOrdenacao('data_vencimento')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                  Vencimento{renderSortIcon('data_vencimento')}
+                </th>
+                <th onClick={() => toggleOrdenacao('dias')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                  Dias{renderSortIcon('dias')}
+                </th>
+                <th onClick={() => toggleOrdenacao('valor_total')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                  Valor{renderSortIcon('valor_total')}
+                </th>
+                <th onClick={() => toggleOrdenacao('numero_documento')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                  Documento{renderSortIcon('numero_documento')}
+                </th>
+                <th onClick={() => toggleOrdenacao('nome_empresa')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                  Empresa{renderSortIcon('nome_empresa')}
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 bg-white">
-              {contas.slice(0, 100).map((conta, index) => {
+              {ordenarContas(contas).slice(0, 100).map((conta, index) => {
                 const dias = calcularDiasAteVencimento(conta.data_vencimento as any);
                 const corDias = dias < 0 ? 'text-red-600' : dias <= 7 ? 'text-orange-600' : 'text-green-600';
                 return (
