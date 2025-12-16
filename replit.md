@@ -77,7 +77,15 @@ PostgreSQL database with tables for accounts payable and receivable:
 - `contas_a_receber`: Pending receivables with cliente, valor_total, data_vencimento, id_documento
 - `contas_recebidas`: Received payments with cliente, valor_total, valor_liquido, data_recebimento
 
-Additional tables for KPIs and related tracking functionality.
+**KPI Tables (Replit PostgreSQL - auto-created on startup)**:
+- `kpis`: KPI definitions with descricao, categoria, indice, meta, tipo_meta, unidade, calculo_automatico, documentos_excluidos
+- `kpis_historico`: Historical daily snapshots of KPI values with kpi_id, valor, data_registro
+
+The KPI system supports:
+- Manual and automatic KPIs (linked to system calculations like "Títulos Vencidos")
+- Daily variation tracking (today vs yesterday)
+- Historical comparison with trend indicators
+- Snapshot creation for recording current values
 
 ## External Dependencies
 

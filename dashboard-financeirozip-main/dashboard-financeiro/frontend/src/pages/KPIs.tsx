@@ -1,24 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../services/api';
-import { KPI, KPICreate, KPIResumo, KPIHistorico, CalculoDisponivel, TipoDocumento } from '../types';
+import { KPI, KPICreate, KPIVariacaoDiaria, KPIHistoricoVariacaoResponse, CalculoDisponivel, TipoDocumento } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
-type TabType = 'cadastro' | 'acompanhamento' | 'historico';
+type TabType = 'monitoramento' | 'cadastro' | 'historico';
+
+const TrendUpIcon = () => (
+  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+  </svg>
+);
+
+const TrendDownIcon = () => (
+  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+  </svg>
+);
+
+const TrendNeutralIcon = () => (
+  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14" />
+  </svg>
+);
+
+const RefreshIcon = () => (
+  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+  </svg>
+);
 
 export const KPIs: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TabType>('cadastro');
+  const [activeTab, setActiveTab] = useState<TabType>('monitoramento');
   const [kpis, setKpis] = useState<KPI[]>([]);
-  const [resumo, setResumo] = useState<KPIResumo[]>([]);
+  const [variacaoDiaria, setVariacaoDiaria] = useState<KPIVariacaoDiaria[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingKPI, setEditingKPI] = useState<KPI | null>(null);
   const [selectedKPIId, setSelectedKPIId] = useState<number | null>(null);
-  const [historico, setHistorico] = useState<KPIHistorico[]>([]);
-  const [novoValor, setNovoValor] = useState('');
-  const [dataValor, setDataValor] = useState(new Date().toISOString().split('T')[0]);
+  const [historicoVariacao, setHistoricoVariacao] = useState<KPIHistoricoVariacaoResponse | null>(null);
   const [calculosDisponiveis, setCalculosDisponiveis] = useState<CalculoDisponivel[]>([]);
   const [tiposDocumento, setTiposDocumento] = useState<TipoDocumento[]>([]);
   const [selectedDocumentos, setSelectedDocumentos] = useState<string[]>([]);
+  const [salvandoSnapshot, setSalvandoSnapshot] = useState(false);
+  const [snapshotMensagem, setSnapshotMensagem] = useState<string | null>(null);
+  const [filtroCategoria, setFiltroCategoria] = useState<string>('');
   
   const [formData, setFormData] = useState<KPICreate>({
     descricao: '',
@@ -66,17 +91,17 @@ export const KPIs: React.FC = () => {
       if (activeTab === 'cadastro') {
         const data = await apiService.getKPIs();
         setKpis(data);
-      } else if (activeTab === 'acompanhamento') {
-        const data = await apiService.getKPIsResumo();
-        setResumo(data);
+      } else if (activeTab === 'monitoramento') {
+        const data = await apiService.getKPIsVariacaoDiaria();
+        setVariacaoDiaria(data);
       } else if (activeTab === 'historico') {
         const data = await apiService.getKPIs(true);
         setKpis(data);
         if (data.length > 0 && !selectedKPIId) {
           setSelectedKPIId(data[0].id);
-          loadHistorico(data[0].id);
+          loadHistoricoVariacao(data[0].id);
         } else if (selectedKPIId) {
-          loadHistorico(selectedKPIId);
+          loadHistoricoVariacao(selectedKPIId);
         }
       }
     } catch (error) {
@@ -85,13 +110,28 @@ export const KPIs: React.FC = () => {
     setLoading(false);
   };
 
-  const loadHistorico = async (kpiId: number) => {
+  const loadHistoricoVariacao = async (kpiId: number) => {
     try {
-      const data = await apiService.getKPIHistorico(kpiId, 60);
-      setHistorico(data.reverse());
+      const data = await apiService.getKPIHistoricoVariacao(kpiId, 60);
+      setHistoricoVariacao(data);
     } catch (error) {
       console.error('Erro ao carregar histórico:', error);
     }
+  };
+
+  const handleSalvarSnapshot = async () => {
+    setSalvandoSnapshot(true);
+    setSnapshotMensagem(null);
+    try {
+      const result = await apiService.criarSnapshotDiario();
+      setSnapshotMensagem(`Snapshot salvo! ${result.registros_criados} novos, ${result.registros_atualizados} atualizados.`);
+      loadData();
+    } catch (error) {
+      setSnapshotMensagem('Erro ao salvar snapshot.');
+      console.error('Erro ao salvar snapshot:', error);
+    }
+    setSalvandoSnapshot(false);
+    setTimeout(() => setSnapshotMensagem(null), 5000);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -144,17 +184,6 @@ export const KPIs: React.FC = () => {
     }
   };
 
-  const handleRegistrarValor = async () => {
-    if (!selectedKPIId || !novoValor) return;
-    try {
-      await apiService.registrarValorKPI(selectedKPIId, parseFloat(novoValor), dataValor);
-      setNovoValor('');
-      loadHistorico(selectedKPIId);
-    } catch (error) {
-      console.error('Erro ao registrar valor:', error);
-    }
-  };
-
   const resetForm = () => {
     setShowForm(false);
     setEditingKPI(null);
@@ -173,9 +202,54 @@ export const KPIs: React.FC = () => {
     });
   };
 
-  const formatNumber = (value: number | undefined) => {
+  const formatNumber = (value: number | undefined, unidade?: string) => {
     if (value === undefined || value === null) return '-';
+    if (unidade === 'R$') {
+      return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+      }).format(value);
+    }
     return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const formatVariacao = (value: number | undefined, unidade?: string) => {
+    if (value === undefined || value === null) return '-';
+    const prefix = value > 0 ? '+' : '';
+    if (unidade === 'R$') {
+      return `${prefix}${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)}`;
+    }
+    return `${prefix}${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const getTendenciaIcon = (tendencia?: string, tipo_meta?: string) => {
+    if (!tendencia) return null;
+    
+    const isPositive = tendencia === 'subindo';
+    const isNegative = tendencia === 'descendo';
+    
+    let colorClass = 'text-gray-500';
+    if (tipo_meta === 'maior') {
+      colorClass = isPositive ? 'text-green-500' : isNegative ? 'text-red-500' : 'text-gray-500';
+    } else if (tipo_meta === 'menor') {
+      colorClass = isNegative ? 'text-green-500' : isPositive ? 'text-red-500' : 'text-gray-500';
+    }
+
+    return (
+      <span className={colorClass}>
+        {isPositive ? <TrendUpIcon /> : isNegative ? <TrendDownIcon /> : <TrendNeutralIcon />}
+      </span>
+    );
+  };
+
+  const getVariacaoColor = (variacao?: number, tipo_meta?: string) => {
+    if (variacao === undefined || variacao === null) return 'text-gray-600';
+    if (tipo_meta === 'maior') {
+      return variacao > 0 ? 'text-green-600' : variacao < 0 ? 'text-red-600' : 'text-gray-600';
+    } else if (tipo_meta === 'menor') {
+      return variacao < 0 ? 'text-green-600' : variacao > 0 ? 'text-red-600' : 'text-gray-600';
+    }
+    return 'text-gray-600';
   };
 
   const getStatusColor = (status?: string) => {
@@ -184,30 +258,47 @@ export const KPIs: React.FC = () => {
     return 'text-gray-600 bg-gray-100';
   };
 
+  const categorias = [...new Set(variacaoDiaria.map(k => k.categoria || 'Geral'))].sort();
+
+  const kpisFiltrados = filtroCategoria
+    ? variacaoDiaria.filter(k => (k.categoria || 'Geral') === filtroCategoria)
+    : variacaoDiaria;
+
+  const kpisOrdenados = [...kpisFiltrados].sort((a, b) => {
+    const extractNumber = (indice: string | undefined) => {
+      if (!indice) return 9999;
+      const match = indice.match(/\d+/);
+      return match ? parseInt(match[0]) : 9999;
+    };
+    return extractNumber(a.indice) - extractNumber(b.indice);
+  });
+
   const tabs = [
+    { id: 'monitoramento' as TabType, label: 'Monitoramento' },
     { id: 'cadastro' as TabType, label: 'Cadastro' },
-    { id: 'acompanhamento' as TabType, label: 'Acompanhamento' },
     { id: 'historico' as TabType, label: 'Histórico' }
   ];
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
-                activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
+      <div className="flex items-center justify-between">
+        <div className="border-b border-gray-200 flex-1">
+          <nav className="-mb-px flex space-x-8">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
+                  activeTab === tab.id
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
       </div>
 
       {loading ? (
@@ -216,6 +307,126 @@ export const KPIs: React.FC = () => {
         </div>
       ) : (
         <>
+          {activeTab === 'monitoramento' && (
+            <div className="space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Monitoramento de KPIs</h2>
+                  <p className="text-sm text-gray-500 mt-1">Acompanhe a variação diária dos seus indicadores</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <select
+                    value={filtroCategoria}
+                    onChange={(e) => setFiltroCategoria(e.target.value)}
+                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  >
+                    <option value="">Todas as Categorias</option>
+                    {categorias.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handleSalvarSnapshot}
+                    disabled={salvandoSnapshot}
+                    className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
+                  >
+                    <RefreshIcon />
+                    {salvandoSnapshot ? 'Salvando...' : 'Salvar Snapshot'}
+                  </button>
+                </div>
+              </div>
+
+              {snapshotMensagem && (
+                <div className={`rounded-lg px-4 py-3 ${snapshotMensagem.includes('Erro') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                  {snapshotMensagem}
+                </div>
+              )}
+
+              {kpisOrdenados.length === 0 ? (
+                <div className="rounded-lg bg-white p-8 text-center shadow">
+                  <p className="text-gray-500">Nenhum KPI ativo para monitoramento.</p>
+                  <p className="text-sm text-gray-400 mt-2">Cadastre KPIs na aba "Cadastro" para começar.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {kpisOrdenados.map((kpi) => (
+                    <div 
+                      key={kpi.id} 
+                      className="rounded-lg bg-white p-5 shadow hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => {
+                        setSelectedKPIId(kpi.id);
+                        setActiveTab('historico');
+                        loadHistoricoVariacao(kpi.id);
+                      }}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          {kpi.indice && (
+                            <span className="bg-blue-600 text-white text-xs font-bold rounded px-2 py-1">
+                              {kpi.indice}
+                            </span>
+                          )}
+                          {kpi.calculo_automatico && (
+                            <span className="bg-purple-100 text-purple-700 text-xs font-medium rounded px-2 py-1">
+                              Auto
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {getTendenciaIcon(kpi.tendencia, kpi.tipo_meta)}
+                          {kpi.status_meta && (
+                            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${getStatusColor(kpi.status_meta)}`}>
+                              {kpi.status_meta === 'ok' ? 'OK' : '!'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">{kpi.categoria || 'Geral'}</p>
+                      <h3 className="mt-1 text-sm font-semibold text-gray-900 line-clamp-2">{kpi.descricao}</h3>
+                      
+                      <div className="mt-4">
+                        <div className="flex items-end gap-2">
+                          <span className="text-2xl font-bold text-gray-900">
+                            {kpi.valor_hoje !== undefined ? formatNumber(kpi.valor_hoje, kpi.unidade) : '-'}
+                          </span>
+                          {kpi.unidade && kpi.unidade !== 'R$' && (
+                            <span className="text-gray-500 text-sm mb-0.5">{kpi.unidade}</span>
+                          )}
+                        </div>
+                        
+                        {kpi.valor_ontem !== undefined && kpi.variacao_absoluta !== undefined && (
+                          <div className="mt-2 flex items-center gap-3">
+                            <span className={`text-sm font-medium ${getVariacaoColor(kpi.variacao_absoluta, kpi.tipo_meta)}`}>
+                              {formatVariacao(kpi.variacao_absoluta, kpi.unidade)}
+                            </span>
+                            {kpi.variacao_percentual !== undefined && (
+                              <span className={`text-xs ${getVariacaoColor(kpi.variacao_percentual, kpi.tipo_meta)}`}>
+                                ({kpi.variacao_percentual > 0 ? '+' : ''}{kpi.variacao_percentual.toFixed(1)}%)
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        
+                        {kpi.valor_ontem !== undefined && (
+                          <p className="mt-1 text-xs text-gray-400">
+                            Ontem: {formatNumber(kpi.valor_ontem, kpi.unidade)}
+                          </p>
+                        )}
+
+                        {kpi.meta !== undefined && (
+                          <p className="mt-2 text-xs text-gray-500">
+                            Meta: {formatNumber(kpi.meta, kpi.unidade)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {activeTab === 'cadastro' && (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
@@ -251,7 +462,7 @@ export const KPIs: React.FC = () => {
                         value={formData.categoria}
                         onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
                         className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                        placeholder="Ex: Financeiro, Operacional"
+                        placeholder="Ex: A Pagar, A Receber, Bancário"
                       />
                     </div>
                     <div>
@@ -261,7 +472,7 @@ export const KPIs: React.FC = () => {
                         value={formData.indice}
                         onChange={(e) => setFormData({ ...formData, indice: e.target.value })}
                         className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                        placeholder="Ex: KPI-001"
+                        placeholder="Ex: 1, 2, 3..."
                       />
                     </div>
                     <div>
@@ -293,7 +504,7 @@ export const KPIs: React.FC = () => {
                         value={formData.unidade}
                         onChange={(e) => setFormData({ ...formData, unidade: e.target.value })}
                         className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                        placeholder="Ex: %, R$, dias"
+                        placeholder="Ex: %, R$, Qtd., dias"
                       />
                     </div>
                     <div className="md:col-span-2">
@@ -303,11 +514,11 @@ export const KPIs: React.FC = () => {
                         onChange={(e) => setFormData({ ...formData, formula: e.target.value })}
                         className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
                         rows={2}
-                        placeholder="Ex: (Receita - Custo) / Receita * 100"
+                        placeholder="Descrição de como o KPI é calculado"
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700">Cálculo Automático</label>
+                      <label className="block text-sm font-medium text-gray-700">Vincular a Cálculo Automático</label>
                       <select
                         value={formData.calculo_automatico || ''}
                         onChange={(e) => {
@@ -329,13 +540,13 @@ export const KPIs: React.FC = () => {
                         ))}
                       </select>
                       <p className="mt-1 text-xs text-gray-500">
-                        Se selecionado, o valor do KPI será calculado automaticamente em tempo real.
+                        Se selecionado, o valor será calculado automaticamente com base nos dados do sistema.
                       </p>
                     </div>
                     {formData.calculo_automatico && tiposDocumento.length > 0 && (
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700">Tipos de Documento a Excluir</label>
-                        <div className="mt-2 flex flex-wrap gap-2">
+                        <div className="mt-2 flex flex-wrap gap-2 max-h-40 overflow-y-auto">
                           {tiposDocumento.map((tipo) => (
                             <label
                               key={tipo.id}
@@ -361,9 +572,6 @@ export const KPIs: React.FC = () => {
                             </label>
                           ))}
                         </div>
-                        <p className="mt-1 text-xs text-gray-500">
-                          Selecione os tipos de documento que devem ser excluídos do cálculo deste KPI.
-                        </p>
                       </div>
                     )}
                     <div className="flex items-center">
@@ -399,10 +607,11 @@ export const KPIs: React.FC = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Índice</th>
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Descrição</th>
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Categoria</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Cálculo</th>
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Meta</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Unidade</th>
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
                       <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Ações</th>
                     </tr>
@@ -410,17 +619,24 @@ export const KPIs: React.FC = () => {
                   <tbody className="divide-y divide-gray-200 bg-white">
                     {kpis.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                        <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
                           Nenhum KPI cadastrado. Clique em "Novo KPI" para começar.
                         </td>
                       </tr>
                     ) : (
                       kpis.map((kpi) => (
                         <tr key={kpi.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{kpi.descricao}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">{kpi.indice || '-'}</td>
+                          <td className="px-6 py-4 text-sm text-gray-900">{kpi.descricao}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{kpi.categoria || '-'}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatNumber(kpi.meta)}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{kpi.unidade || '-'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {kpi.calculo_automatico ? (
+                              <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs">Automático</span>
+                            ) : (
+                              <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">Manual</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatNumber(kpi.meta, kpi.unidade)}</td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex rounded-full px-2 text-xs font-semibold ${kpi.ativo ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
                               {kpi.ativo ? 'Ativo' : 'Inativo'}
@@ -449,75 +665,10 @@ export const KPIs: React.FC = () => {
             </div>
           )}
 
-          {activeTab === 'acompanhamento' && (
-            <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-gray-900">Acompanhamento de KPIs</h2>
-              
-              {resumo.length === 0 ? (
-                <div className="rounded-lg bg-white p-8 text-center shadow">
-                  <p className="text-gray-500">Nenhum KPI ativo para acompanhamento.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {[...resumo].sort((a, b) => {
-                    const extractNumber = (indice: string | undefined) => {
-                      if (!indice) return 9999;
-                      const match = indice.match(/\d+/);
-                      return match ? parseInt(match[0]) : 9999;
-                    };
-                    return extractNumber(a.indice) - extractNumber(b.indice);
-                  }).map((kpi) => (
-                    <div key={kpi.id} className="rounded-lg bg-white p-6 shadow">
-                      <div className="flex items-start justify-between mb-2">
-                        {kpi.indice && (
-                          <span className="bg-blue-600 text-white text-xs font-bold rounded px-2 py-1">
-                            {kpi.indice}
-                          </span>
-                        )}
-                        {kpi.status_meta && (
-                          <span className={`rounded-full px-2 py-1 text-xs font-semibold ${getStatusColor(kpi.status_meta)}`}>
-                            {kpi.status_meta === 'ok' ? 'OK' : 'Atenção'}
-                          </span>
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">{kpi.categoria || 'Geral'}</p>
-                        <h3 className="mt-1 text-lg font-semibold text-gray-900">{kpi.descricao}</h3>
-                      </div>
-                      <div className="mt-4">
-                        <div className="flex items-end gap-2">
-                          <span className="text-3xl font-bold text-gray-900">
-                            {kpi.ultimo_valor !== undefined ? formatNumber(kpi.ultimo_valor) : '-'}
-                          </span>
-                          {kpi.unidade && <span className="text-gray-500">{kpi.unidade}</span>}
-                        </div>
-                        {kpi.meta !== undefined && (
-                          <p className="mt-2 text-sm text-gray-500">
-                            Meta: {formatNumber(kpi.meta)} {kpi.unidade}
-                            {kpi.tipo_meta && (
-                              <span className="ml-1 text-xs">
-                                ({kpi.tipo_meta === 'maior' ? 'quanto maior, melhor' : kpi.tipo_meta === 'menor' ? 'quanto menor, melhor' : 'igual'})
-                              </span>
-                            )}
-                          </p>
-                        )}
-                        {kpi.ultima_atualizacao && (
-                          <p className="mt-1 text-xs text-gray-400">
-                            Atualizado em: {new Date(kpi.ultima_atualizacao).toLocaleDateString('pt-BR')}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
           {activeTab === 'historico' && (
             <div className="space-y-6">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <h2 className="text-xl font-semibold text-gray-900">Histórico de KPIs</h2>
+                <h2 className="text-xl font-semibold text-gray-900">Histórico de Variações</h2>
                 <div className="flex items-center gap-2">
                   <label className="text-sm text-gray-600">Selecionar KPI:</label>
                   <select
@@ -525,114 +676,126 @@ export const KPIs: React.FC = () => {
                     onChange={(e) => {
                       const id = parseInt(e.target.value);
                       setSelectedKPIId(id);
-                      loadHistorico(id);
+                      loadHistoricoVariacao(id);
                     }}
                     className="rounded-lg border border-gray-300 px-3 py-2"
                   >
                     {kpis.map((kpi) => (
-                      <option key={kpi.id} value={kpi.id}>{kpi.descricao}</option>
+                      <option key={kpi.id} value={kpi.id}>
+                        {kpi.indice ? `${kpi.indice} - ` : ''}{kpi.descricao}
+                      </option>
                     ))}
                   </select>
                 </div>
               </div>
 
-              {selectedKPIId && (
-                <>
-                  <div className="rounded-lg bg-white p-4 shadow">
-                    <h3 className="mb-4 text-lg font-medium">Registrar Novo Valor</h3>
-                    <div className="flex flex-col md:flex-row gap-4 items-end">
-                      <div className="flex-1">
-                        <label className="block text-sm font-medium text-gray-700">Data</label>
-                        <input
-                          type="date"
-                          value={dataValor}
-                          onChange={(e) => setDataValor(e.target.value)}
-                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                        />
+              {historicoVariacao && (
+                <div className="space-y-6">
+                  <div className="rounded-lg bg-white p-6 shadow">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">{historicoVariacao.kpi.descricao}</h3>
+                        <p className="text-sm text-gray-500">{historicoVariacao.kpi.categoria || 'Geral'}</p>
                       </div>
-                      <div className="flex-1">
-                        <label className="block text-sm font-medium text-gray-700">Valor</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={novoValor}
-                          onChange={(e) => setNovoValor(e.target.value)}
-                          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
-                          placeholder="Digite o valor"
-                        />
-                      </div>
-                      <button
-                        onClick={handleRegistrarValor}
-                        disabled={!novoValor}
-                        className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
-                      >
-                        Registrar
-                      </button>
+                      {historicoVariacao.kpi.meta && (
+                        <div className="text-right">
+                          <p className="text-sm text-gray-500">Meta</p>
+                          <p className="text-lg font-semibold text-blue-600">
+                            {formatNumber(historicoVariacao.kpi.meta, historicoVariacao.kpi.unidade)}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={historicoVariacao.historico}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis 
+                            dataKey="data" 
+                            tickFormatter={(value) => {
+                              const date = new Date(value);
+                              return `${date.getDate()}/${date.getMonth() + 1}`;
+                            }}
+                          />
+                          <YAxis />
+                          <Tooltip 
+                            labelFormatter={(value) => {
+                              const date = new Date(value);
+                              return date.toLocaleDateString('pt-BR');
+                            }}
+                            formatter={(value: number, name: string) => {
+                              if (name === 'valor') {
+                                return [formatNumber(value, historicoVariacao.kpi.unidade), 'Valor'];
+                              }
+                              return [value, name];
+                            }}
+                          />
+                          {historicoVariacao.kpi.meta && (
+                            <ReferenceLine 
+                              y={historicoVariacao.kpi.meta} 
+                              stroke="#3B82F6" 
+                              strokeDasharray="5 5"
+                              label={{ value: 'Meta', position: 'right' }}
+                            />
+                          )}
+                          <Line 
+                            type="monotone" 
+                            dataKey="valor" 
+                            stroke="#2563EB" 
+                            strokeWidth={2}
+                            dot={{ r: 3 }}
+                            activeDot={{ r: 5 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
                     </div>
                   </div>
 
-                  <div className="rounded-lg bg-white p-6 shadow">
-                    <h3 className="mb-4 text-lg font-medium">Evolução do KPI</h3>
-                    {historico.length === 0 ? (
-                      <p className="py-8 text-center text-gray-500">Nenhum histórico registrado para este KPI.</p>
-                    ) : (
-                      <div className="h-80">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={historico}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis 
-                              dataKey="data_registro" 
-                              tickFormatter={(value) => new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                            />
-                            <YAxis />
-                            <Tooltip 
-                              labelFormatter={(value) => new Date(value).toLocaleDateString('pt-BR')}
-                              formatter={(value: number) => [formatNumber(value), 'Valor']}
-                            />
-                            {kpis.find(k => k.id === selectedKPIId)?.meta && (
-                              <ReferenceLine 
-                                y={kpis.find(k => k.id === selectedKPIId)?.meta} 
-                                stroke="#ef4444" 
-                                strokeDasharray="5 5" 
-                                label={{ value: 'Meta', position: 'right', fill: '#ef4444' }}
-                              />
-                            )}
-                            <Line 
-                              type="monotone" 
-                              dataKey="valor" 
-                              stroke="#3b82f6" 
-                              strokeWidth={2}
-                              dot={{ fill: '#3b82f6' }}
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    )}
-                  </div>
-
                   <div className="rounded-lg bg-white shadow overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Data</th>
-                          <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Valor</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200 bg-white">
-                        {historico.slice().reverse().map((item) => (
-                          <tr key={item.id}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {new Date(item.data_registro).toLocaleDateString('pt-BR')}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
-                              {formatNumber(item.valor)}
-                            </td>
+                    <div className="px-6 py-4 border-b border-gray-200">
+                      <h3 className="text-lg font-medium text-gray-900">Tabela de Variações</h3>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50 sticky top-0">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Data</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Valor</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Variação</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">%</th>
+                            <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">Tendência</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 bg-white">
+                          {[...historicoVariacao.historico].reverse().map((item, index) => (
+                            <tr key={index}>
+                              <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
+                                {new Date(item.data).toLocaleDateString('pt-BR')}
+                              </td>
+                              <td className="px-6 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
+                                {formatNumber(item.valor, historicoVariacao.kpi.unidade)}
+                              </td>
+                              <td className={`px-6 py-3 whitespace-nowrap text-sm text-right font-medium ${
+                                item.variacao_absoluta !== undefined ? getVariacaoColor(item.variacao_absoluta) : ''
+                              }`}>
+                                {item.variacao_absoluta !== undefined ? formatVariacao(item.variacao_absoluta, historicoVariacao.kpi.unidade) : '-'}
+                              </td>
+                              <td className={`px-6 py-3 whitespace-nowrap text-sm text-right ${
+                                item.variacao_percentual !== undefined ? getVariacaoColor(item.variacao_percentual) : ''
+                              }`}>
+                                {item.variacao_percentual !== undefined ? `${item.variacao_percentual > 0 ? '+' : ''}${item.variacao_percentual.toFixed(2)}%` : '-'}
+                              </td>
+                              <td className="px-6 py-3 whitespace-nowrap text-center">
+                                {getTendenciaIcon(item.tendencia)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </>
+                </div>
               )}
             </div>
           )}
