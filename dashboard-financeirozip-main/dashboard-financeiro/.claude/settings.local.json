@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python main.py:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm install)",
+      "Bash(python criar_tabela.py:*)",
+      "Bash(python verificar_banco.py:*)",
+      "Bash(python verificar_contas_pagas.py:*)",
+      "Bash(timeout:*)",
+      "Bash(python -c \"\nimport psycopg2\nfrom psycopg2.extras import RealDictCursor\n\nDB_CONFIG = {\n    ''host'': ''8iv70o.easypanel.host'',\n    ''port'': 42128,\n    ''database'': ''ecbiesek'',\n    ''user'': ''dtKJdFrDX5dt'',\n    ''password'': ''dtM7gvwVaDaieR0xqNNGRGnJeo6fYhOnCTdt''\n}\n\nconn = psycopg2.connect(**DB_CONFIG, cursor_factory=RealDictCursor)\ncursor = conn.cursor()\n\n# List all tables\ncursor.execute(\"\"\"\"\"\"\n    SELECT table_name \n    FROM information_schema.tables \n    WHERE table_schema = ''public''\n    ORDER BY table_name\n\"\"\"\"\"\")\ntables = cursor.fetchall()\nprint(''Available tables:'')\nfor t in tables:\n    print(f\"\"  - {t[''table_name'']}\"\")\n\ncursor.close()\nconn.close()\n\")",
+      "Bash(python:*)",
+      "Bash(curl:*)",
+      "Bash(taskkill:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(ping:*)"
+    ]
+  }
+}
