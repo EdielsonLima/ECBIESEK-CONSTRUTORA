@@ -426,10 +426,13 @@ export const ContasAtrasadas: React.FC = () => {
                   content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
                       const data = payload[0].payload;
+                      const totalCredores = dadosPorCredor.reduce((acc, c) => acc + c.valor, 0);
+                      const percentual = totalCredores > 0 ? ((data.valor / totalCredores) * 100).toFixed(1) : '0';
                       return (
                         <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
                           <p className="mb-2 font-semibold text-gray-900">{label}</p>
                           <p className="text-sm text-red-600">Valor: {formatCurrency(data.valor)}</p>
+                          <p className="text-sm text-purple-600">Percentual: {percentual}%</p>
                           <p className="text-sm text-gray-600">Titulos: {data.quantidade}</p>
                           <p className="text-sm text-orange-600">Max atraso: {data.dias_atraso_max} dias</p>
                         </div>
@@ -464,10 +467,13 @@ export const ContasAtrasadas: React.FC = () => {
                   content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
                       const data = payload[0].payload;
+                      const totalEmpresas = dadosPorEmpresa.reduce((acc, e) => acc + e.valor, 0);
+                      const percentual = totalEmpresas > 0 ? ((data.valor / totalEmpresas) * 100).toFixed(1) : '0';
                       return (
                         <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
                           <p className="mb-2 font-semibold text-gray-900">{label}</p>
                           <p className="text-sm text-red-600">Valor: {formatCurrency(data.valor)}</p>
+                          <p className="text-sm text-purple-600">Percentual: {percentual}%</p>
                           <p className="text-sm text-gray-600">Titulos: {data.quantidade}</p>
                         </div>
                       );
