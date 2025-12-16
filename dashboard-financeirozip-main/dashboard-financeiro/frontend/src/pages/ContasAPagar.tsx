@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiService } from '../services/api';
 import { ContaPagar, EmpresaOption, CentroCustoOption } from '../types';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 
 interface Estatisticas {
   quantidade_titulos: number;
@@ -383,6 +383,7 @@ export const ContasAPagar: React.FC = () => {
                       fill={entry.faixa === 'Vencidos' ? '#EF4444' : entry.faixa === 'Hoje' ? '#F59E0B' : COLORS[index % COLORS.length]} 
                     />
                   ))}
+                  <LabelList dataKey="valor" position="top" formatter={(value: number) => formatCurrencyShort(value)} style={{ fontSize: 10, fill: '#374151' }} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -419,6 +420,7 @@ export const ContasAPagar: React.FC = () => {
                   {dadosPorCredor.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
+                  <LabelList dataKey="valor" position="right" formatter={(value: number) => formatCurrencyShort(value)} style={{ fontSize: 9, fill: '#374151' }} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -430,30 +432,19 @@ export const ContasAPagar: React.FC = () => {
         <div className="rounded-lg bg-white p-6 shadow">
           <h3 className="mb-2 text-xl font-semibold text-gray-900">Valores a Pagar por Empresa</h3>
           <p className="mb-4 text-sm text-gray-500">Distribuicao de valores pendentes por empresa</p>
-          <div className="h-80">
+          <div style={{ height: Math.max(300, dadosPorEmpresa.length * 35) }}>
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={dadosPorEmpresa}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ empresa, percent }) => `${empresa.substring(0, 15)}... (${(percent * 100).toFixed(0)}%)`}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="valor"
-                >
-                  {dadosPorEmpresa.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
+              <BarChart data={dadosPorEmpresa} layout="vertical" margin={{ top: 5, right: 100, left: 200, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" tickFormatter={(value) => formatCurrencyShort(value)} tick={{ fontSize: 11 }} />
+                <YAxis type="category" dataKey="empresa" tick={{ fontSize: 9 }} width={190} />
                 <Tooltip
-                  content={({ active, payload }) => {
+                  content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
                       const data = payload[0].payload;
                       return (
                         <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
-                          <p className="mb-2 font-semibold text-gray-900">{data.empresa}</p>
+                          <p className="mb-2 font-semibold text-gray-900">{label}</p>
                           <p className="text-sm text-blue-600">Valor: {formatCurrency(data.valor)}</p>
                           <p className="text-sm text-gray-600">Titulos: {data.quantidade}</p>
                         </div>
@@ -462,8 +453,13 @@ export const ContasAPagar: React.FC = () => {
                     return null;
                   }}
                 />
-                <Legend />
-              </PieChart>
+                <Bar dataKey="valor" fill="#3B82F6" radius={[0, 4, 4, 0]}>
+                  {dadosPorEmpresa.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                  <LabelList dataKey="valor" position="right" formatter={(value: number) => formatCurrencyShort(value)} style={{ fontSize: 9, fill: '#374151' }} />
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
