@@ -600,16 +600,16 @@ export const ContasAPagar: React.FC = () => {
   return (
     <div>
       {estatisticas && (
-        <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <div className="rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 p-5 text-white shadow-lg">
             <div className="mb-1 text-xs font-medium opacity-90">Total a Pagar</div>
-            <div className="text-2xl font-bold">{formatCurrency(estatisticas.valor_total)}</div>
+            <div className="text-xl font-bold">{formatCurrency(estatisticas.valor_total)}</div>
             <div className="mt-1 text-xs opacity-75">{estatisticas.quantidade_titulos.toLocaleString('pt-BR')} titulos</div>
           </div>
 
           <div className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 p-5 text-white shadow-lg">
             <div className="mb-1 text-xs font-medium opacity-90">Vencendo Hoje</div>
-            <div className="text-2xl font-bold">
+            <div className="text-xl font-bold">
               {formatCurrency(contas.filter(c => calcularDiasAteVencimento(c.data_vencimento as any) === 0).reduce((acc, c) => acc + (c.valor_total || 0), 0))}
             </div>
             <div className="mt-1 text-xs opacity-75">
@@ -619,7 +619,7 @@ export const ContasAPagar: React.FC = () => {
 
           <div className="rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 p-5 text-white shadow-lg">
             <div className="mb-1 text-xs font-medium opacity-90">Proximos 7 dias</div>
-            <div className="text-2xl font-bold">
+            <div className="text-xl font-bold">
               {formatCurrency(contas.filter(c => {
                 const dias = calcularDiasAteVencimento(c.data_vencimento as any);
                 return dias >= 1 && dias <= 7;
@@ -634,9 +634,35 @@ export const ContasAPagar: React.FC = () => {
           </div>
 
           <div className="rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 p-5 text-white shadow-lg">
-            <div className="mb-1 text-xs font-medium opacity-90">Ticket Medio</div>
-            <div className="text-2xl font-bold">{formatCurrency(estatisticas.valor_medio)}</div>
-            <div className="mt-1 text-xs opacity-75">Por titulo</div>
+            <div className="mb-1 text-xs font-medium opacity-90">Proximos 15 dias</div>
+            <div className="text-xl font-bold">
+              {formatCurrency(contas.filter(c => {
+                const dias = calcularDiasAteVencimento(c.data_vencimento as any);
+                return dias >= 1 && dias <= 15;
+              }).reduce((acc, c) => acc + (c.valor_total || 0), 0))}
+            </div>
+            <div className="mt-1 text-xs opacity-75">
+              {contas.filter(c => {
+                const dias = calcularDiasAteVencimento(c.data_vencimento as any);
+                return dias >= 1 && dias <= 15;
+              }).length} titulo(s)
+            </div>
+          </div>
+
+          <div className="rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 p-5 text-white shadow-lg">
+            <div className="mb-1 text-xs font-medium opacity-90">Proximos 30 dias</div>
+            <div className="text-xl font-bold">
+              {formatCurrency(contas.filter(c => {
+                const dias = calcularDiasAteVencimento(c.data_vencimento as any);
+                return dias >= 1 && dias <= 30;
+              }).reduce((acc, c) => acc + (c.valor_total || 0), 0))}
+            </div>
+            <div className="mt-1 text-xs opacity-75">
+              {contas.filter(c => {
+                const dias = calcularDiasAteVencimento(c.data_vencimento as any);
+                return dias >= 1 && dias <= 30;
+              }).length} titulo(s)
+            </div>
           </div>
         </div>
       )}
