@@ -145,39 +145,51 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
 
         if status == "pago":
             query = """
-                SELECT credor, data_pagamento as data_vencimento, valor_liquido as valor_total,
-                       lancamento, numero_documento, id_plano_financeiro
-                FROM contas_pagas
-                ORDER BY data_pagamento DESC
+                SELECT cp.credor, cp.data_pagamento as data_vencimento, cp.valor_liquido as valor_total,
+                       cp.lancamento, cp.numero_documento, cp.id_plano_financeiro,
+                       cp.id_interno_empresa, cp.id_interno_centro_custo,
+                       cc.nome_empresa, cc.nome_centrocusto
+                FROM contas_pagas cp
+                LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
+                ORDER BY cp.data_pagamento DESC
                 LIMIT %s
             """
             cursor.execute(query, (limite,))
         elif status == "a_pagar":
             query = """
-                SELECT credor, data_vencimento, valor_total,
-                       lancamento, numero_documento, id_plano_financeiro
-                FROM contas_a_pagar
-                WHERE data_vencimento >= %s
-                ORDER BY data_vencimento ASC
+                SELECT cap.credor, cap.data_vencimento, cap.valor_total,
+                       cap.lancamento, cap.numero_documento, cap.id_plano_financeiro,
+                       cap.id_interno_empresa, cap.id_interno_centro_custo,
+                       cc.nome_empresa, cc.nome_centrocusto
+                FROM contas_a_pagar cap
+                LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE cap.data_vencimento >= %s
+                ORDER BY cap.data_vencimento ASC
                 LIMIT %s
             """
             cursor.execute(query, (hoje, limite))
         elif status == "em_atraso":
             query = """
-                SELECT credor, data_vencimento, valor_total,
-                       lancamento, numero_documento, id_plano_financeiro
-                FROM contas_a_pagar
-                WHERE data_vencimento < %s
-                ORDER BY data_vencimento ASC
+                SELECT cap.credor, cap.data_vencimento, cap.valor_total,
+                       cap.lancamento, cap.numero_documento, cap.id_plano_financeiro,
+                       cap.id_interno_empresa, cap.id_interno_centro_custo,
+                       cc.nome_empresa, cc.nome_centrocusto
+                FROM contas_a_pagar cap
+                LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE cap.data_vencimento < %s
+                ORDER BY cap.data_vencimento ASC
                 LIMIT %s
             """
             cursor.execute(query, (hoje, limite))
         else:
             query = """
-                SELECT credor, data_vencimento, valor_total,
-                       lancamento, numero_documento, id_plano_financeiro
-                FROM contas_a_pagar
-                ORDER BY data_vencimento DESC
+                SELECT cap.credor, cap.data_vencimento, cap.valor_total,
+                       cap.lancamento, cap.numero_documento, cap.id_plano_financeiro,
+                       cap.id_interno_empresa, cap.id_interno_centro_custo,
+                       cc.nome_empresa, cc.nome_centrocusto
+                FROM contas_a_pagar cap
+                LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+                ORDER BY cap.data_vencimento DESC
                 LIMIT %s
             """
             cursor.execute(query, (limite,))
