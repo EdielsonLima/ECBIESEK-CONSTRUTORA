@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm install:*)",
+      "Bash(curl:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(netstat:*)",
+      "Bash(taskkill /F /PID 83920)",
+      "Bash(timeout:*)",
+      "Bash(ping:*)",
+      "Bash(dir:*)"
+    ]
+  }
+}
