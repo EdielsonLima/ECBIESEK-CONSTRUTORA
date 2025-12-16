@@ -49,6 +49,64 @@ export const ContasAtrasadas: React.FC = () => {
   const [filtroEmpresa, setFiltroEmpresa] = useState<number | null>(null);
   const [filtroCentroCusto, setFiltroCentroCusto] = useState<number | null>(null);
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [ordenacao, setOrdenacao] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'dias_atraso', direcao: 'desc' });
+
+  const ordenarContas = (contasParaOrdenar: ContaPagar[]) => {
+    return [...contasParaOrdenar].sort((a, b) => {
+      let valorA: any;
+      let valorB: any;
+      
+      switch (ordenacao.campo) {
+        case 'credor':
+          valorA = (a.credor || '').toLowerCase();
+          valorB = (b.credor || '').toLowerCase();
+          break;
+        case 'data_vencimento':
+          valorA = new Date(a.data_vencimento || 0).getTime();
+          valorB = new Date(b.data_vencimento || 0).getTime();
+          break;
+        case 'dias_atraso':
+          valorA = calcularDiasAtraso(a.data_vencimento as any);
+          valorB = calcularDiasAtraso(b.data_vencimento as any);
+          break;
+        case 'valor_total':
+          valorA = a.valor_total || 0;
+          valorB = b.valor_total || 0;
+          break;
+        case 'numero_documento':
+          valorA = (a.numero_documento || '').toLowerCase();
+          valorB = (b.numero_documento || '').toLowerCase();
+          break;
+        case 'nome_empresa':
+          valorA = (a.nome_empresa || '').toLowerCase();
+          valorB = (b.nome_empresa || '').toLowerCase();
+          break;
+        default:
+          return 0;
+      }
+      
+      if (valorA < valorB) return ordenacao.direcao === 'asc' ? -1 : 1;
+      if (valorA > valorB) return ordenacao.direcao === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
+  const toggleOrdenacao = (campo: string) => {
+    setOrdenacao(prev => ({
+      campo,
+      direcao: prev.campo === campo && prev.direcao === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  const renderSortIcon = (campo: string) => (
+    <span className="ml-1 inline-block">
+      {ordenacao.campo === campo ? (
+        ordenacao.direcao === 'asc' ? '▲' : '▼'
+      ) : (
+        <span className="text-gray-300">▼</span>
+      )}
+    </span>
+  );
 
   const formatCurrency = (value: number | undefined) => {
     if (!value) return 'R$ 0,00';
@@ -367,17 +425,29 @@ export const ContasAtrasadas: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-red-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Credor</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Vencimento</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Dias Atraso</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Valor</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Documento</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Empresa</th>
+                  <th onClick={() => toggleOrdenacao('credor')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-red-100">
+                    Credor{renderSortIcon('credor')}
+                  </th>
+                  <th onClick={() => toggleOrdenacao('data_vencimento')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-red-100">
+                    Vencimento{renderSortIcon('data_vencimento')}
+                  </th>
+                  <th onClick={() => toggleOrdenacao('dias_atraso')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-red-100">
+                    Dias Atraso{renderSortIcon('dias_atraso')}
+                  </th>
+                  <th onClick={() => toggleOrdenacao('valor_total')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-red-100">
+                    Valor{renderSortIcon('valor_total')}
+                  </th>
+                  <th onClick={() => toggleOrdenacao('numero_documento')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-red-100">
+                    Documento{renderSortIcon('numero_documento')}
+                  </th>
+                  <th onClick={() => toggleOrdenacao('nome_empresa')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-red-100">
+                    Empresa{renderSortIcon('nome_empresa')}
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
-                {contas.slice(0, 100).map((conta, index) => {
+                {ordenarContas(contas).slice(0, 100).map((conta, index) => {
                   const diasAtraso = calcularDiasAtraso(conta.data_vencimento as any);
                   return (
                     <tr key={index} className="hover:bg-gray-50">

@@ -103,6 +103,64 @@ export const ContasPagas: React.FC = () => {
   const [mostrarDropdownTipoBaixa, setMostrarDropdownTipoBaixa] = useState(false);
   const [mostrarDropdownAnos, setMostrarDropdownAnos] = useState(false);
   const [mostrarDropdownMeses, setMostrarDropdownMeses] = useState(false);
+  const [ordenacao, setOrdenacao] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'data_pagamento', direcao: 'desc' });
+
+  const ordenarContas = (contasParaOrdenar: ContaPagar[]) => {
+    return [...contasParaOrdenar].sort((a, b) => {
+      let valorA: any;
+      let valorB: any;
+      
+      switch (ordenacao.campo) {
+        case 'credor':
+          valorA = (a.credor || '').toLowerCase();
+          valorB = (b.credor || '').toLowerCase();
+          break;
+        case 'data_pagamento':
+          valorA = new Date(a.data_pagamento || 0).getTime();
+          valorB = new Date(b.data_pagamento || 0).getTime();
+          break;
+        case 'valor_total':
+          valorA = a.valor_total || 0;
+          valorB = b.valor_total || 0;
+          break;
+        case 'numero_documento':
+          valorA = (a.numero_documento || '').toLowerCase();
+          valorB = (b.numero_documento || '').toLowerCase();
+          break;
+        case 'nome_empresa':
+          valorA = (a.nome_empresa || '').toLowerCase();
+          valorB = (b.nome_empresa || '').toLowerCase();
+          break;
+        case 'nome_centrocusto':
+          valorA = (a.nome_centrocusto || '').toLowerCase();
+          valorB = (b.nome_centrocusto || '').toLowerCase();
+          break;
+        default:
+          return 0;
+      }
+      
+      if (valorA < valorB) return ordenacao.direcao === 'asc' ? -1 : 1;
+      if (valorA > valorB) return ordenacao.direcao === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
+  const toggleOrdenacao = (campo: string) => {
+    setOrdenacao(prev => ({
+      campo,
+      direcao: prev.campo === campo && prev.direcao === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  const renderSortIcon = (campo: string) => (
+    <span className="ml-1 inline-block">
+      {ordenacao.campo === campo ? (
+        ordenacao.direcao === 'asc' ? '▲' : '▼'
+      ) : (
+        <span className="text-gray-300">▼</span>
+      )}
+    </span>
+  );
 
   const formatCurrency = (value: number | undefined) => {
     if (!value) return 'R$ 0,00';
@@ -825,28 +883,28 @@ export const ContasPagas: React.FC = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-green-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Credor
+                <th onClick={() => toggleOrdenacao('credor')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                  Credor{renderSortIcon('credor')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Data Pagamento
+                <th onClick={() => toggleOrdenacao('data_pagamento')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                  Data Pagamento{renderSortIcon('data_pagamento')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Valor Pago
+                <th onClick={() => toggleOrdenacao('valor_total')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                  Valor Pago{renderSortIcon('valor_total')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Documento
+                <th onClick={() => toggleOrdenacao('numero_documento')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                  Documento{renderSortIcon('numero_documento')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Empresa
+                <th onClick={() => toggleOrdenacao('nome_empresa')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                  Empresa{renderSortIcon('nome_empresa')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Centro Custo
+                <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                  Centro Custo{renderSortIcon('nome_centrocusto')}
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 bg-white">
-              {contas.map((conta, index) => (
+              {ordenarContas(contas).map((conta, index) => (
                 <tr key={`${conta.credor}-${conta.data_pagamento}-${index}`} className="hover:bg-gray-50">
                   <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
                     {conta.credor || '-'}
