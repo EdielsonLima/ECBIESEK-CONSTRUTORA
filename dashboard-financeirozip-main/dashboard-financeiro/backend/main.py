@@ -946,6 +946,145 @@ def get_top_credores(
         cursor.close()
         conn.close()
 
+@app.get("/api/ranking-credores")
+def get_ranking_credores(
+    empresa: Optional[int] = None,
+    centro_custo: Optional[int] = None,
+    id_documento: Optional[str] = None,
+    origem_dado: Optional[str] = None,
+    tipo_baixa: Optional[str] = None,
+    ano: Optional[str] = None,
+    mes: Optional[str] = None,
+    data_inicio: Optional[str] = None,
+    data_fim: Optional[str] = None
+):
+    """Retorna ranking completo de credores com percentuais e Pareto"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        conditions = []
+        params = []
+
+        if empresa is not None:
+            conditions.append("cc.id_sienge_empresa = %s")
+            params.append(empresa)
+
+        if centro_custo is not None:
+            conditions.append("cp.id_interno_centro_custo = %s")
+            params.append(centro_custo)
+
+        if id_documento:
+            docs = [doc.strip() for doc in id_documento.split(',')]
+            doc_conditions = []
+            for doc in docs:
+                doc_conditions.append("TRIM(cp.id_documento) = %s")
+                params.append(doc)
+            conditions.append(f"({' OR '.join(doc_conditions)})")
+
+        if origem_dado:
+            origens = [origem.strip() for origem in origem_dado.split(',')]
+            origem_conditions = []
+            for origem in origens:
+                origem_conditions.append("TRIM(cp.origem_dado) = %s")
+                params.append(origem)
+            conditions.append(f"({' OR '.join(origem_conditions)})")
+
+        if tipo_baixa:
+            tipos = [int(t.strip()) for t in tipo_baixa.split(',')]
+            tipo_placeholders = ', '.join(['%s'] * len(tipos))
+            conditions.append(f"cp.id_tipo_baixa IN ({tipo_placeholders})")
+            params.extend(tipos)
+
+        if ano:
+            anos = [int(a.strip()) for a in ano.split(',')]
+            ano_placeholders = ', '.join(['%s'] * len(anos))
+            conditions.append(f"EXTRACT(YEAR FROM cp.data_pagamento) IN ({ano_placeholders})")
+            params.extend(anos)
+
+        if mes:
+            meses = [int(m.strip()) for m in mes.split(',')]
+            mes_placeholders = ', '.join(['%s'] * len(meses))
+            conditions.append(f"EXTRACT(MONTH FROM cp.data_pagamento) IN ({mes_placeholders})")
+            params.extend(meses)
+
+        if data_inicio:
+            conditions.append("cp.data_pagamento >= %s")
+            params.append(data_inicio)
+
+        if data_fim:
+            conditions.append("cp.data_pagamento <= %s")
+            params.append(data_fim)
+
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+
+        query = f"""
+            WITH credores_agregados AS (
+                SELECT 
+                    COALESCE(cp.credor, 'Sem Nome') as credor,
+                    COALESCE(SUM(cp.valor_liquido), 0) as valor_pago,
+                    COALESCE(SUM(cp.valor_acrescimo), 0) as valor_acrescimo,
+                    COALESCE(SUM(cp.valor_desconto), 0) as valor_desconto,
+                    COUNT(*) as quantidade
+                FROM contas_pagas cp
+                LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE {where_clause}
+                GROUP BY cp.credor
+            ),
+            total AS (
+                SELECT COALESCE(SUM(valor_pago), 0) as total_geral FROM credores_agregados
+            ),
+            ranking AS (
+                SELECT 
+                    c.credor,
+                    c.valor_pago,
+                    c.valor_acrescimo,
+                    c.valor_desconto,
+                    c.quantidade,
+                    ROW_NUMBER() OVER (ORDER BY c.valor_pago DESC) as rank,
+                    CASE WHEN t.total_geral > 0 
+                         THEN ROUND((c.valor_pago / t.total_geral * 100)::numeric, 2) 
+                         ELSE 0 
+                    END as percentual,
+                    CASE WHEN t.total_geral > 0 
+                         THEN ROUND((SUM(c.valor_pago) OVER (ORDER BY c.valor_pago DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) / t.total_geral * 100)::numeric, 2)
+                         ELSE 0 
+                    END as percentual_acumulado
+                FROM credores_agregados c
+                CROSS JOIN total t
+                ORDER BY c.valor_pago DESC
+            )
+            SELECT * FROM ranking
+        """
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+
+        total_geral = sum(decimal_to_float(row['valor_pago']) for row in rows) if rows else 0
+        
+        resultado = []
+        for row in rows:
+            resultado.append({
+                'credor': row['credor'],
+                'valor_pago': decimal_to_float(row['valor_pago']),
+                'valor_acrescimo': decimal_to_float(row['valor_acrescimo']),
+                'valor_desconto': decimal_to_float(row['valor_desconto']),
+                'quantidade': row['quantidade'],
+                'rank': row['rank'],
+                'percentual': float(row['percentual']),
+                'percentual_acumulado': float(row['percentual_acumulado'])
+            })
+
+        return {
+            'credores': resultado,
+            'total_geral': total_geral,
+            'total_credores': len(resultado)
+        }
+
+    finally:
+        cursor.close()
+        conn.close()
+
 @app.get("/api/comparacao-anual")
 def get_comparacao_anual(
     empresa: Optional[int] = None,

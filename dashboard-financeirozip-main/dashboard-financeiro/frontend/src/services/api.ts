@@ -226,6 +226,46 @@ export const apiService = {
     return response.data;
   },
 
+  // Ranking completo de credores com percentuais e Pareto
+  getRankingCredores: async (filtros: {
+    empresa?: number;
+    centro_custo?: number;
+    id_documento?: string;
+    origem_dado?: string;
+    tipo_baixa?: string;
+    ano?: string;
+    mes?: string;
+    data_inicio?: string;
+    data_fim?: string;
+  }): Promise<{
+    credores: Array<{
+      credor: string;
+      valor_pago: number;
+      valor_acrescimo: number;
+      valor_desconto: number;
+      quantidade: number;
+      rank: number;
+      percentual: number;
+      percentual_acumulado: number;
+    }>;
+    total_geral: number;
+    total_credores: number;
+  }> => {
+    const params = new URLSearchParams();
+    if (filtros.empresa) params.append('empresa', filtros.empresa.toString());
+    if (filtros.centro_custo) params.append('centro_custo', filtros.centro_custo.toString());
+    if (filtros.id_documento) params.append('id_documento', filtros.id_documento);
+    if (filtros.origem_dado) params.append('origem_dado', filtros.origem_dado);
+    if (filtros.tipo_baixa) params.append('tipo_baixa', filtros.tipo_baixa);
+    if (filtros.ano) params.append('ano', filtros.ano);
+    if (filtros.mes) params.append('mes', filtros.mes);
+    if (filtros.data_inicio) params.append('data_inicio', filtros.data_inicio);
+    if (filtros.data_fim) params.append('data_fim', filtros.data_fim);
+
+    const response = await api.get(`/ranking-credores?${params.toString()}`);
+    return response.data;
+  },
+
   // Comparacao anual (ano atual vs ano anterior)
   getComparacaoAnual: async (filtros: {
     empresa?: number;
