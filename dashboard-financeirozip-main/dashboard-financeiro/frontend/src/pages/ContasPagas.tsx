@@ -1494,13 +1494,26 @@ export const ContasPagas: React.FC = () => {
           </div>
         )}
 
-        {rankingCredores && rankingCredores.credores.length > 0 && (
+        {rankingCredores && rankingCredores.credores.length > 0 && (() => {
+          const credores80 = rankingCredores.credores.find(c => c.percentual_acumulado >= 80);
+          const qtdCredores80 = credores80 ? credores80.rank : rankingCredores.credores.length;
+          
+          return (
           <>
             <div className="rounded-lg bg-gray-900 p-6 shadow">
               <h3 className="mb-2 text-xl font-semibold text-white">Ranking Completo de Credores</h3>
               <p className="mb-4 text-sm text-gray-400">
                 {rankingCredores.total_credores} credores | Total: {formatCurrency(rankingCredores.total_geral)}
               </p>
+              <div className="mb-4 rounded-lg bg-gradient-to-r from-blue-900 to-purple-900 p-4">
+                <p className="text-sm text-gray-300">
+                  <span className="text-lg font-bold text-yellow-400">Analise de Pareto:</span> Dos{' '}
+                  <span className="font-bold text-white">{rankingCredores.total_credores}</span> credores,{' '}
+                  <span className="font-bold text-green-400">80%</span> do valor total foi pago para apenas{' '}
+                  <span className="font-bold text-cyan-400">{qtdCredores80}</span> credores{' '}
+                  <span className="text-gray-400">({((qtdCredores80 / rankingCredores.total_credores) * 100).toFixed(1)}% do total de credores)</span>
+                </p>
+              </div>
               <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
                 <table className="min-w-full">
                   <thead className="sticky top-0 bg-gray-800">
@@ -1574,12 +1587,27 @@ export const ContasPagas: React.FC = () => {
                       tick={{ fontSize: 11 }}
                     />
                     <Tooltip
-                      formatter={(value: number, name: string) => {
-                        if (name === 'valor_pago') return [formatCurrency(value), 'Valor Pago'];
-                        if (name === 'percentual_acumulado') return [`${value.toFixed(2)}%`, '% Acumulado'];
-                        return [value, name];
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          const credorData = payload[0]?.payload as RankingCredor | undefined;
+                          if (!credorData) return null;
+                          return (
+                            <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
+                              <p className="mb-2 font-semibold text-gray-900">{label}</p>
+                              <p className="text-sm text-blue-600">
+                                Valor Pago: {formatCurrency(credorData.valor_pago)}
+                              </p>
+                              <p className="text-sm text-purple-600">
+                                Percentual: {credorData.percentual.toFixed(2)}%
+                              </p>
+                              <p className="text-sm text-red-600">
+                                % Acumulado: {credorData.percentual_acumulado.toFixed(2)}%
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
                       }}
-                      labelFormatter={(label) => label}
                     />
                     <Legend />
                     <Bar 
@@ -1607,7 +1635,8 @@ export const ContasPagas: React.FC = () => {
               </div>
             </div>
           </>
-        )}
+          );
+        })()}
       </div>
     );
   };
