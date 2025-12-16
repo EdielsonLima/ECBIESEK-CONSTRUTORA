@@ -279,14 +279,6 @@ export const ContasAPagar: React.FC = () => {
     setFiltroMes([]);
   };
 
-  const toggleMes = (mes: number) => {
-    setFiltroMes(prev => 
-      prev.includes(mes) 
-        ? prev.filter(m => m !== mes)
-        : [...prev, mes]
-    );
-  };
-
   if (loading) {
     return (
       <div className="flex h-96 items-center justify-center">
@@ -354,22 +346,37 @@ export const ContasAPagar: React.FC = () => {
         </div>
         <div>
           <label className="mb-2 block text-sm font-medium text-gray-700">
-            Mes {filtroMes.length > 0 && <span className="text-blue-600">({filtroMes.length})</span>}
+            Mes {filtroMes.length > 0 && filtroMes.length < 12 && <span className="text-blue-600">({filtroMes.length})</span>}
           </label>
-          <div className="relative">
-            <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-300 bg-white p-2">
-              {meses.map((mes) => (
-                <label key={mes.valor} className="flex cursor-pointer items-center gap-2 py-1 hover:bg-gray-50">
-                  <input
-                    type="checkbox"
-                    checked={filtroMes.includes(mes.valor)}
-                    onChange={() => toggleMes(mes.valor)}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-700">{mes.nome}</span>
-                </label>
-              ))}
-            </div>
+          <select
+            multiple
+            value={filtroMes.map(String)}
+            onChange={(e) => {
+              const selected = Array.from(e.target.selectedOptions, option => Number(option.value));
+              setFiltroMes(selected);
+            }}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            style={{ minHeight: '80px' }}
+          >
+            {meses.map((mes) => (
+              <option key={mes.valor} value={mes.valor}>{mes.nome}</option>
+            ))}
+          </select>
+          <div className="mt-1 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setFiltroMes(meses.map(m => m.valor))}
+              className="text-xs text-blue-600 hover:underline"
+            >
+              Todos
+            </button>
+            <button
+              type="button"
+              onClick={() => setFiltroMes([])}
+              className="text-xs text-gray-500 hover:underline"
+            >
+              Limpar
+            </button>
           </div>
         </div>
       </div>
@@ -680,73 +687,66 @@ export const ContasAPagar: React.FC = () => {
 
   return (
     <div>
-      {estatisticas && (
+      {estatisticas && (() => {
+        const contasHoje = contas.filter(c => calcularDiasAteVencimento(c.data_vencimento as any) === 0);
+        const contas7dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 7; });
+        const contas15dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 15; });
+        const contas30dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 30; });
+        const credoresTotal = new Set(contas.map(c => c.credor)).size;
+        const credoresHoje = new Set(contasHoje.map(c => c.credor)).size;
+        const credores7dias = new Set(contas7dias.map(c => c.credor)).size;
+        const credores15dias = new Set(contas15dias.map(c => c.credor)).size;
+        const credores30dias = new Set(contas30dias.map(c => c.credor)).size;
+        return (
         <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <div className="rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 p-5 text-white shadow-lg">
             <div className="mb-1 text-xs font-medium opacity-90">Total a Pagar</div>
             <div className="text-xl font-bold">{formatCurrency(estatisticas.valor_total)}</div>
-            <div className="mt-1 text-xs opacity-75">{estatisticas.quantidade_titulos.toLocaleString('pt-BR')} titulos</div>
+            <div className="mt-1 text-xs opacity-75">{estatisticas.quantidade_titulos.toLocaleString('pt-BR')} titulos | {credoresTotal} credores</div>
           </div>
 
           <div className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 p-5 text-white shadow-lg">
             <div className="mb-1 text-xs font-medium opacity-90">Vencendo Hoje</div>
             <div className="text-xl font-bold">
-              {formatCurrency(contas.filter(c => calcularDiasAteVencimento(c.data_vencimento as any) === 0).reduce((acc, c) => acc + (c.valor_total || 0), 0))}
+              {formatCurrency(contasHoje.reduce((acc, c) => acc + (c.valor_total || 0), 0))}
             </div>
             <div className="mt-1 text-xs opacity-75">
-              {contas.filter(c => calcularDiasAteVencimento(c.data_vencimento as any) === 0).length} titulo(s)
+              {contasHoje.length} titulo(s) | {credoresHoje} credores
             </div>
           </div>
 
           <div className="rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 p-5 text-white shadow-lg">
             <div className="mb-1 text-xs font-medium opacity-90">Proximos 7 dias</div>
             <div className="text-xl font-bold">
-              {formatCurrency(contas.filter(c => {
-                const dias = calcularDiasAteVencimento(c.data_vencimento as any);
-                return dias >= 1 && dias <= 7;
-              }).reduce((acc, c) => acc + (c.valor_total || 0), 0))}
+              {formatCurrency(contas7dias.reduce((acc, c) => acc + (c.valor_total || 0), 0))}
             </div>
             <div className="mt-1 text-xs opacity-75">
-              {contas.filter(c => {
-                const dias = calcularDiasAteVencimento(c.data_vencimento as any);
-                return dias >= 1 && dias <= 7;
-              }).length} titulo(s)
+              {contas7dias.length} titulo(s) | {credores7dias} credores
             </div>
           </div>
 
           <div className="rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 p-5 text-white shadow-lg">
             <div className="mb-1 text-xs font-medium opacity-90">Proximos 15 dias</div>
             <div className="text-xl font-bold">
-              {formatCurrency(contas.filter(c => {
-                const dias = calcularDiasAteVencimento(c.data_vencimento as any);
-                return dias >= 1 && dias <= 15;
-              }).reduce((acc, c) => acc + (c.valor_total || 0), 0))}
+              {formatCurrency(contas15dias.reduce((acc, c) => acc + (c.valor_total || 0), 0))}
             </div>
             <div className="mt-1 text-xs opacity-75">
-              {contas.filter(c => {
-                const dias = calcularDiasAteVencimento(c.data_vencimento as any);
-                return dias >= 1 && dias <= 15;
-              }).length} titulo(s)
+              {contas15dias.length} titulo(s) | {credores15dias} credores
             </div>
           </div>
 
           <div className="rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 p-5 text-white shadow-lg">
             <div className="mb-1 text-xs font-medium opacity-90">Proximos 30 dias</div>
             <div className="text-xl font-bold">
-              {formatCurrency(contas.filter(c => {
-                const dias = calcularDiasAteVencimento(c.data_vencimento as any);
-                return dias >= 1 && dias <= 30;
-              }).reduce((acc, c) => acc + (c.valor_total || 0), 0))}
+              {formatCurrency(contas30dias.reduce((acc, c) => acc + (c.valor_total || 0), 0))}
             </div>
             <div className="mt-1 text-xs opacity-75">
-              {contas.filter(c => {
-                const dias = calcularDiasAteVencimento(c.data_vencimento as any);
-                return dias >= 1 && dias <= 30;
-              }).length} titulo(s)
+              {contas30dias.length} titulo(s) | {credores30dias} credores
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       <div className="mb-6">
         <div className="border-b border-gray-200">
