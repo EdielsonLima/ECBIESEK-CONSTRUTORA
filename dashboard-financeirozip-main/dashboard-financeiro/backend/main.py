@@ -22,7 +22,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configuração do banco de dados
+# Configuração do banco de dados externo (dados financeiros)
 DB_CONFIG = {
     'host': '8iv70o.easypanel.host',
     'port': 42128,
@@ -30,6 +30,9 @@ DB_CONFIG = {
     'user': 'dtKJdFrDX5dt',
     'password': 'dtM7gvwVaDaieR0xqNNGRGnJeo6fYhOnCTdt'
 }
+
+# Configuração do banco de dados Replit (metas e configurações)
+REPLIT_DB_URL = os.environ.get('DATABASE_URL')
 
 # Modelos Pydantic
 class ContaPagar(BaseModel):
@@ -63,20 +66,69 @@ class GraficoPorCategoria(BaseModel):
     valor: float
     quantidade: int
 
+class OrigemMetaCreate(BaseModel):
+    descricao: str
+    origens: List[str]  # Lista de origens (ex: ["AC", "CF"])
+    meta_percentual: float  # Meta em percentual (ex: 90.0 para 90%)
+
+class OrigemMetaUpdate(BaseModel):
+    descricao: Optional[str] = None
+    origens: Optional[List[str]] = None
+    meta_percentual: Optional[float] = None
+
 # Funções auxiliares
 def get_db_connection():
-    """Cria conexão com o banco de dados"""
+    """Cria conexão com o banco de dados externo (dados financeiros)"""
     try:
         conn = psycopg2.connect(**DB_CONFIG, cursor_factory=RealDictCursor)
         return conn
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao conectar ao banco: {str(e)}")
 
+def get_replit_db_connection():
+    """Cria conexão com o banco de dados Replit (metas e configurações)"""
+    try:
+        if not REPLIT_DB_URL:
+            raise HTTPException(status_code=500, detail="Banco de dados Replit não configurado")
+        conn = psycopg2.connect(REPLIT_DB_URL, cursor_factory=RealDictCursor)
+        return conn
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao conectar ao banco Replit: {str(e)}")
+
 def decimal_to_float(obj):
     """Converte Decimal para float"""
     if isinstance(obj, Decimal):
         return float(obj)
     return obj
+
+def create_origem_metas_table():
+    """Cria tabela de metas por origem no banco Replit se não existir"""
+    if not REPLIT_DB_URL:
+        print("Banco de dados Replit não configurado, pulando criação de tabela origem_metas")
+        return
+    conn = get_replit_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS origem_metas (
+                id SERIAL PRIMARY KEY,
+                descricao VARCHAR(255) NOT NULL,
+                origens TEXT NOT NULL,
+                meta_percentual NUMERIC(10,2) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.commit()
+        print("Tabela origem_metas criada/verificada com sucesso")
+    except Exception as e:
+        conn.rollback()
+        print(f"Erro ao criar tabela origem_metas: {e}")
+    finally:
+        cursor.close()
+        conn.close()
+
+create_origem_metas_table()
 
 # Endpoints
 @app.get("/api/health")
@@ -2907,6 +2959,241 @@ def get_metricas_receber():
             'quantidade_em_atraso': em_atraso['quantidade']
         }
 
+    finally:
+        cursor.close()
+        conn.close()
+
+# ============ ENDPOINTS DE METAS POR ORIGEM ============
+
+@app.get("/api/origem-metas")
+def get_origem_metas():
+    """Lista todas as metas de origem"""
+    if not REPLIT_DB_URL:
+        return []
+    conn = get_replit_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id, descricao, origens, meta_percentual, created_at, updated_at FROM origem_metas ORDER BY id")
+        rows = cursor.fetchall()
+        return [{
+            'id': row['id'],
+            'descricao': row['descricao'],
+            'origens': row['origens'].split(','),
+            'meta_percentual': float(row['meta_percentual']),
+            'created_at': row['created_at'].isoformat() if row['created_at'] else None,
+            'updated_at': row['updated_at'].isoformat() if row['updated_at'] else None
+        } for row in rows]
+    except Exception as e:
+        print(f"Erro ao listar metas: {e}")
+        return []
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.post("/api/origem-metas")
+def create_origem_meta(meta: OrigemMetaCreate):
+    """Cria uma nova meta de origem"""
+    if not REPLIT_DB_URL:
+        raise HTTPException(status_code=500, detail="Banco de dados Replit não configurado")
+    conn = get_replit_db_connection()
+    cursor = conn.cursor()
+    try:
+        origens_str = ','.join([o.strip().upper() for o in meta.origens])
+        cursor.execute("""
+            INSERT INTO origem_metas (descricao, origens, meta_percentual)
+            VALUES (%s, %s, %s)
+            RETURNING id
+        """, (meta.descricao, origens_str, meta.meta_percentual))
+        new_id = cursor.fetchone()['id']
+        conn.commit()
+        return {'id': new_id, 'message': 'Meta criada com sucesso'}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.put("/api/origem-metas/{meta_id}")
+def update_origem_meta(meta_id: int, meta: OrigemMetaUpdate):
+    """Atualiza uma meta de origem existente"""
+    if not REPLIT_DB_URL:
+        raise HTTPException(status_code=500, detail="Banco de dados Replit não configurado")
+    conn = get_replit_db_connection()
+    cursor = conn.cursor()
+    try:
+        updates = []
+        params = []
+        if meta.descricao is not None:
+            updates.append("descricao = %s")
+            params.append(meta.descricao)
+        if meta.origens is not None:
+            updates.append("origens = %s")
+            params.append(','.join([o.strip().upper() for o in meta.origens]))
+        if meta.meta_percentual is not None:
+            updates.append("meta_percentual = %s")
+            params.append(meta.meta_percentual)
+        
+        if not updates:
+            raise HTTPException(status_code=400, detail="Nenhum campo para atualizar")
+        
+        updates.append("updated_at = CURRENT_TIMESTAMP")
+        params.append(meta_id)
+        
+        query = f"UPDATE origem_metas SET {', '.join(updates)} WHERE id = %s"
+        cursor.execute(query, params)
+        conn.commit()
+        
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Meta não encontrada")
+        
+        return {'message': 'Meta atualizada com sucesso'}
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.delete("/api/origem-metas/{meta_id}")
+def delete_origem_meta(meta_id: int):
+    """Remove uma meta de origem"""
+    if not REPLIT_DB_URL:
+        raise HTTPException(status_code=500, detail="Banco de dados Replit não configurado")
+    conn = get_replit_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM origem_metas WHERE id = %s", (meta_id,))
+        conn.commit()
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Meta não encontrada")
+        return {'message': 'Meta removida com sucesso'}
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/origem-metas/status")
+def get_origem_metas_status(
+    empresa: Optional[int] = None,
+    centro_custo: Optional[int] = None,
+    ano: Optional[str] = None,
+    mes: Optional[str] = None,
+    data_inicio: Optional[str] = None,
+    data_fim: Optional[str] = None
+):
+    """Calcula o status de atingimento das metas com base nos filtros"""
+    # Buscar metas do banco Replit
+    if not REPLIT_DB_URL:
+        return []
+    
+    replit_conn = get_replit_db_connection()
+    replit_cursor = replit_conn.cursor()
+    try:
+        replit_cursor.execute("SELECT id, descricao, origens, meta_percentual FROM origem_metas")
+        metas = replit_cursor.fetchall()
+    except Exception as e:
+        print(f"Erro ao buscar metas: {e}")
+        metas = []
+    finally:
+        replit_cursor.close()
+        replit_conn.close()
+    
+    if not metas:
+        return []
+    
+    # Usar o banco externo para dados financeiros
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Construir condições de filtro
+        conditions = []
+        params = []
+        
+        if empresa is not None:
+            conditions.append("cc.id_sienge_empresa = %s")
+            params.append(empresa)
+        
+        if centro_custo is not None:
+            conditions.append("cp.id_interno_centro_custo = %s")
+            params.append(centro_custo)
+        
+        if ano:
+            anos = [int(a.strip()) for a in ano.split(',')]
+            ano_placeholders = ', '.join(['%s'] * len(anos))
+            conditions.append(f"EXTRACT(YEAR FROM cp.data_pagamento) IN ({ano_placeholders})")
+            params.extend(anos)
+        
+        if mes:
+            meses = [int(m.strip()) for m in mes.split(',')]
+            mes_placeholders = ', '.join(['%s'] * len(meses))
+            conditions.append(f"EXTRACT(MONTH FROM cp.data_pagamento) IN ({mes_placeholders})")
+            params.extend(meses)
+        
+        if data_inicio:
+            conditions.append("cp.data_pagamento >= %s")
+            params.append(data_inicio)
+        
+        if data_fim:
+            conditions.append("cp.data_pagamento <= %s")
+            params.append(data_fim)
+        
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+        
+        # Calcular total geral
+        query_total = f"""
+            SELECT COALESCE(SUM(cp.valor_liquido), 0) as total
+            FROM contas_pagas cp
+            LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE {where_clause}
+        """
+        cursor.execute(query_total, params)
+        total_geral = float(cursor.fetchone()['total'])
+        
+        resultados = []
+        for meta in metas:
+            origens = [o.strip().upper() for o in meta['origens'].split(',')]
+            
+            # Calcular soma das origens desta meta
+            origem_conditions = []
+            origem_params = list(params)  # Copiar params base
+            for origem in origens:
+                origem_conditions.append("TRIM(UPPER(cp.id_origem)) = %s")
+                origem_params.append(origem)
+            
+            origem_filter = f"({' OR '.join(origem_conditions)})"
+            
+            query_origem = f"""
+                SELECT COALESCE(SUM(cp.valor_liquido), 0) as total
+                FROM contas_pagas cp
+                LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE {where_clause} AND {origem_filter}
+            """
+            cursor.execute(query_origem, origem_params)
+            total_origens = float(cursor.fetchone()['total'])
+            
+            # Calcular percentual atingido
+            percentual_atingido = (total_origens / total_geral * 100) if total_geral > 0 else 0
+            meta_atingida = percentual_atingido >= float(meta['meta_percentual'])
+            
+            resultados.append({
+                'id': meta['id'],
+                'descricao': meta['descricao'],
+                'origens': origens,
+                'meta_percentual': float(meta['meta_percentual']),
+                'percentual_atingido': round(percentual_atingido, 2),
+                'valor_origens': total_origens,
+                'valor_total': total_geral,
+                'meta_atingida': meta_atingida
+            })
+        
+        return resultados
     finally:
         cursor.close()
         conn.close()
