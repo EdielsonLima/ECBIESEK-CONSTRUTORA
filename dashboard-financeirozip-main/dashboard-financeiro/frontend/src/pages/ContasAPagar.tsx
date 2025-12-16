@@ -45,6 +45,7 @@ export const ContasAPagar: React.FC = () => {
   const [centrosCusto, setCentrosCusto] = useState<CentroCustoOption[]>([]);
   const [filtroEmpresa, setFiltroEmpresa] = useState<number | null>(null);
   const [filtroCentroCusto, setFiltroCentroCusto] = useState<number | null>(null);
+  const [filtroPrazo, setFiltroPrazo] = useState<string>('todos');
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
 
   const formatCurrency = (value: number | undefined) => {
@@ -102,12 +103,28 @@ export const ContasAPagar: React.FC = () => {
       setLoading(true);
       const data = await apiService.getContas('a_pagar', 500);
       
-      let contasFiltradas = data;
+      let contasFiltradas = data.filter(c => {
+        const dias = calcularDiasAteVencimento(c.data_vencimento as any);
+        return dias >= 0;
+      });
+      
       if (filtroEmpresa) {
         contasFiltradas = contasFiltradas.filter(c => c.id_interno_empresa === filtroEmpresa);
       }
       if (filtroCentroCusto) {
         contasFiltradas = contasFiltradas.filter(c => c.id_interno_centro_custo === filtroCentroCusto);
+      }
+      if (filtroPrazo !== 'todos') {
+        contasFiltradas = contasFiltradas.filter(c => {
+          const dias = calcularDiasAteVencimento(c.data_vencimento as any);
+          switch (filtroPrazo) {
+            case 'hoje': return dias === 0;
+            case '7dias': return dias >= 0 && dias <= 7;
+            case '15dias': return dias >= 0 && dias <= 15;
+            case '30dias': return dias >= 0 && dias <= 30;
+            default: return true;
+          }
+        });
       }
       
       setContas(contasFiltradas);
@@ -151,7 +168,6 @@ export const ContasAPagar: React.FC = () => {
       setDadosPorEmpresa(empresaArray);
 
       const faixas = [
-        { faixa: 'Vencidos', min: -Infinity, max: -1, ordem: 0 },
         { faixa: 'Hoje', min: 0, max: 0, ordem: 1 },
         { faixa: '1-7 dias', min: 1, max: 7, ordem: 2 },
         { faixa: '8-15 dias', min: 8, max: 15, ordem: 3 },
@@ -201,6 +217,7 @@ export const ContasAPagar: React.FC = () => {
   const limparFiltros = () => {
     setFiltroEmpresa(null);
     setFiltroCentroCusto(null);
+    setFiltroPrazo('todos');
     setTimeout(buscarDados, 100);
   };
 
@@ -250,6 +267,20 @@ export const ContasAPagar: React.FC = () => {
             {centrosCusto.map((cc) => (
               <option key={cc.id} value={cc.id}>{cc.nome}</option>
             ))}
+          </select>
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-gray-700">Prazo de Vencimento</label>
+          <select
+            value={filtroPrazo}
+            onChange={(e) => setFiltroPrazo(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+          >
+            <option value="todos">Todos</option>
+            <option value="hoje">Vence Hoje</option>
+            <option value="7dias">Proximos 7 dias</option>
+            <option value="15dias">Proximos 15 dias</option>
+            <option value="30dias">Proximos 30 dias</option>
           </select>
         </div>
       </div>
@@ -380,7 +411,7 @@ export const ContasAPagar: React.FC = () => {
                   {dadosPorVencimento.map((entry, index) => (
                     <Cell 
                       key={`cell-${index}`} 
-                      fill={entry.faixa === 'Vencidos' ? '#EF4444' : entry.faixa === 'Hoje' ? '#F59E0B' : COLORS[index % COLORS.length]} 
+                      fill={entry.faixa === 'Hoje' ? '#F59E0B' : COLORS[index % COLORS.length]} 
                     />
                   ))}
                   <LabelList dataKey="valor" position="top" formatter={(value: number) => formatCurrencyShort(value)} style={{ fontSize: 10, fill: '#374151' }} />
@@ -493,13 +524,19 @@ export const ContasAPagar: React.FC = () => {
             </div>
           </div>
 
-          <div className="rounded-lg bg-gradient-to-br from-red-500 to-red-600 p-5 text-white shadow-lg">
-            <div className="mb-1 text-xs font-medium opacity-90">Vencidos</div>
+          <div className="rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 p-5 text-white shadow-lg">
+            <div className="mb-1 text-xs font-medium opacity-90">Proximos 7 dias</div>
             <div className="text-2xl font-bold">
-              {formatCurrency(contas.filter(c => calcularDiasAteVencimento(c.data_vencimento as any) < 0).reduce((acc, c) => acc + (c.valor_total || 0), 0))}
+              {formatCurrency(contas.filter(c => {
+                const dias = calcularDiasAteVencimento(c.data_vencimento as any);
+                return dias >= 1 && dias <= 7;
+              }).reduce((acc, c) => acc + (c.valor_total || 0), 0))}
             </div>
             <div className="mt-1 text-xs opacity-75">
-              {contas.filter(c => calcularDiasAteVencimento(c.data_vencimento as any) < 0).length} titulo(s)
+              {contas.filter(c => {
+                const dias = calcularDiasAteVencimento(c.data_vencimento as any);
+                return dias >= 1 && dias <= 7;
+              }).length} titulo(s)
             </div>
           </div>
 
