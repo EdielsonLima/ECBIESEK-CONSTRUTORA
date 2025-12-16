@@ -1564,71 +1564,6 @@ export const ContasPagas: React.FC = () => {
           {mostrarFiltros && renderFiltros()}
         </div>
 
-        {/* Painel de Status das Metas por Origem */}
-        {origemMetasStatus.length > 0 && (
-          <div className="rounded-lg bg-white p-6 shadow">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900">Metas por Origem</h3>
-                <p className="text-sm text-gray-500">Acompanhamento do atingimento das metas definidas</p>
-              </div>
-              <button
-                onClick={() => setAbaAtiva('configuracoes')}
-                className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
-              >
-                Gerenciar Metas
-              </button>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {origemMetasStatus.map((meta) => (
-                <div
-                  key={meta.id}
-                  className={`rounded-lg border-2 p-4 ${
-                    meta.meta_atingida
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-red-500 bg-red-50'
-                  }`}
-                >
-                  <div className="mb-2 flex items-center justify-between">
-                    <h4 className="font-semibold text-gray-900">{meta.descricao}</h4>
-                    <span
-                      className={`rounded-full px-2 py-1 text-xs font-bold ${
-                        meta.meta_atingida
-                          ? 'bg-green-500 text-white'
-                          : 'bg-red-500 text-white'
-                      }`}
-                    >
-                      {meta.meta_atingida ? 'Atingida' : 'Não Atingida'}
-                    </span>
-                  </div>
-                  <p className="mb-2 text-sm text-gray-600">
-                    Origens: <span className="font-medium">{meta.origens.join(', ')}</span>
-                  </p>
-                  <div className="mb-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Atingido: <span className="font-bold">{meta.percentual_atingido.toFixed(1)}%</span></span>
-                      <span>Meta: <span className="font-bold">{meta.meta_percentual}%</span></span>
-                    </div>
-                    <div className="mt-1 h-3 w-full overflow-hidden rounded-full bg-gray-200">
-                      <div
-                        className={`h-full transition-all ${
-                          meta.meta_atingida ? 'bg-green-500' : 'bg-red-500'
-                        }`}
-                        style={{ width: `${Math.min(meta.percentual_atingido, 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div className="mt-2 text-xs text-gray-500">
-                    <span>{formatCurrency(meta.valor_origens)}</span>
-                    <span className="mx-1">de</span>
-                    <span>{formatCurrency(meta.valor_total)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {comparacaoAnual.length > 0 && (() => {
           const dadosComVariacao = comparacaoAnual.map(item => {
             const variacao = item.ano_anterior > 0 
@@ -1965,6 +1900,71 @@ export const ContasPagas: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Painel de Status das Metas por Origem */}
+        {origemMetasStatus.length > 0 && (
+          <div className="rounded-lg bg-white p-6 shadow">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">Metas por Origem</h3>
+                <p className="text-sm text-gray-500">Acompanhamento do atingimento das metas definidas</p>
+              </div>
+              <button
+                onClick={() => setAbaAtiva('configuracoes')}
+                className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                Gerenciar Metas
+              </button>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {origemMetasStatus.map((meta) => (
+                <div
+                  key={meta.id}
+                  className={`rounded-lg border-2 p-4 ${
+                    meta.meta_atingida
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-red-500 bg-red-50'
+                  }`}
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <h4 className="font-semibold text-gray-900">{meta.descricao}</h4>
+                    <span
+                      className={`rounded-full px-2 py-1 text-xs font-bold ${
+                        meta.meta_atingida
+                          ? 'bg-green-500 text-white'
+                          : 'bg-red-500 text-white'
+                      }`}
+                    >
+                      {meta.meta_atingida ? 'Atingida' : 'Não Atingida'}
+                    </span>
+                  </div>
+                  <p className="mb-2 text-sm text-gray-600">
+                    Origens: <span className="font-medium">{meta.origens.join(', ')}</span>
+                  </p>
+                  <div className="mb-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Atingido: <span className="font-bold">{meta.percentual_atingido.toFixed(1)}%</span></span>
+                      <span>Meta: <span className="font-bold">{meta.meta_percentual}%</span></span>
+                    </div>
+                    <div className="mt-1 h-3 w-full overflow-hidden rounded-full bg-gray-200">
+                      <div
+                        className={`h-full transition-all ${
+                          meta.meta_atingida ? 'bg-green-500' : 'bg-red-500'
+                        }`}
+                        style={{ width: `${Math.min(meta.percentual_atingido, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-2 text-xs text-gray-500">
+                    <span>{formatCurrency(meta.valor_origens)}</span>
+                    <span className="mx-1">de</span>
+                    <span>{formatCurrency(meta.valor_total)}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
