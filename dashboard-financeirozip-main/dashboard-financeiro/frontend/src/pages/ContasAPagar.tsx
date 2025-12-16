@@ -47,6 +47,7 @@ export const ContasAPagar: React.FC = () => {
   const [filtroCentroCusto, setFiltroCentroCusto] = useState<number | null>(null);
   const [filtroPrazo, setFiltroPrazo] = useState<string>('todos');
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [todasContas, setTodasContas] = useState<ContaPagar[]>([]);
 
   const formatCurrency = (value: number | undefined) => {
     if (!value) return 'R$ 0,00';
@@ -98,106 +99,17 @@ export const ContasAPagar: React.FC = () => {
     carregarFiltros();
   }, []);
 
-  const buscarDados = async () => {
+  const carregarDados = async () => {
     try {
       setLoading(true);
       const data = await apiService.getContas('a_pagar', 500);
       
-      let contasFiltradas = data.filter(c => {
+      const contasNaoVencidas = data.filter(c => {
         const dias = calcularDiasAteVencimento(c.data_vencimento as any);
         return dias >= 0;
       });
       
-      if (filtroEmpresa) {
-        contasFiltradas = contasFiltradas.filter(c => c.id_interno_empresa === filtroEmpresa);
-      }
-      if (filtroCentroCusto) {
-        contasFiltradas = contasFiltradas.filter(c => c.id_interno_centro_custo === filtroCentroCusto);
-      }
-      if (filtroPrazo !== 'todos') {
-        contasFiltradas = contasFiltradas.filter(c => {
-          const dias = calcularDiasAteVencimento(c.data_vencimento as any);
-          switch (filtroPrazo) {
-            case 'hoje': return dias === 0;
-            case '7dias': return dias >= 0 && dias <= 7;
-            case '15dias': return dias >= 0 && dias <= 15;
-            case '30dias': return dias >= 0 && dias <= 30;
-            default: return true;
-          }
-        });
-      }
-      
-      setContas(contasFiltradas);
-
-      const stats: Estatisticas = {
-        quantidade_titulos: contasFiltradas.length,
-        valor_total: contasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0),
-        valor_medio: contasFiltradas.length > 0 
-          ? contasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0) / contasFiltradas.length 
-          : 0,
-      };
-      setEstatisticas(stats);
-
-      const credorMap = new Map<string, { valor: number; quantidade: number }>();
-      contasFiltradas.forEach(c => {
-        const credor = c.credor || 'Sem Credor';
-        const atual = credorMap.get(credor) || { valor: 0, quantidade: 0 };
-        credorMap.set(credor, {
-          valor: atual.valor + (c.valor_total || 0),
-          quantidade: atual.quantidade + 1,
-        });
-      });
-      const credorArray = Array.from(credorMap.entries())
-        .map(([credor, data]) => ({ credor, ...data }))
-        .sort((a, b) => b.valor - a.valor)
-        .slice(0, 15);
-      setDadosPorCredor(credorArray);
-
-      const empresaMap = new Map<string, { valor: number; quantidade: number }>();
-      contasFiltradas.forEach(c => {
-        const empresa = c.nome_empresa || 'Sem Empresa';
-        const atual = empresaMap.get(empresa) || { valor: 0, quantidade: 0 };
-        empresaMap.set(empresa, {
-          valor: atual.valor + (c.valor_total || 0),
-          quantidade: atual.quantidade + 1,
-        });
-      });
-      const empresaArray = Array.from(empresaMap.entries())
-        .map(([empresa, data]) => ({ empresa, ...data }))
-        .sort((a, b) => b.valor - a.valor);
-      setDadosPorEmpresa(empresaArray);
-
-      const faixas = [
-        { faixa: 'Hoje', min: 0, max: 0, ordem: 1 },
-        { faixa: '1-7 dias', min: 1, max: 7, ordem: 2 },
-        { faixa: '8-15 dias', min: 8, max: 15, ordem: 3 },
-        { faixa: '16-30 dias', min: 16, max: 30, ordem: 4 },
-        { faixa: '31-60 dias', min: 31, max: 60, ordem: 5 },
-        { faixa: '+60 dias', min: 61, max: Infinity, ordem: 6 },
-      ];
-      
-      const vencimentoMap = new Map<string, { valor: number; quantidade: number; ordem: number }>();
-      faixas.forEach(f => vencimentoMap.set(f.faixa, { valor: 0, quantidade: 0, ordem: f.ordem }));
-      
-      contasFiltradas.forEach(c => {
-        const dias = calcularDiasAteVencimento(c.data_vencimento as any);
-        const faixa = faixas.find(f => dias >= f.min && dias <= f.max);
-        if (faixa) {
-          const atual = vencimentoMap.get(faixa.faixa)!;
-          vencimentoMap.set(faixa.faixa, {
-            valor: atual.valor + (c.valor_total || 0),
-            quantidade: atual.quantidade + 1,
-            ordem: atual.ordem,
-          });
-        }
-      });
-      
-      const vencimentoArray = Array.from(vencimentoMap.entries())
-        .map(([faixa, data]) => ({ faixa, ...data }))
-        .filter(d => d.quantidade > 0)
-        .sort((a, b) => a.ordem - b.ordem);
-      setDadosPorVencimento(vencimentoArray);
-
+      setTodasContas(contasNaoVencidas);
     } catch (err) {
       setError('Erro ao carregar contas a pagar');
       console.error(err);
@@ -206,19 +118,124 @@ export const ContasAPagar: React.FC = () => {
     }
   };
 
+  const aplicarFiltrosLocais = (
+    dados: ContaPagar[],
+    empresa: number | null,
+    cc: number | null,
+    prazo: string
+  ) => {
+    let contasFiltradas = [...dados];
+    
+    if (empresa) {
+      contasFiltradas = contasFiltradas.filter(c => c.id_interno_empresa === empresa);
+    }
+    if (cc) {
+      contasFiltradas = contasFiltradas.filter(c => c.id_interno_centro_custo === cc);
+    }
+    if (prazo !== 'todos') {
+      contasFiltradas = contasFiltradas.filter(c => {
+        const dias = calcularDiasAteVencimento(c.data_vencimento as any);
+        switch (prazo) {
+          case 'hoje': return dias === 0;
+          case '7dias': return dias >= 0 && dias <= 7;
+          case '15dias': return dias >= 0 && dias <= 15;
+          case '30dias': return dias >= 0 && dias <= 30;
+          default: return true;
+        }
+      });
+    }
+    
+    return contasFiltradas;
+  };
+
   useEffect(() => {
-    buscarDados();
+    if (todasContas.length === 0) return;
+    
+    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroPrazo);
+    setContas(contasFiltradas);
+
+    const stats: Estatisticas = {
+      quantidade_titulos: contasFiltradas.length,
+      valor_total: contasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0),
+      valor_medio: contasFiltradas.length > 0 
+        ? contasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0) / contasFiltradas.length 
+        : 0,
+    };
+    setEstatisticas(stats);
+
+    const credorMap = new Map<string, { valor: number; quantidade: number }>();
+    contasFiltradas.forEach(c => {
+      const credor = c.credor || 'Sem Credor';
+      const atual = credorMap.get(credor) || { valor: 0, quantidade: 0 };
+      credorMap.set(credor, {
+        valor: atual.valor + (c.valor_total || 0),
+        quantidade: atual.quantidade + 1,
+      });
+    });
+    const credorArray = Array.from(credorMap.entries())
+      .map(([credor, data]) => ({ credor, ...data }))
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 15);
+    setDadosPorCredor(credorArray);
+
+    const empresaMap = new Map<string, { valor: number; quantidade: number }>();
+    contasFiltradas.forEach(c => {
+      const empresa = c.nome_empresa || 'Sem Empresa';
+      const atual = empresaMap.get(empresa) || { valor: 0, quantidade: 0 };
+      empresaMap.set(empresa, {
+        valor: atual.valor + (c.valor_total || 0),
+        quantidade: atual.quantidade + 1,
+      });
+    });
+    const empresaArray = Array.from(empresaMap.entries())
+      .map(([empresa, data]) => ({ empresa, ...data }))
+      .sort((a, b) => b.valor - a.valor);
+    setDadosPorEmpresa(empresaArray);
+
+    const faixas = [
+      { faixa: 'Hoje', min: 0, max: 0, ordem: 1 },
+      { faixa: '1-7 dias', min: 1, max: 7, ordem: 2 },
+      { faixa: '8-15 dias', min: 8, max: 15, ordem: 3 },
+      { faixa: '16-30 dias', min: 16, max: 30, ordem: 4 },
+      { faixa: '31-60 dias', min: 31, max: 60, ordem: 5 },
+      { faixa: '+60 dias', min: 61, max: Infinity, ordem: 6 },
+    ];
+    
+    const vencimentoMap = new Map<string, { valor: number; quantidade: number; ordem: number }>();
+    faixas.forEach(f => vencimentoMap.set(f.faixa, { valor: 0, quantidade: 0, ordem: f.ordem }));
+    
+    contasFiltradas.forEach(c => {
+      const dias = calcularDiasAteVencimento(c.data_vencimento as any);
+      const faixa = faixas.find(f => dias >= f.min && dias <= f.max);
+      if (faixa) {
+        const atual = vencimentoMap.get(faixa.faixa)!;
+        vencimentoMap.set(faixa.faixa, {
+          valor: atual.valor + (c.valor_total || 0),
+          quantidade: atual.quantidade + 1,
+          ordem: atual.ordem,
+        });
+      }
+    });
+    
+    const vencimentoArray = Array.from(vencimentoMap.entries())
+      .map(([faixa, data]) => ({ faixa, ...data }))
+      .filter(d => d.quantidade > 0)
+      .sort((a, b) => a.ordem - b.ordem);
+    setDadosPorVencimento(vencimentoArray);
+  }, [todasContas, filtroEmpresa, filtroCentroCusto, filtroPrazo]);
+
+  useEffect(() => {
+    carregarDados();
   }, []);
 
   const aplicarFiltros = () => {
-    buscarDados();
+    // Filtros já são aplicados automaticamente pelo useEffect
   };
 
   const limparFiltros = () => {
     setFiltroEmpresa(null);
     setFiltroCentroCusto(null);
     setFiltroPrazo('todos');
-    setTimeout(buscarDados, 100);
   };
 
   if (loading) {
