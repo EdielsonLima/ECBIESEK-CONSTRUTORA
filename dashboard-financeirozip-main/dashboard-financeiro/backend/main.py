@@ -1922,6 +1922,483 @@ def get_tipos_documento_kpi():
         cursor.close()
         conn.close()
 
+# ==================== CONTAS A RECEBER ====================
+
+@app.get("/api/contas-receber")
+def get_contas_receber(status: Optional[str] = None, limite: int = 100):
+    """Retorna lista de contas a receber com filtro opcional por status"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        hoje = datetime.now().date()
+
+        if status == "recebido":
+            query = """
+                SELECT cr.cliente, cr.data_recebimento as data_vencimento, cr.valor_liquido as valor_total,
+                       cr.titulo as lancamento, cr.id_documento, cr.id_interno_empresa,
+                       cc.nome_empresa, cc.nome_centrocusto,
+                       TRIM(cr.id_documento) as id_documento
+                FROM contas_recebidas cr
+                LEFT JOIN dim_centrocusto cc ON cr.id_interno_empresa = cc.id_sienge_empresa
+                ORDER BY cr.data_recebimento DESC
+                LIMIT %s
+            """
+            cursor.execute(query, (limite,))
+        elif status == "a_receber":
+            query = """
+                SELECT car.cliente, car.data_vencimento, car.valor_total,
+                       car.lancamento, car.numero_documento, car.id_plano_financeiro,
+                       car.id_interno_empresa, car.id_interno_centro_custo,
+                       cc.nome_empresa, cc.nome_centrocusto,
+                       TRIM(car.id_documento) as id_documento
+                FROM contas_a_receber car
+                LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE car.data_vencimento >= %s
+                ORDER BY car.data_vencimento ASC
+                LIMIT %s
+            """
+            cursor.execute(query, (hoje, limite))
+        elif status == "em_atraso":
+            query = """
+                SELECT car.cliente, car.data_vencimento, car.valor_total,
+                       car.lancamento, car.numero_documento, car.id_plano_financeiro,
+                       car.id_interno_empresa, car.id_interno_centro_custo,
+                       cc.nome_empresa, cc.nome_centrocusto,
+                       TRIM(car.id_documento) as id_documento
+                FROM contas_a_receber car
+                LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE car.data_vencimento < %s
+                ORDER BY car.data_vencimento ASC
+                LIMIT %s
+            """
+            cursor.execute(query, (hoje, limite))
+        else:
+            query = """
+                SELECT car.cliente, car.data_vencimento, car.valor_total,
+                       car.lancamento, car.numero_documento, car.id_plano_financeiro,
+                       car.id_interno_empresa, car.id_interno_centro_custo,
+                       cc.nome_empresa, cc.nome_centrocusto,
+                       TRIM(car.id_documento) as id_documento
+                FROM contas_a_receber car
+                LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
+                ORDER BY car.data_vencimento DESC
+                LIMIT %s
+            """
+            cursor.execute(query, (limite,))
+
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/contas-recebidas-filtradas")
+def get_contas_recebidas_filtradas(
+    empresa: Optional[int] = None,
+    centro_custo: Optional[int] = None,
+    cliente: Optional[str] = None,
+    id_documento: Optional[str] = None,
+    ano: Optional[str] = None,
+    mes: Optional[str] = None,
+    data_inicio: Optional[str] = None,
+    data_fim: Optional[str] = None,
+    limite: int = 100
+):
+    """Retorna contas recebidas com filtros avançados"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        conditions = []
+        params = []
+
+        if empresa is not None:
+            conditions.append("cr.id_interno_empresa = %s")
+            params.append(empresa)
+
+        if cliente:
+            conditions.append("cr.cliente ILIKE %s")
+            params.append(f"%{cliente}%")
+
+        if id_documento:
+            docs = [doc.strip() for doc in id_documento.split(',')]
+            doc_conditions = []
+            for doc in docs:
+                doc_conditions.append("TRIM(cr.id_documento) = %s")
+                params.append(doc)
+            conditions.append(f"({' OR '.join(doc_conditions)})")
+
+        if ano:
+            anos = [int(a.strip()) for a in ano.split(',')]
+            ano_placeholders = ', '.join(['%s'] * len(anos))
+            conditions.append(f"EXTRACT(YEAR FROM cr.data_recebimento) IN ({ano_placeholders})")
+            params.extend(anos)
+
+        if mes:
+            meses = [int(m.strip()) for m in mes.split(',')]
+            mes_placeholders = ', '.join(['%s'] * len(meses))
+            conditions.append(f"EXTRACT(MONTH FROM cr.data_recebimento) IN ({mes_placeholders})")
+            params.extend(meses)
+
+        if data_inicio:
+            conditions.append("cr.data_recebimento >= %s")
+            params.append(data_inicio)
+
+        if data_fim:
+            conditions.append("cr.data_recebimento <= %s")
+            params.append(data_fim)
+
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+
+        query = f"""
+            SELECT
+                cr.cliente,
+                cr.data_recebimento,
+                cr.valor_liquido as valor_total,
+                cr.titulo as lancamento,
+                cr.id_interno_empresa,
+                cc.nome_empresa,
+                TRIM(cr.id_documento) as id_documento
+            FROM contas_recebidas cr
+            LEFT JOIN dim_centrocusto cc ON cr.id_interno_empresa = cc.id_sienge_empresa
+            WHERE {where_clause}
+            ORDER BY cr.data_recebimento DESC, cr.cliente, cr.valor_liquido
+            LIMIT %s
+        """
+        params.append(limite)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/contas-receber-estatisticas")
+def get_contas_receber_estatisticas(
+    empresa: Optional[int] = None,
+    centro_custo: Optional[int] = None,
+    ano: Optional[str] = None,
+    mes: Optional[str] = None,
+    id_documento: Optional[str] = None
+):
+    """Retorna estatísticas de contas a receber"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        conditions = []
+        params = []
+
+        if empresa is not None:
+            conditions.append("cc.id_sienge_empresa = %s")
+            params.append(empresa)
+
+        if centro_custo is not None:
+            conditions.append("car.id_interno_centro_custo = %s")
+            params.append(centro_custo)
+
+        if ano:
+            anos = [int(a.strip()) for a in ano.split(',')]
+            ano_placeholders = ', '.join(['%s'] * len(anos))
+            conditions.append(f"EXTRACT(YEAR FROM car.data_vencimento) IN ({ano_placeholders})")
+            params.extend(anos)
+
+        if mes:
+            meses = [int(m.strip()) for m in mes.split(',')]
+            mes_placeholders = ', '.join(['%s'] * len(meses))
+            conditions.append(f"EXTRACT(MONTH FROM car.data_vencimento) IN ({mes_placeholders})")
+            params.extend(meses)
+
+        if id_documento:
+            docs = [doc.strip() for doc in id_documento.split(',')]
+            doc_conditions = []
+            for doc in docs:
+                doc_conditions.append("TRIM(car.id_documento) = %s")
+                params.append(doc)
+            conditions.append(f"({' OR '.join(doc_conditions)})")
+
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+
+        hoje = datetime.now().date()
+
+        query = f"""
+            SELECT
+                COUNT(*) as quantidade_titulos,
+                COALESCE(SUM(car.valor_total), 0) as valor_total,
+                COALESCE(AVG(car.valor_total), 0) as valor_medio,
+                COUNT(CASE WHEN car.data_vencimento < %s THEN 1 END) as quantidade_atrasados,
+                COALESCE(SUM(CASE WHEN car.data_vencimento < %s THEN car.valor_total ELSE 0 END), 0) as valor_atrasados,
+                COUNT(CASE WHEN car.data_vencimento = %s THEN 1 END) as quantidade_vence_hoje,
+                COALESCE(SUM(CASE WHEN car.data_vencimento = %s THEN car.valor_total ELSE 0 END), 0) as valor_vence_hoje
+            FROM contas_a_receber car
+            LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE {where_clause}
+        """
+        params_with_dates = [hoje, hoje, hoje, hoje] + params
+        
+        cursor.execute(query, params_with_dates)
+        row = cursor.fetchone()
+
+        return {
+            'quantidade_titulos': row['quantidade_titulos'],
+            'valor_total': float(row['valor_total']),
+            'valor_medio': float(row['valor_medio']),
+            'quantidade_atrasados': row['quantidade_atrasados'],
+            'valor_atrasados': float(row['valor_atrasados']),
+            'quantidade_vence_hoje': row['quantidade_vence_hoje'],
+            'valor_vence_hoje': float(row['valor_vence_hoje'])
+        }
+
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/contas-recebidas-estatisticas")
+def get_contas_recebidas_estatisticas(
+    empresa: Optional[int] = None,
+    ano: Optional[str] = None,
+    mes: Optional[str] = None,
+    id_documento: Optional[str] = None
+):
+    """Retorna estatísticas de contas recebidas"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        conditions = []
+        params = []
+
+        if empresa is not None:
+            conditions.append("cr.id_interno_empresa = %s")
+            params.append(empresa)
+
+        if ano:
+            anos = [int(a.strip()) for a in ano.split(',')]
+            ano_placeholders = ', '.join(['%s'] * len(anos))
+            conditions.append(f"EXTRACT(YEAR FROM cr.data_recebimento) IN ({ano_placeholders})")
+            params.extend(anos)
+
+        if mes:
+            meses = [int(m.strip()) for m in mes.split(',')]
+            mes_placeholders = ', '.join(['%s'] * len(meses))
+            conditions.append(f"EXTRACT(MONTH FROM cr.data_recebimento) IN ({mes_placeholders})")
+            params.extend(meses)
+
+        if id_documento:
+            docs = [doc.strip() for doc in id_documento.split(',')]
+            doc_conditions = []
+            for doc in docs:
+                doc_conditions.append("TRIM(cr.id_documento) = %s")
+                params.append(doc)
+            conditions.append(f"({' OR '.join(doc_conditions)})")
+
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+
+        query = f"""
+            SELECT
+                COUNT(*) as quantidade_titulos,
+                COALESCE(SUM(cr.valor_liquido), 0) as valor_total,
+                COALESCE(AVG(cr.valor_liquido), 0) as valor_medio
+            FROM contas_recebidas cr
+            WHERE {where_clause}
+        """
+        
+        cursor.execute(query, params)
+        row = cursor.fetchone()
+
+        return {
+            'quantidade_titulos': row['quantidade_titulos'],
+            'valor_total': float(row['valor_total']),
+            'valor_medio': float(row['valor_medio'])
+        }
+
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/contas-receber-por-cliente")
+def get_contas_receber_por_cliente(
+    empresa: Optional[int] = None,
+    centro_custo: Optional[int] = None,
+    ano: Optional[str] = None,
+    mes: Optional[str] = None,
+    id_documento: Optional[str] = None,
+    limite: int = 15
+):
+    """Retorna contas a receber agrupadas por cliente"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        conditions = []
+        params = []
+
+        if empresa is not None:
+            conditions.append("cc.id_sienge_empresa = %s")
+            params.append(empresa)
+
+        if centro_custo is not None:
+            conditions.append("car.id_interno_centro_custo = %s")
+            params.append(centro_custo)
+
+        if ano:
+            anos = [int(a.strip()) for a in ano.split(',')]
+            ano_placeholders = ', '.join(['%s'] * len(anos))
+            conditions.append(f"EXTRACT(YEAR FROM car.data_vencimento) IN ({ano_placeholders})")
+            params.extend(anos)
+
+        if mes:
+            meses = [int(m.strip()) for m in mes.split(',')]
+            mes_placeholders = ', '.join(['%s'] * len(meses))
+            conditions.append(f"EXTRACT(MONTH FROM car.data_vencimento) IN ({mes_placeholders})")
+            params.extend(meses)
+
+        if id_documento:
+            docs = [doc.strip() for doc in id_documento.split(',')]
+            doc_conditions = []
+            for doc in docs:
+                doc_conditions.append("TRIM(car.id_documento) = %s")
+                params.append(doc)
+            conditions.append(f"({' OR '.join(doc_conditions)})")
+
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+
+        query = f"""
+            SELECT
+                car.cliente,
+                SUM(car.valor_total) as valor,
+                COUNT(*) as quantidade
+            FROM contas_a_receber car
+            LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE {where_clause}
+            GROUP BY car.cliente
+            ORDER BY valor DESC
+            LIMIT %s
+        """
+        params.append(limite)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+
+        return [{'cliente': row['cliente'], 'valor': float(row['valor']), 'quantidade': row['quantidade']} for row in rows]
+
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/contas-recebidas-por-cliente")
+def get_contas_recebidas_por_cliente(
+    empresa: Optional[int] = None,
+    ano: Optional[str] = None,
+    mes: Optional[str] = None,
+    id_documento: Optional[str] = None,
+    limite: int = 15
+):
+    """Retorna contas recebidas agrupadas por cliente"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        conditions = []
+        params = []
+
+        if empresa is not None:
+            conditions.append("cr.id_interno_empresa = %s")
+            params.append(empresa)
+
+        if ano:
+            anos = [int(a.strip()) for a in ano.split(',')]
+            ano_placeholders = ', '.join(['%s'] * len(anos))
+            conditions.append(f"EXTRACT(YEAR FROM cr.data_recebimento) IN ({ano_placeholders})")
+            params.extend(anos)
+
+        if mes:
+            meses = [int(m.strip()) for m in mes.split(',')]
+            mes_placeholders = ', '.join(['%s'] * len(meses))
+            conditions.append(f"EXTRACT(MONTH FROM cr.data_recebimento) IN ({mes_placeholders})")
+            params.extend(meses)
+
+        if id_documento:
+            docs = [doc.strip() for doc in id_documento.split(',')]
+            doc_conditions = []
+            for doc in docs:
+                doc_conditions.append("TRIM(cr.id_documento) = %s")
+                params.append(doc)
+            conditions.append(f"({' OR '.join(doc_conditions)})")
+
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+
+        query = f"""
+            SELECT
+                cr.cliente,
+                SUM(cr.valor_liquido) as valor,
+                COUNT(*) as quantidade
+            FROM contas_recebidas cr
+            WHERE {where_clause}
+            GROUP BY cr.cliente
+            ORDER BY valor DESC
+            LIMIT %s
+        """
+        params.append(limite)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+
+        return [{'cliente': row['cliente'], 'valor': float(row['valor']), 'quantidade': row['quantidade']} for row in rows]
+
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/metricas-receber")
+def get_metricas_receber():
+    """Retorna métricas gerais de contas a receber para o dashboard"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        hoje = datetime.now().date()
+
+        # Contas recebidas
+        cursor.execute("""
+            SELECT COALESCE(SUM(valor_liquido), 0) as total, COUNT(*) as quantidade
+            FROM contas_recebidas
+        """)
+        recebido = cursor.fetchone()
+
+        # Contas a receber (não vencidas)
+        cursor.execute("""
+            SELECT COALESCE(SUM(valor_total), 0) as total, COUNT(*) as quantidade
+            FROM contas_a_receber
+            WHERE data_vencimento >= %s
+        """, (hoje,))
+        a_receber = cursor.fetchone()
+
+        # Contas em atraso (vencidas e não recebidas)
+        cursor.execute("""
+            SELECT COALESCE(SUM(valor_total), 0) as total, COUNT(*) as quantidade
+            FROM contas_a_receber
+            WHERE data_vencimento < %s
+        """, (hoje,))
+        em_atraso = cursor.fetchone()
+
+        return {
+            'total_recebido': float(recebido['total']),
+            'total_a_receber': float(a_receber['total']),
+            'total_em_atraso': float(em_atraso['total']),
+            'quantidade_recebido': recebido['quantidade'],
+            'quantidade_a_receber': a_receber['quantidade'],
+            'quantidade_em_atraso': em_atraso['quantidade']
+        }
+
+    finally:
+        cursor.close()
+        conn.close()
+
 FRONTEND_BUILD_DIR = Path(__file__).parent.parent / "frontend" / "dist"
 
 if FRONTEND_BUILD_DIR.exists():

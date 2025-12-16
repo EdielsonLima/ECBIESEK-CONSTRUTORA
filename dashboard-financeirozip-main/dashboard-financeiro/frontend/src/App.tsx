@@ -4,6 +4,9 @@ import { Dashboard } from './pages/Dashboard';
 import { ContasAPagar } from './pages/ContasAPagar';
 import { ContasPagas } from './pages/ContasPagas';
 import { ContasAtrasadas } from './pages/ContasAtrasadas';
+import { ContasAReceber } from './pages/ContasAReceber';
+import { ContasRecebidas } from './pages/ContasRecebidas';
+import { ContasReceberAtrasadas } from './pages/ContasReceberAtrasadas';
 import { KPIs } from './pages/KPIs';
 
 function App() {
@@ -20,6 +23,12 @@ function App() {
         return <ContasPagas />;
       case 'contas-atrasadas':
         return <ContasAtrasadas />;
+      case 'contas-a-receber':
+        return <ContasAReceber />;
+      case 'contas-recebidas':
+        return <ContasRecebidas />;
+      case 'recebimentos-atrasados':
+        return <ContasReceberAtrasadas />;
       case 'kpis':
         return <KPIs />;
       default:
@@ -45,9 +54,12 @@ function App() {
               {currentPage === 'contas-a-pagar' && 'Contas a Pagar'}
               {currentPage === 'contas-pagas' && 'Contas Pagas'}
               {currentPage === 'contas-atrasadas' && 'Contas Atrasadas'}
+              {currentPage === 'contas-a-receber' && 'Contas a Receber'}
+              {currentPage === 'contas-recebidas' && 'Contas Recebidas'}
+              {currentPage === 'recebimentos-atrasados' && 'Recebimentos em Atraso'}
               {currentPage === 'kpis' && 'KPIs'}
               </h1>
-              <p className="mt-1 text-blue-100">Gestão de Contas a Pagar - Construtora</p>
+              <p className="mt-1 text-blue-100">Gestão Financeira - Construtora</p>
             </div>
             <button
               type="button"

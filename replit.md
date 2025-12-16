@@ -2,7 +2,7 @@
 
 ## Overview
 
-A financial dashboard web application for managing accounts payable (contas a pagar) for a construction company. The system provides visualization of financial data through interactive charts, tables, and KPI tracking. Users can view paid accounts, pending payments, overdue accounts, and track key performance indicators with historical data.
+A financial dashboard web application for managing both accounts payable (contas a pagar) and accounts receivable (contas a receber) for a construction company. The system provides visualization of financial data through interactive charts, tables, and KPI tracking. Users can view paid/received accounts, pending payments/receivables, overdue accounts, and track key performance indicators with historical data.
 
 ## User Preferences
 
@@ -20,21 +20,32 @@ Preferred communication style: Simple, everyday language.
 
 The frontend follows a component-based architecture:
 - **Reusable UI components**: `MetricCard`, `ContasTable`, `CategoryChart`, `MonthlyChart`, `SearchableSelect`, `Sidebar`
-- **Page components**: `Dashboard`, `ContasAPagar`, `ContasPagas`, `ContasAtrasadas`, `KPIs`
+- **Page components**: `Dashboard`, `ContasAPagar`, `ContasPagas`, `ContasAtrasadas`, `ContasAReceber`, `ContasRecebidas`, `ContasReceberAtrasadas`, `KPIs`
 - **Centralized API layer**: `services/api.ts` handles all backend communication
 - **Type definitions**: `types/index.ts` provides TypeScript interfaces
 
+### Navigation Structure
+The Sidebar has two expandable menu sections:
+- **Contas a Pagar**: A Pagar, Pagas, Atrasadas
+- **Contas a Receber**: A Receber, Recebidas, Atrasadas
+
 ### Page Features (Updated December 2025)
-All three account pages (Pagas, A Pagar, Atrasadas) now share a consistent structure:
+All six account pages (Contas a Pagar + Contas a Receber) share a consistent structure:
 - **Statistics cards**: 4 key metrics displayed at top of page
 - **Dual tabs**: "Dados" (data table) and "Analises" (charts/analysis)
-- **Filtering**: Empresa, Centro de Custo, Ano, Mes (multi-select), and Tipo Documento (multi-select) dropdowns
+- **Filtering**: Empresa, Centro de Custo (payables only), Ano, Mes (multi-select), and Tipo Documento (multi-select) dropdowns
 - **Sortable columns**: Click on table headers to sort by that column (ascending/descending)
 - **Charts**: Recharts-powered visualizations including bar charts
 
-**ContasPagas**: Pareto analysis with 80% concentration summary, creditor ranking
-**ContasAPagar**: Vencimento distribution, due today/overdue tracking, creditor analysis
-**ContasAtrasadas**: Atraso by faixa (days overdue), critical accounts (+30 days) summary panel
+**Contas a Pagar**:
+- ContasPagas: Pareto analysis with 80% concentration summary, creditor ranking
+- ContasAPagar: Vencimento distribution, due today/overdue tracking, creditor analysis
+- ContasAtrasadas: Atraso by faixa (days overdue), critical accounts (+30 days) summary panel
+
+**Contas a Receber**:
+- ContasRecebidas: Pareto analysis with 80% concentration summary, client ranking
+- ContasAReceber: Vencimento distribution, due today/overdue tracking, client analysis
+- ContasReceberAtrasadas: Atraso by faixa (days overdue), critical accounts (+30 days) summary panel
 
 ### Backend Architecture
 - **Framework**: FastAPI (Python)
@@ -56,10 +67,15 @@ All endpoints are prefixed with `/api`:
 Vite dev server proxies `/api` requests to the FastAPI backend at `http://localhost:8000`, enabling seamless frontend-backend communication during development.
 
 ### Database Schema
-PostgreSQL database with primary table `contas_a_pagar`:
-- Core fields: `id`, `descricao`, `valor`, `data_vencimento`, `data_pagamento`, `status`
-- Organization fields: `fornecedor`, `categoria`, `observacoes`
-- Metadata: `created_at`, `updated_at`
+PostgreSQL database with tables for accounts payable and receivable:
+
+**Contas a Pagar Tables**:
+- `contas_a_pagar`: Main accounts payable table with fields for credor, valor, data_vencimento, data_pagamento, status
+- `contas_pagas`: Paid accounts with historical payment data
+
+**Contas a Receber Tables**:
+- `contas_a_receber`: Pending receivables with cliente, valor_total, data_vencimento, id_documento
+- `contas_recebidas`: Received payments with cliente, valor_total, valor_liquido, data_recebimento
 
 Additional tables for KPIs and related tracking functionality.
 

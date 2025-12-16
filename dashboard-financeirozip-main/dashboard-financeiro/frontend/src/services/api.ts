@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ContaPagar, DashboardMetrics, GraficoMensal, GraficoPorCategoria, EmpresaOption, CentroCustoOption, TipoDocumentoOption, OrigemDadoOption, TipoBaixaOption, KPI, KPICreate, KPIHistorico, KPIResumo, CalculoDisponivel, TipoDocumento } from '../types';
+import { ContaPagar, DashboardMetrics, GraficoMensal, GraficoPorCategoria, EmpresaOption, CentroCustoOption, TipoDocumentoOption, OrigemDadoOption, TipoBaixaOption, KPI, KPICreate, KPIHistorico, KPIResumo, CalculoDisponivel, TipoDocumento, ContaReceber, MetricasReceber } from '../types';
 
 const API_URL = '/api';
 
@@ -370,6 +370,139 @@ export const apiService = {
   // Tipos de documento disponíveis para exclusão em KPIs
   getTiposDocumentoKPI: async (): Promise<TipoDocumento[]> => {
     const response = await api.get<TipoDocumento[]>('/tipos-documento-kpi');
+    return response.data;
+  },
+
+  // ==================== CONTAS A RECEBER ====================
+
+  // Métricas de contas a receber
+  getMetricasReceber: async (): Promise<MetricasReceber> => {
+    const response = await api.get<MetricasReceber>('/metricas-receber');
+    return response.data;
+  },
+
+  // Contas a receber
+  getContasReceber: async (status?: string, limite: number = 100): Promise<ContaReceber[]> => {
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    params.append('limite', limite.toString());
+    
+    const response = await api.get<ContaReceber[]>(`/contas-receber?${params.toString()}`);
+    return response.data;
+  },
+
+  // Contas recebidas com filtros
+  getContasRecebidasFiltradas: async (filtros: {
+    empresa?: number;
+    centro_custo?: number;
+    cliente?: string;
+    id_documento?: string;
+    ano?: string;
+    mes?: string;
+    data_inicio?: string;
+    data_fim?: string;
+    limite?: number;
+  }): Promise<ContaReceber[]> => {
+    const params = new URLSearchParams();
+    if (filtros.empresa) params.append('empresa', filtros.empresa.toString());
+    if (filtros.centro_custo) params.append('centro_custo', filtros.centro_custo.toString());
+    if (filtros.cliente) params.append('cliente', filtros.cliente);
+    if (filtros.id_documento) params.append('id_documento', filtros.id_documento);
+    if (filtros.ano) params.append('ano', filtros.ano);
+    if (filtros.mes) params.append('mes', filtros.mes);
+    if (filtros.data_inicio) params.append('data_inicio', filtros.data_inicio);
+    if (filtros.data_fim) params.append('data_fim', filtros.data_fim);
+    if (filtros.limite) params.append('limite', filtros.limite.toString());
+
+    const response = await api.get<ContaReceber[]>(`/contas-recebidas-filtradas?${params.toString()}`);
+    return response.data;
+  },
+
+  // Estatísticas contas a receber
+  getEstatisticasContasReceber: async (filtros: {
+    empresa?: number;
+    centro_custo?: number;
+    ano?: string;
+    mes?: string;
+    id_documento?: string;
+  }): Promise<{
+    quantidade_titulos: number;
+    valor_total: number;
+    valor_medio: number;
+    quantidade_atrasados: number;
+    valor_atrasados: number;
+    quantidade_vence_hoje: number;
+    valor_vence_hoje: number;
+  }> => {
+    const params = new URLSearchParams();
+    if (filtros.empresa) params.append('empresa', filtros.empresa.toString());
+    if (filtros.centro_custo) params.append('centro_custo', filtros.centro_custo.toString());
+    if (filtros.ano) params.append('ano', filtros.ano);
+    if (filtros.mes) params.append('mes', filtros.mes);
+    if (filtros.id_documento) params.append('id_documento', filtros.id_documento);
+
+    const response = await api.get(`/contas-receber-estatisticas?${params.toString()}`);
+    return response.data;
+  },
+
+  // Estatísticas contas recebidas
+  getEstatisticasContasRecebidas: async (filtros: {
+    empresa?: number;
+    ano?: string;
+    mes?: string;
+    id_documento?: string;
+  }): Promise<{
+    quantidade_titulos: number;
+    valor_total: number;
+    valor_medio: number;
+  }> => {
+    const params = new URLSearchParams();
+    if (filtros.empresa) params.append('empresa', filtros.empresa.toString());
+    if (filtros.ano) params.append('ano', filtros.ano);
+    if (filtros.mes) params.append('mes', filtros.mes);
+    if (filtros.id_documento) params.append('id_documento', filtros.id_documento);
+
+    const response = await api.get(`/contas-recebidas-estatisticas?${params.toString()}`);
+    return response.data;
+  },
+
+  // Contas a receber por cliente
+  getContasReceberPorCliente: async (filtros: {
+    empresa?: number;
+    centro_custo?: number;
+    ano?: string;
+    mes?: string;
+    id_documento?: string;
+    limite?: number;
+  }): Promise<Array<{ cliente: string; valor: number; quantidade: number }>> => {
+    const params = new URLSearchParams();
+    if (filtros.empresa) params.append('empresa', filtros.empresa.toString());
+    if (filtros.centro_custo) params.append('centro_custo', filtros.centro_custo.toString());
+    if (filtros.ano) params.append('ano', filtros.ano);
+    if (filtros.mes) params.append('mes', filtros.mes);
+    if (filtros.id_documento) params.append('id_documento', filtros.id_documento);
+    if (filtros.limite) params.append('limite', filtros.limite.toString());
+
+    const response = await api.get(`/contas-receber-por-cliente?${params.toString()}`);
+    return response.data;
+  },
+
+  // Contas recebidas por cliente
+  getContasRecebidasPorCliente: async (filtros: {
+    empresa?: number;
+    ano?: string;
+    mes?: string;
+    id_documento?: string;
+    limite?: number;
+  }): Promise<Array<{ cliente: string; valor: number; quantidade: number }>> => {
+    const params = new URLSearchParams();
+    if (filtros.empresa) params.append('empresa', filtros.empresa.toString());
+    if (filtros.ano) params.append('ano', filtros.ano);
+    if (filtros.mes) params.append('mes', filtros.mes);
+    if (filtros.id_documento) params.append('id_documento', filtros.id_documento);
+    if (filtros.limite) params.append('limite', filtros.limite.toString());
+
+    const response = await api.get(`/contas-recebidas-por-cliente?${params.toString()}`);
     return response.data;
   },
 };

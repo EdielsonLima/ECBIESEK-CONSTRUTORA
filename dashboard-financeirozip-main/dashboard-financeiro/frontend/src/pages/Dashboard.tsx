@@ -9,6 +9,7 @@ import {
   GraficoMensal,
   GraficoPorCategoria,
   ContaPagar,
+  MetricasReceber,
 } from '../types';
 
 // Ícones SVG simples
@@ -30,8 +31,15 @@ const AlertIcon = () => (
   </svg>
 );
 
+const CashIcon = () => (
+  <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
+
 export const Dashboard: React.FC = () => {
   const [metricas, setMetricas] = useState<DashboardMetrics | null>(null);
+  const [metricasReceber, setMetricasReceber] = useState<MetricasReceber | null>(null);
   const [graficoMensal, setGraficoMensal] = useState<GraficoMensal[]>([]);
   const [graficoCategoria, setGraficoCategoria] = useState<GraficoPorCategoria[]>([]);
   const [contasEmAtraso, setContasEmAtraso] = useState<ContaPagar[]>([]);
@@ -54,12 +62,14 @@ export const Dashboard: React.FC = () => {
 
         const [
           metricasData,
+          metricasReceberData,
           graficoMensalData,
           graficoCategoriaData,
           contasEmAtrasoData,
           proximosVencimentosData,
         ] = await Promise.all([
           apiService.getMetricas(),
+          apiService.getMetricasReceber(),
           apiService.getGraficoMensal(),
           apiService.getGraficoCategoria(),
           apiService.getContas('em_atraso', 10),
@@ -67,6 +77,7 @@ export const Dashboard: React.FC = () => {
         ]);
 
         setMetricas(metricasData);
+        setMetricasReceber(metricasReceberData);
         setGraficoMensal(graficoMensalData);
         setGraficoCategoria(graficoCategoriaData);
         setContasEmAtraso(contasEmAtrasoData);
@@ -108,7 +119,8 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div>
-      {/* Métricas */}
+      {/* Métricas Contas a Pagar */}
+      <h2 className="mb-4 text-lg font-semibold text-gray-700">Contas a Pagar</h2>
       {metricas && (
         <div className="mb-8 grid gap-6 md:grid-cols-3">
           <MetricCard
@@ -126,9 +138,37 @@ export const Dashboard: React.FC = () => {
             color="blue"
           />
           <MetricCard
-            title="Em Atraso"
+            title="Pagamentos Atrasados"
             value={formatCurrency(metricas.total_em_atraso)}
             quantity={metricas.quantidade_em_atraso}
+            icon={<AlertIcon />}
+            color="red"
+          />
+        </div>
+      )}
+
+      {/* Métricas Contas a Receber */}
+      <h2 className="mb-4 text-lg font-semibold text-gray-700">Contas a Receber</h2>
+      {metricasReceber && (
+        <div className="mb-8 grid gap-6 md:grid-cols-3">
+          <MetricCard
+            title="Recebido"
+            value={formatCurrency(metricasReceber.total_recebido)}
+            quantity={metricasReceber.quantidade_recebido}
+            icon={<CashIcon />}
+            color="green"
+          />
+          <MetricCard
+            title="A Receber"
+            value={formatCurrency(metricasReceber.total_a_receber)}
+            quantity={metricasReceber.quantidade_a_receber}
+            icon={<ClockIcon />}
+            color="blue"
+          />
+          <MetricCard
+            title="Recebimentos Atrasados"
+            value={formatCurrency(metricasReceber.total_em_atraso)}
+            quantity={metricasReceber.quantidade_em_atraso}
             icon={<AlertIcon />}
             color="red"
           />
