@@ -400,7 +400,7 @@ export const KPIs: React.FC = () => {
                             <span className={`text-sm font-medium ${getVariacaoColor(kpi.variacao_absoluta, kpi.tipo_meta)}`}>
                               {formatVariacao(kpi.variacao_absoluta, kpi.unidade)}
                             </span>
-                            {kpi.variacao_percentual !== undefined && (
+                            {kpi.variacao_percentual !== undefined && kpi.variacao_percentual !== null && (
                               <span className={`text-xs ${getVariacaoColor(kpi.variacao_percentual, kpi.tipo_meta)}`}>
                                 ({kpi.variacao_percentual > 0 ? '+' : ''}{kpi.variacao_percentual.toFixed(1)}%)
                               </span>
@@ -784,7 +784,7 @@ export const KPIs: React.FC = () => {
                               <td className={`px-6 py-3 whitespace-nowrap text-sm text-right ${
                                 item.variacao_percentual !== undefined ? getVariacaoColor(item.variacao_percentual) : ''
                               }`}>
-                                {item.variacao_percentual !== undefined ? `${item.variacao_percentual > 0 ? '+' : ''}${item.variacao_percentual.toFixed(2)}%` : '-'}
+                                {item.variacao_percentual !== undefined && item.variacao_percentual !== null ? `${item.variacao_percentual > 0 ? '+' : ''}${item.variacao_percentual.toFixed(2)}%` : '-'}
                               </td>
                               <td className="px-6 py-3 whitespace-nowrap text-center">
                                 {getTendenciaIcon(item.tendencia)}
