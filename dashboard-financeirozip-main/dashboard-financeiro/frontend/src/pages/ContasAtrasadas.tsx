@@ -493,7 +493,7 @@ export const ContasAtrasadas: React.FC = () => {
                       }}
                       className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
                     />
-                    <span className="text-sm text-gray-700">{tipo.nome}</span>
+                    <span className="text-sm text-gray-700">{tipo.id} - {tipo.nome}</span>
                   </label>
                 ))}
               </div>
@@ -548,7 +548,10 @@ export const ContasAtrasadas: React.FC = () => {
     }
 
     if (filtroTipoDocumento.length > 0 && filtroTipoDocumento.length < tiposDocumento.length) {
-      const tiposNomes = filtroTipoDocumento.map(t => tiposDocumento.find(tipo => tipo.id === t)?.nome || '').join(', ');
+      const tiposNomes = filtroTipoDocumento.map(t => {
+        const tipo = tiposDocumento.find(tipo => tipo.id === t);
+        return tipo ? `${tipo.id}` : '';
+      }).filter(Boolean).join(', ');
       tags.push({ label: 'Tipo Documento', value: tiposNomes, onRemove: () => setFiltroTipoDocumento([]) });
     }
 
