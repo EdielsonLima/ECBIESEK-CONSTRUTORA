@@ -1852,6 +1852,131 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
             result = cursor.fetchone()
             valor = round(decimal_to_float(result['valor']), 2) if result else 0
         
+        elif calculo_automatico == 'receber_vencidos_qtd':
+            cursor.execute(f"""
+                SELECT COUNT(*) as valor FROM contas_a_receber 
+                WHERE data_vencimento < %s
+            """, (hoje,))
+            result = cursor.fetchone()
+            valor = result['valor'] if result else 0
+            
+        elif calculo_automatico == 'receber_vencidos_valor':
+            cursor.execute(f"""
+                SELECT COALESCE(SUM(valor_total), 0) as valor FROM contas_a_receber 
+                WHERE data_vencimento < %s
+            """, (hoje,))
+            result = cursor.fetchone()
+            valor = decimal_to_float(result['valor']) if result else 0
+            
+        elif calculo_automatico == 'receber_a_vencer_qtd':
+            cursor.execute(f"""
+                SELECT COUNT(*) as valor FROM contas_a_receber 
+                WHERE data_vencimento >= %s
+            """, (hoje,))
+            result = cursor.fetchone()
+            valor = result['valor'] if result else 0
+            
+        elif calculo_automatico == 'receber_a_vencer_valor':
+            cursor.execute(f"""
+                SELECT COALESCE(SUM(valor_total), 0) as valor FROM contas_a_receber 
+                WHERE data_vencimento >= %s
+            """, (hoje,))
+            result = cursor.fetchone()
+            valor = decimal_to_float(result['valor']) if result else 0
+            
+        elif calculo_automatico == 'receber_hoje_qtd':
+            cursor.execute(f"""
+                SELECT COUNT(*) as valor FROM contas_a_receber 
+                WHERE data_vencimento = %s
+            """, (hoje,))
+            result = cursor.fetchone()
+            valor = result['valor'] if result else 0
+            
+        elif calculo_automatico == 'receber_hoje_valor':
+            cursor.execute(f"""
+                SELECT COALESCE(SUM(valor_total), 0) as valor FROM contas_a_receber 
+                WHERE data_vencimento = %s
+            """, (hoje,))
+            result = cursor.fetchone()
+            valor = decimal_to_float(result['valor']) if result else 0
+            
+        elif calculo_automatico == 'receber_7dias_qtd':
+            cursor.execute(f"""
+                SELECT COUNT(*) as valor FROM contas_a_receber 
+                WHERE data_vencimento BETWEEN %s AND %s
+            """, (hoje, hoje + timedelta(days=7)))
+            result = cursor.fetchone()
+            valor = result['valor'] if result else 0
+            
+        elif calculo_automatico == 'receber_7dias_valor':
+            cursor.execute(f"""
+                SELECT COALESCE(SUM(valor_total), 0) as valor FROM contas_a_receber 
+                WHERE data_vencimento BETWEEN %s AND %s
+            """, (hoje, hoje + timedelta(days=7)))
+            result = cursor.fetchone()
+            valor = decimal_to_float(result['valor']) if result else 0
+            
+        elif calculo_automatico == 'receber_mes_qtd':
+            cursor.execute("""
+                SELECT COUNT(*) as valor FROM contas_a_receber 
+                WHERE EXTRACT(MONTH FROM data_vencimento) = EXTRACT(MONTH FROM CURRENT_DATE)
+                AND EXTRACT(YEAR FROM data_vencimento) = EXTRACT(YEAR FROM CURRENT_DATE)
+            """)
+            result = cursor.fetchone()
+            valor = result['valor'] if result else 0
+            
+        elif calculo_automatico == 'receber_mes_valor':
+            cursor.execute("""
+                SELECT COALESCE(SUM(valor_total), 0) as valor FROM contas_a_receber 
+                WHERE EXTRACT(MONTH FROM data_vencimento) = EXTRACT(MONTH FROM CURRENT_DATE)
+                AND EXTRACT(YEAR FROM data_vencimento) = EXTRACT(YEAR FROM CURRENT_DATE)
+            """)
+            result = cursor.fetchone()
+            valor = decimal_to_float(result['valor']) if result else 0
+            
+        elif calculo_automatico == 'recebidos_mes_qtd':
+            cursor.execute("""
+                SELECT COUNT(*) as valor FROM contas_recebidas 
+                WHERE EXTRACT(MONTH FROM data_recebimento) = EXTRACT(MONTH FROM CURRENT_DATE)
+                AND EXTRACT(YEAR FROM data_recebimento) = EXTRACT(YEAR FROM CURRENT_DATE)
+            """)
+            result = cursor.fetchone()
+            valor = result['valor'] if result else 0
+            
+        elif calculo_automatico == 'recebidos_mes_valor':
+            cursor.execute("""
+                SELECT COALESCE(SUM(valor_liquido), 0) as valor FROM contas_recebidas 
+                WHERE EXTRACT(MONTH FROM data_recebimento) = EXTRACT(MONTH FROM CURRENT_DATE)
+                AND EXTRACT(YEAR FROM data_recebimento) = EXTRACT(YEAR FROM CURRENT_DATE)
+            """)
+            result = cursor.fetchone()
+            valor = decimal_to_float(result['valor']) if result else 0
+            
+        elif calculo_automatico == 'ticket_medio_recebimentos_mes':
+            cursor.execute("""
+                SELECT COALESCE(AVG(valor_liquido), 0) as valor FROM contas_recebidas 
+                WHERE EXTRACT(MONTH FROM data_recebimento) = EXTRACT(MONTH FROM CURRENT_DATE)
+                AND EXTRACT(YEAR FROM data_recebimento) = EXTRACT(YEAR FROM CURRENT_DATE)
+            """)
+            result = cursor.fetchone()
+            valor = round(decimal_to_float(result['valor']), 2) if result else 0
+            
+        elif calculo_automatico == 'percentual_inadimplencia_receber':
+            cursor.execute("""
+                SELECT 
+                    CASE WHEN total_aberto > 0 
+                        THEN (total_vencido::numeric / total_aberto::numeric) * 100 
+                        ELSE 0 
+                    END as valor
+                FROM (
+                    SELECT 
+                        (SELECT COALESCE(SUM(valor_total), 0) FROM contas_a_receber WHERE data_vencimento < CURRENT_DATE) as total_vencido,
+                        (SELECT COALESCE(SUM(valor_total), 0) FROM contas_a_receber) as total_aberto
+                ) subq
+            """)
+            result = cursor.fetchone()
+            valor = round(decimal_to_float(result['valor']), 2) if result else 0
+        
         return {'valor': valor, 'data': hoje}
         
     finally:
@@ -1937,12 +2062,12 @@ def get_kpis_resumo():
 def get_calculos_disponiveis():
     """Retorna lista de cálculos automáticos disponíveis"""
     return [
-        {'id': 'titulos_vencidos_qtd', 'nome': 'Títulos Vencidos (Quantidade)', 'unidade': 'Qtd.'},
-        {'id': 'titulos_vencidos_valor', 'nome': 'Títulos Vencidos (Valor)', 'unidade': 'R$'},
-        {'id': 'titulos_vencidos_2025_qtd', 'nome': 'Títulos Vencidos em 2025 (Quantidade)', 'unidade': 'Qtd.'},
-        {'id': 'titulos_vencidos_2025_valor', 'nome': 'Títulos Vencidos em 2025 (Valor)', 'unidade': 'R$'},
-        {'id': 'titulos_a_vencer_qtd', 'nome': 'Títulos a Vencer (Quantidade)', 'unidade': 'Qtd.'},
-        {'id': 'titulos_a_vencer_valor', 'nome': 'Títulos a Vencer (Valor)', 'unidade': 'R$'},
+        {'id': 'titulos_vencidos_qtd', 'nome': 'Títulos Vencidos - A Pagar (Quantidade)', 'unidade': 'Qtd.'},
+        {'id': 'titulos_vencidos_valor', 'nome': 'Títulos Vencidos - A Pagar (Valor)', 'unidade': 'R$'},
+        {'id': 'titulos_vencidos_2025_qtd', 'nome': 'Títulos Vencidos 2025 - A Pagar (Quantidade)', 'unidade': 'Qtd.'},
+        {'id': 'titulos_vencidos_2025_valor', 'nome': 'Títulos Vencidos 2025 - A Pagar (Valor)', 'unidade': 'R$'},
+        {'id': 'titulos_a_vencer_qtd', 'nome': 'Títulos a Vencer - A Pagar (Quantidade)', 'unidade': 'Qtd.'},
+        {'id': 'titulos_a_vencer_valor', 'nome': 'Títulos a Vencer - A Pagar (Valor)', 'unidade': 'R$'},
         {'id': 'titulos_pagos_mes_qtd', 'nome': 'Títulos Pagos no Mês (Quantidade)', 'unidade': 'Qtd.'},
         {'id': 'titulos_pagos_mes_valor', 'nome': 'Títulos Pagos no Mês (Valor)', 'unidade': 'R$'},
         {'id': 'contas_a_pagar_hoje_qtd', 'nome': 'Contas a Pagar Hoje (Quantidade)', 'unidade': 'Qtd.'},
@@ -1953,6 +2078,20 @@ def get_calculos_disponiveis():
         {'id': 'contas_a_pagar_mes_valor', 'nome': 'Contas a Pagar no Mês (Valor)', 'unidade': 'R$'},
         {'id': 'ticket_medio_pagamentos_mes', 'nome': 'Ticket Médio de Pagamentos no Mês', 'unidade': 'R$'},
         {'id': 'percentual_inadimplencia', 'nome': 'Percentual de Inadimplência', 'unidade': '%'},
+        {'id': 'receber_vencidos_qtd', 'nome': 'Títulos Vencidos - A Receber (Quantidade)', 'unidade': 'Qtd.'},
+        {'id': 'receber_vencidos_valor', 'nome': 'Títulos Vencidos - A Receber (Valor)', 'unidade': 'R$'},
+        {'id': 'receber_a_vencer_qtd', 'nome': 'Títulos a Vencer - A Receber (Quantidade)', 'unidade': 'Qtd.'},
+        {'id': 'receber_a_vencer_valor', 'nome': 'Títulos a Vencer - A Receber (Valor)', 'unidade': 'R$'},
+        {'id': 'receber_hoje_qtd', 'nome': 'Contas a Receber Hoje (Quantidade)', 'unidade': 'Qtd.'},
+        {'id': 'receber_hoje_valor', 'nome': 'Contas a Receber Hoje (Valor)', 'unidade': 'R$'},
+        {'id': 'receber_7dias_qtd', 'nome': 'Contas a Receber em 7 Dias (Quantidade)', 'unidade': 'Qtd.'},
+        {'id': 'receber_7dias_valor', 'nome': 'Contas a Receber em 7 Dias (Valor)', 'unidade': 'R$'},
+        {'id': 'receber_mes_qtd', 'nome': 'Contas a Receber no Mês (Quantidade)', 'unidade': 'Qtd.'},
+        {'id': 'receber_mes_valor', 'nome': 'Contas a Receber no Mês (Valor)', 'unidade': 'R$'},
+        {'id': 'recebidos_mes_qtd', 'nome': 'Títulos Recebidos no Mês (Quantidade)', 'unidade': 'Qtd.'},
+        {'id': 'recebidos_mes_valor', 'nome': 'Títulos Recebidos no Mês (Valor)', 'unidade': 'R$'},
+        {'id': 'ticket_medio_recebimentos_mes', 'nome': 'Ticket Médio de Recebimentos no Mês', 'unidade': 'R$'},
+        {'id': 'percentual_inadimplencia_receber', 'nome': 'Percentual de Inadimplência - A Receber', 'unidade': '%'},
     ]
 
 @app.get("/api/tipos-documento-kpi")
