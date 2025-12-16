@@ -11,7 +11,7 @@ from psycopg2.extras import RealDictCursor
 from decimal import Decimal
 import os
 from pathlib import Path
-from passlib.context import CryptContext
+import bcrypt
 from jose import JWTError, jwt
 
 app = FastAPI(title="Dashboard Financeiro - Construtora")
@@ -21,8 +21,6 @@ JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'fallback-secret-key-change-in
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 horas
 
-# Configuração de hash de senha
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 # Configurar CORS
@@ -199,11 +197,11 @@ create_users_table()
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verifica se a senha corresponde ao hash"""
-    return pwd_context.verify(plain_password, hashed_password)
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 def get_password_hash(password: str) -> str:
     """Gera hash da senha"""
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Cria token JWT"""
