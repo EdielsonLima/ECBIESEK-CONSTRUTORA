@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { apiService } from '../services/api';
 import { ContaPagar, EmpresaOption, CentroCustoOption } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
+import { SearchableSelect } from '../components/SearchableSelect';
 
 interface Estatisticas {
   quantidade_titulos: number;
@@ -231,32 +232,22 @@ export const ContasAtrasadas: React.FC = () => {
   const renderFiltros = () => (
     <div className="mb-6 rounded-lg bg-gray-50 p-4 shadow">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">Empresa</label>
-          <select
-            value={filtroEmpresa || ''}
-            onChange={(e) => setFiltroEmpresa(e.target.value ? Number(e.target.value) : null)}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-red-500 focus:outline-none"
-          >
-            <option value="">Todas</option>
-            {empresas.map((emp) => (
-              <option key={emp.id} value={emp.id}>{emp.nome}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">Centro de Custo</label>
-          <select
-            value={filtroCentroCusto || ''}
-            onChange={(e) => setFiltroCentroCusto(e.target.value ? Number(e.target.value) : null)}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-red-500 focus:outline-none"
-          >
-            <option value="">Todos</option>
-            {centrosCusto.map((cc) => (
-              <option key={cc.id} value={cc.id}>{cc.nome}</option>
-            ))}
-          </select>
-        </div>
+        <SearchableSelect
+          options={empresas}
+          value={filtroEmpresa ?? undefined}
+          onChange={(value) => { setFiltroEmpresa(value as number | null); setTimeout(buscarDados, 100); }}
+          label="Empresa"
+          placeholder="Selecione uma empresa..."
+          emptyText="Todas"
+        />
+        <SearchableSelect
+          options={centrosCusto}
+          value={filtroCentroCusto ?? undefined}
+          onChange={(value) => { setFiltroCentroCusto(value as number | null); setTimeout(buscarDados, 100); }}
+          label="Centro de Custo"
+          placeholder="Selecione um centro de custo..."
+          emptyText="Todos"
+        />
       </div>
       <div className="mt-4 flex gap-3">
         <button
