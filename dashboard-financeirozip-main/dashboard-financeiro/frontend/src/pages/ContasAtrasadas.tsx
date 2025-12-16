@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { apiService } from '../services/api';
-import { ContaPagar, EmpresaOption, CentroCustoOption } from '../types';
+import { ContaPagar, EmpresaOption, CentroCustoOption, TipoDocumentoOption } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { SearchableSelect } from '../components/SearchableSelect';
 
@@ -54,6 +54,9 @@ export const ContasAtrasadas: React.FC = () => {
   const [todasContas, setTodasContas] = useState<ContaPagar[]>([]);
   const [mesDropdownAberto, setMesDropdownAberto] = useState(false);
   const [ordenacao, setOrdenacao] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'dias_atraso', direcao: 'desc' });
+  const [tiposDocumento, setTiposDocumento] = useState<TipoDocumentoOption[]>([]);
+  const [filtroTipoDocumento, setFiltroTipoDocumento] = useState<string[]>([]);
+  const [tipoDocDropdownAberto, setTipoDocDropdownAberto] = useState(false);
 
   const meses = [
     { valor: 1, nome: 'Janeiro' },
@@ -169,12 +172,14 @@ export const ContasAtrasadas: React.FC = () => {
   useEffect(() => {
     const carregarFiltros = async () => {
       try {
-        const [empresasData, ccData] = await Promise.all([
+        const [empresasData, ccData, tiposDocData] = await Promise.all([
           apiService.getEmpresas(),
           apiService.getCentrosCusto(),
+          apiService.getTiposDocumento(),
         ]);
         setEmpresas(empresasData);
         setCentrosCusto(ccData);
+        setTiposDocumento(tiposDocData);
       } catch (err) {
         console.error('Erro ao carregar filtros:', err);
       }
@@ -200,7 +205,8 @@ export const ContasAtrasadas: React.FC = () => {
     empresa: number | null,
     cc: number | null,
     ano: number | null,
-    mesesSelecionados: number[]
+    mesesSelecionados: number[],
+    tiposDocSelecionados: string[]
   ) => {
     let contasFiltradas = [...dados];
     
@@ -224,6 +230,11 @@ export const ContasAtrasadas: React.FC = () => {
         return mesesSelecionados.includes(dataVenc.getMonth() + 1);
       });
     }
+    if (tiposDocSelecionados.length > 0) {
+      contasFiltradas = contasFiltradas.filter(c => {
+        return c.id_documento && tiposDocSelecionados.includes(c.id_documento);
+      });
+    }
     
     return contasFiltradas;
   };
@@ -231,7 +242,7 @@ export const ContasAtrasadas: React.FC = () => {
   useEffect(() => {
     if (todasContas.length === 0) return;
     
-    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroAno, filtroMes);
+    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroAno, filtroMes, filtroTipoDocumento);
     setContas(contasFiltradas);
 
     const totalDiasAtraso = contasFiltradas.reduce((acc, c) => acc + calcularDiasAtraso(c.data_vencimento as any), 0);
@@ -306,7 +317,7 @@ export const ContasAtrasadas: React.FC = () => {
       .filter(d => d.quantidade > 0)
       .sort((a, b) => a.ordem - b.ordem);
     setDadosPorFaixaAtraso(faixaArray);
-  }, [todasContas, filtroEmpresa, filtroCentroCusto, filtroAno, filtroMes]);
+  }, [todasContas, filtroEmpresa, filtroCentroCusto, filtroAno, filtroMes, filtroTipoDocumento]);
 
   useEffect(() => {
     carregarDados();
@@ -317,6 +328,7 @@ export const ContasAtrasadas: React.FC = () => {
     setFiltroCentroCusto(null);
     setFiltroAno(null);
     setFiltroMes([]);
+    setFiltroTipoDocumento([]);
   };
 
   if (loading) {
@@ -340,7 +352,7 @@ export const ContasAtrasadas: React.FC = () => {
 
   const renderFiltros = () => (
     <div className="mb-6 rounded-lg bg-gray-50 p-4 shadow">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <SearchableSelect
           options={empresas}
           value={filtroEmpresa ?? undefined}
@@ -429,6 +441,65 @@ export const ContasAtrasadas: React.FC = () => {
             </div>
           )}
         </div>
+        <div className="relative">
+          <label className="mb-2 block text-sm font-medium text-gray-700">Tipo Documento</label>
+          <button
+            type="button"
+            onClick={() => setTipoDocDropdownAberto(!tipoDocDropdownAberto)}
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-red-500 focus:outline-none"
+          >
+            <span className={filtroTipoDocumento.length > 0 ? 'text-gray-900' : 'text-gray-500'}>
+              {filtroTipoDocumento.length === 0 ? 'Todos' : filtroTipoDocumento.length === tiposDocumento.length ? 'Todos' : `${filtroTipoDocumento.length} selecionado(s)`}
+            </span>
+            <svg
+              className={`absolute right-3 top-9 h-5 w-5 transition-transform ${tipoDocDropdownAberto ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {tipoDocDropdownAberto && (
+            <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg">
+              <div className="border-b border-gray-200 p-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFiltroTipoDocumento(tiposDocumento.map(t => t.id))}
+                  className="text-xs text-red-600 hover:underline"
+                >
+                  Todos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFiltroTipoDocumento([])}
+                  className="text-xs text-gray-500 hover:underline"
+                >
+                  Limpar
+                </button>
+              </div>
+              <div className="max-h-48 overflow-y-auto p-2">
+                {tiposDocumento.map((tipo) => (
+                  <label key={tipo.id} className="flex cursor-pointer items-center gap-2 py-1 hover:bg-gray-50 rounded px-1">
+                    <input
+                      type="checkbox"
+                      checked={filtroTipoDocumento.includes(tipo.id)}
+                      onChange={() => {
+                        if (filtroTipoDocumento.includes(tipo.id)) {
+                          setFiltroTipoDocumento(filtroTipoDocumento.filter(t => t !== tipo.id));
+                        } else {
+                          setFiltroTipoDocumento([...filtroTipoDocumento, tipo.id]);
+                        }
+                      }}
+                      className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                    />
+                    <span className="text-sm text-gray-700">{tipo.nome}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
       <div className="mt-4 flex gap-3">
         <button
@@ -474,6 +545,11 @@ export const ContasAtrasadas: React.FC = () => {
     if (filtroMes.length > 0 && filtroMes.length < 12) {
       const mesesNomes = filtroMes.map(m => meses.find(mes => mes.valor === m)?.nome || '').join(', ');
       tags.push({ label: 'Meses', value: mesesNomes, onRemove: () => setFiltroMes([]) });
+    }
+
+    if (filtroTipoDocumento.length > 0 && filtroTipoDocumento.length < tiposDocumento.length) {
+      const tiposNomes = filtroTipoDocumento.map(t => tiposDocumento.find(tipo => tipo.id === t)?.nome || '').join(', ');
+      tags.push({ label: 'Tipo Documento', value: tiposNomes, onRemove: () => setFiltroTipoDocumento([]) });
     }
 
     if (tags.length === 0) return null;
