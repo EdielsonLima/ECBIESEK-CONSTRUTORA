@@ -61,6 +61,12 @@ interface ComparacaoMensal {
   variacao: number;
 }
 
+interface DadosPorOrigem {
+  origem: string;
+  valor: number;
+  quantidade: number;
+}
+
 type AbaAtiva = 'dados' | 'analises' | 'configuracoes';
 
 export const ContasPagas: React.FC = () => {
@@ -69,6 +75,7 @@ export const ContasPagas: React.FC = () => {
   const [estatisticas, setEstatisticas] = useState<Estatisticas | null>(null);
   const [dadosPorMes, setDadosPorMes] = useState<DadosPorMes[]>([]);
   const [dadosPorEmpresa, setDadosPorEmpresa] = useState<DadosPorEmpresa[]>([]);
+  const [dadosPorOrigem, setDadosPorOrigem] = useState<DadosPorOrigem[]>([]);
   const [rankingCredores, setRankingCredores] = useState<RankingCredoresData | null>(null);
   const [comparacaoAnual, setComparacaoAnual] = useState<ComparacaoAnual[]>([]);
   const [comparacaoMensal, setComparacaoMensal] = useState<ComparacaoMensal[]>([]);
@@ -262,7 +269,7 @@ export const ContasPagas: React.FC = () => {
         limite: 500,
       };
 
-      const [contasData, estatData, mesData, empresaData, compAnualData, compMensalData, rankingData] = await Promise.all([
+      const [contasData, estatData, mesData, empresaData, origemData, compAnualData, compMensalData, rankingData] = await Promise.all([
         apiService.getContasPagasFiltradas(filtros),
         apiService.getEstatisticasContasPagas(filtros),
         apiService.getEstatisticasPorMes({
@@ -275,6 +282,18 @@ export const ContasPagas: React.FC = () => {
           ano: filtroAno.length > 0 ? filtroAno.join(',') : undefined,
         }),
         apiService.getEstatisticasPorEmpresa({
+          centro_custo: filtroCentroCusto,
+          credor: filtroCredor || undefined,
+          id_documento: filtroIdDocumento.length > 0 ? filtroIdDocumento.join(',') : undefined,
+          origem_dado: filtroOrigemDado.length > 0 ? filtroOrigemDado.join(',') : undefined,
+          tipo_baixa: filtroTipoBaixa.length > 0 ? filtroTipoBaixa.join(',') : undefined,
+          ano: filtroAno.length > 0 ? filtroAno.join(',') : undefined,
+          mes: filtroMes.length > 0 ? filtroMes.join(',') : undefined,
+          data_inicio: filtroDataInicio || undefined,
+          data_fim: filtroDataFim || undefined,
+        }),
+        apiService.getEstatisticasPorOrigem({
+          empresa: filtroEmpresa,
           centro_custo: filtroCentroCusto,
           credor: filtroCredor || undefined,
           id_documento: filtroIdDocumento.length > 0 ? filtroIdDocumento.join(',') : undefined,
@@ -318,6 +337,7 @@ export const ContasPagas: React.FC = () => {
       setEstatisticas(estatData);
       setDadosPorMes(mesData);
       setDadosPorEmpresa(empresaData);
+      setDadosPorOrigem(origemData);
       setComparacaoAnual(compAnualData);
       setComparacaoMensal(compMensalData);
       setRankingCredores(rankingData);
@@ -1558,6 +1578,69 @@ export const ContasPagas: React.FC = () => {
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {dadosPorOrigem.length > 0 && (
+          <div className="rounded-lg bg-white p-6 shadow">
+            <h3 className="mb-2 text-xl font-semibold text-gray-900">Pagamentos por Origem</h3>
+            <p className="mb-4 text-sm text-gray-500">Distribuicao de pagamentos por tipo de origem</p>
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={dadosPorOrigem} layout="vertical" margin={{ top: 5, right: 100, left: 120, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" tickFormatter={(value) => formatCurrencyShort(value)} tick={{ fontSize: 11 }} />
+                    <YAxis
+                      type="category"
+                      dataKey="origem"
+                      tick={{ fontSize: 11 }}
+                      width={110}
+                    />
+                    <Tooltip
+                      formatter={(value: number) => [formatCurrency(value), 'Valor']}
+                      labelFormatter={(label) => `Origem: ${label}`}
+                    />
+                    <Bar dataKey="valor" fill="#8B5CF6" radius={[0, 4, 4, 0]} label={{ position: 'right', formatter: (value: number) => formatCurrency(value), fontSize: 10 }}>
+                      {dadosPorOrigem.map((_, index) => (
+                        <Cell key={`cell-origem-${index}`} fill={['#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#3B82F6', '#6366F1', '#EF4444', '#14B8A6'][index % 8]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">Origem</th>
+                      <th className="py-3 px-4 text-right text-sm font-medium text-gray-700">Quantidade</th>
+                      <th className="py-3 px-4 text-right text-sm font-medium text-gray-700">Valor Total</th>
+                      <th className="py-3 px-4 text-right text-sm font-medium text-gray-700">%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const totalValor = dadosPorOrigem.reduce((acc, item) => acc + item.valor, 0);
+                      return dadosPorOrigem.map((item, index) => (
+                        <tr key={`origem-row-${index}`} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-3 px-4 text-sm font-medium text-gray-900">{item.origem}</td>
+                          <td className="py-3 px-4 text-right text-sm text-gray-600">{item.quantidade.toLocaleString('pt-BR')}</td>
+                          <td className="py-3 px-4 text-right text-sm font-semibold text-purple-600">{formatCurrency(item.valor)}</td>
+                          <td className="py-3 px-4 text-right text-sm text-gray-600">{((item.valor / totalValor) * 100).toFixed(1)}%</td>
+                        </tr>
+                      ));
+                    })()}
+                    <tr className="bg-gray-100 font-semibold">
+                      <td className="py-3 px-4 text-sm text-gray-900">Total</td>
+                      <td className="py-3 px-4 text-right text-sm text-gray-900">{dadosPorOrigem.reduce((acc, item) => acc + item.quantidade, 0).toLocaleString('pt-BR')}</td>
+                      <td className="py-3 px-4 text-right text-sm text-purple-700">{formatCurrency(dadosPorOrigem.reduce((acc, item) => acc + item.valor, 0))}</td>
+                      <td className="py-3 px-4 text-right text-sm text-gray-900">100%</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
