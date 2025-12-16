@@ -1846,9 +1846,9 @@ export const ContasPagas: React.FC = () => {
             <h3 className="mb-2 text-xl font-semibold text-gray-900">Pagamentos por Origem</h3>
             <p className="mb-4 text-sm text-gray-500">Distribuicao de pagamentos por tipo de origem</p>
             <div className="grid gap-6 lg:grid-cols-2">
-              <div className="h-80">
+              <div className="h-[500px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={dadosPorOrigem} layout="vertical" margin={{ top: 5, right: 100, left: 120, bottom: 5 }}>
+                  <BarChart data={dadosPorOrigem} layout="vertical" margin={{ top: 5, right: 120, left: 50, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis type="number" tickFormatter={(value) => formatCurrencyShort(value)} tick={{ fontSize: 11 }} />
                     <YAxis
