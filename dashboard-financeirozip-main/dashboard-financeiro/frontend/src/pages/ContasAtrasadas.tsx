@@ -277,6 +277,66 @@ export const ContasAtrasadas: React.FC = () => {
     </div>
   );
 
+  const getEmpresaNome = (id: number | null) => {
+    if (!id) return null;
+    const emp = empresas.find(e => e.id === id);
+    return emp ? emp.nome : null;
+  };
+
+  const getCentroCustoNome = (id: number | null) => {
+    if (!id) return null;
+    const cc = centrosCusto.find(c => c.id === id);
+    return cc ? cc.nome : null;
+  };
+
+  const renderFiltrosTags = () => {
+    const tags: { label: string; value: string; onRemove: () => void }[] = [];
+    
+    const empresaNome = getEmpresaNome(filtroEmpresa);
+    if (empresaNome) {
+      tags.push({ label: 'Empresa', value: empresaNome, onRemove: () => { setFiltroEmpresa(null); setTimeout(buscarDados, 100); } });
+    }
+    
+    const ccNome = getCentroCustoNome(filtroCentroCusto);
+    if (ccNome) {
+      tags.push({ label: 'Centro de Custo', value: ccNome, onRemove: () => { setFiltroCentroCusto(null); setTimeout(buscarDados, 100); } });
+    }
+
+    if (tags.length === 0) return null;
+
+    return (
+      <div className="mt-3 flex flex-wrap gap-2">
+        {tags.map((tag, index) => (
+          <span
+            key={index}
+            className="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-800"
+          >
+            <span className="text-red-600">{tag.label}:</span>
+            <span className="ml-1">{tag.value}</span>
+            <button
+              type="button"
+              onClick={tag.onRemove}
+              className="ml-2 inline-flex h-4 w-4 items-center justify-center rounded-full text-red-600 hover:bg-red-200 hover:text-red-800"
+            >
+              <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </span>
+        ))}
+        {tags.length > 0 && (
+          <button
+            type="button"
+            onClick={limparFiltros}
+            className="text-sm text-gray-500 hover:text-gray-700 underline"
+          >
+            Limpar todos
+          </button>
+        )}
+      </div>
+    );
+  };
+
   const renderAbaDados = () => (
     <>
       <div className="mb-6">
@@ -299,6 +359,7 @@ export const ContasAtrasadas: React.FC = () => {
           </button>
         </div>
         {mostrarFiltros && renderFiltros()}
+        {!mostrarFiltros && renderFiltrosTags()}
       </div>
 
       {contas.length === 0 ? (

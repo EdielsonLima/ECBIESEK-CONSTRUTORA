@@ -320,6 +320,81 @@ export const ContasAPagar: React.FC = () => {
     </div>
   );
 
+  const getEmpresaNome = (id: number | null) => {
+    if (!id) return null;
+    const emp = empresas.find(e => e.id === id);
+    return emp ? emp.nome : null;
+  };
+
+  const getCentroCustoNome = (id: number | null) => {
+    if (!id) return null;
+    const cc = centrosCusto.find(c => c.id === id);
+    return cc ? cc.nome : null;
+  };
+
+  const getPrazoNome = (prazo: string) => {
+    switch (prazo) {
+      case 'hoje': return 'Vence Hoje';
+      case '7dias': return 'Proximos 7 dias';
+      case '15dias': return 'Proximos 15 dias';
+      case '30dias': return 'Proximos 30 dias';
+      default: return null;
+    }
+  };
+
+  const renderFiltrosTags = () => {
+    const tags: { label: string; value: string; onRemove: () => void }[] = [];
+    
+    const empresaNome = getEmpresaNome(filtroEmpresa);
+    if (empresaNome) {
+      tags.push({ label: 'Empresa', value: empresaNome, onRemove: () => setFiltroEmpresa(null) });
+    }
+    
+    const ccNome = getCentroCustoNome(filtroCentroCusto);
+    if (ccNome) {
+      tags.push({ label: 'Centro de Custo', value: ccNome, onRemove: () => setFiltroCentroCusto(null) });
+    }
+    
+    const prazoNome = getPrazoNome(filtroPrazo);
+    if (prazoNome) {
+      tags.push({ label: 'Prazo', value: prazoNome, onRemove: () => setFiltroPrazo('todos') });
+    }
+
+    if (tags.length === 0) return null;
+
+    return (
+      <div className="mt-3 flex flex-wrap gap-2">
+        {tags.map((tag, index) => (
+          <span
+            key={index}
+            className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800"
+          >
+            <span className="text-blue-600">{tag.label}:</span>
+            <span className="ml-1">{tag.value}</span>
+            <button
+              type="button"
+              onClick={tag.onRemove}
+              className="ml-2 inline-flex h-4 w-4 items-center justify-center rounded-full text-blue-600 hover:bg-blue-200 hover:text-blue-800"
+            >
+              <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </span>
+        ))}
+        {tags.length > 0 && (
+          <button
+            type="button"
+            onClick={limparFiltros}
+            className="text-sm text-gray-500 hover:text-gray-700 underline"
+          >
+            Limpar todos
+          </button>
+        )}
+      </div>
+    );
+  };
+
   const renderAbaDados = () => (
     <>
       <div className="mb-6">
@@ -342,6 +417,7 @@ export const ContasAPagar: React.FC = () => {
           </button>
         </div>
         {mostrarFiltros && renderFiltros()}
+        {!mostrarFiltros && renderFiltrosTags()}
       </div>
 
       <div className="overflow-hidden rounded-lg bg-white shadow">

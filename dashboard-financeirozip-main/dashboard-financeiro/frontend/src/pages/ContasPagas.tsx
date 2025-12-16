@@ -794,16 +794,26 @@ export const ContasPagas: React.FC = () => {
             </div>
           </div>
 
-          {filtrosAtivos.length > 0 && (
+          {!mostrarFiltros && filtrosAtivos.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-2">
               {filtrosAtivos.map((filtro, index) => (
                 <span
                   key={index}
-                  className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800"
+                  className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800"
                 >
                   {filtro}
                 </span>
               ))}
+              <button
+                type="button"
+                onClick={() => {
+                  limparFiltros();
+                  setTimeout(buscarContas, 100);
+                }}
+                className="text-sm text-gray-500 hover:text-gray-700 underline"
+              >
+                Limpar todos
+              </button>
             </div>
           )}
 
