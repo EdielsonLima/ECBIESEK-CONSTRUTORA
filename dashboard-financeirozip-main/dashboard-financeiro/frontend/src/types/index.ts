@@ -129,6 +129,49 @@ export interface KPIResumo {
   calculo_automatico?: string;
 }
 
+export interface KPIVariacaoDiaria {
+  id: number;
+  descricao: string;
+  categoria?: string;
+  indice?: string;
+  meta?: number;
+  tipo_meta?: string;
+  unidade?: string;
+  valor_hoje?: number;
+  valor_ontem?: number;
+  variacao_absoluta?: number;
+  variacao_percentual?: number;
+  tendencia?: 'subindo' | 'descendo' | 'estavel';
+  status_meta?: string;
+  calculo_automatico?: string;
+}
+
+export interface KPIHistoricoVariacao {
+  data: string;
+  valor: number;
+  variacao_absoluta?: number;
+  variacao_percentual?: number;
+  tendencia?: 'subindo' | 'descendo' | 'estavel';
+}
+
+export interface KPIHistoricoVariacaoResponse {
+  kpi: {
+    id: number;
+    descricao: string;
+    categoria?: string;
+    unidade?: string;
+    meta?: number;
+  };
+  historico: KPIHistoricoVariacao[];
+}
+
+export interface SnapshotDiarioResponse {
+  success: boolean;
+  data: string;
+  registros_criados: number;
+  registros_atualizados: number;
+}
+
 export interface ContaReceber {
   cliente: string;
   id_cliente?: number;

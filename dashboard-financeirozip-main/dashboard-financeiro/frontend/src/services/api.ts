@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ContaPagar, DashboardMetrics, GraficoMensal, GraficoPorCategoria, EmpresaOption, CentroCustoOption, TipoDocumentoOption, OrigemDadoOption, TipoBaixaOption, KPI, KPICreate, KPIHistorico, KPIResumo, CalculoDisponivel, TipoDocumento, ContaReceber, MetricasReceber } from '../types';
+import { ContaPagar, DashboardMetrics, GraficoMensal, GraficoPorCategoria, EmpresaOption, CentroCustoOption, TipoDocumentoOption, OrigemDadoOption, TipoBaixaOption, KPI, KPICreate, KPIHistorico, KPIResumo, CalculoDisponivel, TipoDocumento, ContaReceber, MetricasReceber, KPIVariacaoDiaria, KPIHistoricoVariacaoResponse, SnapshotDiarioResponse } from '../types';
 
 const API_URL = '/api';
 
@@ -370,6 +370,24 @@ export const apiService = {
   // Tipos de documento disponíveis para exclusão em KPIs
   getTiposDocumentoKPI: async (): Promise<TipoDocumento[]> => {
     const response = await api.get<TipoDocumento[]>('/tipos-documento-kpi');
+    return response.data;
+  },
+
+  // Criar snapshot diário de todos os KPIs automáticos
+  criarSnapshotDiario: async (): Promise<SnapshotDiarioResponse> => {
+    const response = await api.post<SnapshotDiarioResponse>('/kpis/snapshot-diario');
+    return response.data;
+  },
+
+  // Obter KPIs com variação diária (hoje vs ontem)
+  getKPIsVariacaoDiaria: async (): Promise<KPIVariacaoDiaria[]> => {
+    const response = await api.get<KPIVariacaoDiaria[]>('/kpis-variacao-diaria');
+    return response.data;
+  },
+
+  // Obter histórico de variações de um KPI específico
+  getKPIHistoricoVariacao: async (kpiId: number, dias: number = 30): Promise<KPIHistoricoVariacaoResponse> => {
+    const response = await api.get<KPIHistoricoVariacaoResponse>(`/kpis/${kpiId}/historico-variacao?dias=${dias}`);
     return response.data;
   },
 
