@@ -160,7 +160,8 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                 SELECT cap.credor, cap.data_vencimento, cap.valor_total,
                        cap.lancamento, cap.numero_documento, cap.id_plano_financeiro,
                        cap.id_interno_empresa, cap.id_interno_centro_custo,
-                       cc.nome_empresa, cc.nome_centrocusto
+                       cc.nome_empresa, cc.nome_centrocusto,
+                       TRIM(cap.id_documento) as id_documento
                 FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE cap.data_vencimento >= %s
@@ -173,7 +174,8 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                 SELECT cap.credor, cap.data_vencimento, cap.valor_total,
                        cap.lancamento, cap.numero_documento, cap.id_plano_financeiro,
                        cap.id_interno_empresa, cap.id_interno_centro_custo,
-                       cc.nome_empresa, cc.nome_centrocusto
+                       cc.nome_empresa, cc.nome_centrocusto,
+                       TRIM(cap.id_documento) as id_documento
                 FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE cap.data_vencimento < %s

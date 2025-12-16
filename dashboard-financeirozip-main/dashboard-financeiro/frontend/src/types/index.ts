@@ -17,6 +17,7 @@ export interface ContaPagar {
   id_interno_centro_custo?: number;
   nome_empresa?: string;
   nome_centrocusto?: string;
+  id_documento?: string;
 }
 
 export interface EmpresaOption {

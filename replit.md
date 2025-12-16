@@ -28,8 +28,9 @@ The frontend follows a component-based architecture:
 All three account pages (Pagas, A Pagar, Atrasadas) now share a consistent structure:
 - **Statistics cards**: 4 key metrics displayed at top of page
 - **Dual tabs**: "Dados" (data table) and "Analises" (charts/analysis)
-- **Filtering**: Empresa and Centro de Custo dropdowns
-- **Charts**: Recharts-powered visualizations including bar charts, pie charts
+- **Filtering**: Empresa, Centro de Custo, Ano, Mes (multi-select), and Tipo Documento (multi-select) dropdowns
+- **Sortable columns**: Click on table headers to sort by that column (ascending/descending)
+- **Charts**: Recharts-powered visualizations including bar charts
 
 **ContasPagas**: Pareto analysis with 80% concentration summary, creditor ranking
 **ContasAPagar**: Vencimento distribution, due today/overdue tracking, creditor analysis
