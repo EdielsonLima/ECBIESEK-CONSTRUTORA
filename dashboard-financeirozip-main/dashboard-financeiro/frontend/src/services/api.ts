@@ -552,4 +552,75 @@ export const apiService = {
     const response = await api.get(`/contas-recebidas-por-cliente?${params.toString()}`);
     return response.data;
   },
+
+  // ==================== METAS POR ORIGEM ====================
+
+  // Listar metas de origem
+  getOrigemMetas: async (): Promise<Array<{
+    id: number;
+    descricao: string;
+    origens: string[];
+    meta_percentual: number;
+    created_at: string | null;
+    updated_at: string | null;
+  }>> => {
+    const response = await api.get('/origem-metas');
+    return response.data;
+  },
+
+  // Criar meta de origem
+  createOrigemMeta: async (data: {
+    descricao: string;
+    origens: string[];
+    meta_percentual: number;
+  }): Promise<{ id: number; message: string }> => {
+    const response = await api.post('/origem-metas', data);
+    return response.data;
+  },
+
+  // Atualizar meta de origem
+  updateOrigemMeta: async (id: number, data: {
+    descricao?: string;
+    origens?: string[];
+    meta_percentual?: number;
+  }): Promise<{ message: string }> => {
+    const response = await api.put(`/origem-metas/${id}`, data);
+    return response.data;
+  },
+
+  // Deletar meta de origem
+  deleteOrigemMeta: async (id: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/origem-metas/${id}`);
+    return response.data;
+  },
+
+  // Obter status das metas com base nos filtros
+  getOrigemMetasStatus: async (filtros: {
+    empresa?: number;
+    centro_custo?: number;
+    ano?: string;
+    mes?: string;
+    data_inicio?: string;
+    data_fim?: string;
+  }): Promise<Array<{
+    id: number;
+    descricao: string;
+    origens: string[];
+    meta_percentual: number;
+    percentual_atingido: number;
+    valor_origens: number;
+    valor_total: number;
+    meta_atingida: boolean;
+  }>> => {
+    const params = new URLSearchParams();
+    if (filtros.empresa) params.append('empresa', filtros.empresa.toString());
+    if (filtros.centro_custo) params.append('centro_custo', filtros.centro_custo.toString());
+    if (filtros.ano) params.append('ano', filtros.ano);
+    if (filtros.mes) params.append('mes', filtros.mes);
+    if (filtros.data_inicio) params.append('data_inicio', filtros.data_inicio);
+    if (filtros.data_fim) params.append('data_fim', filtros.data_fim);
+
+    const response = await api.get(`/origem-metas/status?${params.toString()}`);
+    return response.data;
+  },
 };

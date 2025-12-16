@@ -67,6 +67,24 @@ interface DadosPorOrigem {
   quantidade: number;
 }
 
+interface OrigemMeta {
+  id: number;
+  descricao: string;
+  origens: string[];
+  meta_percentual: number;
+}
+
+interface OrigemMetaStatus {
+  id: number;
+  descricao: string;
+  origens: string[];
+  meta_percentual: number;
+  percentual_atingido: number;
+  valor_origens: number;
+  valor_total: number;
+  meta_atingida: boolean;
+}
+
 type AbaAtiva = 'dados' | 'analises' | 'configuracoes';
 
 export const ContasPagas: React.FC = () => {
@@ -79,8 +97,17 @@ export const ContasPagas: React.FC = () => {
   const [rankingCredores, setRankingCredores] = useState<RankingCredoresData | null>(null);
   const [comparacaoAnual, setComparacaoAnual] = useState<ComparacaoAnual[]>([]);
   const [comparacaoMensal, setComparacaoMensal] = useState<ComparacaoMensal[]>([]);
+  const [origemMetas, setOrigemMetas] = useState<OrigemMeta[]>([]);
+  const [origemMetasStatus, setOrigemMetasStatus] = useState<OrigemMetaStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Estados para criar/editar meta
+  const [mostrarFormMeta, setMostrarFormMeta] = useState(false);
+  const [editandoMeta, setEditandoMeta] = useState<OrigemMeta | null>(null);
+  const [novaMetaDescricao, setNovaMetaDescricao] = useState('');
+  const [novaMetaOrigens, setNovaMetaOrigens] = useState('');
+  const [novaMetaPercentual, setNovaMetaPercentual] = useState('');
 
   const [empresas, setEmpresas] = useState<EmpresaOption[]>([]);
   const [centrosCusto, setCentrosCusto] = useState<CentroCustoOption[]>([]);
@@ -341,6 +368,17 @@ export const ContasPagas: React.FC = () => {
       setComparacaoAnual(compAnualData);
       setComparacaoMensal(compMensalData);
       setRankingCredores(rankingData);
+
+      // Carregar status das metas
+      const statusMetas = await apiService.getOrigemMetasStatus({
+        empresa: filtroEmpresa,
+        centro_custo: filtroCentroCusto,
+        ano: filtroAno.length > 0 ? filtroAno.join(',') : undefined,
+        mes: filtroMes.length > 0 ? filtroMes.join(',') : undefined,
+        data_inicio: filtroDataInicio || undefined,
+        data_fim: filtroDataFim || undefined,
+      });
+      setOrigemMetasStatus(statusMetas);
     } catch (err) {
       setError('Erro ao carregar contas pagas');
       console.error(err);
@@ -349,9 +387,79 @@ export const ContasPagas: React.FC = () => {
     }
   };
 
+  const carregarMetas = async () => {
+    try {
+      const metas = await apiService.getOrigemMetas();
+      setOrigemMetas(metas);
+    } catch (err) {
+      console.error('Erro ao carregar metas:', err);
+    }
+  };
+
+  useEffect(() => {
+    carregarMetas();
+  }, []);
+
   useEffect(() => {
     buscarContas();
   }, [filtroEmpresa, filtroCentroCusto, filtroCredor, filtroIdDocumento, filtroOrigemDado, filtroTipoBaixa, filtroAno, filtroMes]);
+
+  const salvarMeta = async () => {
+    try {
+      const origens = novaMetaOrigens.split(',').map(o => o.trim().toUpperCase()).filter(o => o);
+      const percentual = parseFloat(novaMetaPercentual);
+      
+      if (!novaMetaDescricao || origens.length === 0 || isNaN(percentual)) {
+        alert('Preencha todos os campos corretamente');
+        return;
+      }
+
+      if (editandoMeta) {
+        await apiService.updateOrigemMeta(editandoMeta.id, {
+          descricao: novaMetaDescricao,
+          origens: origens,
+          meta_percentual: percentual,
+        });
+      } else {
+        await apiService.createOrigemMeta({
+          descricao: novaMetaDescricao,
+          origens: origens,
+          meta_percentual: percentual,
+        });
+      }
+      
+      setMostrarFormMeta(false);
+      setEditandoMeta(null);
+      setNovaMetaDescricao('');
+      setNovaMetaOrigens('');
+      setNovaMetaPercentual('');
+      await carregarMetas();
+      await buscarContas();
+    } catch (err) {
+      console.error('Erro ao salvar meta:', err);
+      alert('Erro ao salvar meta');
+    }
+  };
+
+  const excluirMeta = async (id: number) => {
+    if (!confirm('Tem certeza que deseja excluir esta meta?')) return;
+    try {
+      await apiService.deleteOrigemMeta(id);
+      await carregarMetas();
+      await buscarContas();
+    } catch (err) {
+      console.error('Erro ao excluir meta:', err);
+      alert('Erro ao excluir meta');
+    }
+  };
+
+  const editarMeta = (meta: OrigemMeta) => {
+    setEditandoMeta(meta);
+    setNovaMetaDescricao(meta.descricao);
+    setNovaMetaOrigens(meta.origens.join(', '));
+    setNovaMetaPercentual(meta.meta_percentual.toString());
+    setMostrarFormMeta(true);
+  };
 
   const limparFiltros = () => {
     setFiltroEmpresa(undefined);
@@ -1242,6 +1350,157 @@ export const ContasPagas: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Seção de Metas por Origem */}
+      <div className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Metas por Origem</h2>
+            <p className="text-sm text-gray-600">
+              Defina metas para grupos de origens de pagamento. O sistema calcula automaticamente se a meta foi atingida.
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              setEditandoMeta(null);
+              setNovaMetaDescricao('');
+              setNovaMetaOrigens('');
+              setNovaMetaPercentual('');
+              setMostrarFormMeta(true);
+            }}
+            className="flex items-center rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"
+          >
+            <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Nova Meta
+          </button>
+        </div>
+
+        {/* Formulário para criar/editar meta */}
+        {mostrarFormMeta && (
+          <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <h3 className="mb-4 font-semibold text-gray-900">
+              {editandoMeta ? 'Editar Meta' : 'Nova Meta'}
+            </h3>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Descrição</label>
+                <input
+                  type="text"
+                  value={novaMetaDescricao}
+                  onChange={(e) => setNovaMetaDescricao(e.target.value)}
+                  placeholder="Ex: Meta AC + CF"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Origens (separadas por vírgula)</label>
+                <input
+                  type="text"
+                  value={novaMetaOrigens}
+                  onChange={(e) => setNovaMetaOrigens(e.target.value)}
+                  placeholder="Ex: AC, CF"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Meta (%)</label>
+                <input
+                  type="number"
+                  value={novaMetaPercentual}
+                  onChange={(e) => setNovaMetaPercentual(e.target.value)}
+                  placeholder="Ex: 90"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={salvarMeta}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+              >
+                Salvar
+              </button>
+              <button
+                onClick={() => {
+                  setMostrarFormMeta(false);
+                  setEditandoMeta(null);
+                }}
+                className="rounded-lg bg-gray-500 px-4 py-2 text-white hover:bg-gray-600"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Lista de metas existentes */}
+        {origemMetas.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Descrição</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Origens</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Meta</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {origemMetas.map((meta) => (
+                  <tr key={meta.id}>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900">{meta.descricao}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{meta.origens.join(', ')}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">{meta.meta_percentual}%</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm">
+                      <button
+                        onClick={() => editarMeta(meta)}
+                        className="mr-2 text-blue-600 hover:text-blue-800"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => excluirMeta(meta.id)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        Excluir
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="rounded-lg bg-gray-50 p-8 text-center">
+            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <p className="mt-2 text-gray-600">Nenhuma meta definida</p>
+            <p className="text-sm text-gray-500">Clique em "Nova Meta" para criar sua primeira meta</p>
+          </div>
+        )}
+
+        <div className="mt-4 rounded-lg bg-yellow-50 p-4">
+          <h4 className="mb-2 flex items-center text-sm font-semibold text-yellow-900">
+            <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Como funciona?
+          </h4>
+          <ul className="space-y-1 text-xs text-yellow-800">
+            <li>• Defina uma descrição para identificar a meta</li>
+            <li>• Informe as origens que devem ser somadas (separadas por vírgula)</li>
+            <li>• Defina o percentual meta que o grupo deve atingir</li>
+            <li>• O status é calculado automaticamente na aba "Análises" com base nos filtros selecionados</li>
+            <li>• Exemplo: Meta AC + CF com 90% significa que a soma de AC e CF deve representar 90% do total</li>
+          </ul>
+        </div>
+      </div>
     </div>
   );
 
@@ -1304,6 +1563,71 @@ export const ContasPagas: React.FC = () => {
           </div>
           {mostrarFiltros && renderFiltros()}
         </div>
+
+        {/* Painel de Status das Metas por Origem */}
+        {origemMetasStatus.length > 0 && (
+          <div className="rounded-lg bg-white p-6 shadow">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">Metas por Origem</h3>
+                <p className="text-sm text-gray-500">Acompanhamento do atingimento das metas definidas</p>
+              </div>
+              <button
+                onClick={() => setAbaAtiva('configuracoes')}
+                className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                Gerenciar Metas
+              </button>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {origemMetasStatus.map((meta) => (
+                <div
+                  key={meta.id}
+                  className={`rounded-lg border-2 p-4 ${
+                    meta.meta_atingida
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-red-500 bg-red-50'
+                  }`}
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <h4 className="font-semibold text-gray-900">{meta.descricao}</h4>
+                    <span
+                      className={`rounded-full px-2 py-1 text-xs font-bold ${
+                        meta.meta_atingida
+                          ? 'bg-green-500 text-white'
+                          : 'bg-red-500 text-white'
+                      }`}
+                    >
+                      {meta.meta_atingida ? 'Atingida' : 'Não Atingida'}
+                    </span>
+                  </div>
+                  <p className="mb-2 text-sm text-gray-600">
+                    Origens: <span className="font-medium">{meta.origens.join(', ')}</span>
+                  </p>
+                  <div className="mb-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Atingido: <span className="font-bold">{meta.percentual_atingido.toFixed(1)}%</span></span>
+                      <span>Meta: <span className="font-bold">{meta.meta_percentual}%</span></span>
+                    </div>
+                    <div className="mt-1 h-3 w-full overflow-hidden rounded-full bg-gray-200">
+                      <div
+                        className={`h-full transition-all ${
+                          meta.meta_atingida ? 'bg-green-500' : 'bg-red-500'
+                        }`}
+                        style={{ width: `${Math.min(meta.percentual_atingido, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-2 text-xs text-gray-500">
+                    <span>{formatCurrency(meta.valor_origens)}</span>
+                    <span className="mx-1">de</span>
+                    <span>{formatCurrency(meta.valor_total)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {comparacaoAnual.length > 0 && (() => {
           const dadosComVariacao = comparacaoAnual.map(item => {
