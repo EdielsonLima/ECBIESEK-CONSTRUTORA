@@ -1653,12 +1653,14 @@ export const ContasPagas: React.FC = () => {
 
   return (
     <div>
-      {estatisticas && (
+      {estatisticas && (() => {
+          const credoresTotal = new Set(contas.map(c => c.credor)).size;
+          return (
         <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <div className="rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 p-5 text-white shadow-lg">
             <div className="mb-1 text-xs font-medium opacity-90">Valor Liquido Total</div>
             <div className="text-2xl font-bold">{formatCurrency(estatisticas.valor_liquido)}</div>
-            <div className="mt-1 text-xs opacity-75">{estatisticas.quantidade_titulos.toLocaleString('pt-BR')} titulos</div>
+            <div className="mt-1 text-xs opacity-75">{estatisticas.quantidade_titulos.toLocaleString('pt-BR')} titulos | {credoresTotal} credores</div>
           </div>
 
           <div className="rounded-lg bg-gradient-to-br from-green-500 to-green-600 p-5 text-white shadow-lg">
@@ -1689,7 +1691,8 @@ export const ContasPagas: React.FC = () => {
             <div className="mt-1 text-xs opacity-75">Por titulo</div>
           </div>
         </div>
-      )}
+          );
+        })()}
 
       <div className="mb-6">
         <div className="border-b border-gray-200">

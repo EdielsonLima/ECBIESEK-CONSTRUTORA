@@ -584,12 +584,16 @@ export const ContasAtrasadas: React.FC = () => {
 
   return (
     <div>
-      {estatisticas && contas.length > 0 && (
+      {estatisticas && contas.length > 0 && (() => {
+          const credoresTotal = new Set(contas.map(c => c.credor)).size;
+          const contasCriticas = contas.filter(c => calcularDiasAtraso(c.data_vencimento as any) > 30);
+          const credoresCriticos = new Set(contasCriticas.map(c => c.credor)).size;
+          return (
         <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-lg bg-gradient-to-br from-red-500 to-red-600 p-5 text-white shadow-lg">
             <div className="mb-1 text-xs font-medium opacity-90">Total em Atraso</div>
             <div className="text-2xl font-bold">{formatCurrency(estatisticas.valor_total)}</div>
-            <div className="mt-1 text-xs opacity-75">{estatisticas.quantidade_titulos.toLocaleString('pt-BR')} titulos</div>
+            <div className="mt-1 text-xs opacity-75">{estatisticas.quantidade_titulos.toLocaleString('pt-BR')} titulos | {credoresTotal} credores</div>
           </div>
 
           <div className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 p-5 text-white shadow-lg">
@@ -607,14 +611,15 @@ export const ContasAtrasadas: React.FC = () => {
           <div className="rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 p-5 text-white shadow-lg">
             <div className="mb-1 text-xs font-medium opacity-90">Criticos (+30d)</div>
             <div className="text-2xl font-bold">
-              {contas.filter(c => calcularDiasAtraso(c.data_vencimento as any) > 30).length}
+              {contasCriticas.length}
             </div>
             <div className="mt-1 text-xs opacity-75">
-              {formatCurrency(contas.filter(c => calcularDiasAtraso(c.data_vencimento as any) > 30).reduce((acc, c) => acc + (c.valor_total || 0), 0))}
+              {formatCurrency(contasCriticas.reduce((acc, c) => acc + (c.valor_total || 0), 0))} | {credoresCriticos} credores
             </div>
           </div>
         </div>
-      )}
+          );
+        })()}
 
       <div className="mb-6">
         <div className="border-b border-gray-200">
