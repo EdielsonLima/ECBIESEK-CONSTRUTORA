@@ -46,8 +46,30 @@ export const ContasAPagar: React.FC = () => {
   const [filtroEmpresa, setFiltroEmpresa] = useState<number | null>(null);
   const [filtroCentroCusto, setFiltroCentroCusto] = useState<number | null>(null);
   const [filtroPrazo, setFiltroPrazo] = useState<string>('todos');
+  const [filtroAno, setFiltroAno] = useState<number | null>(null);
+  const [filtroMes, setFiltroMes] = useState<number[]>([]);
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [todasContas, setTodasContas] = useState<ContaPagar[]>([]);
+
+  const meses = [
+    { valor: 1, nome: 'Janeiro' },
+    { valor: 2, nome: 'Fevereiro' },
+    { valor: 3, nome: 'Marco' },
+    { valor: 4, nome: 'Abril' },
+    { valor: 5, nome: 'Maio' },
+    { valor: 6, nome: 'Junho' },
+    { valor: 7, nome: 'Julho' },
+    { valor: 8, nome: 'Agosto' },
+    { valor: 9, nome: 'Setembro' },
+    { valor: 10, nome: 'Outubro' },
+    { valor: 11, nome: 'Novembro' },
+    { valor: 12, nome: 'Dezembro' },
+  ];
+
+  const anosDisponiveis = () => {
+    const anoAtual = new Date().getFullYear();
+    return [anoAtual - 1, anoAtual, anoAtual + 1];
+  };
 
   const formatCurrency = (value: number | undefined) => {
     if (!value) return 'R$ 0,00';
@@ -122,7 +144,9 @@ export const ContasAPagar: React.FC = () => {
     dados: ContaPagar[],
     empresa: number | null,
     cc: number | null,
-    prazo: string
+    prazo: string,
+    ano: number | null,
+    mesesSelecionados: number[]
   ) => {
     let contasFiltradas = [...dados];
     
@@ -131,6 +155,20 @@ export const ContasAPagar: React.FC = () => {
     }
     if (cc) {
       contasFiltradas = contasFiltradas.filter(c => c.id_interno_centro_custo === cc);
+    }
+    if (ano) {
+      contasFiltradas = contasFiltradas.filter(c => {
+        if (!c.data_vencimento) return false;
+        const dataVenc = new Date(c.data_vencimento);
+        return dataVenc.getFullYear() === ano;
+      });
+    }
+    if (mesesSelecionados.length > 0) {
+      contasFiltradas = contasFiltradas.filter(c => {
+        if (!c.data_vencimento) return false;
+        const dataVenc = new Date(c.data_vencimento);
+        return mesesSelecionados.includes(dataVenc.getMonth() + 1);
+      });
     }
     if (prazo !== 'todos') {
       contasFiltradas = contasFiltradas.filter(c => {
@@ -151,7 +189,7 @@ export const ContasAPagar: React.FC = () => {
   useEffect(() => {
     if (todasContas.length === 0) return;
     
-    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroPrazo);
+    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroPrazo, filtroAno, filtroMes);
     setContas(contasFiltradas);
 
     const stats: Estatisticas = {
@@ -222,7 +260,7 @@ export const ContasAPagar: React.FC = () => {
       .filter(d => d.quantidade > 0)
       .sort((a, b) => a.ordem - b.ordem);
     setDadosPorVencimento(vencimentoArray);
-  }, [todasContas, filtroEmpresa, filtroCentroCusto, filtroPrazo]);
+  }, [todasContas, filtroEmpresa, filtroCentroCusto, filtroPrazo, filtroAno, filtroMes]);
 
   useEffect(() => {
     carregarDados();
@@ -236,6 +274,16 @@ export const ContasAPagar: React.FC = () => {
     setFiltroEmpresa(null);
     setFiltroCentroCusto(null);
     setFiltroPrazo('todos');
+    setFiltroAno(null);
+    setFiltroMes([]);
+  };
+
+  const toggleMes = (mes: number) => {
+    setFiltroMes(prev => 
+      prev.includes(mes) 
+        ? prev.filter(m => m !== mes)
+        : [...prev, mes]
+    );
   };
 
   if (loading) {
@@ -259,7 +307,7 @@ export const ContasAPagar: React.FC = () => {
 
   const renderFiltros = () => (
     <div className="mb-6 rounded-lg bg-gray-50 p-4 shadow">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <div>
           <label className="mb-2 block text-sm font-medium text-gray-700">Empresa</label>
           <select
@@ -299,6 +347,39 @@ export const ContasAPagar: React.FC = () => {
             <option value="15dias">Proximos 15 dias</option>
             <option value="30dias">Proximos 30 dias</option>
           </select>
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-gray-700">Ano</label>
+          <select
+            value={filtroAno || ''}
+            onChange={(e) => setFiltroAno(e.target.value ? Number(e.target.value) : null)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+          >
+            <option value="">Todos</option>
+            {anosDisponiveis().map((ano) => (
+              <option key={ano} value={ano}>{ano}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-gray-700">
+            Mes {filtroMes.length > 0 && <span className="text-blue-600">({filtroMes.length})</span>}
+          </label>
+          <div className="relative">
+            <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-300 bg-white p-2">
+              {meses.map((mes) => (
+                <label key={mes.valor} className="flex cursor-pointer items-center gap-2 py-1 hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    checked={filtroMes.includes(mes.valor)}
+                    onChange={() => toggleMes(mes.valor)}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">{mes.nome}</span>
+                </label>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
       <div className="mt-4 flex gap-3">
@@ -358,6 +439,15 @@ export const ContasAPagar: React.FC = () => {
     const prazoNome = getPrazoNome(filtroPrazo);
     if (prazoNome) {
       tags.push({ label: 'Prazo', value: prazoNome, onRemove: () => setFiltroPrazo('todos') });
+    }
+
+    if (filtroAno) {
+      tags.push({ label: 'Ano', value: String(filtroAno), onRemove: () => setFiltroAno(null) });
+    }
+
+    if (filtroMes.length > 0) {
+      const mesesNomes = filtroMes.map(m => meses.find(mes => mes.valor === m)?.nome).filter(Boolean).join(', ');
+      tags.push({ label: 'Meses', value: mesesNomes, onRemove: () => setFiltroMes([]) });
     }
 
     if (tags.length === 0) return null;
