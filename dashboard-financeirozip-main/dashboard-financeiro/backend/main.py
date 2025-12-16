@@ -79,8 +79,8 @@ def decimal_to_float(obj):
     return obj
 
 # Endpoints
-@app.get("/")
-def root():
+@app.get("/api/health")
+def health_check():
     return {"message": "Dashboard Financeiro API - Construtora", "status": "online"}
 
 @app.get("/api/metricas", response_model=DashboardMetrics)
