@@ -1301,6 +1301,58 @@ def get_local_db_connection():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao conectar ao banco local: {str(e)}")
 
+def init_kpi_tables():
+    """Inicializa as tabelas de KPIs no banco local se não existirem"""
+    database_url = os.environ.get('DATABASE_URL')
+    if not database_url:
+        print("DATABASE_URL não configurado - tabelas de KPI não serão criadas")
+        return
+    
+    try:
+        conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS kpis (
+                id SERIAL PRIMARY KEY,
+                descricao VARCHAR(500) NOT NULL,
+                categoria VARCHAR(100),
+                indice VARCHAR(50),
+                formula TEXT,
+                meta DECIMAL(18, 2),
+                tipo_meta VARCHAR(20) DEFAULT 'maior',
+                unidade VARCHAR(50),
+                ativo BOOLEAN DEFAULT true,
+                calculo_automatico VARCHAR(100),
+                documentos_excluidos TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS kpis_historico (
+                id SERIAL PRIMARY KEY,
+                kpi_id INTEGER NOT NULL REFERENCES kpis(id) ON DELETE CASCADE,
+                valor DECIMAL(18, 2) NOT NULL,
+                data_registro DATE NOT NULL DEFAULT CURRENT_DATE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(kpi_id, data_registro)
+            )
+        """)
+        
+        conn.commit()
+        print("Tabelas de KPI inicializadas com sucesso")
+    except Exception as e:
+        print(f"Erro ao inicializar tabelas de KPI: {e}")
+    finally:
+        if 'cursor' in dir():
+            cursor.close()
+        if 'conn' in dir():
+            conn.close()
+
+init_kpi_tables()
+
 # Modelos Pydantic para KPIs
 class KPIBase(BaseModel):
     descricao: str
