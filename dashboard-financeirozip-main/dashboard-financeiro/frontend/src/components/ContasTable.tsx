@@ -69,22 +69,22 @@ export const ContasTable: React.FC<ContasTableProps> = ({ contas, titulo }) => {
                 </td>
               </tr>
             ) : (
-              contas.map((conta) => (
-                <tr key={conta.id} className="hover:bg-gray-50">
+              contas.map((conta, index) => (
+                <tr key={`${conta.credor || conta.fornecedor}-${conta.data_vencimento}-${index}`} className="hover:bg-gray-50">
                   <td className="px-6 py-4 text-sm text-gray-900">
-                    {conta.descricao || '-'}
+                    {conta.lancamento || conta.descricao || '-'}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-900">
-                    {conta.fornecedor || '-'}
+                    {conta.credor || conta.fornecedor || '-'}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-900">
-                    {conta.categoria || '-'}
+                    {conta.id_plano_financeiro || conta.categoria || '-'}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-900">
                     {formatDate(conta.data_vencimento)}
                   </td>
                   <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                    {formatCurrency(conta.valor)}
+                    {formatCurrency(conta.valor_total || conta.valor || 0)}
                   </td>
                   <td className="px-6 py-4 text-sm">
                     {getStatusBadge(conta)}

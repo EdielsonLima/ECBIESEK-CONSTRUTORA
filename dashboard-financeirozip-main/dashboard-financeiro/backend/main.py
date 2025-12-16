@@ -1,5 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime, date, timedelta
@@ -7,6 +9,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from decimal import Decimal
 import os
+from pathlib import Path
 
 app = FastAPI(title="Dashboard Financeiro - Construtora")
 
@@ -1745,6 +1748,18 @@ def get_tipos_documento_kpi():
     finally:
         cursor.close()
         conn.close()
+
+FRONTEND_BUILD_DIR = Path(__file__).parent.parent / "frontend" / "dist"
+
+if FRONTEND_BUILD_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=FRONTEND_BUILD_DIR / "assets"), name="assets")
+    
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        file_path = FRONTEND_BUILD_DIR / full_path
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(file_path)
+        return FileResponse(FRONTEND_BUILD_DIR / "index.html")
 
 if __name__ == "__main__":
     import uvicorn
