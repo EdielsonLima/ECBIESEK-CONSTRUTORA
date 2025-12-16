@@ -311,8 +311,8 @@ def get_contas_pagas_filtradas(
     id_documento: Optional[str] = None,
     origem_dado: Optional[str] = None,
     tipo_baixa: Optional[str] = None,
-    ano: Optional[int] = None,
-    mes: Optional[int] = None,
+    ano: Optional[str] = None,
+    mes: Optional[str] = None,
     data_inicio: Optional[str] = None,
     data_fim: Optional[str] = None,
     limite: int = 100
@@ -362,13 +362,19 @@ def get_contas_pagas_filtradas(
             conditions.append(f"cp.id_tipo_baixa IN ({tipo_placeholders})")
             params.extend(tipos)
 
-        if ano is not None:
-            conditions.append("EXTRACT(YEAR FROM cp.data_pagamento) = %s")
-            params.append(ano)
+        if ano:
+            # Suporta múltiplos anos separados por vírgula
+            anos = [int(a.strip()) for a in ano.split(',')]
+            ano_placeholders = ', '.join(['%s'] * len(anos))
+            conditions.append(f"EXTRACT(YEAR FROM cp.data_pagamento) IN ({ano_placeholders})")
+            params.extend(anos)
 
-        if mes is not None:
-            conditions.append("EXTRACT(MONTH FROM cp.data_pagamento) = %s")
-            params.append(mes)
+        if mes:
+            # Suporta múltiplos meses separados por vírgula
+            meses = [int(m.strip()) for m in mes.split(',')]
+            mes_placeholders = ', '.join(['%s'] * len(meses))
+            conditions.append(f"EXTRACT(MONTH FROM cp.data_pagamento) IN ({mes_placeholders})")
+            params.extend(meses)
 
         if data_inicio:
             conditions.append("cp.data_pagamento >= %s")
@@ -416,8 +422,8 @@ def get_estatisticas_contas_pagas(
     id_documento: Optional[str] = None,
     origem_dado: Optional[str] = None,
     tipo_baixa: Optional[str] = None,
-    ano: Optional[int] = None,
-    mes: Optional[int] = None,
+    ano: Optional[str] = None,
+    mes: Optional[str] = None,
     data_inicio: Optional[str] = None,
     data_fim: Optional[str] = None
 ):
@@ -463,13 +469,17 @@ def get_estatisticas_contas_pagas(
             conditions.append(f"cp.id_tipo_baixa IN ({tipo_placeholders})")
             params.extend(tipos)
 
-        if ano is not None:
-            conditions.append("EXTRACT(YEAR FROM cp.data_pagamento) = %s")
-            params.append(ano)
+        if ano:
+            anos = [int(a.strip()) for a in ano.split(',')]
+            ano_placeholders = ', '.join(['%s'] * len(anos))
+            conditions.append(f"EXTRACT(YEAR FROM cp.data_pagamento) IN ({ano_placeholders})")
+            params.extend(anos)
 
-        if mes is not None:
-            conditions.append("EXTRACT(MONTH FROM cp.data_pagamento) = %s")
-            params.append(mes)
+        if mes:
+            meses = [int(m.strip()) for m in mes.split(',')]
+            mes_placeholders = ', '.join(['%s'] * len(meses))
+            conditions.append(f"EXTRACT(MONTH FROM cp.data_pagamento) IN ({mes_placeholders})")
+            params.extend(meses)
 
         if data_inicio:
             conditions.append("cp.data_pagamento >= %s")
@@ -645,7 +655,7 @@ def get_estatisticas_por_mes(
     id_documento: Optional[str] = None,
     origem_dado: Optional[str] = None,
     tipo_baixa: Optional[str] = None,
-    ano: Optional[int] = None
+    ano: Optional[str] = None
 ):
     """Retorna estatísticas de contas pagas agrupadas por mês"""
     conn = get_db_connection()
@@ -689,9 +699,11 @@ def get_estatisticas_por_mes(
             conditions.append(f"cp.id_tipo_baixa IN ({tipo_placeholders})")
             params.extend(tipos)
 
-        if ano is not None:
-            conditions.append("EXTRACT(YEAR FROM cp.data_pagamento) = %s")
-            params.append(ano)
+        if ano:
+            anos = [int(a.strip()) for a in ano.split(',')]
+            ano_placeholders = ', '.join(['%s'] * len(anos))
+            conditions.append(f"EXTRACT(YEAR FROM cp.data_pagamento) IN ({ano_placeholders})")
+            params.extend(anos)
 
         where_clause = " AND ".join(conditions) if conditions else "1=1"
 
@@ -735,8 +747,8 @@ def get_estatisticas_por_empresa(
     id_documento: Optional[str] = None,
     origem_dado: Optional[str] = None,
     tipo_baixa: Optional[str] = None,
-    ano: Optional[int] = None,
-    mes: Optional[int] = None,
+    ano: Optional[str] = None,
+    mes: Optional[str] = None,
     data_inicio: Optional[str] = None,
     data_fim: Optional[str] = None
 ):
@@ -778,13 +790,17 @@ def get_estatisticas_por_empresa(
             conditions.append(f"cp.id_tipo_baixa IN ({tipo_placeholders})")
             params.extend(tipos)
 
-        if ano is not None:
-            conditions.append("EXTRACT(YEAR FROM cp.data_pagamento) = %s")
-            params.append(ano)
+        if ano:
+            anos = [int(a.strip()) for a in ano.split(',')]
+            ano_placeholders = ', '.join(['%s'] * len(anos))
+            conditions.append(f"EXTRACT(YEAR FROM cp.data_pagamento) IN ({ano_placeholders})")
+            params.extend(anos)
 
-        if mes is not None:
-            conditions.append("EXTRACT(MONTH FROM cp.data_pagamento) = %s")
-            params.append(mes)
+        if mes:
+            meses = [int(m.strip()) for m in mes.split(',')]
+            mes_placeholders = ', '.join(['%s'] * len(meses))
+            conditions.append(f"EXTRACT(MONTH FROM cp.data_pagamento) IN ({mes_placeholders})")
+            params.extend(meses)
 
         if data_inicio:
             conditions.append("cp.data_pagamento >= %s")
@@ -833,8 +849,8 @@ def get_top_credores(
     id_documento: Optional[str] = None,
     origem_dado: Optional[str] = None,
     tipo_baixa: Optional[str] = None,
-    ano: Optional[int] = None,
-    mes: Optional[int] = None,
+    ano: Optional[str] = None,
+    mes: Optional[str] = None,
     data_inicio: Optional[str] = None,
     data_fim: Optional[str] = None,
     limite: int = 10
@@ -877,13 +893,17 @@ def get_top_credores(
             conditions.append(f"cp.id_tipo_baixa IN ({tipo_placeholders})")
             params.extend(tipos)
 
-        if ano is not None:
-            conditions.append("EXTRACT(YEAR FROM cp.data_pagamento) = %s")
-            params.append(ano)
+        if ano:
+            anos = [int(a.strip()) for a in ano.split(',')]
+            ano_placeholders = ', '.join(['%s'] * len(anos))
+            conditions.append(f"EXTRACT(YEAR FROM cp.data_pagamento) IN ({ano_placeholders})")
+            params.extend(anos)
 
-        if mes is not None:
-            conditions.append("EXTRACT(MONTH FROM cp.data_pagamento) = %s")
-            params.append(mes)
+        if mes:
+            meses = [int(m.strip()) for m in mes.split(',')]
+            mes_placeholders = ', '.join(['%s'] * len(meses))
+            conditions.append(f"EXTRACT(MONTH FROM cp.data_pagamento) IN ({mes_placeholders})")
+            params.extend(meses)
 
         if data_inicio:
             conditions.append("cp.data_pagamento >= %s")
