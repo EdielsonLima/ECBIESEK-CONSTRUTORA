@@ -57,5 +57,5 @@ exposeLocalhost = true
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["bash", "-c", "cd /home/runner/workspace/dashboard-financeirozip-main/dashboard-financeiro/backend && python -m uvicorn main:app --host 0.0.0.0 --port 5000"]
-build = ["bash", "-c", "cd /home/runner/workspace/dashboard-financeirozip-main/dashboard-financeiro/frontend && npm install && npm run build"]
+run = ["sh", "-c", "cd dashboard-financeirozip-main/dashboard-financeiro/backend && python -m uvicorn main:app --host 0.0.0.0 --port 5000"]
+build = ["sh", "-c", "cd dashboard-financeirozip-main/dashboard-financeiro/frontend && npm install && npm run build"]
