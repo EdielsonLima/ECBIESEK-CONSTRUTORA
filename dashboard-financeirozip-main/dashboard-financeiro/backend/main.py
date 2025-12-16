@@ -1922,6 +1922,221 @@ def get_tipos_documento_kpi():
         cursor.close()
         conn.close()
 
+@app.post("/api/kpis/snapshot-diario")
+def criar_snapshot_diario():
+    """Cria um snapshot de todos os KPIs automáticos para hoje.
+    Deve ser chamado uma vez por dia para salvar os valores atuais.
+    """
+    conn_local = get_local_db_connection()
+    cursor_local = conn_local.cursor()
+    
+    try:
+        hoje = datetime.now().date()
+        
+        cursor_local.execute("SELECT * FROM kpis WHERE ativo = true AND calculo_automatico IS NOT NULL")
+        kpis = cursor_local.fetchall()
+        
+        registros_criados = 0
+        registros_atualizados = 0
+        
+        for kpi in kpis:
+            try:
+                calc_result = calcular_kpi_automatico(kpi['calculo_automatico'], kpi.get('documentos_excluidos'))
+                if calc_result['valor'] is not None:
+                    cursor_local.execute(
+                        "SELECT id FROM kpis_historico WHERE kpi_id = %s AND data_registro = %s",
+                        (kpi['id'], hoje)
+                    )
+                    existing = cursor_local.fetchone()
+                    
+                    if existing:
+                        cursor_local.execute(
+                            "UPDATE kpis_historico SET valor = %s WHERE id = %s",
+                            (calc_result['valor'], existing['id'])
+                        )
+                        registros_atualizados += 1
+                    else:
+                        cursor_local.execute(
+                            "INSERT INTO kpis_historico (kpi_id, valor, data_registro) VALUES (%s, %s, %s)",
+                            (kpi['id'], calc_result['valor'], hoje)
+                        )
+                        registros_criados += 1
+            except Exception as e:
+                print(f"Erro ao criar snapshot para KPI {kpi['id']}: {e}")
+        
+        conn_local.commit()
+        return {
+            "success": True, 
+            "data": str(hoje),
+            "registros_criados": registros_criados,
+            "registros_atualizados": registros_atualizados
+        }
+    
+    finally:
+        cursor_local.close()
+        conn_local.close()
+
+@app.get("/api/kpis-variacao-diaria")
+def get_kpis_variacao_diaria():
+    """Retorna todos os KPIs ativos com valor atual, valor de ontem e variação.
+    Ideal para acompanhamento diário com indicadores de tendência.
+    """
+    conn_local = get_local_db_connection()
+    cursor_local = conn_local.cursor()
+    
+    try:
+        hoje = datetime.now().date()
+        ontem = hoje - timedelta(days=1)
+        
+        cursor_local.execute("""
+            SELECT k.*,
+                   h_hoje.valor as valor_hoje,
+                   h_ontem.valor as valor_ontem
+            FROM kpis k
+            LEFT JOIN kpis_historico h_hoje ON k.id = h_hoje.kpi_id AND h_hoje.data_registro = %s
+            LEFT JOIN kpis_historico h_ontem ON k.id = h_ontem.kpi_id AND h_ontem.data_registro = %s
+            WHERE k.ativo = true
+            ORDER BY k.categoria, k.descricao
+        """, (hoje, ontem))
+        
+        rows = cursor_local.fetchall()
+        resultado = []
+        
+        for row in rows:
+            valor_hoje = decimal_to_float(row['valor_hoje']) if row['valor_hoje'] else None
+            valor_ontem = decimal_to_float(row['valor_ontem']) if row['valor_ontem'] else None
+            meta = decimal_to_float(row['meta']) if row['meta'] else None
+            calculo_automatico = row.get('calculo_automatico')
+            documentos_excluidos = row.get('documentos_excluidos')
+            
+            if calculo_automatico:
+                try:
+                    calc_result = calcular_kpi_automatico(calculo_automatico, documentos_excluidos)
+                    if calc_result['valor'] is not None:
+                        valor_hoje = calc_result['valor']
+                except Exception as e:
+                    print(f"Erro ao calcular KPI automático {calculo_automatico}: {e}")
+            
+            variacao_absoluta = None
+            variacao_percentual = None
+            tendencia = None
+            
+            if valor_hoje is not None and valor_ontem is not None:
+                variacao_absoluta = valor_hoje - valor_ontem
+                if valor_ontem != 0:
+                    variacao_percentual = round((variacao_absoluta / abs(valor_ontem)) * 100, 2)
+                
+                if variacao_absoluta > 0:
+                    tendencia = 'subindo'
+                elif variacao_absoluta < 0:
+                    tendencia = 'descendo'
+                else:
+                    tendencia = 'estavel'
+            
+            status_meta = None
+            if valor_hoje is not None and meta is not None:
+                tipo_meta = row['tipo_meta'] or 'maior'
+                if tipo_meta == 'maior':
+                    status_meta = 'ok' if valor_hoje >= meta else 'atencao'
+                elif tipo_meta == 'menor':
+                    status_meta = 'ok' if valor_hoje <= meta else 'atencao'
+                else:
+                    status_meta = 'ok' if abs(valor_hoje - meta) < 0.01 else 'atencao'
+            
+            resultado.append({
+                'id': row['id'],
+                'descricao': row['descricao'],
+                'categoria': row['categoria'],
+                'indice': row['indice'],
+                'meta': meta,
+                'tipo_meta': row['tipo_meta'],
+                'unidade': row['unidade'],
+                'valor_hoje': valor_hoje,
+                'valor_ontem': valor_ontem,
+                'variacao_absoluta': variacao_absoluta,
+                'variacao_percentual': variacao_percentual,
+                'tendencia': tendencia,
+                'status_meta': status_meta,
+                'calculo_automatico': calculo_automatico
+            })
+        
+        return resultado
+    
+    finally:
+        cursor_local.close()
+        conn_local.close()
+
+@app.get("/api/kpis/{kpi_id}/historico-variacao")
+def get_kpi_historico_variacao(kpi_id: int, dias: int = 30):
+    """Retorna histórico de variações diárias de um KPI específico.
+    Mostra valor, variação em relação ao dia anterior, e percentual.
+    """
+    conn_local = get_local_db_connection()
+    cursor_local = conn_local.cursor()
+    
+    try:
+        cursor_local.execute("SELECT * FROM kpis WHERE id = %s", (kpi_id,))
+        kpi = cursor_local.fetchone()
+        if not kpi:
+            raise HTTPException(status_code=404, detail="KPI não encontrado")
+        
+        cursor_local.execute("""
+            SELECT data_registro, valor
+            FROM kpis_historico
+            WHERE kpi_id = %s
+            ORDER BY data_registro DESC
+            LIMIT %s
+        """, (kpi_id, dias + 1))
+        
+        rows = cursor_local.fetchall()
+        rows.reverse()
+        
+        resultado = []
+        valor_anterior = None
+        
+        for row in rows:
+            valor = decimal_to_float(row['valor'])
+            variacao_absoluta = None
+            variacao_percentual = None
+            tendencia = None
+            
+            if valor_anterior is not None:
+                variacao_absoluta = valor - valor_anterior
+                if valor_anterior != 0:
+                    variacao_percentual = round((variacao_absoluta / abs(valor_anterior)) * 100, 2)
+                
+                if variacao_absoluta > 0:
+                    tendencia = 'subindo'
+                elif variacao_absoluta < 0:
+                    tendencia = 'descendo'
+                else:
+                    tendencia = 'estavel'
+            
+            resultado.append({
+                'data': row['data_registro'].isoformat() if hasattr(row['data_registro'], 'isoformat') else str(row['data_registro']),
+                'valor': valor,
+                'variacao_absoluta': variacao_absoluta,
+                'variacao_percentual': variacao_percentual,
+                'tendencia': tendencia
+            })
+            
+            valor_anterior = valor
+        
+        return {
+            'kpi': {
+                'id': kpi['id'],
+                'descricao': kpi['descricao'],
+                'categoria': kpi['categoria'],
+                'unidade': kpi['unidade'],
+                'meta': decimal_to_float(kpi['meta']) if kpi['meta'] else None
+            },
+            'historico': resultado
+        }
+    
+    finally:
+        cursor_local.close()
+        conn_local.close()
+
 # ==================== CONTAS A RECEBER ====================
 
 @app.get("/api/contas-receber")
