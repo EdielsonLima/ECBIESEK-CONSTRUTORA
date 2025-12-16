@@ -53,6 +53,15 @@ All six account pages (Contas a Pagar + Contas a Receber) share a consistent str
 - **Database Driver**: psycopg2-binary for PostgreSQL connections
 - **Validation**: Pydantic models for request/response validation
 - **CORS**: Enabled for all origins (development configuration)
+- **Authentication**: JWT-based with bcrypt password hashing
+
+### Authentication System (Added December 2025)
+- **JWT Tokens**: Access tokens with 24-hour expiration
+- **Password Security**: bcrypt hashing for secure storage
+- **User Table**: `usuarios` in Replit PostgreSQL with email, nome, senha_hash
+- **Login Page**: React component with login/register toggle
+- **Protected Routes**: KPI and target management endpoints require authentication
+- **Token Storage**: localStorage for access_token and user data
 
 ### API Structure
 All endpoints are prefixed with `/api`:
