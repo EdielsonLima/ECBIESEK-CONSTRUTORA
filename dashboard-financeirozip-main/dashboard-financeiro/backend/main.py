@@ -3195,8 +3195,12 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 cc.nome_empresa as empresa,
                 cc.nome_centrocusto as empreendimento,
                 TRIM(car.id_documento) as documento,
+                car.id_origem as tipo_condicao,
+                car.valor_acrescimo as acrescimo_car,
                 cr.data_recebimento as data_baixa,
                 cr.valor_liquido as valor_baixa,
+                cr.valor_acrescimo as acrescimo_cr,
+                cr.tc as tipo_condicao_cr,
                 CASE 
                     WHEN cr.data_recebimento IS NOT NULL THEN 0
                     WHEN car.data_vencimento < CURRENT_DATE THEN CURRENT_DATE - car.data_vencimento
@@ -3209,8 +3213,8 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 END as status
             FROM contas_a_receber car
             LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
-            LEFT JOIN contas_recebidas cr ON car.lancamento = cr.titulo::TEXT 
-                AND car.numero_parcela::TEXT = cr.parcela::TEXT 
+            LEFT JOIN contas_recebidas cr ON SPLIT_PART(car.lancamento, '/', 1) = cr.titulo::TEXT 
+                AND car.numero_parcela = cr.parcela 
                 AND car.cliente = cr.cliente
             WHERE {where_clause}
             ORDER BY car.data_vencimento ASC
@@ -3236,11 +3240,16 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
         total_a_receber = 0
         total_atrasado = 0
         
+        total_acrescimo = 0
+        
         for row in rows:
             valor_original = float(row['valor_original'] or 0)
             valor_baixa = float(row['valor_baixa'] or 0)
+            acrescimo = float(row['acrescimo_cr'] or row['acrescimo_car'] or 0)
+            tipo_cond = row['tipo_condicao_cr'] or row['tipo_condicao'] or '-'
             
             total_original += valor_original
+            total_acrescimo += acrescimo
             if row['data_baixa']:
                 total_recebido += valor_baixa
             elif row['status'] == 'Atrasado':
@@ -3251,8 +3260,10 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
             parcelas.append({
                 "titulo": row['titulo'],
                 "parcela": row['parcela'],
+                "tipo_condicao": tipo_cond,
                 "data_vencimento": str(row['data_vencimento']) if row['data_vencimento'] else None,
                 "valor_original": valor_original,
+                "acrescimo": acrescimo,
                 "data_baixa": str(row['data_baixa']) if row['data_baixa'] else None,
                 "valor_baixa": valor_baixa,
                 "dias_atraso": row['dias_atraso'] or 0,
@@ -3264,6 +3275,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
             "total_recebido": total_recebido,
             "total_a_receber": total_a_receber,
             "total_atrasado": total_atrasado,
+            "total_acrescimo": total_acrescimo,
             "quantidade_parcelas": len(parcelas),
         }
         
