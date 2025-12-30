@@ -198,7 +198,7 @@ export const ContasReceberAtrasadas: React.FC = () => {
     
     const clientesUnicos = Array.from(new Set(todasContas.map(c => c.cliente).filter(Boolean)))
       .sort((a, b) => (a || '').localeCompare(b || ''))
-      .map(c => ({ id: c || '', nome: c || '' }));
+      .map(c => ({ id: c || '', nome: '' }));
     setClientes(clientesUnicos);
     
     const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroTipoDocumento, filtroCliente);
