@@ -40,6 +40,8 @@ export const ContasRecebidas: React.FC = () => {
   const [filtroTipoDocumento, setFiltroTipoDocumento] = useState<string[]>([]);
   const [tipoDocDropdownAberto, setTipoDocDropdownAberto] = useState(false);
   const [paretoResumo, setParetoResumo] = useState<{ count: number; total: number } | null>(null);
+  const [clientes, setClientes] = useState<{ id: string; nome: string }[]>([]);
+  const [filtroCliente, setFiltroCliente] = useState<string | null>(null);
 
   const ordenarContas = (contasParaOrdenar: ContaReceber[]) => {
     return [...contasParaOrdenar].sort((a, b) => {
@@ -167,12 +169,16 @@ export const ContasRecebidas: React.FC = () => {
     empresa: number | null,
     ano: number | null,
     mesesSelecionados: number[],
-    tiposDocSelecionados: string[]
+    tiposDocSelecionados: string[],
+    cliente: string | null
   ) => {
     let contasFiltradas = [...dados];
     
     if (empresa) {
       contasFiltradas = contasFiltradas.filter(c => c.id_interno_empresa === empresa);
+    }
+    if (cliente) {
+      contasFiltradas = contasFiltradas.filter(c => c.cliente === cliente);
     }
     if (ano) {
       contasFiltradas = contasFiltradas.filter(c => {
@@ -200,7 +206,12 @@ export const ContasRecebidas: React.FC = () => {
   useEffect(() => {
     if (todasContas.length === 0) return;
     
-    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroAno, filtroMes, filtroTipoDocumento);
+    const clientesUnicos = [...new Set(todasContas.map(c => c.cliente).filter(Boolean))]
+      .sort()
+      .map(nome => ({ id: nome as string, nome: nome as string }));
+    setClientes(clientesUnicos);
+    
+    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroAno, filtroMes, filtroTipoDocumento, filtroCliente);
     setContas(contasFiltradas);
 
     const total = contasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0);
@@ -243,7 +254,7 @@ export const ContasRecebidas: React.FC = () => {
     });
 
     setDadosPorCliente(clienteArray.slice(0, 20));
-  }, [todasContas, filtroEmpresa, filtroAno, filtroMes, filtroTipoDocumento]);
+  }, [todasContas, filtroEmpresa, filtroAno, filtroMes, filtroTipoDocumento, filtroCliente]);
 
   useEffect(() => {
     carregarDados();
@@ -254,6 +265,7 @@ export const ContasRecebidas: React.FC = () => {
     setFiltroAno(null);
     setFiltroMes([]);
     setFiltroTipoDocumento([]);
+    setFiltroCliente(null);
   };
 
   if (loading) {
@@ -357,6 +369,15 @@ export const ContasRecebidas: React.FC = () => {
               </div>
             </div>
           )}
+        </div>
+        <div>
+          <SearchableSelect
+            label="Cliente"
+            options={clientes.map(c => ({ id: c.id, nome: c.nome }))}
+            value={filtroCliente ?? undefined}
+            onChange={(value) => setFiltroCliente(value as string | null)}
+            placeholder="Selecione um cliente..."
+          />
         </div>
         <div className="relative">
           <label className="mb-2 block text-sm font-medium text-gray-700">Tipo Documento</label>
@@ -509,6 +530,12 @@ export const ContasRecebidas: React.FC = () => {
                     Valor {renderSortIcon('valor_total')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Titulo
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Parcela
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                     Documento
                   </th>
                   <th 
@@ -530,6 +557,12 @@ export const ContasRecebidas: React.FC = () => {
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-green-600">
                       {formatCurrency(conta.valor_total)}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                      {conta.titulo || conta.lancamento || '-'}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                      {conta.numero_parcela || '-'}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                       {conta.id_documento || '-'}
