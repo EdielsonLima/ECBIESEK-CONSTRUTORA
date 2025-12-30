@@ -5,8 +5,10 @@ import { apiService } from '../services/api';
 interface Parcela {
   titulo: string;
   parcela: number;
+  tipo_condicao: string;
   data_vencimento: string | null;
   valor_original: number;
+  acrescimo: number;
   data_baixa: string | null;
   valor_baixa: number;
   dias_atraso: number;
@@ -26,6 +28,7 @@ interface ExtratoData {
     total_recebido: number;
     total_a_receber: number;
     total_atrasado: number;
+    total_acrescimo: number;
     quantidade_parcelas: number;
   };
 }
@@ -235,25 +238,31 @@ export const ExtratoCliente: React.FC = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                       Titulo/Parcela
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                      Tipo Condicao
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                       Vencimento
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                    <th className="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
                       Valor Original
                     </th>
-                    <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
+                    <th className="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                      Acrescimo
+                    </th>
+                    <th className="px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
                       Dias Atraso
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                       Data Baixa
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                    <th className="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
                       Valor Baixa
                     </th>
-                    <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
+                    <th className="px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
                       Status
                     </th>
                   </tr>
@@ -261,33 +270,43 @@ export const ExtratoCliente: React.FC = () => {
                 <tbody className="divide-y divide-gray-200 bg-white">
                   {extrato.parcelas.map((parcela, index) => (
                     <tr key={index} className="hover:bg-gray-50">
-                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900">
+                      <td className="whitespace-nowrap px-3 py-3 text-sm text-gray-900">
                         {parcela.titulo}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                      <td className="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                        {parcela.tipo_condicao || '-'}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
                         {formatDate(parcela.data_vencimento)}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-gray-900">
+                      <td className="whitespace-nowrap px-3 py-3 text-right text-sm font-medium text-gray-900">
                         {formatCurrency(parcela.valor_original)}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-center text-sm">
+                      <td className="whitespace-nowrap px-3 py-3 text-right text-sm">
+                        {parcela.acrescimo > 0 ? (
+                          <span className="text-orange-600">{formatCurrency(parcela.acrescimo)}</span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-3 text-center text-sm">
                         {parcela.dias_atraso > 0 ? (
                           <span className="text-red-600 font-medium">{parcela.dias_atraso}d</span>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                      <td className="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
                         {formatDate(parcela.data_baixa)}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium">
+                      <td className="whitespace-nowrap px-3 py-3 text-right text-sm font-medium">
                         {parcela.valor_baixa > 0 ? (
                           <span className="text-green-600">{formatCurrency(parcela.valor_baixa)}</span>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-center">
+                      <td className="whitespace-nowrap px-3 py-3 text-center">
                         <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${getStatusColor(parcela.status)}`}>
                           {parcela.status}
                         </span>
@@ -297,15 +316,18 @@ export const ExtratoCliente: React.FC = () => {
                 </tbody>
                 <tfoot className="bg-gray-100">
                   <tr>
-                    <td colSpan={2} className="px-4 py-3 text-sm font-bold text-gray-900">
+                    <td colSpan={3} className="px-3 py-3 text-sm font-bold text-gray-900">
                       TOTAIS
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-bold text-gray-900">
+                    <td className="whitespace-nowrap px-3 py-3 text-right text-sm font-bold text-gray-900">
                       {formatCurrency(extrato.totais.total_original)}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-3 text-right text-sm font-bold text-orange-600">
+                      {formatCurrency(extrato.totais.total_acrescimo || 0)}
                     </td>
                     <td></td>
                     <td></td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-bold text-green-600">
+                    <td className="whitespace-nowrap px-3 py-3 text-right text-sm font-bold text-green-600">
                       {formatCurrency(extrato.totais.total_recebido)}
                     </td>
                     <td></td>
