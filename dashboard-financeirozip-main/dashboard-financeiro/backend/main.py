@@ -2773,7 +2773,8 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
                        car.lancamento, car.numero_documento, car.id_plano_financeiro,
                        cc.id_sienge_empresa as id_interno_empresa, car.id_interno_centro_custo,
                        cc.nome_empresa, cc.nome_centrocusto,
-                       TRIM(car.id_documento) as id_documento
+                       TRIM(car.id_documento) as id_documento,
+                       car.titulo, car.numero_parcela
                 FROM contas_a_receber car
                 LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE car.data_vencimento < %s

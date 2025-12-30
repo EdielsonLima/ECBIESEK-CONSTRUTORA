@@ -186,6 +186,8 @@ export interface ContaReceber {
   id_interno_centro_custo?: number;
   nome_empresa?: string;
   nome_centrocusto?: string;
+  titulo?: string;
+  numero_parcela?: string;
 }
 
 export interface MetricasReceber {
