@@ -486,6 +486,12 @@ export const ContasReceberAtrasadas: React.FC = () => {
                     Valor {renderSortIcon('valor_total')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Título
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Parcela
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                     Documento
                   </th>
                   <th 
@@ -518,6 +524,12 @@ export const ContasReceberAtrasadas: React.FC = () => {
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-red-600">
                         {formatCurrency(conta.valor_total)}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                        {conta.titulo || '-'}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                        {conta.numero_parcela || '-'}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                         {conta.numero_documento || conta.id_documento || '-'}
