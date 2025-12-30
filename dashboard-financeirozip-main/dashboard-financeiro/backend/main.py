@@ -3169,6 +3169,158 @@ def get_contas_recebidas_por_cliente(
         cursor.close()
         conn.close()
 
+@app.get("/api/extrato-cliente")
+def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
+    """Retorna extrato completo do cliente com histórico de parcelas"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        conditions = ["car.cliente = %s"]
+        params = [cliente]
+        
+        if titulo:
+            conditions.append("car.lancamento LIKE %s")
+            params.append(f"{titulo}%")
+        
+        where_clause = " AND ".join(conditions)
+        
+        query = f"""
+            SELECT 
+                car.cliente,
+                car.lancamento as titulo,
+                car.numero_parcela as parcela,
+                car.data_vencimento,
+                car.valor_total as valor_original,
+                cc.nome_empresa as empresa,
+                cc.nome_centrocusto as empreendimento,
+                TRIM(car.id_documento) as documento,
+                cr.data_recebimento as data_baixa,
+                cr.valor_liquido as valor_baixa,
+                CASE 
+                    WHEN cr.data_recebimento IS NOT NULL THEN 0
+                    WHEN car.data_vencimento < CURRENT_DATE THEN CURRENT_DATE - car.data_vencimento
+                    ELSE 0
+                END as dias_atraso,
+                CASE 
+                    WHEN cr.data_recebimento IS NOT NULL THEN 'Recebido'
+                    WHEN car.data_vencimento < CURRENT_DATE THEN 'Atrasado'
+                    ELSE 'A Receber'
+                END as status
+            FROM contas_a_receber car
+            LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
+            LEFT JOIN contas_recebidas cr ON car.lancamento = cr.titulo 
+                AND car.numero_parcela = cr.parcela 
+                AND car.cliente = cr.cliente
+            WHERE {where_clause}
+            ORDER BY car.data_vencimento ASC
+        """
+        
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        
+        if not rows:
+            return {"header": {}, "parcelas": [], "totais": {}}
+        
+        first_row = rows[0]
+        header = {
+            "cliente": first_row['cliente'],
+            "empresa": first_row['empresa'] or '-',
+            "empreendimento": first_row['empreendimento'] or '-',
+            "documento": first_row['documento'] or '-',
+        }
+        
+        parcelas = []
+        total_original = 0
+        total_recebido = 0
+        total_a_receber = 0
+        total_atrasado = 0
+        
+        for row in rows:
+            valor_original = float(row['valor_original'] or 0)
+            valor_baixa = float(row['valor_baixa'] or 0)
+            
+            total_original += valor_original
+            if row['data_baixa']:
+                total_recebido += valor_baixa
+            elif row['status'] == 'Atrasado':
+                total_atrasado += valor_original
+            else:
+                total_a_receber += valor_original
+            
+            parcelas.append({
+                "titulo": row['titulo'],
+                "parcela": row['parcela'],
+                "data_vencimento": str(row['data_vencimento']) if row['data_vencimento'] else None,
+                "valor_original": valor_original,
+                "data_baixa": str(row['data_baixa']) if row['data_baixa'] else None,
+                "valor_baixa": valor_baixa,
+                "dias_atraso": row['dias_atraso'] or 0,
+                "status": row['status'],
+            })
+        
+        totais = {
+            "total_original": total_original,
+            "total_recebido": total_recebido,
+            "total_a_receber": total_a_receber,
+            "total_atrasado": total_atrasado,
+            "quantidade_parcelas": len(parcelas),
+        }
+        
+        return {"header": header, "parcelas": parcelas, "totais": totais}
+
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/clientes-lista")
+def get_clientes_lista():
+    """Retorna lista de clientes únicos para seleção"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            SELECT DISTINCT cliente, COUNT(*) as total_titulos
+            FROM contas_a_receber
+            WHERE cliente IS NOT NULL AND cliente != ''
+            GROUP BY cliente
+            ORDER BY cliente
+            LIMIT 500
+        """)
+        rows = cursor.fetchall()
+        
+        return [{"id": row['cliente'], "nome": row['cliente'], "total_titulos": row['total_titulos']} for row in rows]
+
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/titulos-cliente")
+def get_titulos_cliente(cliente: str):
+    """Retorna lista de títulos de um cliente específico"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            SELECT DISTINCT 
+                SPLIT_PART(lancamento, '/', 1) as titulo_base,
+                COUNT(*) as total_parcelas,
+                SUM(valor_total) as valor_total
+            FROM contas_a_receber
+            WHERE cliente = %s
+            GROUP BY SPLIT_PART(lancamento, '/', 1)
+            ORDER BY titulo_base
+        """, (cliente,))
+        rows = cursor.fetchall()
+        
+        return [{"id": row['titulo_base'], "nome": f"Título {row['titulo_base']} ({row['total_parcelas']} parcelas)", "valor_total": float(row['valor_total'] or 0)} for row in rows]
+
+    finally:
+        cursor.close()
+        conn.close()
+
 @app.get("/api/metricas-receber")
 def get_metricas_receber():
     """Retorna métricas gerais de contas a receber para o dashboard"""

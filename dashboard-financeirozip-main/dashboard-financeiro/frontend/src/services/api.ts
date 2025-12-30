@@ -639,6 +639,47 @@ export const apiService = {
     return response.data;
   },
 
+  // Extrato do cliente
+  getExtratoCliente: async (cliente: string, titulo?: string): Promise<{
+    header: { cliente: string; empresa: string; empreendimento: string; documento: string };
+    parcelas: Array<{
+      titulo: string;
+      parcela: number;
+      data_vencimento: string | null;
+      valor_original: number;
+      data_baixa: string | null;
+      valor_baixa: number;
+      dias_atraso: number;
+      status: string;
+    }>;
+    totais: {
+      total_original: number;
+      total_recebido: number;
+      total_a_receber: number;
+      total_atrasado: number;
+      quantidade_parcelas: number;
+    };
+  }> => {
+    const params = new URLSearchParams();
+    params.append('cliente', cliente);
+    if (titulo) params.append('titulo', titulo);
+    
+    const response = await api.get(`/extrato-cliente?${params.toString()}`);
+    return response.data;
+  },
+
+  // Lista de clientes para seleção
+  getClientesLista: async (): Promise<Array<{ id: string; nome: string; total_titulos: number }>> => {
+    const response = await api.get('/clientes-lista');
+    return response.data;
+  },
+
+  // Títulos de um cliente
+  getTitulosCliente: async (cliente: string): Promise<Array<{ id: string; nome: string; valor_total: number }>> => {
+    const response = await api.get(`/titulos-cliente?cliente=${encodeURIComponent(cliente)}`);
+    return response.data;
+  },
+
   // ==================== METAS POR ORIGEM ====================
 
   // Listar metas de origem
