@@ -256,18 +256,25 @@ export const ContasAReceber: React.FC = () => {
   useEffect(() => {
     if (todasContas.length === 0) return;
     
-    const clientesUnicos = [...new Set(todasContas.map(c => c.cliente).filter(Boolean))]
+    const clienteMap = new Map<string, string>();
+    todasContas.forEach(c => {
+      if (c.cliente) {
+        const normalized = c.cliente.trim().toUpperCase();
+        if (!clienteMap.has(normalized)) {
+          clienteMap.set(normalized, c.cliente.trim());
+        }
+      }
+    });
+    const clientesUnicos = Array.from(clienteMap.values())
       .sort()
-      .map(nome => ({ id: nome as string, nome: nome as string }));
+      .map(nome => ({ id: nome, nome }));
     setClientes(clientesUnicos);
     
-    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCliente);
+    const contasSemAtraso = todasContas.filter(c => calcularDiasAteVencimento(c.data_vencimento) >= 0);
+    
+    const contasFiltradas = aplicarFiltrosLocais(contasSemAtraso, filtroEmpresa, filtroCentroCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCliente);
     setContas(contasFiltradas);
 
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    
-    const atrasados = contasFiltradas.filter(c => calcularDiasAteVencimento(c.data_vencimento) < 0);
     const venceHoje = contasFiltradas.filter(c => calcularDiasAteVencimento(c.data_vencimento) === 0);
 
     const stats: Estatisticas = {
@@ -276,23 +283,23 @@ export const ContasAReceber: React.FC = () => {
       valor_medio: contasFiltradas.length > 0 
         ? contasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0) / contasFiltradas.length 
         : 0,
-      quantidade_atrasados: atrasados.length,
-      valor_atrasados: atrasados.reduce((acc, c) => acc + (c.valor_total || 0), 0),
+      quantidade_atrasados: 0,
+      valor_atrasados: 0,
       quantidade_vence_hoje: venceHoje.length,
       valor_vence_hoje: venceHoje.reduce((acc, c) => acc + (c.valor_total || 0), 0),
     };
     setEstatisticas(stats);
 
-    const clienteMap = new Map<string, { valor: number; quantidade: number }>();
+    const clienteAnaliseMap = new Map<string, { valor: number; quantidade: number }>();
     contasFiltradas.forEach(c => {
       const cliente = c.cliente || 'Sem Cliente';
-      const atual = clienteMap.get(cliente) || { valor: 0, quantidade: 0 };
-      clienteMap.set(cliente, {
+      const atual = clienteAnaliseMap.get(cliente) || { valor: 0, quantidade: 0 };
+      clienteAnaliseMap.set(cliente, {
         valor: atual.valor + (c.valor_total || 0),
         quantidade: atual.quantidade + 1,
       });
     });
-    const clienteArray = Array.from(clienteMap.entries())
+    const clienteArray = Array.from(clienteAnaliseMap.entries())
       .map(([cliente, data]) => ({ cliente, ...data }))
       .sort((a, b) => b.valor - a.valor)
       .slice(0, 15);
