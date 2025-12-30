@@ -2780,8 +2780,8 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
                        car.lancamento as titulo, car.numero_parcela
                 FROM contas_a_receber car
                 LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
-                LEFT JOIN contas_recebidas cr ON car.lancamento = cr.titulo 
-                    AND car.numero_parcela = cr.parcela
+                LEFT JOIN contas_recebidas cr ON car.lancamento = cr.titulo::TEXT 
+                    AND car.numero_parcela::TEXT = cr.parcela::TEXT
                 WHERE car.data_vencimento < %s
                   AND cr.titulo IS NULL
                 ORDER BY car.data_vencimento ASC
@@ -3209,8 +3209,8 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 END as status
             FROM contas_a_receber car
             LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
-            LEFT JOIN contas_recebidas cr ON car.lancamento = cr.titulo 
-                AND car.numero_parcela = cr.parcela 
+            LEFT JOIN contas_recebidas cr ON car.lancamento = cr.titulo::TEXT 
+                AND car.numero_parcela::TEXT = cr.parcela::TEXT 
                 AND car.cliente = cr.cliente
             WHERE {where_clause}
             ORDER BY car.data_vencimento ASC

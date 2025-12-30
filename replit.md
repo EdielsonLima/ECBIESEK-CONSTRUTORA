@@ -27,7 +27,7 @@ The frontend follows a component-based architecture:
 ### Navigation Structure
 The Sidebar has two expandable menu sections:
 - **Contas a Pagar**: A Pagar, Pagas, Atrasadas
-- **Contas a Receber**: A Receber, Recebidas, Atrasadas
+- **Contas a Receber**: A Receber, Recebidas, Atrasadas, Extrato Cliente
 
 ### Page Features (Updated December 2025)
 All six account pages (Contas a Pagar + Contas a Receber) share a consistent structure:
