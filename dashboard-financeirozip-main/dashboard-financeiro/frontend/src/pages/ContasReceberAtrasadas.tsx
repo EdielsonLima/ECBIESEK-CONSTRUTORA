@@ -52,10 +52,11 @@ export const ContasReceberAtrasadas: React.FC = () => {
     if (!dataVencimento) return 0;
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
-    const vencimento = new Date(dataVencimento);
+    const [ano, mes, dia] = dataVencimento.split('T')[0].split('-').map(Number);
+    const vencimento = new Date(ano, mes - 1, dia);
     vencimento.setHours(0, 0, 0, 0);
     const diffTime = hoje.getTime() - vencimento.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     return diffDays > 0 ? diffDays : 0;
   };
 
