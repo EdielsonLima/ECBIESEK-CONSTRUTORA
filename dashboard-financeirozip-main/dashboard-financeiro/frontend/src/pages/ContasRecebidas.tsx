@@ -131,8 +131,10 @@ export const ContasRecebidas: React.FC = () => {
 
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR');
+    const parts = dateString.split('T')[0].split('-');
+    if (parts.length !== 3) return '-';
+    const [year, month, day] = parts;
+    return `${day}/${month}/${year}`;
   };
 
   useEffect(() => {
