@@ -2757,7 +2757,7 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
             query = """
                 SELECT car.cliente, car.data_vencimento, car.valor_total,
                        car.lancamento, car.numero_documento, car.id_plano_financeiro,
-                       car.id_interno_empresa, car.id_interno_centro_custo,
+                       cc.id_sienge_empresa as id_interno_empresa, car.id_interno_centro_custo,
                        cc.nome_empresa, cc.nome_centrocusto,
                        TRIM(car.id_documento) as id_documento
                 FROM contas_a_receber car
@@ -2771,7 +2771,7 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
             query = """
                 SELECT car.cliente, car.data_vencimento, car.valor_total,
                        car.lancamento, car.numero_documento, car.id_plano_financeiro,
-                       car.id_interno_empresa, car.id_interno_centro_custo,
+                       cc.id_sienge_empresa as id_interno_empresa, car.id_interno_centro_custo,
                        cc.nome_empresa, cc.nome_centrocusto,
                        TRIM(car.id_documento) as id_documento
                 FROM contas_a_receber car
@@ -2785,7 +2785,7 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
             query = """
                 SELECT car.cliente, car.data_vencimento, car.valor_total,
                        car.lancamento, car.numero_documento, car.id_plano_financeiro,
-                       car.id_interno_empresa, car.id_interno_centro_custo,
+                       cc.id_sienge_empresa as id_interno_empresa, car.id_interno_centro_custo,
                        cc.nome_empresa, cc.nome_centrocusto,
                        TRIM(car.id_documento) as id_documento
                 FROM contas_a_receber car
