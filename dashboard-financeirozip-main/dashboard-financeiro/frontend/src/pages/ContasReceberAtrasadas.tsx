@@ -45,6 +45,8 @@ export const ContasReceberAtrasadas: React.FC = () => {
   const [filtroTipoDocumento, setFiltroTipoDocumento] = useState<string[]>([]);
   const [tipoDocDropdownAberto, setTipoDocDropdownAberto] = useState(false);
   const [contasCriticas, setContasCriticas] = useState<{ quantidade: number; valor: number }>({ quantidade: 0, valor: 0 });
+  const [clientes, setClientes] = useState<{ id: string; nome: string }[]>([]);
+  const [filtroCliente, setFiltroCliente] = useState<string | null>(null);
 
   const calcularDiasAtraso = (dataVencimento: string | undefined) => {
     if (!dataVencimento) return 0;
@@ -168,7 +170,8 @@ export const ContasReceberAtrasadas: React.FC = () => {
     dados: ContaReceber[],
     empresa: number | null,
     cc: number | null,
-    tiposDocSelecionados: string[]
+    tiposDocSelecionados: string[],
+    cliente: string | null
   ) => {
     let contasFiltradas = [...dados];
     
@@ -183,6 +186,9 @@ export const ContasReceberAtrasadas: React.FC = () => {
         return c.id_documento && tiposDocSelecionados.includes(c.id_documento);
       });
     }
+    if (cliente) {
+      contasFiltradas = contasFiltradas.filter(c => c.cliente === cliente);
+    }
     
     return contasFiltradas;
   };
@@ -190,7 +196,12 @@ export const ContasReceberAtrasadas: React.FC = () => {
   useEffect(() => {
     if (todasContas.length === 0) return;
     
-    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroTipoDocumento);
+    const clientesUnicos = Array.from(new Set(todasContas.map(c => c.cliente).filter(Boolean)))
+      .sort((a, b) => (a || '').localeCompare(b || ''))
+      .map(c => ({ id: c || '', nome: c || '' }));
+    setClientes(clientesUnicos);
+    
+    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroTipoDocumento, filtroCliente);
     setContas(contasFiltradas);
 
     const total = contasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0);
@@ -252,7 +263,7 @@ export const ContasReceberAtrasadas: React.FC = () => {
       .filter(d => d.quantidade > 0)
       .sort((a, b) => a.ordem - b.ordem);
     setDadosPorFaixaAtraso(faixaArray);
-  }, [todasContas, filtroEmpresa, filtroCentroCusto, filtroTipoDocumento]);
+  }, [todasContas, filtroEmpresa, filtroCentroCusto, filtroTipoDocumento, filtroCliente]);
 
   useEffect(() => {
     carregarDados();
@@ -262,6 +273,7 @@ export const ContasReceberAtrasadas: React.FC = () => {
     setFiltroEmpresa(null);
     setFiltroCentroCusto(null);
     setFiltroTipoDocumento([]);
+    setFiltroCliente(null);
   };
 
   if (loading) {
@@ -285,7 +297,7 @@ export const ContasReceberAtrasadas: React.FC = () => {
 
   const renderFiltros = () => (
     <div className="mb-6 rounded-lg bg-gray-50 p-4 shadow">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <SearchableSelect
           options={empresas}
           value={filtroEmpresa ?? undefined}
@@ -300,6 +312,14 @@ export const ContasReceberAtrasadas: React.FC = () => {
           onChange={(value) => setFiltroCentroCusto(value as number | null)}
           label="Centro de Custo"
           placeholder="Selecione um centro de custo..."
+          emptyText="Todos"
+        />
+        <SearchableSelect
+          options={clientes}
+          value={filtroCliente ?? undefined}
+          onChange={(value) => setFiltroCliente(value as string | null)}
+          label="Cliente"
+          placeholder="Digite o nome do cliente..."
           emptyText="Todos"
         />
         <div className="relative">
