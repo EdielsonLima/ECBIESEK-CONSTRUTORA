@@ -78,8 +78,12 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           <span className={selectedOption ? 'text-gray-900' : 'text-gray-500'}>
             {selectedOption ? (
               <span>
-                <span className="font-semibold text-blue-600">{selectedOption.id}</span>
-                {' - '}
+                {selectedOption.id !== selectedOption.nome && (
+                  <>
+                    <span className="font-semibold text-blue-600">{selectedOption.id}</span>
+                    {' - '}
+                  </>
+                )}
                 {selectedOption.nome}
               </span>
             ) : (
@@ -136,7 +140,9 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                       value === option.id ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-900'
                     }`}
                   >
-                    <span className="font-semibold text-blue-600 mr-2">{option.id}</span>
+                    {option.id !== option.nome && (
+                      <span className="font-semibold text-blue-600 mr-2">{option.id}</span>
+                    )}
                     <span className="flex-1">{option.nome}</span>
                   </button>
                 ))
