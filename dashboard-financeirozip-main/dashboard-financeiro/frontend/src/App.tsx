@@ -7,6 +7,7 @@ import { ContasAtrasadas } from './pages/ContasAtrasadas';
 import { ContasAReceber } from './pages/ContasAReceber';
 import { ContasRecebidas } from './pages/ContasRecebidas';
 import { ContasReceberAtrasadas } from './pages/ContasReceberAtrasadas';
+import { ExtratoCliente } from './pages/ExtratoCliente';
 import { KPIs } from './pages/KPIs';
 import { Login } from './pages/Login';
 import { authService, User } from './services/api';
@@ -83,6 +84,8 @@ function App() {
         return <ContasRecebidas />;
       case 'recebimentos-atrasados':
         return <ContasReceberAtrasadas />;
+      case 'extrato-cliente':
+        return <ExtratoCliente />;
       case 'kpis':
         return <KPIs />;
       default:
@@ -111,6 +114,7 @@ function App() {
               {currentPage === 'contas-a-receber' && 'Contas a Receber'}
               {currentPage === 'contas-recebidas' && 'Contas Recebidas'}
               {currentPage === 'recebimentos-atrasados' && 'Recebimentos em Atraso'}
+              {currentPage === 'extrato-cliente' && 'Extrato Cliente'}
               {currentPage === 'kpis' && 'KPIs'}
               </h1>
               <p className="mt-1 text-blue-100">Gestão Financeira - Construtora</p>

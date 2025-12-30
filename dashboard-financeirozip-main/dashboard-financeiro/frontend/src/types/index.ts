@@ -198,3 +198,47 @@ export interface MetricasReceber {
   quantidade_a_receber: number;
   quantidade_em_atraso: number;
 }
+
+export interface ExtratoClienteHeader {
+  cliente: string;
+  empresa: string;
+  empreendimento: string;
+  documento: string;
+}
+
+export interface ExtratoClienteParcela {
+  titulo: string;
+  parcela: number;
+  data_vencimento: string | null;
+  valor_original: number;
+  data_baixa: string | null;
+  valor_baixa: number;
+  dias_atraso: number;
+  status: 'Recebido' | 'Atrasado' | 'A Receber';
+}
+
+export interface ExtratoClienteTotais {
+  total_original: number;
+  total_recebido: number;
+  total_a_receber: number;
+  total_atrasado: number;
+  quantidade_parcelas: number;
+}
+
+export interface ExtratoClienteResponse {
+  header: ExtratoClienteHeader;
+  parcelas: ExtratoClienteParcela[];
+  totais: ExtratoClienteTotais;
+}
+
+export interface ClienteLista {
+  id: string;
+  nome: string;
+  total_titulos: number;
+}
+
+export interface TituloCliente {
+  id: string;
+  nome: string;
+  valor_total: number;
+}
