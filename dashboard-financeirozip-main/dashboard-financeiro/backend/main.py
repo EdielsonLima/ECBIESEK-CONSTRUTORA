@@ -3177,47 +3177,81 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
 
     try:
         conditions = ["car.cliente = %s"]
-        params = [cliente]
+        params_where = [cliente]
         
         if titulo:
-            conditions.append("car.lancamento LIKE %s")
-            params.append(f"{titulo}%")
+            conditions.append("SPLIT_PART(car.lancamento, '/', 1) = %s")
+            params_where.append(titulo)
         
         where_clause = " AND ".join(conditions)
         
+        params = [cliente] + params_where
+        if titulo:
+            params = [cliente, titulo] + params_where
+        
         query = f"""
+            WITH recebidas_agrupadas AS (
+                SELECT 
+                    cliente,
+                    titulo::TEXT as titulo_num,
+                    parcela,
+                    tc as tipo_condicao,
+                    data_vencimento,
+                    MAX(valor_baixa) as valor_original,
+                    SUM(valor_acrescimo) as acrescimo,
+                    MAX(data_recebimento) as data_baixa,
+                    SUM(valor_baixa) + SUM(valor_acrescimo) as valor_baixa,
+                    id_interno_empresa
+                FROM contas_recebidas
+                WHERE cliente = %s
+                GROUP BY cliente, titulo, parcela, tc, data_vencimento, id_interno_empresa
+            )
+            SELECT 
+                r.cliente,
+                r.titulo_num || '/' || r.parcela as titulo,
+                r.parcela,
+                r.tipo_condicao,
+                r.data_vencimento,
+                r.valor_original,
+                r.acrescimo,
+                r.data_baixa,
+                r.valor_baixa,
+                0 as dias_atraso,
+                'Recebido' as status,
+                cc.nome_empresa as empresa,
+                cc.nome_centrocusto as empreendimento,
+                'CT' as documento
+            FROM recebidas_agrupadas r
+            LEFT JOIN dim_centrocusto cc ON r.id_interno_empresa = cc.id_sienge_empresa
+            
+            UNION ALL
+            
             SELECT 
                 car.cliente,
                 car.lancamento as titulo,
                 car.numero_parcela as parcela,
+                car.id_origem as tipo_condicao,
                 car.data_vencimento,
                 car.valor_total as valor_original,
-                cc.nome_empresa as empresa,
-                cc.nome_centrocusto as empreendimento,
-                TRIM(car.id_documento) as documento,
-                car.id_origem as tipo_condicao,
-                car.valor_acrescimo as acrescimo_car,
-                cr.data_recebimento as data_baixa,
-                cr.valor_liquido as valor_baixa,
-                cr.valor_acrescimo as acrescimo_cr,
-                cr.tc as tipo_condicao_cr,
+                car.valor_acrescimo as acrescimo,
+                NULL::date as data_baixa,
+                0 as valor_baixa,
                 CASE 
-                    WHEN cr.data_recebimento IS NOT NULL THEN 0
                     WHEN car.data_vencimento < CURRENT_DATE THEN CURRENT_DATE - car.data_vencimento
                     ELSE 0
                 END as dias_atraso,
                 CASE 
-                    WHEN cr.data_recebimento IS NOT NULL THEN 'Recebido'
                     WHEN car.data_vencimento < CURRENT_DATE THEN 'Atrasado'
                     ELSE 'A Receber'
-                END as status
+                END as status,
+                cc.nome_empresa as empresa,
+                cc.nome_centrocusto as empreendimento,
+                TRIM(car.id_documento) as documento
             FROM contas_a_receber car
             LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
-            LEFT JOIN contas_recebidas cr ON SPLIT_PART(car.lancamento, '/', 1) = cr.titulo::TEXT 
-                AND car.numero_parcela = cr.parcela 
-                AND car.cliente = cr.cliente
             WHERE {where_clause}
-            ORDER BY car.data_vencimento ASC
+            
+            ORDER BY data_vencimento ASC
         """
         
         cursor.execute(query, params)
@@ -3245,8 +3279,8 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
         for row in rows:
             valor_original = float(row['valor_original'] or 0)
             valor_baixa = float(row['valor_baixa'] or 0)
-            acrescimo = float(row['acrescimo_cr'] or row['acrescimo_car'] or 0)
-            tipo_cond = row['tipo_condicao_cr'] or row['tipo_condicao'] or '-'
+            acrescimo = float(row['acrescimo'] or 0)
+            tipo_cond = row['tipo_condicao'] or '-'
             
             total_original += valor_original
             total_acrescimo += acrescimo
