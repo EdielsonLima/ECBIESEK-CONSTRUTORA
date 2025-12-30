@@ -3195,7 +3195,17 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                     cliente,
                     titulo::TEXT as titulo_num,
                     parcela,
-                    tc as tipo_condicao,
+                    CASE tc
+                        WHEN 'AT' THEN 'Ato'
+                        WHEN 'PM' THEN 'Parcelas Mensais'
+                        WHEN 'PS' THEN 'Parcelas Semestrais'
+                        WHEN 'FI' THEN 'Financiamento'
+                        WHEN 'RE' THEN 'Resíduo'
+                        WHEN 'PB' THEN 'Parcelas Balão'
+                        WHEN 'PE' THEN 'Parcelas Especiais'
+                        WHEN 'PI' THEN 'Parcelas Intermediárias'
+                        ELSE tc
+                    END as tipo_condicao,
                     data_vencimento,
                     MAX(valor_baixa) as valor_original,
                     SUM(valor_acrescimo) as acrescimo,
@@ -3230,7 +3240,19 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 car.cliente,
                 car.lancamento as titulo,
                 car.numero_parcela as parcela,
-                car.id_origem as tipo_condicao,
+                CASE TRIM(car.id_origem)
+                    WHEN 'AT' THEN 'Ato'
+                    WHEN 'PM' THEN 'Parcelas Mensais'
+                    WHEN 'PS' THEN 'Parcelas Semestrais'
+                    WHEN 'FI' THEN 'Financiamento'
+                    WHEN 'RE' THEN 'Resíduo'
+                    WHEN 'PB' THEN 'Parcelas Balão'
+                    WHEN 'PE' THEN 'Parcelas Especiais'
+                    WHEN 'PI' THEN 'Parcelas Intermediárias'
+                    WHEN 'CO' THEN 'Contrato'
+                    WHEN 'CR' THEN 'Crédito'
+                    ELSE TRIM(car.id_origem)
+                END as tipo_condicao,
                 car.data_vencimento,
                 car.valor_total as valor_original,
                 car.valor_acrescimo as acrescimo,
