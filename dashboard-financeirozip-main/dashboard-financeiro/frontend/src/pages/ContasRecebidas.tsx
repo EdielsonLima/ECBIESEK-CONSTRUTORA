@@ -206,9 +206,18 @@ export const ContasRecebidas: React.FC = () => {
   useEffect(() => {
     if (todasContas.length === 0) return;
     
-    const clientesUnicos = [...new Set(todasContas.map(c => c.cliente).filter(Boolean))]
+    const clienteMap = new Map<string, string>();
+    todasContas.forEach(c => {
+      if (c.cliente) {
+        const normalized = c.cliente.trim().toUpperCase();
+        if (!clienteMap.has(normalized)) {
+          clienteMap.set(normalized, c.cliente.trim());
+        }
+      }
+    });
+    const clientesUnicos = Array.from(clienteMap.values())
       .sort()
-      .map(nome => ({ id: nome as string, nome: nome as string }));
+      .map(nome => ({ id: nome, nome }));
     setClientes(clientesUnicos);
     
     const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroAno, filtroMes, filtroTipoDocumento, filtroCliente);
@@ -222,17 +231,17 @@ export const ContasRecebidas: React.FC = () => {
     };
     setEstatisticas(stats);
 
-    const clienteMap = new Map<string, { valor: number; quantidade: number }>();
+    const clienteAnaliseMap = new Map<string, { valor: number; quantidade: number }>();
     contasFiltradas.forEach(c => {
       const cliente = c.cliente || 'Sem Cliente';
-      const atual = clienteMap.get(cliente) || { valor: 0, quantidade: 0 };
-      clienteMap.set(cliente, {
+      const atual = clienteAnaliseMap.get(cliente) || { valor: 0, quantidade: 0 };
+      clienteAnaliseMap.set(cliente, {
         valor: atual.valor + (c.valor_total || 0),
         quantidade: atual.quantidade + 1,
       });
     });
     
-    const clienteList = Array.from(clienteMap.entries())
+    const clienteList = Array.from(clienteAnaliseMap.entries())
       .map(([cliente, data]) => ({ cliente, ...data }))
       .sort((a, b) => b.valor - a.valor);
 
