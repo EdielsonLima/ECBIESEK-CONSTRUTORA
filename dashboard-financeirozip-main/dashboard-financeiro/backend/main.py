@@ -2746,7 +2746,9 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
                 SELECT cr.cliente, cr.data_recebimento as data_vencimento, cr.valor_liquido as valor_total,
                        cr.titulo as lancamento, cr.id_documento, cr.id_interno_empresa,
                        cc.nome_empresa, cc.nome_centrocusto,
-                       TRIM(cr.id_documento) as id_documento
+                       TRIM(cr.id_documento) as id_documento,
+                       cr.titulo, cr.parcela as numero_parcela,
+                       cr.data_recebimento
                 FROM contas_recebidas cr
                 LEFT JOIN dim_centrocusto cc ON cr.id_interno_empresa = cc.id_sienge_empresa
                 ORDER BY cr.data_recebimento DESC
@@ -2759,7 +2761,8 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
                        car.lancamento, car.numero_documento, car.id_plano_financeiro,
                        cc.id_sienge_empresa as id_interno_empresa, car.id_interno_centro_custo,
                        cc.nome_empresa, cc.nome_centrocusto,
-                       TRIM(car.id_documento) as id_documento
+                       TRIM(car.id_documento) as id_documento,
+                       car.lancamento as titulo, car.numero_parcela
                 FROM contas_a_receber car
                 LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE car.data_vencimento >= %s
