@@ -89,6 +89,10 @@ export const ContasAPagar: React.FC = () => {
           valorA = (a.nome_empresa || '').toLowerCase();
           valorB = (b.nome_empresa || '').toLowerCase();
           break;
+        case 'nome_centrocusto':
+          valorA = ((a as any).nome_centrocusto || '').toLowerCase();
+          valorB = ((b as any).nome_centrocusto || '').toLowerCase();
+          break;
         default:
           return 0;
       }
@@ -727,6 +731,9 @@ export const ContasAPagar: React.FC = () => {
                 <th onClick={() => toggleOrdenacao('nome_empresa')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Empresa{renderSortIcon('nome_empresa')}
                 </th>
+                <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                  Centro de Custo{renderSortIcon('nome_centrocusto')}
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 bg-white">
@@ -743,6 +750,7 @@ export const ContasAPagar: React.FC = () => {
                     <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-blue-600">{formatCurrency(conta.valor_total)}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.numero_documento || '-'}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.nome_empresa || '-'}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{(conta as any).nome_centrocusto || '-'}</td>
                   </tr>
                 );
               })}
