@@ -15,6 +15,7 @@ export interface ContaPagar {
   id_plano_financeiro?: string;
   id_interno_empresa?: number;
   id_interno_centro_custo?: number;
+  id_sienge_empresa?: number;
   nome_empresa?: string;
   nome_centrocusto?: string;
   id_documento?: string;
