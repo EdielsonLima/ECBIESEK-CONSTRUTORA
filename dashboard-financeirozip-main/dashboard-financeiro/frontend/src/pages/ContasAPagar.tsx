@@ -46,6 +46,8 @@ export const ContasAPagar: React.FC = () => {
   const [centrosCusto, setCentrosCusto] = useState<CentroCustoOption[]>([]);
   const [filtroEmpresa, setFiltroEmpresa] = useState<number | null>(null);
   const [filtroCentroCusto, setFiltroCentroCusto] = useState<number | null>(null);
+  const [filtroClassificacao, setFiltroClassificacao] = useState<string>('todos');
+  const [classificacoesCentrosCusto, setClassificacoesCentrosCusto] = useState<Map<number, string>>(new Map());
   const [filtroPrazo, setFiltroPrazo] = useState<string>('todos');
   const [filtroAno, setFiltroAno] = useState<number | null>(null);
   const [filtroMes, setFiltroMes] = useState<number[]>([]);
@@ -171,14 +173,21 @@ export const ContasAPagar: React.FC = () => {
   useEffect(() => {
     const carregarFiltros = async () => {
       try {
-        const [empresasData, ccData, tiposDocData] = await Promise.all([
+        const [empresasData, ccData, tiposDocData, classificacoesData] = await Promise.all([
           apiService.getEmpresas(),
           apiService.getCentrosCusto(),
           apiService.getTiposDocumento(),
+          apiService.getClassificacoesCentrosCusto(),
         ]);
         setEmpresas(empresasData);
         setCentrosCusto(ccData);
         setTiposDocumento(tiposDocData);
+        
+        const classMap = new Map<number, string>();
+        classificacoesData.forEach(c => {
+          classMap.set(c.id_interno_centrocusto, c.classificacao);
+        });
+        setClassificacoesCentrosCusto(classMap);
       } catch (err) {
         console.error('Erro ao carregar filtros:', err);
       }
@@ -209,6 +218,8 @@ export const ContasAPagar: React.FC = () => {
     dados: ContaPagar[],
     empresa: number | null,
     cc: number | null,
+    classificacao: string,
+    classificacoesMap: Map<number, string>,
     prazo: string,
     ano: number | null,
     mesesSelecionados: number[],
@@ -221,6 +232,12 @@ export const ContasAPagar: React.FC = () => {
     }
     if (cc) {
       contasFiltradas = contasFiltradas.filter(c => c.id_interno_centro_custo === cc);
+    }
+    if (classificacao !== 'todos' && classificacoesMap && classificacoesMap.size > 0) {
+      contasFiltradas = contasFiltradas.filter(c => {
+        const classif = classificacoesMap.get(c.id_interno_centro_custo || 0);
+        return classif === classificacao;
+      });
     }
     if (ano) {
       contasFiltradas = contasFiltradas.filter(c => {
@@ -260,7 +277,7 @@ export const ContasAPagar: React.FC = () => {
   useEffect(() => {
     if (todasContas.length === 0) return;
     
-    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento);
+    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento);
     setContas(contasFiltradas);
 
     const stats: Estatisticas = {
@@ -331,7 +348,7 @@ export const ContasAPagar: React.FC = () => {
       .filter(d => d.quantidade > 0)
       .sort((a, b) => a.ordem - b.ordem);
     setDadosPorVencimento(vencimentoArray);
-  }, [todasContas, filtroEmpresa, filtroCentroCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento]);
+  }, [todasContas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento]);
 
   useEffect(() => {
     carregarDados();
@@ -344,6 +361,7 @@ export const ContasAPagar: React.FC = () => {
   const limparFiltros = () => {
     setFiltroEmpresa(null);
     setFiltroCentroCusto(null);
+    setFiltroClassificacao('todos');
     setFiltroPrazo('todos');
     setFiltroAno(null);
     setFiltroMes([]);
@@ -388,6 +406,18 @@ export const ContasAPagar: React.FC = () => {
           placeholder="Selecione um centro de custo..."
           emptyText="Todos"
         />
+        <div>
+          <label className="mb-2 block text-sm font-medium text-gray-700">Classificacao</label>
+          <select
+            value={filtroClassificacao}
+            onChange={(e) => setFiltroClassificacao(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+          >
+            <option value="todos">Todos</option>
+            <option value="ADM">ADM</option>
+            <option value="OBRA">OBRA</option>
+          </select>
+        </div>
         <div>
           <label className="mb-2 block text-sm font-medium text-gray-700">Prazo de Vencimento</label>
           <select
@@ -586,6 +616,10 @@ export const ContasAPagar: React.FC = () => {
     const ccNome = getCentroCustoNome(filtroCentroCusto);
     if (ccNome) {
       tags.push({ label: 'Centro de Custo', value: ccNome, onRemove: () => setFiltroCentroCusto(null) });
+    }
+    
+    if (filtroClassificacao !== 'todos') {
+      tags.push({ label: 'Classificacao', value: filtroClassificacao, onRemove: () => setFiltroClassificacao('todos') });
     }
     
     const prazoNome = getPrazoNome(filtroPrazo);
