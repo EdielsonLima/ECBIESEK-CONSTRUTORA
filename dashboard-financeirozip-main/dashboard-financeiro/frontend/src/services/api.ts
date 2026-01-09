@@ -750,4 +750,58 @@ export const apiService = {
     const response = await api.get(`/origem-metas/status?${params.toString()}`);
     return response.data;
   },
+
+  // Classificação de Centros de Custo
+  getTodosCentrosCusto: async (empresa?: number): Promise<Array<{
+    id_interno_centrocusto: number;
+    nome_centrocusto: string;
+    id_sienge_empresa: number;
+    nome_empresa: string;
+    classificacao: string | null;
+    observacao: string | null;
+    id: number | null;
+  }>> => {
+    const params = new URLSearchParams();
+    if (empresa) params.append('empresa', empresa.toString());
+    const response = await api.get(`/centros-custo/todos?${params.toString()}`);
+    return response.data;
+  },
+
+  getClassificacoesCentrosCusto: async (): Promise<Array<{
+    id: number;
+    id_interno_centrocusto: number;
+    nome_centrocusto: string;
+    id_sienge_empresa: number;
+    nome_empresa: string;
+    classificacao: string;
+    observacao: string | null;
+  }>> => {
+    const response = await api.get('/centros-custo/classificacoes');
+    return response.data;
+  },
+
+  salvarClassificacaoCentroCusto: async (data: {
+    id_interno_centrocusto: number;
+    id_sienge_empresa?: number;
+    nome_centrocusto?: string;
+    nome_empresa?: string;
+    classificacao: string;
+    observacao?: string;
+  }): Promise<any> => {
+    const response = await api.post('/centros-custo/classificacoes', data);
+    return response.data;
+  },
+
+  atualizarClassificacaoCentroCusto: async (id_interno_centrocusto: number, data: {
+    classificacao: string;
+    observacao?: string;
+  }): Promise<any> => {
+    const response = await api.put(`/centros-custo/classificacoes/${id_interno_centrocusto}`, data);
+    return response.data;
+  },
+
+  removerClassificacaoCentroCusto: async (id_interno_centrocusto: number): Promise<any> => {
+    const response = await api.delete(`/centros-custo/classificacoes/${id_interno_centrocusto}`);
+    return response.data;
+  },
 };
