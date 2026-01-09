@@ -1757,6 +1757,65 @@ def init_kpi_tables():
 
 init_kpi_tables()
 
+# Inicialização da tabela de classificação de centros de custo
+def init_centro_custo_classificacoes_table():
+    """Inicializa a tabela de classificações de centros de custo no banco local"""
+    database_url = os.environ.get('DATABASE_URL')
+    if not database_url:
+        print("DATABASE_URL não configurado - tabela de classificações não será criada")
+        return
+    
+    try:
+        conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS centro_custo_classificacoes (
+                id SERIAL PRIMARY KEY,
+                id_interno_centrocusto INTEGER NOT NULL UNIQUE,
+                id_sienge_empresa INTEGER,
+                nome_centrocusto VARCHAR(255),
+                nome_empresa VARCHAR(255),
+                classificacao VARCHAR(20) NOT NULL CHECK (classificacao IN ('ADM', 'OBRA')),
+                observacao TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        conn.commit()
+        print("Tabela centro_custo_classificacoes criada/verificada com sucesso")
+    except Exception as e:
+        print(f"Erro ao inicializar tabela de classificações: {e}")
+    finally:
+        if 'cursor' in dir():
+            cursor.close()
+        if 'conn' in dir():
+            conn.close()
+
+init_centro_custo_classificacoes_table()
+
+# Modelos Pydantic para Classificações de Centros de Custo
+class ClassificacaoCentroCustoBase(BaseModel):
+    id_interno_centrocusto: int
+    id_sienge_empresa: Optional[int] = None
+    nome_centrocusto: Optional[str] = None
+    nome_empresa: Optional[str] = None
+    classificacao: str  # 'ADM' ou 'OBRA'
+    observacao: Optional[str] = None
+
+class ClassificacaoCentroCustoCreate(ClassificacaoCentroCustoBase):
+    pass
+
+class ClassificacaoCentroCustoUpdate(BaseModel):
+    classificacao: str
+    observacao: Optional[str] = None
+
+class ClassificacaoCentroCustoResponse(ClassificacaoCentroCustoBase):
+    id: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
 # Modelos Pydantic para KPIs
 class KPIBase(BaseModel):
     descricao: str
@@ -1800,6 +1859,180 @@ class KPIHistoricoResponse(BaseModel):
     valor: float
     data_registro: date
     created_at: Optional[datetime] = None
+
+# Endpoints de Classificação de Centros de Custo
+
+@app.get("/api/centros-custo/todos")
+def get_todos_centros_custo(empresa: Optional[int] = None):
+    """Retorna todos os centros de custo do banco externo com suas classificações"""
+    conn = get_db_connection()  # Banco externo
+    cursor = conn.cursor()
+    
+    try:
+        conditions = []
+        params = []
+        
+        if empresa is not None:
+            conditions.append("cc.id_sienge_empresa = %s")
+            params.append(empresa)
+        
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+        
+        query = f"""
+            SELECT DISTINCT 
+                cc.id_interno_centrocusto,
+                cc.nome_centrocusto,
+                cc.id_sienge_empresa,
+                cc.nome_empresa
+            FROM dim_centrocusto cc
+            WHERE {where_clause}
+            ORDER BY cc.nome_empresa, cc.nome_centrocusto
+        """
+        
+        cursor.execute(query, params)
+        centros_externos = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        # Buscar classificações do banco local
+        local_conn = get_local_db_connection()
+        local_cursor = local_conn.cursor()
+        
+        local_cursor.execute("SELECT * FROM centro_custo_classificacoes")
+        classificacoes = {row['id_interno_centrocusto']: row for row in local_cursor.fetchall()}
+        
+        local_cursor.close()
+        local_conn.close()
+        
+        # Combinar dados
+        resultado = []
+        for cc in centros_externos:
+            id_cc = cc['id_interno_centrocusto']
+            classif = classificacoes.get(id_cc)
+            resultado.append({
+                'id_interno_centrocusto': id_cc,
+                'nome_centrocusto': cc['nome_centrocusto'],
+                'id_sienge_empresa': cc['id_sienge_empresa'],
+                'nome_empresa': cc['nome_empresa'],
+                'classificacao': classif['classificacao'] if classif else None,
+                'observacao': classif['observacao'] if classif else None,
+                'id': classif['id'] if classif else None
+            })
+        
+        return resultado
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/centros-custo/classificacoes")
+def get_classificacoes_centros_custo():
+    """Retorna todas as classificações salvas"""
+    conn = get_local_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("SELECT * FROM centro_custo_classificacoes ORDER BY nome_empresa, nome_centrocusto")
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.post("/api/centros-custo/classificacoes")
+def criar_classificacao_centro_custo(data: ClassificacaoCentroCustoCreate):
+    """Cria ou atualiza uma classificação de centro de custo"""
+    conn = get_local_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Upsert - insere ou atualiza se já existe
+        cursor.execute("""
+            INSERT INTO centro_custo_classificacoes 
+                (id_interno_centrocusto, id_sienge_empresa, nome_centrocusto, nome_empresa, classificacao, observacao)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            ON CONFLICT (id_interno_centrocusto) 
+            DO UPDATE SET 
+                classificacao = EXCLUDED.classificacao,
+                observacao = EXCLUDED.observacao,
+                updated_at = CURRENT_TIMESTAMP
+            RETURNING *
+        """, (
+            data.id_interno_centrocusto,
+            data.id_sienge_empresa,
+            data.nome_centrocusto,
+            data.nome_empresa,
+            data.classificacao,
+            data.observacao
+        ))
+        
+        result = cursor.fetchone()
+        conn.commit()
+        return dict(result)
+        
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.put("/api/centros-custo/classificacoes/{id_interno_centrocusto}")
+def atualizar_classificacao_centro_custo(id_interno_centrocusto: int, data: ClassificacaoCentroCustoUpdate):
+    """Atualiza uma classificação existente"""
+    conn = get_local_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("""
+            UPDATE centro_custo_classificacoes 
+            SET classificacao = %s, observacao = %s, updated_at = CURRENT_TIMESTAMP
+            WHERE id_interno_centrocusto = %s
+            RETURNING *
+        """, (data.classificacao, data.observacao, id_interno_centrocusto))
+        
+        result = cursor.fetchone()
+        if not result:
+            raise HTTPException(status_code=404, detail="Classificação não encontrada")
+        
+        conn.commit()
+        return dict(result)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.delete("/api/centros-custo/classificacoes/{id_interno_centrocusto}")
+def remover_classificacao_centro_custo(id_interno_centrocusto: int):
+    """Remove uma classificação"""
+    conn = get_local_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute(
+            "DELETE FROM centro_custo_classificacoes WHERE id_interno_centrocusto = %s RETURNING id",
+            (id_interno_centrocusto,)
+        )
+        result = cursor.fetchone()
+        if not result:
+            raise HTTPException(status_code=404, detail="Classificação não encontrada")
+        
+        conn.commit()
+        return {"message": "Classificação removida com sucesso"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
 
 # Endpoints de KPIs
 

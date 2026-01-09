@@ -9,6 +9,7 @@ import { ContasRecebidas } from './pages/ContasRecebidas';
 import { ContasReceberAtrasadas } from './pages/ContasReceberAtrasadas';
 import { ExtratoCliente } from './pages/ExtratoCliente';
 import { KPIs } from './pages/KPIs';
+import { ClassificacaoCentroCusto } from './pages/ClassificacaoCentroCusto';
 import { Login } from './pages/Login';
 import { authService, User } from './services/api';
 
@@ -88,6 +89,8 @@ function App() {
         return <ExtratoCliente />;
       case 'kpis':
         return <KPIs />;
+      case 'classificacao-centro-custo':
+        return <ClassificacaoCentroCusto />;
       default:
         return <Dashboard />;
     }
