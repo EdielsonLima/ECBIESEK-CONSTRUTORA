@@ -29,6 +29,10 @@ The Sidebar has two expandable menu sections:
 - **Contas a Pagar**: A Pagar, Pagas, Atrasadas
 - **Contas a Receber**: A Receber, Recebidas, Atrasadas, Extrato Cliente
 
+Additionally, standalone menu items:
+- **KPIs**: Key performance indicators management
+- **Centros de Custo**: Cost center classification (ADM/OBRA)
+
 ### Page Features (Updated December 2025)
 All six account pages (Contas a Pagar + Contas a Receber) share a consistent structure:
 - **Statistics cards**: 4 key metrics displayed at top of page
