@@ -217,7 +217,7 @@ export const ContasAPagar: React.FC = () => {
     let contasFiltradas = [...dados];
     
     if (empresa) {
-      contasFiltradas = contasFiltradas.filter(c => c.id_interno_empresa === empresa);
+      contasFiltradas = contasFiltradas.filter(c => c.id_sienge_empresa === empresa);
     }
     if (cc) {
       contasFiltradas = contasFiltradas.filter(c => c.id_interno_centro_custo === cc);
