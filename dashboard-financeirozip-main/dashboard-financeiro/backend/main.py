@@ -4476,7 +4476,7 @@ def _snapshot_already_exists_today():
     try:
         conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
         cursor = conn.cursor()
-        hoje = datetime.now().strftime('%Y-%m-%d')
+        hoje = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d')
         cursor.execute("SELECT COUNT(*) as cnt FROM snapshots_cards_pagar WHERE data_snapshot = %s", (hoje,))
         row = cursor.fetchone()
         cursor.close()
@@ -4489,7 +4489,7 @@ def _snapshot_already_exists_today():
 def _calcular_e_salvar_snapshot_auto():
     try:
         print("Auto-snapshot: Calculando valores dos cards...")
-        hoje = datetime.now().date()
+        hoje = (datetime.utcnow() - timedelta(hours=3)).date()
         amanha = hoje + timedelta(days=1)
         fim7 = hoje + timedelta(days=7)
         fim15 = hoje + timedelta(days=15)
@@ -4625,7 +4625,7 @@ def _auto_snapshot_loop():
                 time.sleep(300)
                 continue
 
-            agora = datetime.now()
+            agora = datetime.utcnow() - timedelta(hours=3)
             hoje_str = agora.strftime('%Y-%m-%d')
 
             if snapshot_salvo_hoje == hoje_str:
