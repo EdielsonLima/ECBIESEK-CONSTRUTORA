@@ -824,4 +824,14 @@ export const apiService = {
     const response = await api.post('/configuracoes/tipos-documento', data);
     return response.data;
   },
+
+  getContasCorrente: async (): Promise<any[]> => {
+    const response = await api.get('/filtros/contas-correntes');
+    return response.data;
+  },
+
+  toggleContaCorrente: async (data: { id_conta_corrente: string; nome_conta_corrente?: string; excluir: boolean }): Promise<any> => {
+    const response = await api.post('/configuracoes/contas-correntes', data);
+    return response.data;
+  },
 };
