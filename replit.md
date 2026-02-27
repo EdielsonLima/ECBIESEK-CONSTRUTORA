@@ -124,6 +124,22 @@ The configuration system supports:
 - Immediate persistence to database
 - Automatic filtering applied to all data queries and calculations
 
+**Snapshot/Audit Tables (Replit PostgreSQL - auto-created on startup)**:
+- `snapshots_cards_pagar`: Stores daily snapshots of the 5 Contas a Pagar summary cards
+  - Fields: `id` (serial), `data_snapshot` (date), `faixa` (varchar: total/hoje/7dias/15dias/30dias), `data_inicio` (date), `data_fim` (date), `valor_total` (numeric), `quantidade_titulos` (int), `quantidade_credores` (int), `created_at` (timestamp)
+  - UNIQUE constraint on (data_snapshot, faixa) - upserts on same-day saves
+
+The snapshot system supports:
+- Saving current card values with their fixed date ranges for audit purposes
+- Comparing current values against any previous snapshot to detect changes
+- Visual indicators on cards showing value differences (increase in yellow, decrease in green)
+- Use case: verify if new titles were added to a period that was previously checked
+
+Snapshot API endpoints:
+- `POST /api/snapshots/cards-pagar`: Save snapshot of all 5 cards (upserts for same day)
+- `GET /api/snapshots/cards-pagar`: List available snapshot dates (last 30)
+- `GET /api/snapshots/cards-pagar/{data}`: Get specific snapshot data by date
+
 ## External Dependencies
 
 ### Database

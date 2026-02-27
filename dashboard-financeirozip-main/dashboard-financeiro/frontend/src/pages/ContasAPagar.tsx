@@ -151,6 +151,11 @@ export const ContasAPagar: React.FC = () => {
   const [ccDropdownAberto, setCcDropdownAberto] = useState(false);
   const [classDropdownAberto, setClassDropdownAberto] = useState(false);
   const [anoDropdownAberto, setAnoDropdownAberto] = useState(false);
+  const [snapshotsDisponiveis, setSnapshotsDisponiveis] = useState<Array<{ data_snapshot: string; created_at: string }>>([]);
+  const [snapshotSelecionado, setSnapshotSelecionado] = useState<string>('');
+  const [snapshotDados, setSnapshotDados] = useState<Record<string, { faixa: string; data_inicio: string | null; data_fim: string | null; valor_total: number; quantidade_titulos: number; quantidade_credores: number }> | null>(null);
+  const [salvandoSnapshot, setSalvandoSnapshot] = useState(false);
+  const [snapshotMsg, setSnapshotMsg] = useState<string | null>(null);
 
   const ordenarContas = (contasParaOrdenar: ContaPagar[]) => {
     return [...contasParaOrdenar].sort((a, b) => {
@@ -294,6 +299,35 @@ export const ContasAPagar: React.FC = () => {
     };
     carregarFiltros();
   }, []);
+
+  useEffect(() => {
+    const carregarSnapshots = async () => {
+      try {
+        const lista = await apiService.listarSnapshotsCardsPagar();
+        setSnapshotsDisponiveis(lista);
+      } catch (err) {
+        console.error('Erro ao carregar snapshots:', err);
+      }
+    };
+    carregarSnapshots();
+  }, []);
+
+  useEffect(() => {
+    if (!snapshotSelecionado) {
+      setSnapshotDados(null);
+      return;
+    }
+    const carregarSnapshot = async () => {
+      try {
+        const data = await apiService.getSnapshotCardsPagar(snapshotSelecionado);
+        setSnapshotDados(data.cards);
+      } catch (err) {
+        console.error('Erro ao carregar snapshot:', err);
+        setSnapshotDados(null);
+      }
+    };
+    carregarSnapshot();
+  }, [snapshotSelecionado]);
 
   const carregarDados = async () => {
     try {
@@ -882,6 +916,69 @@ export const ContasAPagar: React.FC = () => {
     </div>
   );
 
+  const formatarDataSnapshot = (dataStr: string) => {
+    const [ano, mes, dia] = dataStr.split('-');
+    return `${dia}/${mes}/${ano}`;
+  };
+
+  const renderComparacao = (faixa: string, valorAtual: number) => {
+    if (!snapshotDados || !snapshotDados[faixa]) return null;
+    const snap = snapshotDados[faixa];
+    const diff = valorAtual - snap.valor_total;
+    if (Math.abs(diff) < 0.01) {
+      return (
+        <div className="mt-1 text-xs font-medium opacity-90">
+          = snapshot {formatarDataSnapshot(snapshotSelecionado)}
+        </div>
+      );
+    }
+    const isUp = diff > 0;
+    return (
+      <div className={`mt-1 text-xs font-bold ${isUp ? 'text-yellow-200' : 'text-green-200'}`}>
+        {isUp ? '+' : ''}{formatCurrency(diff)} vs {formatarDataSnapshot(snapshotSelecionado)}
+      </div>
+    );
+  };
+
+  const handleSalvarSnapshot = async () => {
+    if (!estatisticas) return;
+    setSalvandoSnapshot(true);
+    setSnapshotMsg(null);
+    try {
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+      const amanha = new Date(hoje); amanha.setDate(amanha.getDate() + 1);
+      const fim7 = new Date(hoje); fim7.setDate(fim7.getDate() + 7);
+      const fim15 = new Date(hoje); fim15.setDate(fim15.getDate() + 15);
+      const fim30 = new Date(hoje); fim30.setDate(fim30.getDate() + 30);
+      const toISO = (d: Date) => d.toISOString().split('T')[0];
+
+      const contasHoje = contas.filter(c => calcularDiasAteVencimento(c.data_vencimento as any) === 0);
+      const contas7dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 7; });
+      const contas15dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 15; });
+      const contas30dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 30; });
+
+      const cards = [
+        { faixa: 'total', data_inicio: null, data_fim: null, valor_total: estatisticas.valor_total, quantidade_titulos: estatisticas.quantidade_titulos, quantidade_credores: new Set(contas.map(c => c.credor)).size },
+        { faixa: 'hoje', data_inicio: toISO(hoje), data_fim: toISO(hoje), valor_total: contasHoje.reduce((acc, c) => acc + (c.valor_total || 0), 0), quantidade_titulos: contasHoje.length, quantidade_credores: new Set(contasHoje.map(c => c.credor)).size },
+        { faixa: '7dias', data_inicio: toISO(amanha), data_fim: toISO(fim7), valor_total: contas7dias.reduce((acc, c) => acc + (c.valor_total || 0), 0), quantidade_titulos: contas7dias.length, quantidade_credores: new Set(contas7dias.map(c => c.credor)).size },
+        { faixa: '15dias', data_inicio: toISO(amanha), data_fim: toISO(fim15), valor_total: contas15dias.reduce((acc, c) => acc + (c.valor_total || 0), 0), quantidade_titulos: contas15dias.length, quantidade_credores: new Set(contas15dias.map(c => c.credor)).size },
+        { faixa: '30dias', data_inicio: toISO(amanha), data_fim: toISO(fim30), valor_total: contas30dias.reduce((acc, c) => acc + (c.valor_total || 0), 0), quantidade_titulos: contas30dias.length, quantidade_credores: new Set(contas30dias.map(c => c.credor)).size },
+      ];
+
+      await apiService.salvarSnapshotCardsPagar({ data_snapshot: toISO(hoje), cards });
+      setSnapshotMsg('Snapshot salvo com sucesso!');
+      const lista = await apiService.listarSnapshotsCardsPagar();
+      setSnapshotsDisponiveis(lista);
+      setTimeout(() => setSnapshotMsg(null), 3000);
+    } catch (err) {
+      console.error('Erro ao salvar snapshot:', err);
+      setSnapshotMsg('Erro ao salvar snapshot');
+    } finally {
+      setSalvandoSnapshot(false);
+    }
+  };
+
   return (
     <div>
       {estatisticas && (() => {
@@ -911,57 +1008,93 @@ export const ContasAPagar: React.FC = () => {
         const fim30 = new Date(hoje);
         fim30.setDate(fim30.getDate() + 30);
 
+        const valorHoje = contasHoje.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+        const valor7dias = contas7dias.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+        const valor15dias = contas15dias.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+        const valor30dias = contas30dias.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+
         return (
+        <>
+        <div className="mb-3 flex items-center justify-end gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600">Comparar com snapshot:</label>
+            <select
+              value={snapshotSelecionado}
+              onChange={(e) => setSnapshotSelecionado(e.target.value)}
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+            >
+              <option value="">Nenhum</option>
+              {snapshotsDisponiveis.map(s => (
+                <option key={s.data_snapshot} value={s.data_snapshot}>
+                  {formatarDataSnapshot(s.data_snapshot)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="button"
+            onClick={handleSalvarSnapshot}
+            disabled={salvandoSnapshot}
+            className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-1.5 text-sm text-white hover:bg-green-700 disabled:opacity-50"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            {salvandoSnapshot ? 'Salvando...' : 'Salvar Snapshot'}
+          </button>
+          {snapshotMsg && (
+            <span className={`text-sm ${snapshotMsg.includes('Erro') ? 'text-red-600' : 'text-green-600'}`}>{snapshotMsg}</span>
+          )}
+        </div>
         <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <div className="rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 p-5 text-white shadow-lg">
             <div className="mb-1 text-xs font-medium opacity-90">Total a Pagar</div>
             <div className="text-xl font-bold">{formatCurrency(estatisticas.valor_total)}</div>
             <div className="mt-1 text-xs opacity-75">{estatisticas.quantidade_titulos.toLocaleString('pt-BR')} titulos | {credoresTotal} credores</div>
+            {renderComparacao('total', estatisticas.valor_total)}
           </div>
 
           <div className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 p-5 text-white shadow-lg">
             <div className="mb-1 text-xs font-medium opacity-90">Vencendo Hoje</div>
-            <div className="text-xl font-bold">
-              {formatCurrency(contasHoje.reduce((acc, c) => acc + (c.valor_total || 0), 0))}
-            </div>
+            <div className="text-xl font-bold">{formatCurrency(valorHoje)}</div>
             <div className="mt-1 text-xs opacity-75">
               {contasHoje.length} titulo(s) | {credoresHoje} credores
             </div>
+            {renderComparacao('hoje', valorHoje)}
           </div>
 
           <div className="rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 p-5 text-white shadow-lg">
             <div className="mb-1 text-xs font-medium opacity-90">Proximos 7 dias</div>
             <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(amanha)} ate {formatarDataCurta(fim7)}</div>
-            <div className="text-xl font-bold">
-              {formatCurrency(contas7dias.reduce((acc, c) => acc + (c.valor_total || 0), 0))}
-            </div>
+            <div className="text-xl font-bold">{formatCurrency(valor7dias)}</div>
             <div className="mt-1 text-xs opacity-75">
               {contas7dias.length} titulo(s) | {credores7dias} credores
             </div>
+            {renderComparacao('7dias', valor7dias)}
           </div>
 
           <div className="rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 p-5 text-white shadow-lg">
             <div className="mb-1 text-xs font-medium opacity-90">Proximos 15 dias</div>
             <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(amanha)} ate {formatarDataCurta(fim15)}</div>
-            <div className="text-xl font-bold">
-              {formatCurrency(contas15dias.reduce((acc, c) => acc + (c.valor_total || 0), 0))}
-            </div>
+            <div className="text-xl font-bold">{formatCurrency(valor15dias)}</div>
             <div className="mt-1 text-xs opacity-75">
               {contas15dias.length} titulo(s) | {credores15dias} credores
             </div>
+            {renderComparacao('15dias', valor15dias)}
           </div>
 
           <div className="rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 p-5 text-white shadow-lg">
             <div className="mb-1 text-xs font-medium opacity-90">Proximos 30 dias</div>
             <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(amanha)} ate {formatarDataCurta(fim30)}</div>
-            <div className="text-xl font-bold">
-              {formatCurrency(contas30dias.reduce((acc, c) => acc + (c.valor_total || 0), 0))}
-            </div>
+            <div className="text-xl font-bold">{formatCurrency(valor30dias)}</div>
             <div className="mt-1 text-xs opacity-75">
               {contas30dias.length} titulo(s) | {credores30dias} credores
             </div>
+            {renderComparacao('30dias', valor30dias)}
           </div>
         </div>
+        </>
         );
       })()}
 

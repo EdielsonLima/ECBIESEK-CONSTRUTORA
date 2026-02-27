@@ -4224,6 +4224,141 @@ def toggle_conta_corrente_exclusao(data: dict):
         cursor.close()
         conn.close()
 
+# ============ SNAPSHOTS CARDS A PAGAR ============
+
+def init_snapshots_table():
+    database_url = os.environ.get('DATABASE_URL')
+    if not database_url:
+        return
+    try:
+        conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS snapshots_cards_pagar (
+                id SERIAL PRIMARY KEY,
+                data_snapshot DATE NOT NULL,
+                faixa VARCHAR(20) NOT NULL,
+                data_inicio DATE,
+                data_fim DATE,
+                valor_total NUMERIC(15,2) NOT NULL DEFAULT 0,
+                quantidade_titulos INTEGER NOT NULL DEFAULT 0,
+                quantidade_credores INTEGER NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(data_snapshot, faixa)
+            )
+        """)
+        conn.commit()
+        print("Tabela snapshots_cards_pagar criada/verificada com sucesso")
+    except Exception as e:
+        print(f"Erro ao criar tabela snapshots_cards_pagar: {e}")
+    finally:
+        if 'cursor' in dir():
+            cursor.close()
+        if 'conn' in dir():
+            conn.close()
+
+init_snapshots_table()
+
+@app.post("/api/snapshots/cards-pagar")
+def salvar_snapshot_cards_pagar(dados: dict):
+    conn = get_replit_db_connection()
+    cursor = conn.cursor()
+    try:
+        cards = dados.get('cards', [])
+        if not cards:
+            raise HTTPException(status_code=400, detail="Nenhum card fornecido")
+        
+        data_snapshot = dados.get('data_snapshot', datetime.now().strftime('%Y-%m-%d'))
+        
+        for card in cards:
+            cursor.execute("""
+                INSERT INTO snapshots_cards_pagar (data_snapshot, faixa, data_inicio, data_fim, valor_total, quantidade_titulos, quantidade_credores)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (data_snapshot, faixa)
+                DO UPDATE SET valor_total = EXCLUDED.valor_total,
+                              quantidade_titulos = EXCLUDED.quantidade_titulos,
+                              quantidade_credores = EXCLUDED.quantidade_credores,
+                              data_inicio = EXCLUDED.data_inicio,
+                              data_fim = EXCLUDED.data_fim
+            """, (
+                data_snapshot,
+                card['faixa'],
+                card.get('data_inicio'),
+                card.get('data_fim'),
+                card['valor_total'],
+                card['quantidade_titulos'],
+                card['quantidade_credores']
+            ))
+        
+        conn.commit()
+        return {"success": True, "message": f"Snapshot salvo para {data_snapshot}", "data_snapshot": data_snapshot}
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/snapshots/cards-pagar")
+def listar_snapshots_cards_pagar():
+    conn = get_replit_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT DISTINCT data_snapshot, 
+                   MIN(created_at) as created_at
+            FROM snapshots_cards_pagar 
+            GROUP BY data_snapshot
+            ORDER BY data_snapshot DESC
+            LIMIT 30
+        """)
+        snapshots = cursor.fetchall()
+        result = []
+        for s in snapshots:
+            result.append({
+                'data_snapshot': s['data_snapshot'].strftime('%Y-%m-%d') if s['data_snapshot'] else None,
+                'created_at': s['created_at'].isoformat() if s['created_at'] else None
+            })
+        return result
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/snapshots/cards-pagar/{data}")
+def get_snapshot_cards_pagar(data: str):
+    conn = get_replit_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT faixa, data_inicio, data_fim, valor_total, quantidade_titulos, quantidade_credores, data_snapshot
+            FROM snapshots_cards_pagar 
+            WHERE data_snapshot = %s
+            ORDER BY faixa
+        """, (data,))
+        rows = cursor.fetchall()
+        if not rows:
+            raise HTTPException(status_code=404, detail="Snapshot não encontrado")
+        
+        cards = {}
+        for r in rows:
+            cards[r['faixa']] = {
+                'faixa': r['faixa'],
+                'data_inicio': r['data_inicio'].strftime('%Y-%m-%d') if r['data_inicio'] else None,
+                'data_fim': r['data_fim'].strftime('%Y-%m-%d') if r['data_fim'] else None,
+                'valor_total': float(r['valor_total']),
+                'quantidade_titulos': r['quantidade_titulos'],
+                'quantidade_credores': r['quantidade_credores']
+            }
+        return {
+            'data_snapshot': data,
+            'cards': cards
+        }
+    finally:
+        cursor.close()
+        conn.close()
+
 FRONTEND_BUILD_DIR = Path(__file__).parent.parent / "frontend" / "dist"
 
 if FRONTEND_BUILD_DIR.exists():
