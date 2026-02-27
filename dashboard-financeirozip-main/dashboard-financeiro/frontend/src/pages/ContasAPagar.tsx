@@ -2,7 +2,96 @@ import React, { useEffect, useState } from 'react';
 import { apiService } from '../services/api';
 import { ContaPagar, EmpresaOption, CentroCustoOption, TipoDocumentoOption } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
-import { SearchableSelect } from '../components/SearchableSelect';
+
+interface MultiSelectDropdownProps {
+  label: string;
+  items: { id: string | number; nome: string }[];
+  selected: (string | number)[];
+  setSelected: (val: any[]) => void;
+  isOpen: boolean;
+  setIsOpen: (val: boolean) => void;
+  searchable?: boolean;
+}
+
+const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ label, items, selected, setSelected, isOpen, setIsOpen, searchable = false }) => {
+  const [busca, setBusca] = useState('');
+  const itensFiltrados = searchable && busca
+    ? items.filter(i => i.nome.toLowerCase().includes(busca.toLowerCase()))
+    : items;
+
+  return (
+    <div className="relative">
+      <label className="mb-2 block text-sm font-medium text-gray-700">{label}</label>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-blue-500 focus:outline-none"
+      >
+        <span className={selected.length > 0 ? 'text-gray-900' : 'text-gray-500'}>
+          {selected.length === 0 ? 'Todos' : selected.length === items.length ? 'Todos' : `${selected.length} selecionado(s)`}
+        </span>
+        <svg
+          className={`absolute right-3 top-9 h-5 w-5 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {isOpen && (
+        <div className="absolute z-20 mt-1 w-full min-w-[250px] rounded-lg border border-gray-300 bg-white shadow-lg">
+          <div className="border-b border-gray-200 p-2 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setSelected(items.map(i => i.id))}
+              className="text-xs text-blue-600 hover:underline"
+            >
+              Todos
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelected([])}
+              className="text-xs text-gray-500 hover:underline"
+            >
+              Limpar
+            </button>
+          </div>
+          {searchable && (
+            <div className="border-b border-gray-200 p-2">
+              <input
+                type="text"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar..."
+                className="w-full rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none"
+              />
+            </div>
+          )}
+          <div className="max-h-48 overflow-y-auto p-2">
+            {itensFiltrados.map((item) => (
+              <label key={item.id} className="flex cursor-pointer items-center gap-2 py-1 hover:bg-gray-50 rounded px-1">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(item.id)}
+                  onChange={() => {
+                    if (selected.includes(item.id)) {
+                      setSelected(selected.filter((s: any) => s !== item.id));
+                    } else {
+                      setSelected([...selected, item.id]);
+                    }
+                  }}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">{item.nome}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface Estatisticas {
   quantidade_titulos: number;
@@ -44,12 +133,12 @@ export const ContasAPagar: React.FC = () => {
   const [dadosPorVencimento, setDadosPorVencimento] = useState<DadosPorVencimento[]>([]);
   const [empresas, setEmpresas] = useState<EmpresaOption[]>([]);
   const [centrosCusto, setCentrosCusto] = useState<CentroCustoOption[]>([]);
-  const [filtroEmpresa, setFiltroEmpresa] = useState<number | null>(null);
-  const [filtroCentroCusto, setFiltroCentroCusto] = useState<number | null>(null);
-  const [filtroClassificacao, setFiltroClassificacao] = useState<string>('todos');
+  const [filtroEmpresa, setFiltroEmpresa] = useState<number[]>([]);
+  const [filtroCentroCusto, setFiltroCentroCusto] = useState<number[]>([]);
+  const [filtroClassificacao, setFiltroClassificacao] = useState<string[]>([]);
   const [classificacoesCentrosCusto, setClassificacoesCentrosCusto] = useState<Map<number, string>>(new Map());
   const [filtroPrazo, setFiltroPrazo] = useState<string>('todos');
-  const [filtroAno, setFiltroAno] = useState<number | null>(null);
+  const [filtroAno, setFiltroAno] = useState<number[]>([]);
   const [filtroMes, setFiltroMes] = useState<number[]>([]);
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [todasContas, setTodasContas] = useState<ContaPagar[]>([]);
@@ -58,6 +147,10 @@ export const ContasAPagar: React.FC = () => {
   const [tiposDocumento, setTiposDocumento] = useState<TipoDocumentoOption[]>([]);
   const [filtroTipoDocumento, setFiltroTipoDocumento] = useState<string[]>([]);
   const [tipoDocDropdownAberto, setTipoDocDropdownAberto] = useState(false);
+  const [empresaDropdownAberto, setEmpresaDropdownAberto] = useState(false);
+  const [ccDropdownAberto, setCcDropdownAberto] = useState(false);
+  const [classDropdownAberto, setClassDropdownAberto] = useState(false);
+  const [anoDropdownAberto, setAnoDropdownAberto] = useState(false);
 
   const ordenarContas = (contasParaOrdenar: ContaPagar[]) => {
     return [...contasParaOrdenar].sort((a, b) => {
@@ -223,34 +316,34 @@ export const ContasAPagar: React.FC = () => {
 
   const aplicarFiltrosLocais = (
     dados: ContaPagar[],
-    empresa: number | null,
-    cc: number | null,
-    classificacao: string,
+    empresa: number[],
+    cc: number[],
+    classificacao: string[],
     classificacoesMap: Map<number, string>,
     prazo: string,
-    ano: number | null,
+    ano: number[],
     mesesSelecionados: number[],
     tiposDocSelecionados: string[]
   ) => {
     let contasFiltradas = [...dados];
     
-    if (empresa) {
-      contasFiltradas = contasFiltradas.filter(c => c.id_sienge_empresa === empresa);
+    if (empresa.length > 0) {
+      contasFiltradas = contasFiltradas.filter(c => empresa.includes(c.id_sienge_empresa as number));
     }
-    if (cc) {
-      contasFiltradas = contasFiltradas.filter(c => c.id_interno_centro_custo === cc);
+    if (cc.length > 0) {
+      contasFiltradas = contasFiltradas.filter(c => cc.includes(c.id_interno_centro_custo as number));
     }
-    if (classificacao !== 'todos' && classificacoesMap && classificacoesMap.size > 0) {
+    if (classificacao.length > 0 && classificacoesMap && classificacoesMap.size > 0) {
       contasFiltradas = contasFiltradas.filter(c => {
         const classif = classificacoesMap.get(c.id_interno_centro_custo || 0);
-        return classif === classificacao;
+        return classif && classificacao.includes(classif);
       });
     }
-    if (ano) {
+    if (ano.length > 0) {
       contasFiltradas = contasFiltradas.filter(c => {
         if (!c.data_vencimento) return false;
         const anoVenc = parseInt(c.data_vencimento.split('T')[0].split('-')[0]);
-        return anoVenc === ano;
+        return ano.includes(anoVenc);
       });
     }
     if (mesesSelecionados.length > 0) {
@@ -366,11 +459,11 @@ export const ContasAPagar: React.FC = () => {
   };
 
   const limparFiltros = () => {
-    setFiltroEmpresa(null);
-    setFiltroCentroCusto(null);
-    setFiltroClassificacao('todos');
+    setFiltroEmpresa([]);
+    setFiltroCentroCusto([]);
+    setFiltroClassificacao([]);
     setFiltroPrazo('todos');
-    setFiltroAno(null);
+    setFiltroAno([]);
     setFiltroMes([]);
     setFiltroTipoDocumento([]);
   };
@@ -394,37 +487,40 @@ export const ContasAPagar: React.FC = () => {
     );
   }
 
+  const classificacaoOptions = [
+    { id: 'ADM', nome: 'ADM' },
+    { id: 'OBRA', nome: 'OBRA' },
+  ];
+
   const renderFiltros = () => (
     <div className="mb-6 rounded-lg bg-gray-50 p-4 shadow">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
-        <SearchableSelect
-          options={empresas}
-          value={filtroEmpresa ?? undefined}
-          onChange={(value) => setFiltroEmpresa(value as number | null)}
+        <MultiSelectDropdown
           label="Empresa"
-          placeholder="Selecione uma empresa..."
-          emptyText="Todas"
+          items={empresas.map(e => ({ id: e.id, nome: e.nome }))}
+          selected={filtroEmpresa}
+          setSelected={setFiltroEmpresa}
+          isOpen={empresaDropdownAberto}
+          setIsOpen={setEmpresaDropdownAberto}
+          searchable={true}
         />
-        <SearchableSelect
-          options={centrosCusto}
-          value={filtroCentroCusto ?? undefined}
-          onChange={(value) => setFiltroCentroCusto(value as number | null)}
+        <MultiSelectDropdown
           label="Centro de Custo"
-          placeholder="Selecione um centro de custo..."
-          emptyText="Todos"
+          items={centrosCusto.map(c => ({ id: c.id, nome: c.nome }))}
+          selected={filtroCentroCusto}
+          setSelected={setFiltroCentroCusto}
+          isOpen={ccDropdownAberto}
+          setIsOpen={setCcDropdownAberto}
+          searchable={true}
         />
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">Classificacao</label>
-          <select
-            value={filtroClassificacao}
-            onChange={(e) => setFiltroClassificacao(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-          >
-            <option value="todos">Todos</option>
-            <option value="ADM">ADM</option>
-            <option value="OBRA">OBRA</option>
-          </select>
-        </div>
+        <MultiSelectDropdown
+          label="Classificacao"
+          items={classificacaoOptions}
+          selected={filtroClassificacao}
+          setSelected={setFiltroClassificacao}
+          isOpen={classDropdownAberto}
+          setIsOpen={setClassDropdownAberto}
+        />
         <div>
           <label className="mb-2 block text-sm font-medium text-gray-700">Prazo de Vencimento</label>
           <select
@@ -439,137 +535,31 @@ export const ContasAPagar: React.FC = () => {
             <option value="30dias">Proximos 30 dias</option>
           </select>
         </div>
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">Ano</label>
-          <select
-            value={filtroAno || ''}
-            onChange={(e) => setFiltroAno(e.target.value ? Number(e.target.value) : null)}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-          >
-            <option value="">Todos</option>
-            {anosDisponiveis().map((ano) => (
-              <option key={ano} value={ano}>{ano}</option>
-            ))}
-          </select>
-        </div>
-        <div className="relative">
-          <label className="mb-2 block text-sm font-medium text-gray-700">Mes</label>
-          <button
-            type="button"
-            onClick={() => setMesDropdownAberto(!mesDropdownAberto)}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-blue-500 focus:outline-none"
-          >
-            <span className={filtroMes.length > 0 ? 'text-gray-900' : 'text-gray-500'}>
-              {filtroMes.length === 0 ? 'Todos' : filtroMes.length === 12 ? 'Todos' : `${filtroMes.length} selecionado(s)`}
-            </span>
-            <svg
-              className={`absolute right-3 top-9 h-5 w-5 transition-transform ${mesDropdownAberto ? 'rotate-180' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          {mesDropdownAberto && (
-            <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg">
-              <div className="border-b border-gray-200 p-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFiltroMes(meses.map(m => m.valor))}
-                  className="text-xs text-blue-600 hover:underline"
-                >
-                  Todos
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFiltroMes([])}
-                  className="text-xs text-gray-500 hover:underline"
-                >
-                  Limpar
-                </button>
-              </div>
-              <div className="max-h-48 overflow-y-auto p-2">
-                {meses.map((mes) => (
-                  <label key={mes.valor} className="flex cursor-pointer items-center gap-2 py-1 hover:bg-gray-50 rounded px-1">
-                    <input
-                      type="checkbox"
-                      checked={filtroMes.includes(mes.valor)}
-                      onChange={() => {
-                        if (filtroMes.includes(mes.valor)) {
-                          setFiltroMes(filtroMes.filter(m => m !== mes.valor));
-                        } else {
-                          setFiltroMes([...filtroMes, mes.valor]);
-                        }
-                      }}
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700">{mes.nome}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="relative">
-          <label className="mb-2 block text-sm font-medium text-gray-700">Tipo Documento</label>
-          <button
-            type="button"
-            onClick={() => setTipoDocDropdownAberto(!tipoDocDropdownAberto)}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-blue-500 focus:outline-none"
-          >
-            <span className={filtroTipoDocumento.length > 0 ? 'text-gray-900' : 'text-gray-500'}>
-              {filtroTipoDocumento.length === 0 ? 'Todos' : filtroTipoDocumento.length === tiposDocumento.length ? 'Todos' : `${filtroTipoDocumento.length} selecionado(s)`}
-            </span>
-            <svg
-              className={`absolute right-3 top-9 h-5 w-5 transition-transform ${tipoDocDropdownAberto ? 'rotate-180' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          {tipoDocDropdownAberto && (
-            <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg">
-              <div className="border-b border-gray-200 p-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFiltroTipoDocumento(tiposDocumento.map(t => t.id))}
-                  className="text-xs text-blue-600 hover:underline"
-                >
-                  Todos
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFiltroTipoDocumento([])}
-                  className="text-xs text-gray-500 hover:underline"
-                >
-                  Limpar
-                </button>
-              </div>
-              <div className="max-h-48 overflow-y-auto p-2">
-                {tiposDocumento.map((tipo) => (
-                  <label key={tipo.id} className="flex cursor-pointer items-center gap-2 py-1 hover:bg-gray-50 rounded px-1">
-                    <input
-                      type="checkbox"
-                      checked={filtroTipoDocumento.includes(tipo.id)}
-                      onChange={() => {
-                        if (filtroTipoDocumento.includes(tipo.id)) {
-                          setFiltroTipoDocumento(filtroTipoDocumento.filter(t => t !== tipo.id));
-                        } else {
-                          setFiltroTipoDocumento([...filtroTipoDocumento, tipo.id]);
-                        }
-                      }}
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700">{tipo.id} - {tipo.nome}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        <MultiSelectDropdown
+          label="Ano"
+          items={anosDisponiveis().map(a => ({ id: a, nome: String(a) }))}
+          selected={filtroAno}
+          setSelected={setFiltroAno}
+          isOpen={anoDropdownAberto}
+          setIsOpen={setAnoDropdownAberto}
+        />
+        <MultiSelectDropdown
+          label="Mes"
+          items={meses.map(m => ({ id: m.valor, nome: m.nome }))}
+          selected={filtroMes}
+          setSelected={setFiltroMes}
+          isOpen={mesDropdownAberto}
+          setIsOpen={setMesDropdownAberto}
+        />
+        <MultiSelectDropdown
+          label="Tipo Documento"
+          items={tiposDocumento.map(t => ({ id: t.id, nome: `${t.id} - ${t.nome}` }))}
+          selected={filtroTipoDocumento}
+          setSelected={setFiltroTipoDocumento}
+          isOpen={tipoDocDropdownAberto}
+          setIsOpen={setTipoDocDropdownAberto}
+          searchable={true}
+        />
       </div>
       <div className="mt-4 flex gap-3">
         <button
@@ -590,18 +580,6 @@ export const ContasAPagar: React.FC = () => {
     </div>
   );
 
-  const getEmpresaNome = (id: number | null) => {
-    if (!id) return null;
-    const emp = empresas.find(e => e.id === id);
-    return emp ? emp.nome : null;
-  };
-
-  const getCentroCustoNome = (id: number | null) => {
-    if (!id) return null;
-    const cc = centrosCusto.find(c => c.id === id);
-    return cc ? cc.nome : null;
-  };
-
   const getPrazoNome = (prazo: string) => {
     switch (prazo) {
       case 'hoje': return 'Vence Hoje';
@@ -615,18 +593,18 @@ export const ContasAPagar: React.FC = () => {
   const renderFiltrosTags = () => {
     const tags: { label: string; value: string; onRemove: () => void }[] = [];
     
-    const empresaNome = getEmpresaNome(filtroEmpresa);
-    if (empresaNome) {
-      tags.push({ label: 'Empresa', value: empresaNome, onRemove: () => setFiltroEmpresa(null) });
+    if (filtroEmpresa.length > 0) {
+      const nomes = filtroEmpresa.map(id => empresas.find(e => e.id === id)?.nome).filter(Boolean).join(', ');
+      tags.push({ label: 'Empresas', value: nomes, onRemove: () => setFiltroEmpresa([]) });
     }
     
-    const ccNome = getCentroCustoNome(filtroCentroCusto);
-    if (ccNome) {
-      tags.push({ label: 'Centro de Custo', value: ccNome, onRemove: () => setFiltroCentroCusto(null) });
+    if (filtroCentroCusto.length > 0) {
+      const nomes = filtroCentroCusto.map(id => centrosCusto.find(c => c.id === id)?.nome).filter(Boolean).join(', ');
+      tags.push({ label: 'Centros de Custo', value: nomes, onRemove: () => setFiltroCentroCusto([]) });
     }
     
-    if (filtroClassificacao !== 'todos') {
-      tags.push({ label: 'Classificacao', value: filtroClassificacao, onRemove: () => setFiltroClassificacao('todos') });
+    if (filtroClassificacao.length > 0) {
+      tags.push({ label: 'Classificacao', value: filtroClassificacao.join(', '), onRemove: () => setFiltroClassificacao([]) });
     }
     
     const prazoNome = getPrazoNome(filtroPrazo);
@@ -634,8 +612,8 @@ export const ContasAPagar: React.FC = () => {
       tags.push({ label: 'Prazo', value: prazoNome, onRemove: () => setFiltroPrazo('todos') });
     }
 
-    if (filtroAno) {
-      tags.push({ label: 'Ano', value: String(filtroAno), onRemove: () => setFiltroAno(null) });
+    if (filtroAno.length > 0) {
+      tags.push({ label: 'Ano', value: filtroAno.join(', '), onRemove: () => setFiltroAno([]) });
     }
 
     if (filtroMes.length > 0) {
@@ -916,6 +894,23 @@ export const ContasAPagar: React.FC = () => {
         const credores7dias = new Set(contas7dias.map(c => c.credor)).size;
         const credores15dias = new Set(contas15dias.map(c => c.credor)).size;
         const credores30dias = new Set(contas30dias.map(c => c.credor)).size;
+
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+        const formatarDataCurta = (d: Date) => {
+          const dd = String(d.getDate()).padStart(2, '0');
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          return `${dd}/${mm}`;
+        };
+        const amanha = new Date(hoje);
+        amanha.setDate(amanha.getDate() + 1);
+        const fim7 = new Date(hoje);
+        fim7.setDate(fim7.getDate() + 7);
+        const fim15 = new Date(hoje);
+        fim15.setDate(fim15.getDate() + 15);
+        const fim30 = new Date(hoje);
+        fim30.setDate(fim30.getDate() + 30);
+
         return (
         <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <div className="rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 p-5 text-white shadow-lg">
@@ -936,6 +931,7 @@ export const ContasAPagar: React.FC = () => {
 
           <div className="rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 p-5 text-white shadow-lg">
             <div className="mb-1 text-xs font-medium opacity-90">Proximos 7 dias</div>
+            <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(amanha)} ate {formatarDataCurta(fim7)}</div>
             <div className="text-xl font-bold">
               {formatCurrency(contas7dias.reduce((acc, c) => acc + (c.valor_total || 0), 0))}
             </div>
@@ -946,6 +942,7 @@ export const ContasAPagar: React.FC = () => {
 
           <div className="rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 p-5 text-white shadow-lg">
             <div className="mb-1 text-xs font-medium opacity-90">Proximos 15 dias</div>
+            <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(amanha)} ate {formatarDataCurta(fim15)}</div>
             <div className="text-xl font-bold">
               {formatCurrency(contas15dias.reduce((acc, c) => acc + (c.valor_total || 0), 0))}
             </div>
@@ -956,6 +953,7 @@ export const ContasAPagar: React.FC = () => {
 
           <div className="rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 p-5 text-white shadow-lg">
             <div className="mb-1 text-xs font-medium opacity-90">Proximos 30 dias</div>
+            <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(amanha)} ate {formatarDataCurta(fim30)}</div>
             <div className="text-xl font-bold">
               {formatCurrency(contas30dias.reduce((acc, c) => acc + (c.valor_total || 0), 0))}
             </div>
