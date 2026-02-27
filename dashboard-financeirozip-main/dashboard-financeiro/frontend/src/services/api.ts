@@ -645,8 +645,10 @@ export const apiService = {
     parcelas: Array<{
       titulo: string;
       parcela: number;
+      tipo_condicao: string;
       data_vencimento: string | null;
       valor_original: number;
+      acrescimo: number;
       data_baixa: string | null;
       valor_baixa: number;
       dias_atraso: number;
@@ -657,6 +659,7 @@ export const apiService = {
       total_recebido: number;
       total_a_receber: number;
       total_atrasado: number;
+      total_acrescimo: number;
       quantidade_parcelas: number;
     };
   }> => {
