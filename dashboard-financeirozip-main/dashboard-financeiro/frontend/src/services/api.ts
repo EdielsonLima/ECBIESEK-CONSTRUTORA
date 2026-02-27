@@ -872,4 +872,14 @@ export const apiService = {
     const response = await api.get(`/snapshots/cards-pagar/${data}`);
     return response.data;
   },
+
+  getSnapshotHorario: async (): Promise<{ horario: string; ativo: boolean; updated_at: string | null }> => {
+    const response = await api.get('/configuracoes/snapshot-horario');
+    return response.data;
+  },
+
+  setSnapshotHorario: async (dados: { horario: string; ativo: boolean }): Promise<any> => {
+    const response = await api.post('/configuracoes/snapshot-horario', dados);
+    return response.data;
+  },
 };
