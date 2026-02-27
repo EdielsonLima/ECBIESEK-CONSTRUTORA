@@ -598,9 +598,9 @@ export const Configuracoes: React.FC = () => {
                           const [ano, mes, dia] = s.data_snapshot.split('-');
                           let criado = '-';
                           if (s.created_at) {
-                            const d = new Date(s.created_at);
-                            d.setHours(d.getHours() - 3);
-                            criado = d.toLocaleString('pt-BR');
+                            const raw = s.created_at.endsWith('Z') ? s.created_at : s.created_at + 'Z';
+                            const d = new Date(raw);
+                            criado = d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
                           }
                           return (
                             <tr key={s.data_snapshot} className="hover:bg-gray-50">
