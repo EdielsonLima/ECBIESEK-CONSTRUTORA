@@ -81,9 +81,9 @@ export const ContasAPagar: React.FC = () => {
           valorA = a.valor_total || 0;
           valorB = b.valor_total || 0;
           break;
-        case 'numero_documento':
-          valorA = (a.numero_documento || '').toLowerCase();
-          valorB = (b.numero_documento || '').toLowerCase();
+        case 'lancamento':
+          valorA = parseInt((a.lancamento || '0').split('/')[0]) || 0;
+          valorB = parseInt((b.lancamento || '0').split('/')[0]) || 0;
           break;
         case 'nome_empresa':
           valorA = (a.nome_empresa || '').toLowerCase();
@@ -728,8 +728,8 @@ export const ContasAPagar: React.FC = () => {
                 <th onClick={() => toggleOrdenacao('valor_total')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Valor{renderSortIcon('valor_total')}
                 </th>
-                <th onClick={() => toggleOrdenacao('numero_documento')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
-                  Documento{renderSortIcon('numero_documento')}
+                <th onClick={() => toggleOrdenacao('lancamento')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                  Titulo{renderSortIcon('lancamento')}
                 </th>
                 <th onClick={() => toggleOrdenacao('nome_empresa')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Empresa{renderSortIcon('nome_empresa')}
@@ -751,7 +751,7 @@ export const ContasAPagar: React.FC = () => {
                       {dias < 0 ? `${Math.abs(dias)}d atraso` : dias === 0 ? 'Hoje' : `${dias}d`}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-blue-600">{formatCurrency(conta.valor_total)}</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.numero_documento || '-'}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.nome_empresa || '-'}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{(conta as any).nome_centrocusto || '-'}</td>
                   </tr>
