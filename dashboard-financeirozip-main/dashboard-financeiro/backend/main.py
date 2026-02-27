@@ -186,6 +186,17 @@ def create_users_table():
         """)
         conn.commit()
         print("Tabela usuarios criada/verificada com sucesso")
+
+        cursor.execute("SELECT COUNT(*) FROM usuarios")
+        count = cursor.fetchone()[0]
+        if count == 0:
+            default_hash = bcrypt.hashpw('Darlene1321@'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            cursor.execute(
+                "INSERT INTO usuarios (email, nome, senha_hash) VALUES (%s, %s, %s)",
+                ('edielson@dtconsultorias.com', 'Edielson Lima', default_hash)
+            )
+            conn.commit()
+            print("Usuario padrao criado com sucesso")
     except Exception as e:
         conn.rollback()
         print(f"Erro ao criar tabela usuarios: {e}")
