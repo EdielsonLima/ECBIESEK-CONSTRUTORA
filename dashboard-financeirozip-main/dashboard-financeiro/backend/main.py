@@ -4281,7 +4281,8 @@ def salvar_snapshot_cards_pagar(dados: dict):
                               quantidade_titulos = EXCLUDED.quantidade_titulos,
                               quantidade_credores = EXCLUDED.quantidade_credores,
                               data_inicio = EXCLUDED.data_inicio,
-                              data_fim = EXCLUDED.data_fim
+                              data_fim = EXCLUDED.data_fim,
+                              created_at = CURRENT_TIMESTAMP
             """, (
                 data_snapshot,
                 card['faixa'],
