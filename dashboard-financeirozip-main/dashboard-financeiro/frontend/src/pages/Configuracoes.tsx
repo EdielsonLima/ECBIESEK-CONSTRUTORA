@@ -596,7 +596,12 @@ export const Configuracoes: React.FC = () => {
                       <tbody className="divide-y divide-gray-200">
                         {snapshotsDisponiveis.slice(0, 10).map(s => {
                           const [ano, mes, dia] = s.data_snapshot.split('-');
-                          const criado = s.created_at ? new Date(s.created_at).toLocaleString('pt-BR') : '-';
+                          let criado = '-';
+                          if (s.created_at) {
+                            const d = new Date(s.created_at);
+                            d.setHours(d.getHours() - 3);
+                            criado = d.toLocaleString('pt-BR');
+                          }
                           return (
                             <tr key={s.data_snapshot} className="hover:bg-gray-50">
                               <td className="px-4 py-2 text-sm text-gray-900">{dia}/{mes}/{ano}</td>
