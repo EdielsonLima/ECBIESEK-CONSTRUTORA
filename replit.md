@@ -32,6 +32,7 @@ The Sidebar has two expandable menu sections:
 Additionally, standalone menu items:
 - **KPIs**: Key performance indicators management
 - **Centros de Custo**: Cost center classification (ADM/OBRA)
+- **Configurações**: Settings for excluding companies, cost centers, and document types from calculations
 
 ### Page Features (Updated December 2025)
 All six account pages (Contas a Pagar + Contas a Receber) share a consistent structure:
@@ -50,6 +51,12 @@ All six account pages (Contas a Pagar + Contas a Receber) share a consistent str
 - ContasRecebidas: Pareto analysis with 80% concentration summary, client ranking
 - ContasAReceber: Vencimento distribution, due today/overdue tracking, client analysis
 - ContasReceberAtrasadas: Atraso by faixa (days overdue), critical accounts (+30 days) summary panel
+
+**Configurações** (Settings):
+- Manage exclusion/inclusion of companies, cost centers, and document types
+- Three separate tabs for Empresas, Centros de Custo, and Tipos de Documento
+- Toggle switches to include/exclude items from all calculations and displays
+- Changes persist to the database immediately
 
 ### Backend Architecture
 - **Framework**: FastAPI (Python)
@@ -75,6 +82,11 @@ All endpoints are prefixed with `/api`:
 - Upcoming due dates
 - KPIs CRUD operations with history tracking
 - Filter options (companies, cost centers, document types)
+- Configuration management endpoints:
+  - `GET /api/configuracoes`: Get all exclusion configurations
+  - `POST /api/configuracoes/empresas`: Toggle company inclusion/exclusion
+  - `POST /api/configuracoes/centros-custo`: Toggle cost center inclusion/exclusion
+  - `POST /api/configuracoes/tipos-documento`: Toggle document type inclusion/exclusion
 
 ### API Proxy Configuration
 Vite dev server proxies `/api` requests to the FastAPI backend at `http://localhost:8000`, enabling seamless frontend-backend communication during development.
@@ -99,6 +111,17 @@ The KPI system supports:
 - Daily variation tracking (today vs yesterday)
 - Historical comparison with trend indicators
 - Snapshot creation for recording current values
+
+**Configuration Tables (Replit PostgreSQL - auto-created on startup)**:
+- `config_empresas_excluidas`: Stores `id_sienge_empresa` (int, unique) of excluded companies
+- `config_centros_custo_excluidos`: Stores `id_interno_centrocusto` (int, unique) of excluded cost centers
+- `config_tipos_documento_excluidos`: Stores `id_documento` (varchar, unique) of excluded document types
+
+The configuration system supports:
+- Centralizing all exclusion rules in one place
+- Toggling items between included and excluded states
+- Immediate persistence to database
+- Automatic filtering applied to all data queries and calculations
 
 ## External Dependencies
 

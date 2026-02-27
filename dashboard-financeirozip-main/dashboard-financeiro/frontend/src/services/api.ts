@@ -804,4 +804,24 @@ export const apiService = {
     const response = await api.delete(`/centros-custo/classificacoes/${id_interno_centrocusto}`);
     return response.data;
   },
+
+  getConfiguracoes: async (): Promise<any> => {
+    const response = await api.get('/configuracoes');
+    return response.data;
+  },
+
+  toggleEmpresa: async (data: { id_sienge_empresa: number; nome_empresa?: string; excluir: boolean }): Promise<any> => {
+    const response = await api.post('/configuracoes/empresas', data);
+    return response.data;
+  },
+
+  toggleCentroCusto: async (data: { id_interno_centrocusto: number; nome_centrocusto?: string; excluir: boolean }): Promise<any> => {
+    const response = await api.post('/configuracoes/centros-custo', data);
+    return response.data;
+  },
+
+  toggleTipoDocumento: async (data: { id_documento: string; nome_documento?: string; excluir: boolean }): Promise<any> => {
+    const response = await api.post('/configuracoes/tipos-documento', data);
+    return response.data;
+  },
 };

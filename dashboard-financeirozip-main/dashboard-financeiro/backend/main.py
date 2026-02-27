@@ -387,34 +387,42 @@ def get_metricas():
 
     try:
         hoje = datetime.now().date()
+        exclusoes = get_exclusoes()
 
-        # Total e quantidade de contas pagas
-        cursor.execute("""
+        excl_conds_cp, excl_params_cp = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+        excl_conds_cap, excl_params_cap = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap')
+
+        cp_where = (" AND " + " AND ".join(excl_conds_cp)) if excl_conds_cp else ""
+        cap_where_extra = (" AND " + " AND ".join(excl_conds_cap)) if excl_conds_cap else ""
+
+        cursor.execute(f"""
             SELECT
-                COALESCE(SUM(valor_liquido), 0) as total,
+                COALESCE(SUM(cp.valor_liquido), 0) as total,
                 COUNT(*) as quantidade
-            FROM contas_pagas
-        """)
+            FROM contas_pagas cp
+            LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE 1=1{cp_where}
+        """, excl_params_cp)
         pago = cursor.fetchone()
 
-        # Total e quantidade de contas a pagar (não vencidas)
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT
-                COALESCE(SUM(valor_total), 0) as total,
+                COALESCE(SUM(cap.valor_total), 0) as total,
                 COUNT(*) as quantidade
-            FROM contas_a_pagar
-            WHERE data_vencimento >= %s
-        """, (hoje,))
+            FROM contas_a_pagar cap
+            LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE cap.data_vencimento >= %s{cap_where_extra}
+        """, [hoje] + excl_params_cap)
         a_pagar = cursor.fetchone()
 
-        # Total e quantidade de contas em atraso
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT
-                COALESCE(SUM(valor_total), 0) as total,
+                COALESCE(SUM(cap.valor_total), 0) as total,
                 COUNT(*) as quantidade
-            FROM contas_a_pagar
-            WHERE data_vencimento < %s
-        """, (hoje,))
+            FROM contas_a_pagar cap
+            LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE cap.data_vencimento < %s{cap_where_extra}
+        """, [hoje] + excl_params_cap)
         em_atraso = cursor.fetchone()
 
         return DashboardMetrics(
@@ -438,21 +446,27 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
 
     try:
         hoje = datetime.now().date()
+        exclusoes = get_exclusoes()
 
         if status == "pago":
-            query = """
+            excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+            excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
+            query = f"""
                 SELECT cp.credor, cp.data_pagamento as data_vencimento, cp.valor_liquido as valor_total,
                        cp.lancamento, cp.numero_documento, cp.id_plano_financeiro,
                        cp.id_interno_empresa, cp.id_interno_centro_custo,
                        cc.nome_empresa, cc.nome_centrocusto
                 FROM contas_pagas cp
                 LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE 1=1{excl_where}
                 ORDER BY cp.data_pagamento DESC
                 LIMIT %s
             """
-            cursor.execute(query, (limite,))
+            cursor.execute(query, excl_params + [limite])
         elif status == "a_pagar":
-            query = """
+            excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap')
+            excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
+            query = f"""
                 SELECT cap.credor, cap.data_vencimento, cap.valor_total,
                        cap.lancamento, cap.numero_documento, cap.id_plano_financeiro,
                        cap.id_interno_empresa, cap.id_interno_centro_custo,
@@ -461,13 +475,15 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                        TRIM(cap.id_documento) as id_documento
                 FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
-                WHERE cap.data_vencimento >= %s
+                WHERE cap.data_vencimento >= %s{excl_where}
                 ORDER BY cap.data_vencimento ASC
                 LIMIT %s
             """
-            cursor.execute(query, (hoje, limite))
+            cursor.execute(query, [hoje] + excl_params + [limite])
         elif status == "em_atraso":
-            query = """
+            excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap')
+            excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
+            query = f"""
                 SELECT cap.credor, cap.data_vencimento, cap.valor_total,
                        cap.lancamento, cap.numero_documento, cap.id_plano_financeiro,
                        cap.id_interno_empresa, cap.id_interno_centro_custo,
@@ -476,23 +492,26 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                        TRIM(cap.id_documento) as id_documento
                 FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
-                WHERE cap.data_vencimento < %s
+                WHERE cap.data_vencimento < %s{excl_where}
                 ORDER BY cap.data_vencimento ASC
                 LIMIT %s
             """
-            cursor.execute(query, (hoje, limite))
+            cursor.execute(query, [hoje] + excl_params + [limite])
         else:
-            query = """
+            excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap')
+            excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
+            query = f"""
                 SELECT cap.credor, cap.data_vencimento, cap.valor_total,
                        cap.lancamento, cap.numero_documento, cap.id_plano_financeiro,
                        cap.id_interno_empresa, cap.id_interno_centro_custo,
                        cc.nome_empresa, cc.nome_centrocusto
                 FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE 1=1{excl_where}
                 ORDER BY cap.data_vencimento DESC
                 LIMIT %s
             """
-            cursor.execute(query, (limite,))
+            cursor.execute(query, excl_params + [limite])
 
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
@@ -509,26 +528,36 @@ def get_grafico_mensal():
 
     try:
         hoje = datetime.now().date()
+        exclusoes = get_exclusoes()
 
-        cursor.execute("""
+        excl_conds_cp, excl_params_cp = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+        excl_conds_cap, excl_params_cap = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap')
+
+        cp_extra = (" AND " + " AND ".join(excl_conds_cp)) if excl_conds_cp else ""
+        cap_extra = (" AND " + " AND ".join(excl_conds_cap)) if excl_conds_cap else ""
+
+        cursor.execute(f"""
             WITH meses AS (
-                SELECT TO_CHAR(data_pagamento, 'YYYY-MM') as mes, SUM(valor_liquido) as pago
-                FROM contas_pagas
-                WHERE data_pagamento >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '6 months')
+                SELECT TO_CHAR(cp.data_pagamento, 'YYYY-MM') as mes, SUM(cp.valor_liquido) as pago
+                FROM contas_pagas cp
+                LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE cp.data_pagamento >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '6 months'){cp_extra}
                 GROUP BY mes
             ),
             a_pagar_mes AS (
-                SELECT TO_CHAR(data_vencimento, 'YYYY-MM') as mes, SUM(valor_total) as valor
-                FROM contas_a_pagar
-                WHERE data_vencimento >= %s
-                  AND data_vencimento >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '6 months')
+                SELECT TO_CHAR(cap.data_vencimento, 'YYYY-MM') as mes, SUM(cap.valor_total) as valor
+                FROM contas_a_pagar cap
+                LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE cap.data_vencimento >= %s
+                  AND cap.data_vencimento >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '6 months'){cap_extra}
                 GROUP BY mes
             ),
             em_atraso_mes AS (
-                SELECT TO_CHAR(data_vencimento, 'YYYY-MM') as mes, SUM(valor_total) as valor
-                FROM contas_a_pagar
-                WHERE data_vencimento < %s
-                  AND data_vencimento >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '6 months')
+                SELECT TO_CHAR(cap.data_vencimento, 'YYYY-MM') as mes, SUM(cap.valor_total) as valor
+                FROM contas_a_pagar cap
+                LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE cap.data_vencimento < %s
+                  AND cap.data_vencimento >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '6 months'){cap_extra}
                 GROUP BY mes
             )
             SELECT
@@ -540,7 +569,7 @@ def get_grafico_mensal():
             FULL OUTER JOIN a_pagar_mes a ON m.mes = a.mes
             FULL OUTER JOIN em_atraso_mes e ON COALESCE(m.mes, a.mes) = e.mes
             ORDER BY mes
-        """, (hoje, hoje))
+        """, excl_params_cp + [hoje] + excl_params_cap + [hoje] + excl_params_cap)
 
         rows = cursor.fetchall()
 
@@ -566,16 +595,22 @@ def get_grafico_categoria():
     cursor = conn.cursor()
 
     try:
-        cursor.execute("""
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap')
+        excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
+
+        cursor.execute(f"""
             SELECT
-                COALESCE(id_plano_financeiro, 'Sem Categoria') as categoria,
-                SUM(valor_total) as valor,
+                COALESCE(cap.id_plano_financeiro, 'Sem Categoria') as categoria,
+                SUM(cap.valor_total) as valor,
                 COUNT(*) as quantidade
-            FROM contas_a_pagar
-            GROUP BY id_plano_financeiro
+            FROM contas_a_pagar cap
+            LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE 1=1{excl_where}
+            GROUP BY cap.id_plano_financeiro
             ORDER BY valor DESC
             LIMIT 10
-        """)
+        """, excl_params)
 
         rows = cursor.fetchall()
 
@@ -600,13 +635,18 @@ def get_proximos_vencimentos(dias: int = 30):
     cursor = conn.cursor()
 
     try:
-        cursor.execute("""
-            SELECT credor, data_vencimento, valor_total,
-                   lancamento, numero_documento, id_plano_financeiro
-            FROM contas_a_pagar
-            WHERE data_vencimento BETWEEN CURRENT_DATE AND CURRENT_DATE + %s
-            ORDER BY data_vencimento ASC
-        """, (dias,))
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap')
+        excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
+
+        cursor.execute(f"""
+            SELECT cap.credor, cap.data_vencimento, cap.valor_total,
+                   cap.lancamento, cap.numero_documento, cap.id_plano_financeiro
+            FROM contas_a_pagar cap
+            LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE cap.data_vencimento BETWEEN CURRENT_DATE AND CURRENT_DATE + %s{excl_where}
+            ORDER BY cap.data_vencimento ASC
+        """, [dias] + excl_params)
 
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
@@ -634,8 +674,10 @@ def get_contas_pagas_filtradas(
     cursor = conn.cursor()
 
     try:
-        conditions = []
-        params = []
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+        conditions = list(excl_conds)
+        params = list(excl_params)
 
         if empresa is not None:
             conditions.append("cc.id_sienge_empresa = %s")
@@ -744,8 +786,10 @@ def get_estatisticas_contas_pagas(
     cursor = conn.cursor()
 
     try:
-        conditions = []
-        params = []
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+        conditions = list(excl_conds)
+        params = list(excl_params)
 
         if empresa is not None:
             conditions.append("cc.id_sienge_empresa = %s")
@@ -974,8 +1018,10 @@ def get_estatisticas_por_mes(
     cursor = conn.cursor()
 
     try:
-        conditions = []
-        params = []
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+        conditions = list(excl_conds)
+        params = list(excl_params)
 
         if empresa is not None:
             conditions.append("cc.id_sienge_empresa = %s")
@@ -1069,8 +1115,10 @@ def get_estatisticas_por_empresa(
     cursor = conn.cursor()
 
     try:
-        conditions = []
-        params = []
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+        conditions = list(excl_conds)
+        params = list(excl_params)
 
         if centro_custo is not None:
             conditions.append("cp.id_interno_centro_custo = %s")
@@ -1172,8 +1220,10 @@ def get_estatisticas_por_origem(
     cursor = conn.cursor()
 
     try:
-        conditions = []
-        params = []
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+        conditions = list(excl_conds)
+        params = list(excl_params)
 
         if empresa is not None:
             conditions.append("cc.id_sienge_empresa = %s")
@@ -1278,8 +1328,10 @@ def get_top_credores(
     cursor = conn.cursor()
 
     try:
-        conditions = []
-        params = []
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+        conditions = list(excl_conds)
+        params = list(excl_params)
 
         if empresa is not None:
             conditions.append("cc.id_sienge_empresa = %s")
@@ -1381,8 +1433,10 @@ def get_ranking_credores(
     cursor = conn.cursor()
 
     try:
-        conditions = []
-        params = []
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+        conditions = list(excl_conds)
+        params = list(excl_params)
 
         if empresa is not None:
             conditions.append("cc.id_sienge_empresa = %s")
@@ -1517,8 +1571,10 @@ def get_comparacao_anual(
     cursor = conn.cursor()
 
     try:
-        conditions = []
-        params = []
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+        conditions = list(excl_conds)
+        params = list(excl_params)
 
         if empresa is not None:
             conditions.append("cc.id_sienge_empresa = %s")
@@ -1616,8 +1672,10 @@ def get_comparacao_mensal(
     cursor = conn.cursor()
 
     try:
-        conditions = []
-        params = []
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+        conditions = list(excl_conds)
+        params = list(excl_params)
 
         if empresa is not None:
             conditions.append("cc.id_sienge_empresa = %s")
@@ -2975,9 +3033,12 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
 
     try:
         hoje = datetime.now().date()
+        exclusoes = get_exclusoes()
 
         if status == "recebido":
-            query = """
+            excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cr', has_cc_column=False)
+            excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
+            query = f"""
                 SELECT cr.cliente, cr.data_recebimento as data_vencimento, cr.valor_liquido as valor_total,
                        cr.titulo as lancamento, cr.id_documento, cr.id_interno_empresa,
                        cc.nome_empresa, cc.nome_centrocusto,
@@ -2986,12 +3047,15 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
                        cr.data_recebimento
                 FROM contas_recebidas cr
                 LEFT JOIN dim_centrocusto cc ON cr.id_interno_empresa = cc.id_sienge_empresa
+                WHERE 1=1{excl_where}
                 ORDER BY cr.data_recebimento DESC
                 LIMIT %s
             """
-            cursor.execute(query, (limite,))
+            cursor.execute(query, excl_params + [limite])
         elif status == "a_receber":
-            query = """
+            excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='car')
+            excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
+            query = f"""
                 SELECT car.cliente, car.data_vencimento, car.valor_total,
                        car.lancamento, car.numero_documento, car.id_plano_financeiro,
                        cc.id_sienge_empresa as id_interno_empresa, car.id_interno_centro_custo,
@@ -3000,13 +3064,15 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
                        car.lancamento as titulo, car.numero_parcela
                 FROM contas_a_receber car
                 LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
-                WHERE car.data_vencimento >= %s
+                WHERE car.data_vencimento >= %s{excl_where}
                 ORDER BY car.data_vencimento ASC
                 LIMIT %s
             """
-            cursor.execute(query, (hoje, limite))
+            cursor.execute(query, [hoje] + excl_params + [limite])
         elif status == "em_atraso":
-            query = """
+            excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='car')
+            excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
+            query = f"""
                 SELECT car.cliente, car.data_vencimento, car.valor_total,
                        car.lancamento, car.numero_documento, car.id_plano_financeiro,
                        cc.id_sienge_empresa as id_interno_empresa, car.id_interno_centro_custo,
@@ -3018,13 +3084,15 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
                 LEFT JOIN contas_recebidas cr ON car.lancamento = cr.titulo::TEXT 
                     AND car.numero_parcela::TEXT = cr.parcela::TEXT
                 WHERE car.data_vencimento < %s
-                  AND cr.titulo IS NULL
+                  AND cr.titulo IS NULL{excl_where}
                 ORDER BY car.data_vencimento ASC
                 LIMIT %s
             """
-            cursor.execute(query, (hoje, limite))
+            cursor.execute(query, [hoje] + excl_params + [limite])
         else:
-            query = """
+            excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='car')
+            excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
+            query = f"""
                 SELECT car.cliente, car.data_vencimento, car.valor_total,
                        car.lancamento, car.numero_documento, car.id_plano_financeiro,
                        cc.id_sienge_empresa as id_interno_empresa, car.id_interno_centro_custo,
@@ -3032,10 +3100,11 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
                        TRIM(car.id_documento) as id_documento
                 FROM contas_a_receber car
                 LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE 1=1{excl_where}
                 ORDER BY car.data_vencimento DESC
                 LIMIT %s
             """
-            cursor.execute(query, (limite,))
+            cursor.execute(query, excl_params + [limite])
 
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
@@ -3061,8 +3130,10 @@ def get_contas_recebidas_filtradas(
     cursor = conn.cursor()
 
     try:
-        conditions = []
-        params = []
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cr', has_cc_column=False)
+        conditions = list(excl_conds)
+        params = list(excl_params)
 
         if empresa is not None:
             conditions.append("cr.id_interno_empresa = %s")
@@ -3140,8 +3211,10 @@ def get_contas_receber_estatisticas(
     cursor = conn.cursor()
 
     try:
-        conditions = []
-        params = []
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='car')
+        conditions = list(excl_conds)
+        params = list(excl_params)
 
         if empresa is not None:
             conditions.append("cc.id_sienge_empresa = %s")
@@ -3219,8 +3292,10 @@ def get_contas_recebidas_estatisticas(
     cursor = conn.cursor()
 
     try:
-        conditions = []
-        params = []
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cr', has_cc_column=False)
+        conditions = list(excl_conds)
+        params = list(excl_params)
 
         if empresa is not None:
             conditions.append("cr.id_interno_empresa = %s")
@@ -3284,8 +3359,10 @@ def get_contas_receber_por_cliente(
     cursor = conn.cursor()
 
     try:
-        conditions = []
-        params = []
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='car')
+        conditions = list(excl_conds)
+        params = list(excl_params)
 
         if empresa is not None:
             conditions.append("cc.id_sienge_empresa = %s")
@@ -3353,8 +3430,10 @@ def get_contas_recebidas_por_cliente(
     cursor = conn.cursor()
 
     try:
-        conditions = []
-        params = []
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cr', has_cc_column=False)
+        conditions = list(excl_conds)
+        params = list(excl_params)
 
         if empresa is not None:
             conditions.append("cr.id_interno_empresa = %s")
@@ -3411,8 +3490,10 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
     cursor = conn.cursor()
 
     try:
-        conditions = ["car.cliente = %s"]
-        params_where = [cliente]
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='car')
+        conditions = ["car.cliente = %s"] + list(excl_conds)
+        params_where = [cliente] + list(excl_params)
         
         if titulo:
             conditions.append("SPLIT_PART(car.lancamento, '/', 1) = %s")
@@ -3818,9 +3899,10 @@ def get_origem_metas_status(
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        # Construir condições de filtro
-        conditions = []
-        params = []
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+        conditions = list(excl_conds)
+        params = list(excl_params)
         
         if empresa is not None:
             conditions.append("cc.id_sienge_empresa = %s")
@@ -3900,6 +3982,169 @@ def get_origem_metas_status(
             })
         
         return resultados
+    finally:
+        cursor.close()
+        conn.close()
+
+# ============ CONFIGURAÇÕES (Exclusões) ============
+
+def init_configuracoes_tables():
+    database_url = os.environ.get('DATABASE_URL')
+    if not database_url:
+        print("DATABASE_URL não configurado - tabelas de configurações não serão criadas")
+        return
+    try:
+        conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS config_empresas_excluidas (
+                id SERIAL PRIMARY KEY,
+                id_sienge_empresa INTEGER NOT NULL UNIQUE,
+                nome_empresa VARCHAR(255),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS config_centros_custo_excluidos (
+                id SERIAL PRIMARY KEY,
+                id_interno_centrocusto INTEGER NOT NULL UNIQUE,
+                nome_centrocusto VARCHAR(255),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS config_tipos_documento_excluidos (
+                id SERIAL PRIMARY KEY,
+                id_documento VARCHAR(50) NOT NULL UNIQUE,
+                nome_documento VARCHAR(255),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.commit()
+        print("Tabelas de configurações criadas/verificadas com sucesso")
+    except Exception as e:
+        print(f"Erro ao inicializar tabelas de configurações: {e}")
+    finally:
+        if 'cursor' in dir():
+            cursor.close()
+        if 'conn' in dir():
+            conn.close()
+
+init_configuracoes_tables()
+
+def get_exclusoes():
+    conn = get_replit_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id_sienge_empresa FROM config_empresas_excluidas")
+        empresas = [r['id_sienge_empresa'] for r in cursor.fetchall()]
+        cursor.execute("SELECT id_interno_centrocusto FROM config_centros_custo_excluidos")
+        centros = [r['id_interno_centrocusto'] for r in cursor.fetchall()]
+        cursor.execute("SELECT id_documento FROM config_tipos_documento_excluidos")
+        tipos_doc = [r['id_documento'] for r in cursor.fetchall()]
+        return {'empresas': empresas, 'centros_custo': centros, 'tipos_documento': tipos_doc}
+    except:
+        return {'empresas': [], 'centros_custo': [], 'tipos_documento': []}
+    finally:
+        cursor.close()
+        conn.close()
+
+def build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', has_join=True, has_cc_column=True, has_doc_column=True):
+    conditions = []
+    params = []
+    if exclusoes['empresas'] and has_join:
+        placeholders = ','.join(['%s'] * len(exclusoes['empresas']))
+        conditions.append(f"{cc_alias}.id_sienge_empresa NOT IN ({placeholders})")
+        params.extend(exclusoes['empresas'])
+    if exclusoes['centros_custo'] and has_cc_column:
+        placeholders = ','.join(['%s'] * len(exclusoes['centros_custo']))
+        conditions.append(f"{table_alias}.id_interno_centro_custo NOT IN ({placeholders})")
+        params.extend(exclusoes['centros_custo'])
+    if exclusoes['tipos_documento'] and has_doc_column:
+        placeholders = ','.join(['%s'] * len(exclusoes['tipos_documento']))
+        conditions.append(f"TRIM({table_alias}.id_documento) NOT IN ({placeholders})")
+        params.extend(exclusoes['tipos_documento'])
+    return conditions, params
+
+@app.get("/api/configuracoes")
+def get_configuracoes():
+    conn = get_replit_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id_sienge_empresa, nome_empresa FROM config_empresas_excluidas ORDER BY nome_empresa")
+        empresas_excluidas = cursor.fetchall()
+        cursor.execute("SELECT id_interno_centrocusto, nome_centrocusto FROM config_centros_custo_excluidos ORDER BY nome_centrocusto")
+        centros_excluidos = cursor.fetchall()
+        cursor.execute("SELECT id_documento, nome_documento FROM config_tipos_documento_excluidos ORDER BY nome_documento")
+        tipos_doc_excluidos = cursor.fetchall()
+        return {
+            'empresas_excluidas': [dict(r) for r in empresas_excluidas],
+            'centros_custo_excluidos': [dict(r) for r in centros_excluidos],
+            'tipos_documento_excluidos': [dict(r) for r in tipos_doc_excluidos]
+        }
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.post("/api/configuracoes/empresas")
+def toggle_empresa_exclusao(data: dict):
+    id_sienge_empresa = data.get('id_sienge_empresa')
+    nome_empresa = data.get('nome_empresa', '')
+    excluir = data.get('excluir', True)
+    conn = get_replit_db_connection()
+    cursor = conn.cursor()
+    try:
+        if excluir:
+            cursor.execute(
+                "INSERT INTO config_empresas_excluidas (id_sienge_empresa, nome_empresa) VALUES (%s, %s) ON CONFLICT (id_sienge_empresa) DO NOTHING",
+                (id_sienge_empresa, nome_empresa)
+            )
+        else:
+            cursor.execute("DELETE FROM config_empresas_excluidas WHERE id_sienge_empresa = %s", (id_sienge_empresa,))
+        conn.commit()
+        return {"success": True}
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.post("/api/configuracoes/centros-custo")
+def toggle_centro_custo_exclusao(data: dict):
+    id_interno = data.get('id_interno_centrocusto')
+    nome = data.get('nome_centrocusto', '')
+    excluir = data.get('excluir', True)
+    conn = get_replit_db_connection()
+    cursor = conn.cursor()
+    try:
+        if excluir:
+            cursor.execute(
+                "INSERT INTO config_centros_custo_excluidos (id_interno_centrocusto, nome_centrocusto) VALUES (%s, %s) ON CONFLICT (id_interno_centrocusto) DO NOTHING",
+                (id_interno, nome)
+            )
+        else:
+            cursor.execute("DELETE FROM config_centros_custo_excluidos WHERE id_interno_centrocusto = %s", (id_interno,))
+        conn.commit()
+        return {"success": True}
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.post("/api/configuracoes/tipos-documento")
+def toggle_tipo_documento_exclusao(data: dict):
+    id_documento = data.get('id_documento')
+    nome_documento = data.get('nome_documento', '')
+    excluir = data.get('excluir', True)
+    conn = get_replit_db_connection()
+    cursor = conn.cursor()
+    try:
+        if excluir:
+            cursor.execute(
+                "INSERT INTO config_tipos_documento_excluidos (id_documento, nome_documento) VALUES (%s, %s) ON CONFLICT (id_documento) DO NOTHING",
+                (id_documento, nome_documento)
+            )
+        else:
+            cursor.execute("DELETE FROM config_tipos_documento_excluidos WHERE id_documento = %s", (id_documento,))
+        conn.commit()
+        return {"success": True}
     finally:
         cursor.close()
         conn.close()
