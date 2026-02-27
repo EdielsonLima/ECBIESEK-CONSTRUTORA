@@ -771,7 +771,7 @@ export const KPIs: React.FC = () => {
                           {[...historicoVariacao.historico].reverse().map((item, index) => (
                             <tr key={index}>
                               <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
-                                {new Date(item.data).toLocaleDateString('pt-BR')}
+                                {(() => { const p = (item.data || '').split('T')[0].split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : '-'; })()}
                               </td>
                               <td className="px-6 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                                 {formatNumber(item.valor, historicoVariacao.kpi.unidade)}

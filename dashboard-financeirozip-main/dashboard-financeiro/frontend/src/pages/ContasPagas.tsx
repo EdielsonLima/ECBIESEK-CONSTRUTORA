@@ -150,8 +150,8 @@ export const ContasPagas: React.FC = () => {
           valorB = (b.credor || '').toLowerCase();
           break;
         case 'data_pagamento':
-          valorA = new Date(a.data_pagamento || 0).getTime();
-          valorB = new Date(b.data_pagamento || 0).getTime();
+          valorA = (a.data_pagamento || '').split('T')[0];
+          valorB = (b.data_pagamento || '').split('T')[0];
           break;
         case 'valor_total':
           valorA = a.valor_total || 0;
@@ -216,8 +216,10 @@ export const ContasPagas: React.FC = () => {
 
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR');
+    const parts = dateString.split('T')[0].split('-');
+    if (parts.length !== 3) return '-';
+    const [year, month, day] = parts;
+    return `${day}/${month}/${year}`;
   };
 
   const meses = [

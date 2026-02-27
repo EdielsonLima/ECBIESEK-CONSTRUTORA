@@ -54,8 +54,8 @@ export const ContasRecebidas: React.FC = () => {
           valorB = (b.cliente || '').toLowerCase();
           break;
         case 'data_recebimento':
-          valorA = new Date(a.data_recebimento || 0).getTime();
-          valorB = new Date(b.data_recebimento || 0).getTime();
+          valorA = (a.data_recebimento || '').split('T')[0];
+          valorB = (b.data_recebimento || '').split('T')[0];
           break;
         case 'valor_total':
           valorA = a.valor_total || 0;
@@ -185,15 +185,15 @@ export const ContasRecebidas: React.FC = () => {
     if (ano) {
       contasFiltradas = contasFiltradas.filter(c => {
         if (!c.data_recebimento) return false;
-        const dataRec = new Date(c.data_recebimento);
-        return dataRec.getFullYear() === ano;
+        const anoRec = parseInt(c.data_recebimento.split('T')[0].split('-')[0]);
+        return anoRec === ano;
       });
     }
     if (mesesSelecionados.length > 0) {
       contasFiltradas = contasFiltradas.filter(c => {
         if (!c.data_recebimento) return false;
-        const dataRec = new Date(c.data_recebimento);
-        return mesesSelecionados.includes(dataRec.getMonth() + 1);
+        const mesRec = parseInt(c.data_recebimento.split('T')[0].split('-')[1]);
+        return mesesSelecionados.includes(mesRec);
       });
     }
     if (tiposDocSelecionados.length > 0) {

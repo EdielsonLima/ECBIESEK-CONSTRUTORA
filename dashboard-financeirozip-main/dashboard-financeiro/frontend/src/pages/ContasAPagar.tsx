@@ -70,8 +70,8 @@ export const ContasAPagar: React.FC = () => {
           valorB = (b.credor || '').toLowerCase();
           break;
         case 'data_vencimento':
-          valorA = new Date(a.data_vencimento || 0).getTime();
-          valorB = new Date(b.data_vencimento || 0).getTime();
+          valorA = (a.data_vencimento || '').split('T')[0];
+          valorB = (b.data_vencimento || '').split('T')[0];
           break;
         case 'dias':
           valorA = calcularDiasAteVencimento(a.data_vencimento as any);
@@ -159,15 +159,18 @@ export const ContasAPagar: React.FC = () => {
 
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR');
+    const parts = dateString.split('T')[0].split('-');
+    if (parts.length !== 3) return '-';
+    const [year, month, day] = parts;
+    return `${day}/${month}/${year}`;
   };
 
   const calcularDiasAteVencimento = (dataVencimento: string | undefined) => {
     if (!dataVencimento) return 0;
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
-    const vencimento = new Date(dataVencimento);
+    const [ano, mes, dia] = dataVencimento.split('T')[0].split('-').map(Number);
+    const vencimento = new Date(ano, mes - 1, dia);
     vencimento.setHours(0, 0, 0, 0);
     const diffTime = vencimento.getTime() - hoje.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -246,15 +249,15 @@ export const ContasAPagar: React.FC = () => {
     if (ano) {
       contasFiltradas = contasFiltradas.filter(c => {
         if (!c.data_vencimento) return false;
-        const dataVenc = new Date(c.data_vencimento);
-        return dataVenc.getFullYear() === ano;
+        const anoVenc = parseInt(c.data_vencimento.split('T')[0].split('-')[0]);
+        return anoVenc === ano;
       });
     }
     if (mesesSelecionados.length > 0) {
       contasFiltradas = contasFiltradas.filter(c => {
         if (!c.data_vencimento) return false;
-        const dataVenc = new Date(c.data_vencimento);
-        return mesesSelecionados.includes(dataVenc.getMonth() + 1);
+        const mesVenc = parseInt(c.data_vencimento.split('T')[0].split('-')[1]);
+        return mesesSelecionados.includes(mesVenc);
       });
     }
     if (tiposDocSelecionados.length > 0) {
