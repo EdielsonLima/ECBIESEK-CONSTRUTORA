@@ -32,7 +32,7 @@ The Sidebar has two expandable menu sections:
 Additionally, standalone menu items:
 - **KPIs**: Key performance indicators management
 - **Centros de Custo**: Cost center classification (ADM/OBRA)
-- **Configurações**: Settings for excluding companies, cost centers, and document types from calculations
+- **Configurações**: Settings for excluding companies, cost centers, document types, and bank accounts from calculations
 
 ### Page Features (Updated December 2025)
 All six account pages (Contas a Pagar + Contas a Receber) share a consistent structure:
@@ -53,8 +53,8 @@ All six account pages (Contas a Pagar + Contas a Receber) share a consistent str
 - ContasReceberAtrasadas: Atraso by faixa (days overdue), critical accounts (+30 days) summary panel
 
 **Configurações** (Settings):
-- Manage exclusion/inclusion of companies, cost centers, and document types
-- Three separate tabs for Empresas, Centros de Custo, and Tipos de Documento
+- Manage exclusion/inclusion of companies, cost centers, document types, and bank accounts
+- Four separate tabs for Empresas, Centros de Custo, Tipos de Documento, and Contas Correntes
 - Toggle switches to include/exclude items from all calculations and displays
 - Changes persist to the database immediately
 
@@ -116,6 +116,7 @@ The KPI system supports:
 - `config_empresas_excluidas`: Stores `id_sienge_empresa` (int, unique) of excluded companies
 - `config_centros_custo_excluidos`: Stores `id_interno_centrocusto` (int, unique) of excluded cost centers
 - `config_tipos_documento_excluidos`: Stores `id_documento` (varchar, unique) of excluded document types
+- `config_contas_correntes_excluidas`: Stores `id_conta_corrente` (varchar, unique) of excluded bank accounts
 
 The configuration system supports:
 - Centralizing all exclusion rules in one place

@@ -19,11 +19,19 @@ interface TipoDocumentoItem {
   excluido: boolean;
 }
 
+interface ContaCorrenteItem {
+  id: string;
+  nome: string;
+  empresa_id: number;
+  excluida: boolean;
+}
+
 export const Configuracoes: React.FC = () => {
-  const [abaAtiva, setAbaAtiva] = useState<'empresas' | 'centros' | 'documentos'>('empresas');
+  const [abaAtiva, setAbaAtiva] = useState<'empresas' | 'centros' | 'documentos' | 'contas_correntes'>('empresas');
   const [empresas, setEmpresas] = useState<EmpresaItem[]>([]);
   const [centrosCusto, setCentrosCusto] = useState<CentroCustoItem[]>([]);
   const [tiposDocumento, setTiposDocumento] = useState<TipoDocumentoItem[]>([]);
+  const [contasCorrente, setContasCorrente] = useState<ContaCorrenteItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState<string | null>(null);
   const [busca, setBusca] = useState('');
@@ -35,11 +43,12 @@ export const Configuracoes: React.FC = () => {
   const carregarDados = async () => {
     setLoading(true);
     try {
-      const [configData, empresasData, centrosData, tiposDocData] = await Promise.all([
+      const [configData, empresasData, centrosData, tiposDocData, contasCorrenteData] = await Promise.all([
         apiService.getConfiguracoes(),
         apiService.getEmpresas(),
         apiService.getCentrosCusto(),
         apiService.getTiposDocumento(),
+        apiService.getContasCorrente(),
       ]);
 
       const empresasExcluidas = new Set(
@@ -50,6 +59,9 @@ export const Configuracoes: React.FC = () => {
       );
       const tiposExcluidos = new Set(
         (configData.tipos_documento_excluidos || []).map((t: any) => t.id_documento)
+      );
+      const contasExcluidas = new Set(
+        (configData.contas_correntes_excluidas || []).map((cc: any) => cc.id_conta_corrente)
       );
 
       setEmpresas(
@@ -73,6 +85,15 @@ export const Configuracoes: React.FC = () => {
           id: t.id,
           nome: t.nome,
           excluido: tiposExcluidos.has(t.id),
+        }))
+      );
+
+      setContasCorrente(
+        contasCorrenteData.map((cc: any) => ({
+          id: cc.id,
+          nome: cc.nome,
+          empresa_id: cc.empresa_id,
+          excluida: contasExcluidas.has(cc.id),
         }))
       );
     } catch (error) {
@@ -139,6 +160,25 @@ export const Configuracoes: React.FC = () => {
     }
   };
 
+  const toggleContaCorrente = async (conta: ContaCorrenteItem) => {
+    const key = `conta-${conta.id}`;
+    setSalvando(key);
+    try {
+      await apiService.toggleContaCorrente({
+        id_conta_corrente: conta.id,
+        nome_conta_corrente: conta.nome,
+        excluir: !conta.excluida,
+      });
+      setContasCorrente(prev =>
+        prev.map(c => (c.id === conta.id ? { ...c, excluida: !c.excluida } : c))
+      );
+    } catch (error) {
+      console.error('Erro ao alterar conta corrente:', error);
+    } finally {
+      setSalvando(null);
+    }
+  };
+
   const filtrarPorBusca = (nome: string) => {
     if (!busca) return true;
     return nome.toLowerCase().includes(busca.toLowerCase());
@@ -170,21 +210,23 @@ export const Configuracoes: React.FC = () => {
   const empresasFiltradas = empresas.filter(e => filtrarPorBusca(e.nome));
   const centrosFiltrados = centrosCusto.filter(c => filtrarPorBusca(c.nome));
   const tiposFiltrados = tiposDocumento.filter(t => filtrarPorBusca(t.nome));
+  const contasFiltradas = contasCorrente.filter(c => filtrarPorBusca(c.nome));
 
   const totalExcluidas = empresas.filter(e => e.excluida).length;
   const totalCentrosExcluidos = centrosCusto.filter(c => c.excluido).length;
   const totalTiposExcluidos = tiposDocumento.filter(t => t.excluido).length;
+  const totalContasExcluidas = contasCorrente.filter(c => c.excluida).length;
 
   return (
     <>
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Configuracoes</h2>
         <p className="mt-1 text-sm text-gray-600">
-          Gerencie quais empresas, centros de custo e tipos de documento participam dos calculos
+          Gerencie quais empresas, centros de custo, tipos de documento e contas correntes participam dos calculos
         </p>
       </div>
 
-      <div className="mb-4 flex gap-2">
+      <div className="mb-4 flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => { setAbaAtiva('empresas'); setBusca(''); }}
@@ -230,6 +272,22 @@ export const Configuracoes: React.FC = () => {
           {totalTiposExcluidos > 0 && (
             <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
               {totalTiposExcluidos} excluido(s)
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => { setAbaAtiva('contas_correntes'); setBusca(''); }}
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            abaAtiva === 'contas_correntes'
+              ? 'bg-blue-600 text-white'
+              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+          }`}
+        >
+          Contas Correntes
+          {totalContasExcluidas > 0 && (
+            <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
+              {totalContasExcluidas} excluida(s)
             </span>
           )}
         </button>
@@ -373,6 +431,50 @@ export const Configuracoes: React.FC = () => {
             {tiposFiltrados.length === 0 && (
               <div className="px-6 py-8 text-center text-gray-500">
                 Nenhum tipo de documento encontrado
+              </div>
+            )}
+          </div>
+        )}
+
+        {abaAtiva === 'contas_correntes' && (
+          <div className="divide-y divide-gray-200">
+            <div className="bg-blue-50 px-6 py-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">
+                  {contasCorrente.length} conta(s) corrente(s) | {contasCorrente.length - totalContasExcluidas} ativa(s) | {totalContasExcluidas} excluida(s)
+                </span>
+              </div>
+            </div>
+            {contasFiltradas.map(conta => (
+              <div
+                key={conta.id}
+                className={`flex items-center justify-between px-6 py-4 hover:bg-gray-50 ${
+                  conta.excluida ? 'bg-red-50' : ''
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className={`text-sm font-medium ${conta.excluida ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                    {conta.nome}
+                  </span>
+                  <span className="text-xs text-gray-400">({conta.id})</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className={`text-xs font-medium ${conta.excluida ? 'text-red-600' : 'text-green-600'}`}>
+                    {conta.excluida ? 'Excluida' : 'Ativa'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => toggleContaCorrente(conta)}
+                    disabled={salvando === `conta-${conta.id}`}
+                  >
+                    {renderToggle(!conta.excluida, salvando === `conta-${conta.id}`)}
+                  </button>
+                </div>
+              </div>
+            ))}
+            {contasFiltradas.length === 0 && (
+              <div className="px-6 py-8 text-center text-gray-500">
+                Nenhuma conta corrente encontrada
               </div>
             )}
           </div>

@@ -389,7 +389,7 @@ def get_metricas():
         hoje = datetime.now().date()
         exclusoes = get_exclusoes()
 
-        excl_conds_cp, excl_params_cp = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+        excl_conds_cp, excl_params_cp = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp', has_conta_corrente=True)
         excl_conds_cap, excl_params_cap = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap')
 
         cp_where = (" AND " + " AND ".join(excl_conds_cp)) if excl_conds_cp else ""
@@ -449,7 +449,7 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
         exclusoes = get_exclusoes()
 
         if status == "pago":
-            excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+            excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp', has_conta_corrente=True)
             excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
             query = f"""
                 SELECT cp.credor, cp.data_pagamento as data_vencimento, cp.valor_liquido as valor_total,
@@ -530,7 +530,7 @@ def get_grafico_mensal():
         hoje = datetime.now().date()
         exclusoes = get_exclusoes()
 
-        excl_conds_cp, excl_params_cp = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+        excl_conds_cp, excl_params_cp = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp', has_conta_corrente=True)
         excl_conds_cap, excl_params_cap = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap')
 
         cp_extra = (" AND " + " AND ".join(excl_conds_cp)) if excl_conds_cp else ""
@@ -675,7 +675,7 @@ def get_contas_pagas_filtradas(
 
     try:
         exclusoes = get_exclusoes()
-        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp', has_conta_corrente=True)
         conditions = list(excl_conds)
         params = list(excl_params)
 
@@ -787,7 +787,7 @@ def get_estatisticas_contas_pagas(
 
     try:
         exclusoes = get_exclusoes()
-        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp', has_conta_corrente=True)
         conditions = list(excl_conds)
         params = list(excl_params)
 
@@ -1019,7 +1019,7 @@ def get_estatisticas_por_mes(
 
     try:
         exclusoes = get_exclusoes()
-        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp', has_conta_corrente=True)
         conditions = list(excl_conds)
         params = list(excl_params)
 
@@ -1116,7 +1116,7 @@ def get_estatisticas_por_empresa(
 
     try:
         exclusoes = get_exclusoes()
-        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp', has_conta_corrente=True)
         conditions = list(excl_conds)
         params = list(excl_params)
 
@@ -1221,7 +1221,7 @@ def get_estatisticas_por_origem(
 
     try:
         exclusoes = get_exclusoes()
-        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp', has_conta_corrente=True)
         conditions = list(excl_conds)
         params = list(excl_params)
 
@@ -1329,7 +1329,7 @@ def get_top_credores(
 
     try:
         exclusoes = get_exclusoes()
-        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp', has_conta_corrente=True)
         conditions = list(excl_conds)
         params = list(excl_params)
 
@@ -1434,7 +1434,7 @@ def get_ranking_credores(
 
     try:
         exclusoes = get_exclusoes()
-        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp', has_conta_corrente=True)
         conditions = list(excl_conds)
         params = list(excl_params)
 
@@ -1572,7 +1572,7 @@ def get_comparacao_anual(
 
     try:
         exclusoes = get_exclusoes()
-        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp', has_conta_corrente=True)
         conditions = list(excl_conds)
         params = list(excl_params)
 
@@ -1673,7 +1673,7 @@ def get_comparacao_mensal(
 
     try:
         exclusoes = get_exclusoes()
-        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp', has_conta_corrente=True)
         conditions = list(excl_conds)
         params = list(excl_params)
 
@@ -3036,7 +3036,7 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
         exclusoes = get_exclusoes()
 
         if status == "recebido":
-            excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cr', has_cc_column=False)
+            excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cr', has_cc_column=False, has_conta_corrente=True)
             excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
             query = f"""
                 SELECT cr.cliente, cr.data_recebimento as data_vencimento, cr.valor_liquido as valor_total,
@@ -3131,7 +3131,7 @@ def get_contas_recebidas_filtradas(
 
     try:
         exclusoes = get_exclusoes()
-        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cr', has_cc_column=False)
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cr', has_cc_column=False, has_conta_corrente=True)
         conditions = list(excl_conds)
         params = list(excl_params)
 
@@ -3293,7 +3293,7 @@ def get_contas_recebidas_estatisticas(
 
     try:
         exclusoes = get_exclusoes()
-        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cr', has_cc_column=False)
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cr', has_cc_column=False, has_conta_corrente=True)
         conditions = list(excl_conds)
         params = list(excl_params)
 
@@ -3431,7 +3431,7 @@ def get_contas_recebidas_por_cliente(
 
     try:
         exclusoes = get_exclusoes()
-        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cr', has_cc_column=False)
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cr', has_cc_column=False, has_conta_corrente=True)
         conditions = list(excl_conds)
         params = list(excl_params)
 
@@ -3900,7 +3900,7 @@ def get_origem_metas_status(
     cursor = conn.cursor()
     try:
         exclusoes = get_exclusoes()
-        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp')
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp', has_conta_corrente=True)
         conditions = list(excl_conds)
         params = list(excl_params)
         
@@ -4020,6 +4020,14 @@ def init_configuracoes_tables():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS config_contas_correntes_excluidas (
+                id SERIAL PRIMARY KEY,
+                id_conta_corrente VARCHAR(100) NOT NULL UNIQUE,
+                nome_conta_corrente VARCHAR(255),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         conn.commit()
         print("Tabelas de configurações criadas/verificadas com sucesso")
     except Exception as e:
@@ -4042,14 +4050,16 @@ def get_exclusoes():
         centros = [r['id_interno_centrocusto'] for r in cursor.fetchall()]
         cursor.execute("SELECT id_documento FROM config_tipos_documento_excluidos")
         tipos_doc = [r['id_documento'] for r in cursor.fetchall()]
-        return {'empresas': empresas, 'centros_custo': centros, 'tipos_documento': tipos_doc}
+        cursor.execute("SELECT id_conta_corrente FROM config_contas_correntes_excluidas")
+        contas_correntes = [r['id_conta_corrente'] for r in cursor.fetchall()]
+        return {'empresas': empresas, 'centros_custo': centros, 'tipos_documento': tipos_doc, 'contas_correntes': contas_correntes}
     except:
-        return {'empresas': [], 'centros_custo': [], 'tipos_documento': []}
+        return {'empresas': [], 'centros_custo': [], 'tipos_documento': [], 'contas_correntes': []}
     finally:
         cursor.close()
         conn.close()
 
-def build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', has_join=True, has_cc_column=True, has_doc_column=True):
+def build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', has_join=True, has_cc_column=True, has_doc_column=True, has_conta_corrente=False):
     conditions = []
     params = []
     if exclusoes['empresas'] and has_join:
@@ -4064,6 +4074,10 @@ def build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', has_
         placeholders = ','.join(['%s'] * len(exclusoes['tipos_documento']))
         conditions.append(f"TRIM({table_alias}.id_documento) NOT IN ({placeholders})")
         params.extend(exclusoes['tipos_documento'])
+    if exclusoes.get('contas_correntes') and has_conta_corrente:
+        placeholders = ','.join(['%s'] * len(exclusoes['contas_correntes']))
+        conditions.append(f"{table_alias}.id_conta_corrente NOT IN ({placeholders})")
+        params.extend(exclusoes['contas_correntes'])
     return conditions, params
 
 @app.get("/api/configuracoes")
@@ -4077,10 +4091,13 @@ def get_configuracoes():
         centros_excluidos = cursor.fetchall()
         cursor.execute("SELECT id_documento, nome_documento FROM config_tipos_documento_excluidos ORDER BY nome_documento")
         tipos_doc_excluidos = cursor.fetchall()
+        cursor.execute("SELECT id_conta_corrente, nome_conta_corrente FROM config_contas_correntes_excluidas ORDER BY nome_conta_corrente")
+        contas_correntes_excluidas = cursor.fetchall()
         return {
             'empresas_excluidas': [dict(r) for r in empresas_excluidas],
             'centros_custo_excluidos': [dict(r) for r in centros_excluidos],
-            'tipos_documento_excluidos': [dict(r) for r in tipos_doc_excluidos]
+            'tipos_documento_excluidos': [dict(r) for r in tipos_doc_excluidos],
+            'contas_correntes_excluidas': [dict(r) for r in contas_correntes_excluidas]
         }
     finally:
         cursor.close()
@@ -4143,6 +4160,45 @@ def toggle_tipo_documento_exclusao(data: dict):
             )
         else:
             cursor.execute("DELETE FROM config_tipos_documento_excluidos WHERE id_documento = %s", (id_documento,))
+        conn.commit()
+        return {"success": True}
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/filtros/contas-correntes")
+def get_filtro_contas_correntes():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT DISTINCT id_conta_corrente, nome_conta_corrente, id_interno_empresa
+            FROM ecadcontacorrente
+            ORDER BY nome_conta_corrente
+        """)
+        rows = cursor.fetchall()
+        return [{"id": row['id_conta_corrente'], "nome": row['nome_conta_corrente'], "empresa_id": row['id_interno_empresa']} for row in rows]
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.post("/api/configuracoes/contas-correntes")
+def toggle_conta_corrente_exclusao(data: dict):
+    id_conta_corrente = data.get('id_conta_corrente')
+    if not id_conta_corrente:
+        return {"success": False, "error": "id_conta_corrente is required"}
+    nome_conta_corrente = data.get('nome_conta_corrente', '')
+    excluir = data.get('excluir', True)
+    conn = get_replit_db_connection()
+    cursor = conn.cursor()
+    try:
+        if excluir:
+            cursor.execute(
+                "INSERT INTO config_contas_correntes_excluidas (id_conta_corrente, nome_conta_corrente) VALUES (%s, %s) ON CONFLICT (id_conta_corrente) DO NOTHING",
+                (id_conta_corrente, nome_conta_corrente)
+            )
+        else:
+            cursor.execute("DELETE FROM config_contas_correntes_excluidas WHERE id_conta_corrente = %s", (id_conta_corrente,))
         conn.commit()
         return {"success": True}
     finally:
