@@ -134,11 +134,26 @@ The snapshot system supports:
 - Comparing current values against any previous snapshot to detect changes
 - Visual indicators on cards showing value differences (increase in yellow, decrease in green)
 - Use case: verify if new titles were added to a period that was previously checked
+- **Automatic daily snapshots**: Background thread saves snapshots at a user-configured time
+- Manual "Salvar Snapshot" button on ContasAPagar page as fallback
+
+**Snapshot Schedule Config (Replit PostgreSQL - auto-created on startup)**:
+- `config_snapshot_horario`: Stores the auto-snapshot schedule
+  - Fields: `id` (serial), `horario` (varchar "HH:MM", default "07:00"), `ativo` (boolean, default true), `updated_at` (timestamp)
+  - Single row, seeded with default on first startup
+  - Configurable via Configurações page > Snapshots tab
 
 Snapshot API endpoints:
 - `POST /api/snapshots/cards-pagar`: Save snapshot of all 5 cards (upserts for same day)
 - `GET /api/snapshots/cards-pagar`: List available snapshot dates (last 30)
 - `GET /api/snapshots/cards-pagar/{data}`: Get specific snapshot data by date
+- `GET /api/configuracoes/snapshot-horario`: Get auto-snapshot schedule config
+- `POST /api/configuracoes/snapshot-horario`: Update auto-snapshot schedule (horario, ativo)
+
+Auto-snapshot background thread:
+- Daemon thread starts on server startup, checks every 5 minutes
+- At the configured time, queries contas_a_pagar with exclusion filters and saves snapshot
+- Respects enable/disable toggle and re-reads config each cycle
 
 ## External Dependencies
 

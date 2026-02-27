@@ -27,7 +27,7 @@ interface ContaCorrenteItem {
 }
 
 export const Configuracoes: React.FC = () => {
-  const [abaAtiva, setAbaAtiva] = useState<'empresas' | 'centros' | 'documentos' | 'contas_correntes'>('empresas');
+  const [abaAtiva, setAbaAtiva] = useState<'empresas' | 'centros' | 'documentos' | 'contas_correntes' | 'snapshots'>('empresas');
   const [empresas, setEmpresas] = useState<EmpresaItem[]>([]);
   const [centrosCusto, setCentrosCusto] = useState<CentroCustoItem[]>([]);
   const [tiposDocumento, setTiposDocumento] = useState<TipoDocumentoItem[]>([]);
@@ -35,6 +35,11 @@ export const Configuracoes: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState<string | null>(null);
   const [busca, setBusca] = useState('');
+  const [snapshotHorario, setSnapshotHorario] = useState('07:00');
+  const [snapshotAtivo, setSnapshotAtivo] = useState(true);
+  const [snapshotSalvando, setSnapshotSalvando] = useState(false);
+  const [snapshotMsg, setSnapshotMsg] = useState<string | null>(null);
+  const [snapshotsDisponiveis, setSnapshotsDisponiveis] = useState<Array<{ data_snapshot: string; created_at: string }>>([]);
 
   useEffect(() => {
     carregarDados();
@@ -43,13 +48,18 @@ export const Configuracoes: React.FC = () => {
   const carregarDados = async () => {
     setLoading(true);
     try {
-      const [configData, empresasData, centrosData, tiposDocData, contasCorrenteData] = await Promise.all([
+      const [configData, empresasData, centrosData, tiposDocData, contasCorrenteData, snapshotConfig, snapshotsList] = await Promise.all([
         apiService.getConfiguracoes(),
         apiService.getEmpresas(),
         apiService.getCentrosCusto(),
         apiService.getTiposDocumento(),
         apiService.getContasCorrente(),
+        apiService.getSnapshotHorario(),
+        apiService.listarSnapshotsCardsPagar(),
       ]);
+      setSnapshotHorario(snapshotConfig.horario || '07:00');
+      setSnapshotAtivo(snapshotConfig.ativo);
+      setSnapshotsDisponiveis(snapshotsList);
 
       const empresasExcluidas = new Set(
         (configData.empresas_excluidas || []).map((e: any) => e.id_sienge_empresa)
@@ -179,6 +189,21 @@ export const Configuracoes: React.FC = () => {
     }
   };
 
+  const salvarSnapshotConfig = async () => {
+    setSnapshotSalvando(true);
+    setSnapshotMsg(null);
+    try {
+      await apiService.setSnapshotHorario({ horario: snapshotHorario, ativo: snapshotAtivo });
+      setSnapshotMsg('Configuracao salva com sucesso!');
+      setTimeout(() => setSnapshotMsg(null), 3000);
+    } catch (error) {
+      console.error('Erro ao salvar configuracao de snapshot:', error);
+      setSnapshotMsg('Erro ao salvar configuracao');
+    } finally {
+      setSnapshotSalvando(false);
+    }
+  };
+
   const filtrarPorBusca = (nome: string) => {
     if (!busca) return true;
     return nome.toLowerCase().includes(busca.toLowerCase());
@@ -288,6 +313,22 @@ export const Configuracoes: React.FC = () => {
           {totalContasExcluidas > 0 && (
             <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
               {totalContasExcluidas} excluida(s)
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => { setAbaAtiva('snapshots'); setBusca(''); }}
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            abaAtiva === 'snapshots'
+              ? 'bg-blue-600 text-white'
+              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+          }`}
+        >
+          Snapshots
+          {snapshotAtivo && (
+            <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">
+              {snapshotHorario}
             </span>
           )}
         </button>
@@ -477,6 +518,98 @@ export const Configuracoes: React.FC = () => {
                 Nenhuma conta corrente encontrada
               </div>
             )}
+          </div>
+        )}
+
+        {abaAtiva === 'snapshots' && (
+          <div className="divide-y divide-gray-200">
+            <div className="bg-blue-50 px-6 py-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">
+                  Snapshot Automatico de Contas a Pagar
+                </span>
+                <span className={`text-xs font-medium ${snapshotAtivo ? 'text-green-600' : 'text-gray-500'}`}>
+                  {snapshotAtivo ? 'Ativo' : 'Desativado'}
+                </span>
+              </div>
+            </div>
+            <div className="px-6 py-6">
+              <p className="text-sm text-gray-600 mb-6">
+                O sistema salva automaticamente um snapshot dos valores dos cards de Contas a Pagar no horario configurado abaixo. 
+                Voce pode usar esses snapshots para comparar valores e detectar se novos titulos foram inseridos em periodos ja verificados.
+              </p>
+
+              <div className="flex flex-col gap-6">
+                <div className="flex items-center gap-4">
+                  <label className="text-sm font-medium text-gray-700 w-40">Ativar/Desativar:</label>
+                  <button
+                    type="button"
+                    onClick={() => setSnapshotAtivo(!snapshotAtivo)}
+                  >
+                    {renderToggle(snapshotAtivo, false)}
+                  </button>
+                  <span className={`text-sm ${snapshotAtivo ? 'text-green-600' : 'text-gray-500'}`}>
+                    {snapshotAtivo ? 'Snapshot automatico ativo' : 'Snapshot automatico desativado'}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <label className="text-sm font-medium text-gray-700 w-40">Horario diario:</label>
+                  <input
+                    type="time"
+                    value={snapshotHorario}
+                    onChange={(e) => setSnapshotHorario(e.target.value)}
+                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                    disabled={!snapshotAtivo}
+                  />
+                  <span className="text-xs text-gray-500">Horario em que o snapshot sera salvo automaticamente</span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={salvarSnapshotConfig}
+                    disabled={snapshotSalvando}
+                    className="rounded-lg bg-blue-600 px-6 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {snapshotSalvando ? 'Salvando...' : 'Salvar Configuracao'}
+                  </button>
+                  {snapshotMsg && (
+                    <span className={`text-sm ${snapshotMsg.includes('Erro') ? 'text-red-600' : 'text-green-600'}`}>
+                      {snapshotMsg}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {snapshotsDisponiveis.length > 0 && (
+                <div className="mt-8 border-t border-gray-200 pt-6">
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Ultimos Snapshots Salvos</h3>
+                  <div className="rounded-lg border border-gray-200 overflow-hidden">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Data</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Salvo em</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {snapshotsDisponiveis.slice(0, 10).map(s => {
+                          const [ano, mes, dia] = s.data_snapshot.split('-');
+                          const criado = s.created_at ? new Date(s.created_at).toLocaleString('pt-BR') : '-';
+                          return (
+                            <tr key={s.data_snapshot} className="hover:bg-gray-50">
+                              <td className="px-4 py-2 text-sm text-gray-900">{dia}/{mes}/{ano}</td>
+                              <td className="px-4 py-2 text-sm text-gray-500">{criado}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

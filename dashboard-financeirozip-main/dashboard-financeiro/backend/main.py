@@ -13,6 +13,8 @@ import os
 from pathlib import Path
 import bcrypt
 from jose import JWTError, jwt
+import threading
+import time
 
 app = FastAPI(title="Dashboard Financeiro - Construtora")
 
@@ -4358,6 +4360,301 @@ def get_snapshot_cards_pagar(data: str):
     finally:
         cursor.close()
         conn.close()
+
+# ============ SNAPSHOT SCHEDULE CONFIG ============
+
+def init_snapshot_horario_table():
+    database_url = os.environ.get('DATABASE_URL')
+    if not database_url:
+        return
+    try:
+        conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS config_snapshot_horario (
+                id SERIAL PRIMARY KEY,
+                horario VARCHAR(5) NOT NULL DEFAULT '07:00',
+                ativo BOOLEAN NOT NULL DEFAULT true,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("SELECT COUNT(*) as cnt FROM config_snapshot_horario")
+        row = cursor.fetchone()
+        if row['cnt'] == 0:
+            cursor.execute("INSERT INTO config_snapshot_horario (horario, ativo) VALUES ('07:00', true)")
+        conn.commit()
+        print("Tabela config_snapshot_horario criada/verificada com sucesso")
+    except Exception as e:
+        print(f"Erro ao criar tabela config_snapshot_horario: {e}")
+    finally:
+        if 'cursor' in dir():
+            cursor.close()
+        if 'conn' in dir():
+            conn.close()
+
+init_snapshot_horario_table()
+
+@app.get("/api/configuracoes/snapshot-horario")
+def get_snapshot_horario():
+    conn = get_replit_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT horario, ativo, updated_at FROM config_snapshot_horario ORDER BY id LIMIT 1")
+        row = cursor.fetchone()
+        if not row:
+            return {'horario': '07:00', 'ativo': True}
+        return {
+            'horario': row['horario'],
+            'ativo': row['ativo'],
+            'updated_at': row['updated_at'].isoformat() if row['updated_at'] else None
+        }
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.post("/api/configuracoes/snapshot-horario")
+def set_snapshot_horario(dados: dict):
+    horario = dados.get('horario', '07:00')
+    ativo = dados.get('ativo', True)
+    import re
+    if not re.match(r'^\d{2}:\d{2}$', horario):
+        raise HTTPException(status_code=400, detail="Formato de horario invalido. Use HH:MM")
+    try:
+        h, m = map(int, horario.split(':'))
+        if h < 0 or h > 23 or m < 0 or m > 59:
+            raise ValueError()
+    except:
+        raise HTTPException(status_code=400, detail="Horario invalido. Use valores entre 00:00 e 23:59")
+    conn = get_replit_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id FROM config_snapshot_horario ORDER BY id LIMIT 1")
+        row = cursor.fetchone()
+        if row:
+            cursor.execute(
+                "UPDATE config_snapshot_horario SET horario = %s, ativo = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
+                (horario, ativo, row['id'])
+            )
+        else:
+            cursor.execute(
+                "INSERT INTO config_snapshot_horario (horario, ativo) VALUES (%s, %s)",
+                (horario, ativo)
+            )
+        conn.commit()
+        return {"success": True, "horario": horario, "ativo": ativo}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+# ============ AUTO-SNAPSHOT BACKGROUND THREAD ============
+
+def _get_snapshot_config():
+    database_url = os.environ.get('DATABASE_URL')
+    if not database_url:
+        return None
+    try:
+        conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+        cursor.execute("SELECT horario, ativo FROM config_snapshot_horario ORDER BY id LIMIT 1")
+        row = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        if row:
+            return {'horario': row['horario'], 'ativo': row['ativo']}
+        return {'horario': '07:00', 'ativo': True}
+    except Exception as e:
+        print(f"Erro ao ler config snapshot: {e}")
+        return None
+
+def _snapshot_already_exists_today():
+    database_url = os.environ.get('DATABASE_URL')
+    if not database_url:
+        return True
+    try:
+        conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+        hoje = datetime.now().strftime('%Y-%m-%d')
+        cursor.execute("SELECT COUNT(*) as cnt FROM snapshots_cards_pagar WHERE data_snapshot = %s", (hoje,))
+        row = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return row['cnt'] > 0
+    except Exception as e:
+        print(f"Erro ao verificar snapshot: {e}")
+        return True
+
+def _calcular_e_salvar_snapshot_auto():
+    try:
+        print("Auto-snapshot: Calculando valores dos cards...")
+        hoje = datetime.now().date()
+        amanha = hoje + timedelta(days=1)
+        fim7 = hoje + timedelta(days=7)
+        fim15 = hoje + timedelta(days=15)
+        fim30 = hoje + timedelta(days=30)
+
+        exclusoes = {'empresas': [], 'centros_custo': [], 'tipos_documento': [], 'contas_correntes': []}
+        replit_url = os.environ.get('DATABASE_URL')
+        if replit_url:
+            try:
+                rconn = psycopg2.connect(replit_url, cursor_factory=RealDictCursor)
+                rcursor = rconn.cursor()
+                rcursor.execute("SELECT id_sienge_empresa FROM config_empresas_excluidas")
+                exclusoes['empresas'] = [r['id_sienge_empresa'] for r in rcursor.fetchall()]
+                rcursor.execute("SELECT id_interno_centrocusto FROM config_centros_custo_excluidos")
+                exclusoes['centros_custo'] = [r['id_interno_centrocusto'] for r in rcursor.fetchall()]
+                rcursor.execute("SELECT id_documento FROM config_tipos_documento_excluidos")
+                exclusoes['tipos_documento'] = [r['id_documento'] for r in rcursor.fetchall()]
+                rcursor.execute("SELECT id_conta_corrente FROM config_contas_correntes_excluidas")
+                exclusoes['contas_correntes'] = [r['id_conta_corrente'] for r in rcursor.fetchall()]
+                rcursor.close()
+                rconn.close()
+            except Exception as e:
+                print(f"Auto-snapshot: Aviso ao carregar exclusoes: {e}")
+
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap')
+        excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
+
+        conn = psycopg2.connect(**DB_CONFIG, cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
+        query = f"""
+            SELECT cap.credor, cap.data_vencimento, cap.valor_total
+            FROM contas_a_pagar cap
+            LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE cap.data_vencimento >= %s{excl_where}
+            ORDER BY cap.data_vencimento ASC
+        """
+        cursor.execute(query, [hoje] + excl_params)
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
+
+        total_valor = 0
+        total_titulos = 0
+        credores_total = set()
+        hoje_valor = 0
+        hoje_titulos = 0
+        credores_hoje = set()
+        d7_valor = 0
+        d7_titulos = 0
+        credores_7 = set()
+        d15_valor = 0
+        d15_titulos = 0
+        credores_15 = set()
+        d30_valor = 0
+        d30_titulos = 0
+        credores_30 = set()
+
+        for r in rows:
+            venc = r['data_vencimento']
+            if isinstance(venc, str):
+                venc = datetime.strptime(venc.split('T')[0], '%Y-%m-%d').date()
+            valor = float(r['valor_total'] or 0)
+            credor = r['credor']
+
+            total_valor += valor
+            total_titulos += 1
+            credores_total.add(credor)
+
+            diff = (venc - hoje).days
+            if diff == 0:
+                hoje_valor += valor
+                hoje_titulos += 1
+                credores_hoje.add(credor)
+            if 1 <= diff <= 7:
+                d7_valor += valor
+                d7_titulos += 1
+                credores_7.add(credor)
+            if 1 <= diff <= 15:
+                d15_valor += valor
+                d15_titulos += 1
+                credores_15.add(credor)
+            if 1 <= diff <= 30:
+                d30_valor += valor
+                d30_titulos += 1
+                credores_30.add(credor)
+
+        cards = [
+            {'faixa': 'total', 'data_inicio': None, 'data_fim': None, 'valor_total': total_valor, 'quantidade_titulos': total_titulos, 'quantidade_credores': len(credores_total)},
+            {'faixa': 'hoje', 'data_inicio': hoje.isoformat(), 'data_fim': hoje.isoformat(), 'valor_total': hoje_valor, 'quantidade_titulos': hoje_titulos, 'quantidade_credores': len(credores_hoje)},
+            {'faixa': '7dias', 'data_inicio': amanha.isoformat(), 'data_fim': fim7.isoformat(), 'valor_total': d7_valor, 'quantidade_titulos': d7_titulos, 'quantidade_credores': len(credores_7)},
+            {'faixa': '15dias', 'data_inicio': amanha.isoformat(), 'data_fim': fim15.isoformat(), 'valor_total': d15_valor, 'quantidade_titulos': d15_titulos, 'quantidade_credores': len(credores_15)},
+            {'faixa': '30dias', 'data_inicio': amanha.isoformat(), 'data_fim': fim30.isoformat(), 'valor_total': d30_valor, 'quantidade_titulos': d30_titulos, 'quantidade_credores': len(credores_30)},
+        ]
+
+        rconn = psycopg2.connect(replit_url, cursor_factory=RealDictCursor)
+        rcursor = rconn.cursor()
+        data_snapshot = hoje.isoformat()
+        for card in cards:
+            rcursor.execute("""
+                INSERT INTO snapshots_cards_pagar (data_snapshot, faixa, data_inicio, data_fim, valor_total, quantidade_titulos, quantidade_credores)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (data_snapshot, faixa)
+                DO UPDATE SET valor_total = EXCLUDED.valor_total,
+                              quantidade_titulos = EXCLUDED.quantidade_titulos,
+                              quantidade_credores = EXCLUDED.quantidade_credores,
+                              data_inicio = EXCLUDED.data_inicio,
+                              data_fim = EXCLUDED.data_fim
+            """, (
+                data_snapshot,
+                card['faixa'],
+                card.get('data_inicio'),
+                card.get('data_fim'),
+                card['valor_total'],
+                card['quantidade_titulos'],
+                card['quantidade_credores']
+            ))
+        rconn.commit()
+        rcursor.close()
+        rconn.close()
+        print(f"Auto-snapshot: Snapshot salvo com sucesso para {data_snapshot}")
+    except Exception as e:
+        print(f"Auto-snapshot: Erro ao salvar snapshot: {e}")
+
+def _auto_snapshot_loop():
+    time.sleep(10)
+    print("Auto-snapshot: Thread iniciada")
+    snapshot_salvo_hoje = None
+
+    while True:
+        try:
+            config = _get_snapshot_config()
+            if not config or not config['ativo']:
+                time.sleep(300)
+                continue
+
+            agora = datetime.now()
+            hoje_str = agora.strftime('%Y-%m-%d')
+
+            if snapshot_salvo_hoje == hoje_str:
+                time.sleep(300)
+                continue
+
+            hora_config = config['horario']
+            try:
+                hora_alvo, minuto_alvo = map(int, hora_config.split(':'))
+            except:
+                hora_alvo, minuto_alvo = 7, 0
+
+            hora_atual = agora.hour
+            minuto_atual = agora.minute
+            minutos_agora = hora_atual * 60 + minuto_atual
+            minutos_alvo = hora_alvo * 60 + minuto_alvo
+
+            if minutos_agora >= minutos_alvo:
+                if not _snapshot_already_exists_today():
+                    _calcular_e_salvar_snapshot_auto()
+                snapshot_salvo_hoje = hoje_str
+
+            time.sleep(300)
+        except Exception as e:
+            print(f"Auto-snapshot: Erro no loop: {e}")
+            time.sleep(300)
+
+_auto_snapshot_thread = threading.Thread(target=_auto_snapshot_loop, daemon=True)
+_auto_snapshot_thread.start()
 
 FRONTEND_BUILD_DIR = Path(__file__).parent.parent / "frontend" / "dist"
 
