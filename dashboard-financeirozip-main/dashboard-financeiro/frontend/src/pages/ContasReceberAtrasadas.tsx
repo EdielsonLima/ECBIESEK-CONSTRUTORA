@@ -71,8 +71,8 @@ export const ContasReceberAtrasadas: React.FC = () => {
           valorB = (b.cliente || '').toLowerCase();
           break;
         case 'data_vencimento':
-          valorA = new Date(a.data_vencimento || 0).getTime();
-          valorB = new Date(b.data_vencimento || 0).getTime();
+          valorA = (a.data_vencimento || '').split('T')[0];
+          valorB = (b.data_vencimento || '').split('T')[0];
           break;
         case 'dias_atraso':
           valorA = calcularDiasAtraso(a.data_vencimento);

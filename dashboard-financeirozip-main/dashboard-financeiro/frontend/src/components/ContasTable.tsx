@@ -15,8 +15,11 @@ export const ContasTable: React.FC<ContasTableProps> = ({ contas, titulo }) => {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR');
+    if (!dateString) return '-';
+    const parts = dateString.split('T')[0].split('-');
+    if (parts.length !== 3) return '-';
+    const [year, month, day] = parts;
+    return `${day}/${month}/${year}`;
   };
 
   const getStatusBadge = (conta: ContaPagar) => {
@@ -25,7 +28,9 @@ export const ContasTable: React.FC<ContasTableProps> = ({ contas, titulo }) => {
     }
     
     const hoje = new Date();
-    const vencimento = new Date(conta.data_vencimento);
+    hoje.setHours(0, 0, 0, 0);
+    const [ano, mes, dia] = conta.data_vencimento.split('T')[0].split('-').map(Number);
+    const vencimento = new Date(ano, mes - 1, dia);
     
     if (vencimento < hoje) {
       return <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-800">Em Atraso</span>;
