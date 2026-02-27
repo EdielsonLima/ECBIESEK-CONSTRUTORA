@@ -187,18 +187,26 @@ def create_users_table():
         conn.commit()
         print("Tabela usuarios criada/verificada com sucesso")
 
-        cursor.execute("SELECT COUNT(*) FROM usuarios")
-        count = cursor.fetchone()[0]
-        if count == 0:
-            default_hash = bcrypt.hashpw('Darlene1321@'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        default_hash = bcrypt.hashpw('Darlene1321@'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        cursor.execute("SELECT id, email, senha_hash FROM usuarios WHERE email = %s", ('edielson@dtconsultorias.com',))
+        existing = cursor.fetchone()
+        if existing is None:
             cursor.execute(
                 "INSERT INTO usuarios (email, nome, senha_hash) VALUES (%s, %s, %s)",
                 ('edielson@dtconsultorias.com', 'Edielson Lima', default_hash)
             )
             conn.commit()
             print("Usuario padrao criado com sucesso")
+        elif not existing['senha_hash'].startswith('$2b$'):
+            cursor.execute("UPDATE usuarios SET senha_hash = %s WHERE id = %s", (default_hash, existing['id']))
+            conn.commit()
+            print(f"Senha do usuario padrao corrigida para bcrypt")
+        else:
+            print(f"Usuario padrao ja existe com hash bcrypt")
     except Exception as e:
         conn.rollback()
+        import traceback
+        traceback.print_exc()
         print(f"Erro ao criar tabela usuarios: {e}")
     finally:
         cursor.close()
