@@ -837,4 +837,39 @@ export const apiService = {
     const response = await api.post('/configuracoes/contas-correntes', data);
     return response.data;
   },
+
+  salvarSnapshotCardsPagar: async (dados: {
+    data_snapshot: string;
+    cards: Array<{
+      faixa: string;
+      data_inicio: string | null;
+      data_fim: string | null;
+      valor_total: number;
+      quantidade_titulos: number;
+      quantidade_credores: number;
+    }>;
+  }): Promise<any> => {
+    const response = await api.post('/snapshots/cards-pagar', dados);
+    return response.data;
+  },
+
+  listarSnapshotsCardsPagar: async (): Promise<Array<{ data_snapshot: string; created_at: string }>> => {
+    const response = await api.get('/snapshots/cards-pagar');
+    return response.data;
+  },
+
+  getSnapshotCardsPagar: async (data: string): Promise<{
+    data_snapshot: string;
+    cards: Record<string, {
+      faixa: string;
+      data_inicio: string | null;
+      data_fim: string | null;
+      valor_total: number;
+      quantidade_titulos: number;
+      quantidade_credores: number;
+    }>;
+  }> => {
+    const response = await api.get(`/snapshots/cards-pagar/${data}`);
+    return response.data;
+  },
 };
