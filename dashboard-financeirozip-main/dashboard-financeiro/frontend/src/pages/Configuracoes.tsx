@@ -32,14 +32,38 @@ interface ContaCorrenteItem {
   excluida: boolean;
 }
 
+interface OrigemTituloItem {
+  id: number;
+  sigla: string;
+  descricao: string;
+  incluir: boolean;
+  paginas: string; // ex: 'exposicao_caixa' ou 'exposicao_caixa,outro'
+  configurado: boolean; // se já existe registro no config DB
+}
+
+interface TipoBaixaConfigItem {
+  id: number;
+  nome: string;
+  flag: string; // P=Pagamento R=Recebimento A=Ajuste S=Sistema
+  incluir: boolean;
+  paginas: string;
+  configurado: boolean;
+}
+
+const PAGINAS_DISPONIVEIS = [
+  { key: 'exposicao_caixa', label: 'Exposição de Caixa' },
+];
+
 export const Configuracoes: React.FC = () => {
-  const [abaAtiva, setAbaAtiva] = useState<'empresas' | 'centros' | 'documentos' | 'contas_correntes' | 'snapshots' | 'diagnostico'>('empresas');
+  const [abaAtiva, setAbaAtiva] = useState<'empresas' | 'centros' | 'documentos' | 'contas_correntes' | 'origens' | 'tipos_baixa' | 'snapshots' | 'diagnostico'>('empresas');
   const [empresas, setEmpresas] = useState<EmpresaItem[]>([]);
   const [centrosCusto, setCentrosCusto] = useState<CentroCustoItem[]>([]);
   const [empresasCentros, setEmpresasCentros] = useState<EmpresaCentros[]>([]);
   const [loadingDiagnostico, setLoadingDiagnostico] = useState(false);
   const [tiposDocumento, setTiposDocumento] = useState<TipoDocumentoItem[]>([]);
   const [contasCorrente, setContasCorrente] = useState<ContaCorrenteItem[]>([]);
+  const [origensTitulo, setOrigensTitulo] = useState<OrigemTituloItem[]>([]);
+  const [tiposBaixaConfig, setTiposBaixaConfig] = useState<TipoBaixaConfigItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState<string | null>(null);
   const [busca, setBusca] = useState('');
@@ -69,7 +93,7 @@ export const Configuracoes: React.FC = () => {
     setLoading(true);
     try {
       // Promise.allSettled para não falhar tudo se uma API falhar (ex: tabelas config ainda não criadas)
-      const [configResult, empresasResult, centrosResult, tiposDocResult, contasCorrenteResult, snapshotConfigResult, snapshotsListResult] = await Promise.allSettled([
+      const [configResult, empresasResult, centrosResult, tiposDocResult, contasCorrenteResult, snapshotConfigResult, snapshotsListResult, origensTituloResult, origensConfigResult, tiposBaixaResult, tiposBaixaConfigResult] = await Promise.allSettled([
         apiService.getConfiguracoes(),
         apiService.getTodasEmpresas(),
         apiService.getTodosCentrosCustoConfig(),
@@ -77,6 +101,10 @@ export const Configuracoes: React.FC = () => {
         apiService.getTodasContasCorrente(),
         apiService.getSnapshotHorario(),
         apiService.listarSnapshotsCardsPagar(),
+        apiService.getOrigensTitulo(),
+        apiService.getOrigensExposicao(),
+        apiService.getTiposBaixaCompleto(),
+        apiService.getTiposBaixaExposicao(),
       ]);
 
       const configData = configResult.status === 'fulfilled' ? configResult.value : { empresas_excluidas: [], centros_custo_excluidos: [], tipos_documento_excluidos: [], contas_correntes_excluidas: [] };
@@ -86,6 +114,10 @@ export const Configuracoes: React.FC = () => {
       const contasCorrenteData = contasCorrenteResult.status === 'fulfilled' ? contasCorrenteResult.value : [];
       const snapshotConfig = snapshotConfigResult.status === 'fulfilled' ? snapshotConfigResult.value : { horario: '07:00', ativo: true };
       const snapshotsList = snapshotsListResult.status === 'fulfilled' ? snapshotsListResult.value : [];
+      const origensTituloData: Array<{ id: number; sigla: string; descricao: string }> = origensTituloResult.status === 'fulfilled' ? origensTituloResult.value : [];
+      const origensConfigData: Array<{ id_origem_titulo: number; sigla: string; descricao: string; incluir: boolean; paginas: string }> = origensConfigResult.status === 'fulfilled' ? origensConfigResult.value : [];
+      const tiposBaixaData: Array<{ id: number; nome: string; flag: string; descricao: string }> = tiposBaixaResult.status === 'fulfilled' ? tiposBaixaResult.value : [];
+      const tiposBaixaConfigData: Array<{ id_tipo_baixa: number; nome_tipo_baixa: string; flag_sistema_uso: string; incluir: boolean; paginas: string }> = tiposBaixaConfigResult.status === 'fulfilled' ? tiposBaixaConfigResult.value : [];
 
       setSnapshotHorario(snapshotConfig.horario || '07:00');
       setSnapshotAtivo(snapshotConfig.ativo);
@@ -135,6 +167,40 @@ export const Configuracoes: React.FC = () => {
           empresa_id: cc.empresa_id,
           excluida: contasExcluidas.has(cc.id),
         }))
+      );
+
+      // Origens: merge da lista completa com a config salva
+      const configMap = new Map(origensConfigData.map(o => [o.id_origem_titulo, o]));
+      const temConfig = origensConfigData.length > 0;
+      setOrigensTitulo(
+        origensTituloData.map(o => {
+          const cfg = configMap.get(o.id);
+          return {
+            id: o.id,
+            sigla: o.sigla,
+            descricao: o.descricao,
+            incluir: cfg ? cfg.incluir : true, // sem config = inclui tudo
+            paginas: cfg ? cfg.paginas : 'exposicao_caixa',
+            configurado: !!cfg || temConfig, // indica se há alguma config salva
+          };
+        })
+      );
+
+      // Tipos de Baixa: merge da lista completa com a config salva
+      const tbConfigMap = new Map(tiposBaixaConfigData.map(t => [t.id_tipo_baixa, t]));
+      const temTbConfig = tiposBaixaConfigData.length > 0;
+      setTiposBaixaConfig(
+        tiposBaixaData.map(t => {
+          const cfg = tbConfigMap.get(t.id);
+          return {
+            id: t.id,
+            nome: t.nome,
+            flag: t.flag,
+            incluir: cfg ? cfg.incluir : true,
+            paginas: cfg ? cfg.paginas : 'exposicao_caixa',
+            configurado: !!cfg || temTbConfig,
+          };
+        })
       );
     } catch (error) {
       console.error('Erro ao carregar configurações:', error);
@@ -219,6 +285,103 @@ export const Configuracoes: React.FC = () => {
     }
   };
 
+  const toggleOrigemExposicao = async (origem: OrigemTituloItem, novoIncluir: boolean) => {
+    const key = `origem-${origem.id}`;
+    setSalvando(key);
+    try {
+      await apiService.toggleOrigemExposicao({
+        id_origem_titulo: origem.id,
+        sigla: origem.sigla,
+        descricao: origem.descricao,
+        incluir: novoIncluir,
+        paginas: origem.paginas,
+      });
+      setOrigensTitulo(prev => prev.map(o =>
+        o.id === origem.id ? { ...o, incluir: novoIncluir, configurado: true } : { ...o, configurado: true }
+      ));
+    } catch (error) {
+      console.error('Erro ao alterar origem:', error);
+    } finally {
+      setSalvando(null);
+    }
+  };
+
+  const togglePaginaOrigem = async (origem: OrigemTituloItem, pagKey: string, ativo: boolean) => {
+    const key = `origem-pag-${origem.id}-${pagKey}`;
+    setSalvando(key);
+    try {
+      const paginasAtuais = origem.paginas ? origem.paginas.split(',').map(p => p.trim()).filter(Boolean) : [];
+      let novasPaginas: string[];
+      if (ativo) {
+        novasPaginas = paginasAtuais.includes(pagKey) ? paginasAtuais : [...paginasAtuais, pagKey];
+      } else {
+        novasPaginas = paginasAtuais.filter(p => p !== pagKey);
+      }
+      const paginasStr = novasPaginas.join(',') || '';
+      await apiService.toggleOrigemExposicao({
+        id_origem_titulo: origem.id,
+        sigla: origem.sigla,
+        descricao: origem.descricao,
+        incluir: origem.incluir,
+        paginas: paginasStr,
+      });
+      setOrigensTitulo(prev => prev.map(o =>
+        o.id === origem.id ? { ...o, paginas: paginasStr, configurado: true } : { ...o, configurado: true }
+      ));
+    } catch (error) {
+      console.error('Erro ao alterar páginas da origem:', error);
+    } finally {
+      setSalvando(null);
+    }
+  };
+
+  const toggleTipoBaixaExposicao = async (tipo: TipoBaixaConfigItem, novoIncluir: boolean) => {
+    const key = `tipobaixa-${tipo.id}`;
+    setSalvando(key);
+    try {
+      await apiService.toggleTipoBaixaExposicao({
+        id_tipo_baixa: tipo.id,
+        nome_tipo_baixa: tipo.nome,
+        flag_sistema_uso: tipo.flag,
+        incluir: novoIncluir,
+        paginas: tipo.paginas,
+      });
+      setTiposBaixaConfig(prev => prev.map(t =>
+        t.id === tipo.id ? { ...t, incluir: novoIncluir, configurado: true } : { ...t, configurado: true }
+      ));
+    } catch (error) {
+      console.error('Erro ao alterar tipo de baixa:', error);
+    } finally {
+      setSalvando(null);
+    }
+  };
+
+  const togglePaginaTipoBaixa = async (tipo: TipoBaixaConfigItem, pagKey: string, ativo: boolean) => {
+    const key = `tipobaixa-pag-${tipo.id}-${pagKey}`;
+    setSalvando(key);
+    try {
+      const paginasAtuais = tipo.paginas ? tipo.paginas.split(',').map(p => p.trim()).filter(Boolean) : [];
+      const novasPaginas = ativo
+        ? (paginasAtuais.includes(pagKey) ? paginasAtuais : [...paginasAtuais, pagKey])
+        : paginasAtuais.filter(p => p !== pagKey);
+      const paginasStr = novasPaginas.join(',') || '';
+      await apiService.toggleTipoBaixaExposicao({
+        id_tipo_baixa: tipo.id,
+        nome_tipo_baixa: tipo.nome,
+        flag_sistema_uso: tipo.flag,
+        incluir: tipo.incluir,
+        paginas: paginasStr,
+      });
+      setTiposBaixaConfig(prev => prev.map(t =>
+        t.id === tipo.id ? { ...t, paginas: paginasStr, configurado: true } : { ...t, configurado: true }
+      ));
+    } catch (error) {
+      console.error('Erro ao alterar páginas do tipo de baixa:', error);
+    } finally {
+      setSalvando(null);
+    }
+  };
+
   const salvarSnapshotConfig = async () => {
     setSnapshotSalvando(true);
     setSnapshotMsg(null);
@@ -271,6 +434,10 @@ export const Configuracoes: React.FC = () => {
   const totalCentrosExcluidos = centrosCusto.filter(c => c.excluido).length;
   const totalTiposExcluidos = tiposDocumento.filter(t => t.excluido).length;
   const totalContasExcluidas = contasCorrente.filter(c => c.excluida).length;
+  const totalOrigensExcluidas = origensTitulo.filter(o => o.configurado && !o.incluir).length;
+  const origensFiltradas = origensTitulo.filter(o => filtrarPorBusca(o.descricao) || filtrarPorBusca(o.sigla));
+  const totalTiposBaixaExcluidos = tiposBaixaConfig.filter(t => t.configurado && !t.incluir).length;
+  const tiposBaixaFiltrados = tiposBaixaConfig.filter(t => filtrarPorBusca(t.nome));
 
   return (
     <>
@@ -343,6 +510,38 @@ export const Configuracoes: React.FC = () => {
           {totalContasExcluidas > 0 && (
             <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
               {totalContasExcluidas} excluida(s)
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => { setAbaAtiva('origens'); setBusca(''); }}
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            abaAtiva === 'origens'
+              ? 'bg-blue-600 text-white'
+              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+          }`}
+        >
+          Origens Titulos
+          {totalOrigensExcluidas > 0 && (
+            <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
+              {totalOrigensExcluidas} excluida(s)
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => { setAbaAtiva('tipos_baixa'); setBusca(''); }}
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            abaAtiva === 'tipos_baixa'
+              ? 'bg-blue-600 text-white'
+              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+          }`}
+        >
+          Tipos de Baixa
+          {totalTiposBaixaExcluidos > 0 && (
+            <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
+              {totalTiposBaixaExcluidos} excluido(s)
             </span>
           )}
         </button>
@@ -557,6 +756,183 @@ export const Configuracoes: React.FC = () => {
             {contasFiltradas.length === 0 && (
               <div className="px-6 py-8 text-center text-gray-500">
                 Nenhuma conta corrente encontrada
+              </div>
+            )}
+          </div>
+        )}
+
+        {abaAtiva === 'origens' && (
+          <div className="divide-y divide-gray-200">
+            <div className="bg-blue-50 px-6 py-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="text-sm font-medium text-gray-700">
+                  {origensTitulo.length} origem(s) | {origensTitulo.filter(o => !o.configurado || o.incluir).length} ativa(s) | {totalOrigensExcluidas} excluida(s)
+                </span>
+                <span className="text-xs text-gray-500 bg-yellow-50 border border-yellow-200 rounded px-2 py-1">
+                  Afeta: <strong>Exposicao de Caixa</strong> (Tabela e Grafico)
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Quando nenhuma origem estiver configurada, <strong>todas</strong> sao incluidas. Ao desativar ao menos uma, somente as ativas serao consideradas.
+              </p>
+            </div>
+
+            {/* Cabecalho das colunas */}
+            <div className="flex items-center px-6 py-2 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <span className="w-16">Sigla</span>
+              <span className="flex-1">Descricao</span>
+              <div className="flex items-center gap-6">
+                {PAGINAS_DISPONIVEIS.map(p => (
+                  <span key={p.key} className="w-36 text-center">{p.label}</span>
+                ))}
+                <span className="w-20 text-center">Incluir</span>
+              </div>
+            </div>
+
+            {origensFiltradas.map(origem => (
+              <div
+                key={origem.id}
+                className={`flex items-center px-6 py-3 hover:bg-gray-50 transition-colors ${
+                  origem.configurado && !origem.incluir ? 'bg-red-50' : ''
+                }`}
+              >
+                <span className="w-16 font-mono text-sm font-bold text-blue-700">{origem.sigla}</span>
+                <span className={`flex-1 text-sm ${origem.configurado && !origem.incluir ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                  {origem.descricao}
+                </span>
+                <div className="flex items-center gap-6">
+                  {PAGINAS_DISPONIVEIS.map(p => {
+                    const paginasArr = origem.paginas ? origem.paginas.split(',').map(s => s.trim()) : [];
+                    const ativa = paginasArr.includes(p.key);
+                    const loadKey = `origem-pag-${origem.id}-${p.key}`;
+                    return (
+                      <div key={p.key} className="w-36 flex justify-center">
+                        <button
+                          type="button"
+                          onClick={() => togglePaginaOrigem(origem, p.key, !ativa)}
+                          disabled={salvando === loadKey || !origem.incluir}
+                          title={ativa ? `Remover efeito em ${p.label}` : `Aplicar em ${p.label}`}
+                        >
+                          <div className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${
+                            !origem.incluir ? 'opacity-30 cursor-not-allowed' :
+                            ativa ? 'bg-indigo-500' : 'bg-gray-300'
+                          } ${salvando === loadKey ? 'opacity-50' : ''}`}>
+                            <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ${ativa ? 'translate-x-4' : 'translate-x-0'}`} />
+                          </div>
+                        </button>
+                      </div>
+                    );
+                  })}
+                  <div className="w-20 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => toggleOrigemExposicao(origem, !origem.incluir)}
+                      disabled={salvando === `origem-${origem.id}`}
+                    >
+                      {renderToggle(origem.incluir, salvando === `origem-${origem.id}`)}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {origensFiltradas.length === 0 && (
+              <div className="px-6 py-8 text-center text-gray-500">
+                Nenhuma origem encontrada
+              </div>
+            )}
+          </div>
+        )}
+
+        {abaAtiva === 'tipos_baixa' && (
+          <div className="divide-y divide-gray-200">
+            <div className="bg-blue-50 px-6 py-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="text-sm font-medium text-gray-700">
+                  {tiposBaixaConfig.length} tipo(s) | {tiposBaixaConfig.filter(t => !t.configurado || t.incluir).length} ativo(s) | {totalTiposBaixaExcluidos} excluido(s)
+                </span>
+                <span className="text-xs text-gray-500 bg-yellow-50 border border-yellow-200 rounded px-2 py-1">
+                  Afeta: <strong>Exposicao de Caixa</strong> (coluna Pago)
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Quando nenhum tipo estiver configurado, <strong>todos</strong> sao incluidos. Flag: <span className="font-mono">P</span>=Pagamento <span className="font-mono">R</span>=Recebimento <span className="font-mono">A</span>=Ajuste <span className="font-mono">S</span>=Sistema.
+              </p>
+            </div>
+
+            {/* Cabecalho */}
+            <div className="flex items-center px-6 py-2 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <span className="w-10">Flag</span>
+              <span className="flex-1">Nome</span>
+              <div className="flex items-center gap-6">
+                {PAGINAS_DISPONIVEIS.map(p => (
+                  <span key={p.key} className="w-36 text-center">{p.label}</span>
+                ))}
+                <span className="w-20 text-center">Incluir</span>
+              </div>
+            </div>
+
+            {tiposBaixaFiltrados.map(tipo => {
+              const flagColors: Record<string, string> = {
+                P: 'bg-red-100 text-red-700',
+                R: 'bg-green-100 text-green-700',
+                A: 'bg-yellow-100 text-yellow-700',
+                S: 'bg-blue-100 text-blue-700',
+              };
+              const flagClass = flagColors[tipo.flag] || 'bg-gray-100 text-gray-600';
+              return (
+                <div
+                  key={tipo.id}
+                  className={`flex items-center px-6 py-3 hover:bg-gray-50 transition-colors ${
+                    tipo.configurado && !tipo.incluir ? 'bg-red-50' : ''
+                  }`}
+                >
+                  <span className={`w-10 inline-flex items-center justify-center rounded text-xs font-bold px-1 py-0.5 mr-1 ${flagClass}`}>
+                    {tipo.flag || '?'}
+                  </span>
+                  <span className={`flex-1 text-sm ${tipo.configurado && !tipo.incluir ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                    {tipo.nome}
+                  </span>
+                  <div className="flex items-center gap-6">
+                    {PAGINAS_DISPONIVEIS.map(p => {
+                      const paginasArr = tipo.paginas ? tipo.paginas.split(',').map(s => s.trim()) : [];
+                      const ativa = paginasArr.includes(p.key);
+                      const loadKey = `tipobaixa-pag-${tipo.id}-${p.key}`;
+                      return (
+                        <div key={p.key} className="w-36 flex justify-center">
+                          <button
+                            type="button"
+                            onClick={() => togglePaginaTipoBaixa(tipo, p.key, !ativa)}
+                            disabled={salvando === loadKey || !tipo.incluir}
+                            title={ativa ? `Remover efeito em ${p.label}` : `Aplicar em ${p.label}`}
+                          >
+                            <div className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${
+                              !tipo.incluir ? 'opacity-30 cursor-not-allowed' :
+                              ativa ? 'bg-indigo-500' : 'bg-gray-300'
+                            } ${salvando === loadKey ? 'opacity-50' : ''}`}>
+                              <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ${ativa ? 'translate-x-4' : 'translate-x-0'}`} />
+                            </div>
+                          </button>
+                        </div>
+                      );
+                    })}
+                    <div className="w-20 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() => toggleTipoBaixaExposicao(tipo, !tipo.incluir)}
+                        disabled={salvando === `tipobaixa-${tipo.id}`}
+                      >
+                        {renderToggle(tipo.incluir, salvando === `tipobaixa-${tipo.id}`)}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {tiposBaixaFiltrados.length === 0 && (
+              <div className="px-6 py-8 text-center text-gray-500">
+                Nenhum tipo de baixa encontrado
               </div>
             )}
           </div>

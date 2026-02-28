@@ -570,6 +570,7 @@ export const apiService = {
     mes?: string;
     data_inicio?: string;
     data_fim?: string;
+    tipo_baixa?: string;
     limite?: number;
   }): Promise<ContaReceber[]> => {
     const params = new URLSearchParams();
@@ -581,9 +582,32 @@ export const apiService = {
     if (filtros.mes) params.append('mes', filtros.mes);
     if (filtros.data_inicio) params.append('data_inicio', filtros.data_inicio);
     if (filtros.data_fim) params.append('data_fim', filtros.data_fim);
+    if (filtros.tipo_baixa) params.append('tipo_baixa', filtros.tipo_baixa);
     if (filtros.limite) params.append('limite', filtros.limite.toString());
 
     const response = await api.get<ContaReceber[]>(`/contas-recebidas-filtradas?${params.toString()}`);
+    return response.data;
+  },
+
+  // Totais de contas recebidas sem LIMIT (para estatísticas corretas)
+  getContasRecebidasTotais: async (filtros: {
+    empresa?: number;
+    centro_custo?: number;
+    cliente?: string;
+    id_documento?: string;
+    ano?: string;
+    mes?: string;
+    tipo_baixa?: string;
+  }): Promise<{ total: number; quantidade: number }> => {
+    const params = new URLSearchParams();
+    if (filtros.empresa) params.append('empresa', filtros.empresa.toString());
+    if (filtros.centro_custo) params.append('centro_custo', filtros.centro_custo.toString());
+    if (filtros.cliente) params.append('cliente', filtros.cliente);
+    if (filtros.id_documento) params.append('id_documento', filtros.id_documento);
+    if (filtros.ano) params.append('ano', filtros.ano);
+    if (filtros.mes) params.append('mes', filtros.mes);
+    if (filtros.tipo_baixa) params.append('tipo_baixa', filtros.tipo_baixa);
+    const response = await api.get<{ total: number; quantidade: number }>(`/contas-recebidas-totais?${params.toString()}`);
     return response.data;
   },
 
@@ -846,6 +870,42 @@ export const apiService = {
     return response.data;
   },
 
+  // Origens de Título (ecadorigemtitulo) — para Exposição de Caixa
+  getOrigensTitulo: async (): Promise<Array<{ id: number; sigla: string; descricao: string }>> => {
+    const response = await api.get('/filtros/origens-titulo');
+    return response.data;
+  },
+  getOrigensExposicao: async (): Promise<Array<{ id_origem_titulo: number; sigla: string; descricao: string; incluir: boolean; paginas: string }>> => {
+    const response = await api.get('/configuracoes/origens-exposicao');
+    return response.data;
+  },
+  toggleOrigemExposicao: async (data: { id_origem_titulo: number; sigla: string; descricao: string; incluir: boolean; paginas: string }): Promise<any> => {
+    const response = await api.post('/configuracoes/origens-exposicao/toggle', data);
+    return response.data;
+  },
+  getOrigensExposicaoCaixaSiglas: async (): Promise<{ siglas: string[]; configurado: boolean }> => {
+    const response = await api.get('/configuracoes/origens-exposicao-caixa-siglas');
+    return response.data;
+  },
+
+  // Tipos de Baixa (ecadtipobaixa) — para Exposição de Caixa
+  getTiposBaixaCompleto: async (): Promise<Array<{ id: number; nome: string; flag: string; descricao: string }>> => {
+    const response = await api.get('/filtros/tipos-baixa-completo');
+    return response.data;
+  },
+  getTiposBaixaExposicao: async (): Promise<Array<{ id_tipo_baixa: number; nome_tipo_baixa: string; flag_sistema_uso: string; incluir: boolean; paginas: string }>> => {
+    const response = await api.get('/configuracoes/tipos-baixa-exposicao');
+    return response.data;
+  },
+  toggleTipoBaixaExposicao: async (data: { id_tipo_baixa: number; nome_tipo_baixa: string; flag_sistema_uso: string; incluir: boolean; paginas: string }): Promise<any> => {
+    const response = await api.post('/configuracoes/tipos-baixa-exposicao/toggle', data);
+    return response.data;
+  },
+  getTiposBaixaExposicaoCaixaIds: async (): Promise<{ ids: number[]; configurado: boolean }> => {
+    const response = await api.get('/configuracoes/tipos-baixa-exposicao-caixa-ids');
+    return response.data;
+  },
+
   getConfiguracoes: async (): Promise<any> => {
     const response = await api.get('/configuracoes');
     return response.data;
@@ -918,6 +978,12 @@ export const apiService = {
 
   setSnapshotHorario: async (dados: { horario: string; ativo: boolean }): Promise<any> => {
     const response = await api.post('/configuracoes/snapshot-horario', dados);
+    return response.data;
+  },
+
+  // Última atualização do banco (fulldump_log)
+  getUltimaAtualizacao: async (): Promise<{ data: string | null }> => {
+    const response = await api.get('/ultima-atualizacao');
     return response.data;
   },
 };
