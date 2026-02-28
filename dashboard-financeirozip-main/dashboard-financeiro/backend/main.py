@@ -17,7 +17,7 @@ from jose import JWTError, jwt
 import threading
 import time
 from dotenv import load_dotenv
-import openai
+import anthropic
 
 load_dotenv()
 
@@ -67,12 +67,14 @@ JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'fallback-secret-key-change-in
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 horas
 
-# Configuração API OpenAI
-OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
-IA_MODELO = os.environ.get('IA_MODELO', 'gpt-4o-mini')
+# Configuração API Anthropic
+ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
+IA_MODELO = os.environ.get('IA_MODELO', 'claude-3-5-sonnet-20241022')
 
-if OPENAI_API_KEY:
-    openai.api_key = OPENAI_API_KEY
+if ANTHROPIC_API_KEY:
+    anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+else:
+    anthropic_client = None
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
@@ -478,8 +480,8 @@ async def check_auth(current_user: dict = Depends(get_current_user_optional)):
 @app.post("/api/ia/chat")
 async def chat_ia(req: ChatRequest, current_user: dict = Depends(get_current_user_optional)):
     """Rota para comunicação com o Agente de IA Financeiro"""
-    if not OPENAI_API_KEY:
-        raise HTTPException(status_code=500, detail="Chave da OpenAI não configurada no backend.")
+    if not anthropic_client:
+        raise HTTPException(status_code=500, detail="Chave da Anthropic não configurada no backend.")
     
     try:
         # Puxa alguns indicadores brutos para enriquecer o contexto da IA
@@ -507,18 +509,26 @@ Dados Atuais do Negócio (Contexto em tempo real):
 Regra Importante: Responda as perguntas de forma direta, concisa e profissional. Se não souber o valor exato, informe ao usuário que você precisa de acesso a relatórios mais específicos para calcular orçamentos futuros e recomende verificar o Dashboard Metas.
 """
         
-        mensagens_openai = [{"role": "system", "content": system_prompt}]
+        mensagens_anthropic = []
         for msg in req.messages:
-            mensagens_openai.append({"role": msg.role, "content": msg.content})
+            mensagens_anthropic.append({"role": msg.role if msg.role in ['user', 'assistant'] else 'user', "content": msg.content})
 
-        response = openai.chat.completions.create(
+        # Anthropic exige que a primeira mensagem seja 'user'
+        while mensagens_anthropic and mensagens_anthropic[0]["role"] != "user":
+            mensagens_anthropic.pop(0)
+
+        if not mensagens_anthropic:
+            mensagens_anthropic.append({"role": "user", "content": "Olá, continue nossa conversa."})
+
+        response = anthropic_client.messages.create(
             model=IA_MODELO,
-            messages=mensagens_openai,
-            temperature=0.3,
-            max_tokens=800
+            system=system_prompt,
+            messages=mensagens_anthropic,
+            max_tokens=2048,
+            temperature=0.3
         )
         
-        reply_text = response.choices[0].message.content
+        reply_text = response.content[0].text
         return {"reply": reply_text}
         
     except Exception as e:
