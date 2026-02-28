@@ -113,7 +113,7 @@ function App() {
           <div className="flex items-center justify-between px-8 py-6">
             <div>
               <h1 className="text-3xl font-bold text-white">
-              {currentPage === 'dashboard' && 'Dashboard Financeiro'}
+              {currentPage === 'dashboard' && 'ECBIESEK-CONSTRUTORA'}
               {currentPage === 'contas-a-pagar' && 'Contas a Pagar'}
               {currentPage === 'contas-pagas' && 'Contas Pagas'}
               {currentPage === 'contas-atrasadas' && 'Contas Atrasadas'}
@@ -169,7 +169,7 @@ function App() {
 
         <footer className="mt-12 bg-white py-6 shadow-inner">
           <div className="px-8 text-center text-sm text-gray-600">
-            <p>Dashboard Financeiro - Construtora © {new Date().getFullYear()}</p>
+            <p>ECBIESEK-CONSTRUTORA © {new Date().getFullYear()}</p>
           </div>
         </footer>
       </div>
