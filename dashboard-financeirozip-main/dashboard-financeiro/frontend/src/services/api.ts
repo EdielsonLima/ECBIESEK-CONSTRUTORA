@@ -174,9 +174,45 @@ export const apiService = {
     return response.data;
   },
 
+  // Filtros - Empresas presentes em contas_recebidas
+  getEmpresasRecebidas: async (): Promise<EmpresaOption[]> => {
+    const response = await api.get<EmpresaOption[]>('/filtros/empresas-recebidas');
+    return response.data;
+  },
+
   // Filtros - Centros de Custo
   getCentrosCusto: async (): Promise<CentroCustoOption[]> => {
     const response = await api.get<CentroCustoOption[]>('/filtros/centros-custo');
+    return response.data;
+  },
+
+  // Filtros - Centros de Custo vinculados a empresas com contas_recebidas
+  getCentrosCustoRecebidas: async (): Promise<CentroCustoOption[]> => {
+    const response = await api.get<CentroCustoOption[]>('/filtros/centros-custo-recebidas');
+    return response.data;
+  },
+
+  // Diagnóstico - Empresas com centros de custo aninhados
+  getEmpresasCentrosDiagnostico: async (): Promise<{ id: number; nome: string; centros: { id: number; nome: string }[] }[]> => {
+    const response = await api.get('/diagnostico/empresas-centros');
+    return response.data;
+  },
+
+  // Filtros para Configurações — retornam TODOS sem exclusão aplicada
+  getTodasEmpresas: async (): Promise<EmpresaOption[]> => {
+    const response = await api.get<EmpresaOption[]>('/filtros/todas-empresas');
+    return response.data;
+  },
+  getTodosCentrosCustoConfig: async (): Promise<CentroCustoOption[]> => {
+    const response = await api.get<CentroCustoOption[]>('/filtros/todos-centros-custo');
+    return response.data;
+  },
+  getTodosTiposDocumento: async (): Promise<TipoDocumentoOption[]> => {
+    const response = await api.get<TipoDocumentoOption[]>('/filtros/todos-tipos-documento');
+    return response.data;
+  },
+  getTodasContasCorrente: async (): Promise<any[]> => {
+    const response = await api.get('/filtros/todas-contas-correntes');
     return response.data;
   },
 
@@ -581,6 +617,7 @@ export const apiService = {
   // Estatísticas contas recebidas
   getEstatisticasContasRecebidas: async (filtros: {
     empresa?: number;
+    centro_custo?: number;
     ano?: string;
     mes?: string;
     id_documento?: string;
@@ -591,6 +628,7 @@ export const apiService = {
   }> => {
     const params = new URLSearchParams();
     if (filtros.empresa) params.append('empresa', filtros.empresa.toString());
+    if (filtros.centro_custo) params.append('centro_custo', filtros.centro_custo.toString());
     if (filtros.ano) params.append('ano', filtros.ano);
     if (filtros.mes) params.append('mes', filtros.mes);
     if (filtros.id_documento) params.append('id_documento', filtros.id_documento);

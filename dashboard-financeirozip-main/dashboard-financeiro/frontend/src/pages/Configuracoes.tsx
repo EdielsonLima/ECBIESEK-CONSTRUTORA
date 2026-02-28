@@ -13,6 +13,12 @@ interface CentroCustoItem {
   excluido: boolean;
 }
 
+interface EmpresaCentros {
+  id: number;
+  nome: string;
+  centros: { id: number; nome: string }[];
+}
+
 interface TipoDocumentoItem {
   id: string;
   nome: string;
@@ -27,9 +33,11 @@ interface ContaCorrenteItem {
 }
 
 export const Configuracoes: React.FC = () => {
-  const [abaAtiva, setAbaAtiva] = useState<'empresas' | 'centros' | 'documentos' | 'contas_correntes' | 'snapshots'>('empresas');
+  const [abaAtiva, setAbaAtiva] = useState<'empresas' | 'centros' | 'documentos' | 'contas_correntes' | 'snapshots' | 'diagnostico'>('empresas');
   const [empresas, setEmpresas] = useState<EmpresaItem[]>([]);
   const [centrosCusto, setCentrosCusto] = useState<CentroCustoItem[]>([]);
+  const [empresasCentros, setEmpresasCentros] = useState<EmpresaCentros[]>([]);
+  const [loadingDiagnostico, setLoadingDiagnostico] = useState(false);
   const [tiposDocumento, setTiposDocumento] = useState<TipoDocumentoItem[]>([]);
   const [contasCorrente, setContasCorrente] = useState<ContaCorrenteItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,18 +53,40 @@ export const Configuracoes: React.FC = () => {
     carregarDados();
   }, []);
 
+  const carregarDiagnostico = async () => {
+    setLoadingDiagnostico(true);
+    try {
+      const data = await apiService.getEmpresasCentrosDiagnostico();
+      setEmpresasCentros(data);
+    } catch (err) {
+      console.error('Erro ao carregar diagnóstico:', err);
+    } finally {
+      setLoadingDiagnostico(false);
+    }
+  };
+
   const carregarDados = async () => {
     setLoading(true);
     try {
-      const [configData, empresasData, centrosData, tiposDocData, contasCorrenteData, snapshotConfig, snapshotsList] = await Promise.all([
+      // Promise.allSettled para não falhar tudo se uma API falhar (ex: tabelas config ainda não criadas)
+      const [configResult, empresasResult, centrosResult, tiposDocResult, contasCorrenteResult, snapshotConfigResult, snapshotsListResult] = await Promise.allSettled([
         apiService.getConfiguracoes(),
-        apiService.getEmpresas(),
-        apiService.getCentrosCusto(),
-        apiService.getTiposDocumento(),
-        apiService.getContasCorrente(),
+        apiService.getTodasEmpresas(),
+        apiService.getTodosCentrosCustoConfig(),
+        apiService.getTodosTiposDocumento(),
+        apiService.getTodasContasCorrente(),
         apiService.getSnapshotHorario(),
         apiService.listarSnapshotsCardsPagar(),
       ]);
+
+      const configData = configResult.status === 'fulfilled' ? configResult.value : { empresas_excluidas: [], centros_custo_excluidos: [], tipos_documento_excluidos: [], contas_correntes_excluidas: [] };
+      const empresasData = empresasResult.status === 'fulfilled' ? empresasResult.value : [];
+      const centrosData = centrosResult.status === 'fulfilled' ? centrosResult.value : [];
+      const tiposDocData = tiposDocResult.status === 'fulfilled' ? tiposDocResult.value : [];
+      const contasCorrenteData = contasCorrenteResult.status === 'fulfilled' ? contasCorrenteResult.value : [];
+      const snapshotConfig = snapshotConfigResult.status === 'fulfilled' ? snapshotConfigResult.value : { horario: '07:00', ativo: true };
+      const snapshotsList = snapshotsListResult.status === 'fulfilled' ? snapshotsListResult.value : [];
+
       setSnapshotHorario(snapshotConfig.horario || '07:00');
       setSnapshotAtivo(snapshotConfig.ativo);
       setSnapshotsDisponiveis(snapshotsList);
@@ -331,6 +361,17 @@ export const Configuracoes: React.FC = () => {
               {snapshotHorario}
             </span>
           )}
+        </button>
+        <button
+          type="button"
+          onClick={() => { setAbaAtiva('diagnostico'); setBusca(''); if (empresasCentros.length === 0) carregarDiagnostico(); }}
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            abaAtiva === 'diagnostico'
+              ? 'bg-purple-600 text-white'
+              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+          }`}
+        >
+          Empresas e Centros
         </button>
       </div>
 
@@ -615,6 +656,58 @@ export const Configuracoes: React.FC = () => {
                 </div>
               )}
             </div>
+          </div>
+        )}
+        {abaAtiva === 'diagnostico' && (
+          <div>
+            <div className="bg-purple-50 px-6 py-3 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">
+                  {empresasCentros.length} empresa(s) cadastrada(s) com seus centros de custo
+                </span>
+                <button
+                  type="button"
+                  onClick={carregarDiagnostico}
+                  disabled={loadingDiagnostico}
+                  className="rounded-lg bg-purple-600 px-3 py-1 text-xs text-white hover:bg-purple-700 disabled:opacity-50"
+                >
+                  {loadingDiagnostico ? 'Carregando...' : 'Atualizar'}
+                </button>
+              </div>
+            </div>
+            {loadingDiagnostico ? (
+              <div className="px-6 py-8 text-center text-gray-500">Carregando...</div>
+            ) : empresasCentros.length === 0 ? (
+              <div className="px-6 py-8 text-center text-gray-500">Nenhuma empresa encontrada</div>
+            ) : (
+              <div className="divide-y divide-gray-200">
+                {empresasCentros
+                  .filter(e => !busca || e.nome.toLowerCase().includes(busca.toLowerCase()) ||
+                    e.centros.some(c => c.nome.toLowerCase().includes(busca.toLowerCase())))
+                  .map(empresa => (
+                  <div key={empresa.id} className="px-6 py-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
+                        ID {empresa.id}
+                      </span>
+                      <span className="font-semibold text-gray-900">{empresa.nome}</span>
+                      <span className="text-xs text-gray-400">{empresa.centros.length} centro(s)</span>
+                    </div>
+                    <div className="ml-4 flex flex-wrap gap-2">
+                      {empresa.centros.map(cc => (
+                        <span
+                          key={cc.id}
+                          className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700"
+                        >
+                          <span className="font-mono text-gray-400">{cc.id}</span>
+                          {cc.nome}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

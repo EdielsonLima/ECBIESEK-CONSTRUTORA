@@ -4236,9 +4236,10 @@ def get_origem_metas_status(
 # ============ CONFIGURAÇÕES (Exclusões) ============
 
 def init_configuracoes_tables():
-    """Cria todas as tabelas de configuração no PostgreSQL (ecbiesek) se não existirem."""
+    """Cria todas as tabelas de configuração no PostgreSQL se não existirem.
+    Usa get_replit_db_connection() que em EasyPanel usa DATABASE_URL com credenciais de owner."""
     try:
-        conn = get_db_connection()
+        conn = get_replit_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS config_empresas_excluidas (
@@ -4309,23 +4310,27 @@ def init_configuracoes_tables():
 init_configuracoes_tables()
 
 def get_exclusoes():
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    """Retorna listas de IDs excluídos nas configurações. Retorna listas vazias em caso de erro."""
     try:
-        cursor.execute("SELECT id_sienge_empresa FROM config_empresas_excluidas")
-        empresas = [r['id_sienge_empresa'] for r in cursor.fetchall()]
-        cursor.execute("SELECT id_interno_centrocusto FROM config_centros_custo_excluidos")
-        centros = [r['id_interno_centrocusto'] for r in cursor.fetchall()]
-        cursor.execute("SELECT id_documento FROM config_tipos_documento_excluidos")
-        tipos_doc = [r['id_documento'] for r in cursor.fetchall()]
-        cursor.execute("SELECT id_conta_corrente FROM config_contas_correntes_excluidas")
-        contas_correntes = [r['id_conta_corrente'] for r in cursor.fetchall()]
-        return {'empresas': empresas, 'centros_custo': centros, 'tipos_documento': tipos_doc, 'contas_correntes': contas_correntes}
+        conn = get_replit_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT id_sienge_empresa FROM config_empresas_excluidas")
+            empresas = [r['id_sienge_empresa'] for r in cursor.fetchall()]
+            cursor.execute("SELECT id_interno_centrocusto FROM config_centros_custo_excluidos")
+            centros = [r['id_interno_centrocusto'] for r in cursor.fetchall()]
+            cursor.execute("SELECT id_documento FROM config_tipos_documento_excluidos")
+            tipos_doc = [r['id_documento'] for r in cursor.fetchall()]
+            cursor.execute("SELECT id_conta_corrente FROM config_contas_correntes_excluidas")
+            contas_correntes = [r['id_conta_corrente'] for r in cursor.fetchall()]
+            return {'empresas': empresas, 'centros_custo': centros, 'tipos_documento': tipos_doc, 'contas_correntes': contas_correntes}
+        except:
+            return {'empresas': [], 'centros_custo': [], 'tipos_documento': [], 'contas_correntes': []}
+        finally:
+            cursor.close()
+            conn.close()
     except:
         return {'empresas': [], 'centros_custo': [], 'tipos_documento': [], 'contas_correntes': []}
-    finally:
-        cursor.close()
-        conn.close()
 
 def build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', has_join=True, has_cc_column=True, has_doc_column=True, has_conta_corrente=False):
     conditions = []
@@ -4350,33 +4355,45 @@ def build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', has_
 
 @app.get("/api/configuracoes")
 def get_configuracoes():
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    """Retorna todas as configurações de exclusão. Retorna listas vazias se as tabelas não existirem."""
+    empty = {
+        'empresas_excluidas': [], 'centros_custo_excluidos': [],
+        'tipos_documento_excluidos': [], 'contas_correntes_excluidas': []
+    }
     try:
-        cursor.execute("SELECT id_sienge_empresa, nome_empresa FROM config_empresas_excluidas ORDER BY nome_empresa")
-        empresas_excluidas = cursor.fetchall()
-        cursor.execute("SELECT id_interno_centrocusto, nome_centrocusto FROM config_centros_custo_excluidos ORDER BY nome_centrocusto")
-        centros_excluidos = cursor.fetchall()
-        cursor.execute("SELECT id_documento, nome_documento FROM config_tipos_documento_excluidos ORDER BY nome_documento")
-        tipos_doc_excluidos = cursor.fetchall()
-        cursor.execute("SELECT id_conta_corrente, nome_conta_corrente FROM config_contas_correntes_excluidas ORDER BY nome_conta_corrente")
-        contas_correntes_excluidas = cursor.fetchall()
-        return {
-            'empresas_excluidas': [dict(r) for r in empresas_excluidas],
-            'centros_custo_excluidos': [dict(r) for r in centros_excluidos],
-            'tipos_documento_excluidos': [dict(r) for r in tipos_doc_excluidos],
-            'contas_correntes_excluidas': [dict(r) for r in contas_correntes_excluidas]
-        }
-    finally:
-        cursor.close()
-        conn.close()
+        conn = get_replit_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT id_sienge_empresa, nome_empresa FROM config_empresas_excluidas ORDER BY nome_empresa")
+            empresas_excluidas = cursor.fetchall()
+            cursor.execute("SELECT id_interno_centrocusto, nome_centrocusto FROM config_centros_custo_excluidos ORDER BY nome_centrocusto")
+            centros_excluidos = cursor.fetchall()
+            cursor.execute("SELECT id_documento, nome_documento FROM config_tipos_documento_excluidos ORDER BY nome_documento")
+            tipos_doc_excluidos = cursor.fetchall()
+            cursor.execute("SELECT id_conta_corrente, nome_conta_corrente FROM config_contas_correntes_excluidas ORDER BY nome_conta_corrente")
+            contas_correntes_excluidas = cursor.fetchall()
+            return {
+                'empresas_excluidas': [dict(r) for r in empresas_excluidas],
+                'centros_custo_excluidos': [dict(r) for r in centros_excluidos],
+                'tipos_documento_excluidos': [dict(r) for r in tipos_doc_excluidos],
+                'contas_correntes_excluidas': [dict(r) for r in contas_correntes_excluidas]
+            }
+        except Exception as e:
+            print(f"Aviso: tabelas de config não encontradas ({e}). Retornando vazio.")
+            return empty
+        finally:
+            cursor.close()
+            conn.close()
+    except Exception as e:
+        print(f"Erro ao conectar para config: {e}")
+        return empty
 
 @app.post("/api/configuracoes/empresas")
 def toggle_empresa_exclusao(data: dict):
     id_sienge_empresa = data.get('id_sienge_empresa')
     nome_empresa = data.get('nome_empresa', '')
     excluir = data.get('excluir', True)
-    conn = get_db_connection()
+    conn = get_replit_db_connection()
     cursor = conn.cursor()
     try:
         if excluir:
@@ -4388,6 +4405,8 @@ def toggle_empresa_exclusao(data: dict):
             cursor.execute("DELETE FROM config_empresas_excluidas WHERE id_sienge_empresa = %s", (id_sienge_empresa,))
         conn.commit()
         return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
     finally:
         cursor.close()
         conn.close()
@@ -4397,7 +4416,7 @@ def toggle_centro_custo_exclusao(data: dict):
     id_interno = data.get('id_interno_centrocusto')
     nome = data.get('nome_centrocusto', '')
     excluir = data.get('excluir', True)
-    conn = get_db_connection()
+    conn = get_replit_db_connection()
     cursor = conn.cursor()
     try:
         if excluir:
@@ -4409,6 +4428,8 @@ def toggle_centro_custo_exclusao(data: dict):
             cursor.execute("DELETE FROM config_centros_custo_excluidos WHERE id_interno_centrocusto = %s", (id_interno,))
         conn.commit()
         return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
     finally:
         cursor.close()
         conn.close()
@@ -4418,7 +4439,7 @@ def toggle_tipo_documento_exclusao(data: dict):
     id_documento = data.get('id_documento')
     nome_documento = data.get('nome_documento', '')
     excluir = data.get('excluir', True)
-    conn = get_db_connection()
+    conn = get_replit_db_connection()
     cursor = conn.cursor()
     try:
         if excluir:
@@ -4430,6 +4451,84 @@ def toggle_tipo_documento_exclusao(data: dict):
             cursor.execute("DELETE FROM config_tipos_documento_excluidos WHERE id_documento = %s", (id_documento,))
         conn.commit()
         return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/filtros/todas-empresas")
+def get_todas_empresas():
+    """Retorna TODAS as empresas (sem filtro de exclusões) — usado na página de Configurações."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT DISTINCT id_sienge_empresa, nome_empresa
+            FROM dim_centrocusto
+            WHERE id_sienge_empresa IS NOT NULL AND nome_empresa IS NOT NULL
+            ORDER BY nome_empresa
+        """)
+        rows = cursor.fetchall()
+        return [{'id': row['id_sienge_empresa'], 'nome': row['nome_empresa']} for row in rows]
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/filtros/todos-centros-custo")
+def get_todos_centros_custo():
+    """Retorna TODOS os centros de custo (sem filtro de exclusões) — usado na página de Configurações."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT id_interno_centrocusto, nome_centrocusto, id_sienge_empresa
+            FROM dim_centrocusto
+            WHERE id_interno_centrocusto IS NOT NULL AND nome_centrocusto IS NOT NULL
+            ORDER BY nome_centrocusto
+        """)
+        rows = cursor.fetchall()
+        return [{'id': row['id_interno_centrocusto'], 'nome': row['nome_centrocusto'], 'id_empresa': row['id_sienge_empresa']} for row in rows]
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/filtros/todos-tipos-documento")
+def get_todos_tipos_documento():
+    """Retorna TODOS os tipos de documento (sem filtro de exclusões) — usado na página de Configurações."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT DISTINCT TRIM(id_documento) as id_documento, nome_documento
+            FROM ecaddocumento
+            WHERE id_documento IS NOT NULL AND TRIM(id_documento) != ''
+            ORDER BY id_documento
+        """)
+        rows = cursor.fetchall()
+        return [{'id': row['id_documento'], 'nome': row['nome_documento']} for row in rows]
+    except Exception:
+        return []
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/filtros/todas-contas-correntes")
+def get_todas_contas_correntes():
+    """Retorna TODAS as contas correntes (sem filtro) — usado na página de Configurações."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT DISTINCT id_conta_corrente, nome_conta_corrente, id_interno_empresa
+            FROM ecadcontacorrente
+            WHERE id_conta_corrente IS NOT NULL
+            ORDER BY nome_conta_corrente
+        """)
+        rows = cursor.fetchall()
+        return [{"id": row['id_conta_corrente'], "nome": row['nome_conta_corrente'], "empresa_id": row['id_interno_empresa']} for row in rows]
+    except Exception:
+        return []
     finally:
         cursor.close()
         conn.close()
@@ -4471,7 +4570,7 @@ def toggle_conta_corrente_exclusao(data: dict):
         return {"success": False, "error": "id_conta_corrente is required"}
     nome_conta_corrente = data.get('nome_conta_corrente', '')
     excluir = data.get('excluir', True)
-    conn = get_db_connection()
+    conn = get_replit_db_connection()
     cursor = conn.cursor()
     try:
         if excluir:
@@ -4491,7 +4590,7 @@ def toggle_conta_corrente_exclusao(data: dict):
 
 @app.post("/api/snapshots/cards-pagar")
 def salvar_snapshot_cards_pagar(dados: dict):
-    conn = get_db_connection()
+    conn = get_replit_db_connection()
     cursor = conn.cursor()
     try:
         cards = dados.get('cards', [])
@@ -4525,7 +4624,7 @@ def salvar_snapshot_cards_pagar(dados: dict):
 
 @app.get("/api/snapshots/cards-pagar")
 def listar_snapshots_cards_pagar():
-    conn = get_db_connection()
+    conn = get_replit_db_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("""
@@ -4543,7 +4642,7 @@ def listar_snapshots_cards_pagar():
 
 @app.get("/api/snapshots/cards-pagar/{data}")
 def get_snapshot_cards_pagar(data: str):
-    conn = get_db_connection()
+    conn = get_replit_db_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("""
@@ -4574,7 +4673,7 @@ def get_snapshot_cards_pagar(data: str):
 
 @app.get("/api/configuracoes/snapshot-horario")
 def get_snapshot_horario():
-    conn = get_db_connection()
+    conn = get_replit_db_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("SELECT horario, ativo, updated_at FROM config_snapshot_horario ORDER BY id LIMIT 1")
@@ -4599,7 +4698,7 @@ def set_snapshot_horario(dados: dict):
             raise ValueError()
     except:
         raise HTTPException(status_code=400, detail="Horario invalido. Use valores entre 00:00 e 23:59")
-    conn = get_db_connection()
+    conn = get_replit_db_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("SELECT id FROM config_snapshot_horario ORDER BY id LIMIT 1")
@@ -4623,7 +4722,7 @@ def set_snapshot_horario(dados: dict):
 
 def _get_snapshot_config():
     try:
-        conn = get_db_connection()
+        conn = get_replit_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT horario, ativo FROM config_snapshot_horario ORDER BY id LIMIT 1")
         row = cursor.fetchone()
@@ -4638,7 +4737,7 @@ def _get_snapshot_config():
 
 def _snapshot_already_exists_today():
     try:
-        conn = get_db_connection()
+        conn = get_replit_db_connection()
         cursor = conn.cursor()
         hoje = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d')
         cursor.execute("SELECT COUNT(*) as cnt FROM snapshots_cards_pagar WHERE data_snapshot = %s", (hoje,))
