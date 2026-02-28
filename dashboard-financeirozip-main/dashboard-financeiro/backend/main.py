@@ -16,6 +16,10 @@ import bcrypt
 from jose import JWTError, jwt
 import threading
 import time
+from dotenv import load_dotenv
+import openai
+
+load_dotenv()
 
 # Banco SQLite local para usuarios (auth)
 USERS_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.db')
@@ -62,6 +66,13 @@ app = FastAPI(title="Dashboard Financeiro - Construtora")
 JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'fallback-secret-key-change-in-production')
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 horas
+
+# Configuração API OpenAI
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
+IA_MODELO = os.environ.get('IA_MODELO', 'gpt-4o-mini')
+
+if OPENAI_API_KEY:
+    openai.api_key = OPENAI_API_KEY
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
@@ -158,6 +169,14 @@ class UserResponse(BaseModel):
     email: str
     nome: str
     ativo: bool
+
+# Modelos IA
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+class ChatRequest(BaseModel):
+    messages: List[ChatMessage]
 
 # Funções auxiliares
 def get_db_connection():
@@ -453,6 +472,58 @@ async def check_auth(current_user: dict = Depends(get_current_user_optional)):
     if current_user:
         return {"authenticated": True, "user": {"id": current_user['id'], "email": current_user['email'], "nome": current_user['nome']}}
     return {"authenticated": False}
+
+# ==================== ROTAS DE IA ====================
+
+@app.post("/api/ia/chat")
+async def chat_ia(req: ChatRequest, current_user: dict = Depends(get_current_user_optional)):
+    """Rota para comunicação com o Agente de IA Financeiro"""
+    if not OPENAI_API_KEY:
+        raise HTTPException(status_code=500, detail="Chave da OpenAI não configurada no backend.")
+    
+    try:
+        # Puxa alguns indicadores brutos para enriquecer o contexto da IA
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Puxar métricas de exemplo (pode ser substituído por Tools futuramente)
+        cursor.execute("SELECT COALESCE(SUM(valor_liquido), 0) as total FROM contas_pagas")
+        total_pago = decimal_to_float(cursor.fetchone()['total'])
+        
+        cursor.execute("SELECT COALESCE(SUM(valor_total), 0) as total FROM contas_a_pagar WHERE data_vencimento >= CURRENT_DATE")
+        total_a_pagar = decimal_to_float(cursor.fetchone()['total'])
+
+        cursor.close()
+        conn.close()
+
+        system_prompt = f"""Você é o Analista Financeiro Virtual da ECBIESEK-CONSTRUTORA.
+Sua missão é ajudar os gestores a analisar o dashboard estratégico.
+Você sempre responde em português do Brasil e utiliza formatação Markdown para deixar as respostas bonitas, usando negritos, bullet points e pequenas tabelas se necessário.
+
+Dados Atuais do Negócio (Contexto em tempo real):
+- Histórico Total de Contas Pagas: R$ {total_pago:,.2f}
+- Previsão de Contas A Pagar: R$ {total_a_pagar:,.2f}
+
+Regra Importante: Responda as perguntas de forma direta, concisa e profissional. Se não souber o valor exato, informe ao usuário que você precisa de acesso a relatórios mais específicos para calcular orçamentos futuros e recomende verificar o Dashboard Metas.
+"""
+        
+        mensagens_openai = [{"role": "system", "content": system_prompt}]
+        for msg in req.messages:
+            mensagens_openai.append({"role": msg.role, "content": msg.content})
+
+        response = openai.chat.completions.create(
+            model=IA_MODELO,
+            messages=mensagens_openai,
+            temperature=0.3,
+            max_tokens=800
+        )
+        
+        reply_text = response.choices[0].message.content
+        return {"reply": reply_text}
+        
+    except Exception as e:
+        print(f"Erro no chat da IA: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Endpoints
 @app.get("/api/health")

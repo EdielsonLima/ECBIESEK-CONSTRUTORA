@@ -12,6 +12,7 @@ import { KPIs } from './pages/KPIs';
 import { ClassificacaoCentroCusto } from './pages/ClassificacaoCentroCusto';
 import { Configuracoes } from './pages/Configuracoes';
 import { ExposicaoCaixa } from './pages/ExposicaoCaixa';
+import { ChatIA } from './pages/ChatIA';
 import { Login } from './pages/Login';
 import { authService, User } from './services/api';
 
@@ -97,6 +98,8 @@ function App() {
         return <Configuracoes />;
       case 'exposicao-caixa':
         return <ExposicaoCaixa />;
+      case 'chat-ia':
+        return <ChatIA />;
       default:
         return <Dashboard />;
     }
@@ -127,6 +130,7 @@ function App() {
                 {currentPage === 'kpis' && 'KPIs'}
                 {currentPage === 'configuracoes' && 'Configurações'}
                 {currentPage === 'exposicao-caixa' && 'Exposição de Caixa'}
+                {currentPage === 'chat-ia' && 'Chat IA'}
               </h1>
               <p className="mt-1 text-sm font-medium text-gray-500">Gestão Financeira - Construtora</p>
             </div>

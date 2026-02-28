@@ -11,7 +11,20 @@
       "Bash(taskkill /F /PID 83920)",
       "Bash(timeout:*)",
       "Bash(ping:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(git add dashboard-financeirozip-main/dashboard-financeiro/backend/main.py)",
+      "Bash(git commit:*)",
+      "Bash(python3 -c \":*)",
+      "Bash(py --version)",
+      "Bash(uv run python -c \":*)",
+      "Bash(ls /c/ECBIESEK-CONSTRUTORA/*.toml)",
+      "Read(//c/Users/Usuario/**)",
+      "Bash(pip install psycopg2-binary)",
+      "Bash(pip show psycopg2-binary)",
+      "Bash(C:/Users/Usuario/AppData/Local/Programs/Python/Python313/python.exe -c \":*)",
+      "Bash(git add dashboard-financeirozip-main/dashboard-financeiro/backend/main.py dashboard-financeirozip-main/dashboard-financeiro/frontend/src/pages/Configuracoes.tsx dashboard-financeirozip-main/dashboard-financeiro/frontend/src/services/api.ts)",
+      "Bash(git add dashboard-financeirozip-main/dashboard-financeiro/backend/main.py dashboard-financeirozip-main/dashboard-financeiro/backend/setup_usuario.py dashboard-financeirozip-main/dashboard-financeiro/frontend/src/App.tsx dashboard-financeirozip-main/dashboard-financeiro/frontend/src/components/Sidebar.tsx dashboard-financeirozip-main/dashboard-financeiro/frontend/src/pages/Configuracoes.tsx dashboard-financeirozip-main/dashboard-financeiro/frontend/src/pages/ContasAPagar.tsx dashboard-financeirozip-main/dashboard-financeiro/frontend/src/pages/ContasRecebidas.tsx dashboard-financeirozip-main/dashboard-financeiro/frontend/src/pages/ExposicaoCaixa.tsx dashboard-financeirozip-main/dashboard-financeiro/frontend/src/services/api.ts dashboard-financeirozip-main/dashboard-financeiro/frontend/src/types/index.ts dashboard-financeirozip-main/dashboard-financeiro/frontend/package-lock.json)",
+      "Bash(git push origin main)"
     ]
   }
 }

@@ -7,6 +7,8 @@
     "@types/react": "^18.2.45",
     "@types/react-dom": "^18.2.18",
     "axios": "^1.6.2",
+    "lucide-react": "^0.575.0",
+    "markdown-to-jsx": "^9.7.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "recharts": "^2.10.3",
