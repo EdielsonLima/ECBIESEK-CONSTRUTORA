@@ -1233,11 +1233,11 @@ def get_recebidas_por_mes(
         params = []
 
         if empresa is not None:
-            conditions.append("COALESCE(cc.id_sienge_empresa, e.id_sienge_empresa) = %s")
+            conditions.append("cc.id_sienge_empresa = %s")
             params.append(empresa)
 
         if centro_custo is not None:
-            conditions.append("car_sub.id_interno_centro_custo = %s")
+            conditions.append("cr.id_interno_centro_custo = %s")
             params.append(centro_custo)
 
         if ano:
@@ -1255,15 +1255,7 @@ def get_recebidas_por_mes(
                 COALESCE(SUM(cr.valor_liquido), 0) as valor_total,
                 COUNT(*) as quantidade
             FROM contas_recebidas cr
-            LEFT JOIN dim_empresa e ON cr.id_interno_empresa = e.id_interno_empresa
-            LEFT JOIN LATERAL (
-                SELECT id_interno_centro_custo
-                FROM contas_a_receber
-                WHERE lancamento::TEXT = cr.titulo::TEXT
-                  AND numero_parcela::TEXT = cr.parcela::TEXT
-                LIMIT 1
-            ) car_sub ON true
-            LEFT JOIN dim_centrocusto cc ON car_sub.id_interno_centro_custo = cc.id_interno_centrocusto
+            LEFT JOIN dim_centrocusto cc ON cr.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE {where_clause}
             GROUP BY TO_CHAR(cr.data_recebimento, 'YYYY-MM'), EXTRACT(MONTH FROM cr.data_recebimento)
             ORDER BY mes
@@ -3242,14 +3234,7 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
                        cr.titulo, cr.parcela as numero_parcela,
                        cr.data_recebimento
                 FROM contas_recebidas cr
-                LEFT JOIN LATERAL (
-                    SELECT id_interno_centro_custo
-                    FROM contas_a_receber
-                    WHERE lancamento::TEXT = cr.titulo::TEXT
-                      AND numero_parcela::TEXT = cr.parcela::TEXT
-                    LIMIT 1
-                ) car_sub ON true
-                LEFT JOIN dim_centrocusto cc ON car_sub.id_interno_centro_custo = cc.id_interno_centrocusto
+                LEFT JOIN dim_centrocusto cc ON cr.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE 1=1{excl_where}{excl_empresa_cond}
                 ORDER BY cr.data_recebimento DESC
                 LIMIT %s
@@ -3339,18 +3324,17 @@ def get_contas_recebidas_filtradas(
         conditions = []
         params = []
 
-        # Exclusão de empresas: usa COALESCE(cc.id_sienge_empresa, e.id_sienge_empresa)
-        # cc vem do chain contas_a_receber→dim_centrocusto; e vem de dim_empresa (fallback direto)
+        # Exclusão de empresas (JOIN direto cr→dim_centrocusto via id_interno_centro_custo)
         if exclusoes['empresas']:
             ph = ','.join(['%s'] * len(exclusoes['empresas']))
-            conditions.append(f"(COALESCE(cc.id_sienge_empresa, e.id_sienge_empresa) IS NULL OR COALESCE(cc.id_sienge_empresa, e.id_sienge_empresa) NOT IN ({ph}))")
+            conditions.append(f"(cc.id_sienge_empresa IS NULL OR cc.id_sienge_empresa NOT IN ({ph}))")
             params.extend(exclusoes['empresas'])
 
-        # Exclusão de centros de custo (via JOIN com contas_a_receber)
+        # Exclusão de centros de custo (direto em cr.id_interno_centro_custo)
         if exclusoes['centros_custo']:
             ph = ','.join(['%s'] * len(exclusoes['centros_custo']))
             conditions.append(
-                f"(car_sub.id_interno_centro_custo IS NULL OR car_sub.id_interno_centro_custo NOT IN ({ph}))"
+                f"(cr.id_interno_centro_custo IS NULL OR cr.id_interno_centro_custo NOT IN ({ph}))"
             )
             params.extend(exclusoes['centros_custo'])
 
@@ -3360,15 +3344,14 @@ def get_contas_recebidas_filtradas(
             conditions.append(f"TRIM(cr.id_documento) NOT IN ({ph})")
             params.extend(exclusoes['tipos_documento'])
 
-        # Filtro de empresa — COALESCE: tenta cc (via contas_a_receber→dim_centrocusto) depois e (dim_empresa direto)
-        # Lagoa: cr.id_interno_empresa=8 → e.id_sienge_empresa=3, mesmo valor do dropdown
+        # Filtro de empresa via cc.id_sienge_empresa (JOIN direto funciona: LAGOA cc.id_sienge_empresa=3)
         if empresa is not None:
-            conditions.append("COALESCE(cc.id_sienge_empresa, e.id_sienge_empresa) = %s")
+            conditions.append("cc.id_sienge_empresa = %s")
             params.append(empresa)
 
-        # Filtro de centro de custo (via JOIN com contas_a_receber — centrocusto real)
+        # Filtro de centro de custo (direto em cr.id_interno_centro_custo)
         if centro_custo is not None:
-            conditions.append("car_sub.id_interno_centro_custo = %s")
+            conditions.append("cr.id_interno_centro_custo = %s")
             params.append(centro_custo)
 
         if cliente:
@@ -3411,22 +3394,14 @@ def get_contas_recebidas_filtradas(
                 cr.data_recebimento,
                 cr.valor_liquido as valor_total,
                 cr.titulo as lancamento,
-                COALESCE(cc.id_sienge_empresa, e.id_sienge_empresa) AS id_interno_empresa,
-                COALESCE(cc.nome_empresa, e.nome_empresa) AS nome_empresa,
-                cc.id_interno_centrocusto,
+                cc.id_sienge_empresa AS id_interno_empresa,
+                cc.nome_empresa,
+                cr.id_interno_centro_custo AS id_interno_centrocusto,
                 cc.nome_centrocusto,
                 TRIM(cr.id_documento) as id_documento,
                 cr.parcela as numero_parcela
             FROM contas_recebidas cr
-            LEFT JOIN dim_empresa e ON cr.id_interno_empresa = e.id_interno_empresa
-            LEFT JOIN LATERAL (
-                SELECT id_interno_centro_custo
-                FROM contas_a_receber
-                WHERE lancamento::TEXT = cr.titulo::TEXT
-                  AND numero_parcela::TEXT = cr.parcela::TEXT
-                LIMIT 1
-            ) car_sub ON true
-            LEFT JOIN dim_centrocusto cc ON car_sub.id_interno_centro_custo = cc.id_interno_centrocusto
+            LEFT JOIN dim_centrocusto cc ON cr.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE {where_clause}
             ORDER BY cr.data_recebimento DESC, cr.cliente, cr.valor_liquido
             LIMIT %s
@@ -3545,14 +3520,14 @@ def get_contas_recebidas_estatisticas(
         # Exclusão de empresas: COALESCE para cobrir registros sem match em contas_a_receber
         if exclusoes['empresas']:
             ph = ','.join(['%s'] * len(exclusoes['empresas']))
-            conditions.append(f"(COALESCE(cc.id_sienge_empresa, e.id_sienge_empresa) IS NULL OR COALESCE(cc.id_sienge_empresa, e.id_sienge_empresa) NOT IN ({ph}))")
+            conditions.append(f"(cc.id_sienge_empresa IS NULL OR cc.id_sienge_empresa NOT IN ({ph}))")
             params.extend(exclusoes['empresas'])
 
-        # Exclusão de centros de custo
+        # Exclusão de centros de custo (direto em cr.id_interno_centro_custo)
         if exclusoes['centros_custo']:
             ph = ','.join(['%s'] * len(exclusoes['centros_custo']))
             conditions.append(
-                f"(car_sub.id_interno_centro_custo IS NULL OR car_sub.id_interno_centro_custo NOT IN ({ph}))"
+                f"(cr.id_interno_centro_custo IS NULL OR cr.id_interno_centro_custo NOT IN ({ph}))"
             )
             params.extend(exclusoes['centros_custo'])
 
@@ -3562,13 +3537,13 @@ def get_contas_recebidas_estatisticas(
             conditions.append(f"TRIM(cr.id_documento) NOT IN ({ph})")
             params.extend(exclusoes['tipos_documento'])
 
-        # Filtro empresa: COALESCE(cc, e) — fallback via dim_empresa para registros sem match no chain
+        # Filtro empresa via cc.id_sienge_empresa (JOIN direto cr→dim_centrocusto)
         if empresa is not None:
-            conditions.append("COALESCE(cc.id_sienge_empresa, e.id_sienge_empresa) = %s")
+            conditions.append("cc.id_sienge_empresa = %s")
             params.append(empresa)
 
         if centro_custo is not None:
-            conditions.append("car_sub.id_interno_centro_custo = %s")
+            conditions.append("cr.id_interno_centro_custo = %s")
             params.append(centro_custo)
 
         if ano:
@@ -3599,15 +3574,7 @@ def get_contas_recebidas_estatisticas(
                 COALESCE(SUM(cr.valor_liquido), 0) as valor_total,
                 COALESCE(AVG(cr.valor_liquido), 0) as valor_medio
             FROM contas_recebidas cr
-            LEFT JOIN dim_empresa e ON cr.id_interno_empresa = e.id_interno_empresa
-            LEFT JOIN LATERAL (
-                SELECT id_interno_centro_custo
-                FROM contas_a_receber
-                WHERE lancamento::TEXT = cr.titulo::TEXT
-                  AND numero_parcela::TEXT = cr.parcela::TEXT
-                LIMIT 1
-            ) car_sub ON true
-            LEFT JOIN dim_centrocusto cc ON car_sub.id_interno_centro_custo = cc.id_interno_centrocusto
+            LEFT JOIN dim_centrocusto cc ON cr.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE {where_clause}
         """
 
@@ -3715,7 +3682,7 @@ def get_contas_recebidas_por_cliente(
         params = list(excl_params)
 
         if empresa is not None:
-            conditions.append("COALESCE(cc.id_sienge_empresa, e.id_sienge_empresa) = %s")
+            conditions.append("cc.id_sienge_empresa = %s")
             params.append(empresa)
 
         if ano:
@@ -3746,15 +3713,7 @@ def get_contas_recebidas_por_cliente(
                 SUM(cr.valor_liquido) as valor,
                 COUNT(*) as quantidade
             FROM contas_recebidas cr
-            LEFT JOIN dim_empresa e ON cr.id_interno_empresa = e.id_interno_empresa
-            LEFT JOIN LATERAL (
-                SELECT id_interno_centro_custo
-                FROM contas_a_receber
-                WHERE lancamento::TEXT = cr.titulo::TEXT
-                  AND numero_parcela::TEXT = cr.parcela::TEXT
-                LIMIT 1
-            ) car_sub ON true
-            LEFT JOIN dim_centrocusto cc ON car_sub.id_interno_centro_custo = cc.id_interno_centrocusto
+            LEFT JOIN dim_centrocusto cc ON cr.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE {where_clause}
             GROUP BY cr.cliente
             ORDER BY valor DESC
