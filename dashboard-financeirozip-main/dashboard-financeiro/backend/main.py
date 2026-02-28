@@ -480,8 +480,14 @@ async def check_auth(current_user: dict = Depends(get_current_user_optional)):
 @app.post("/api/ia/chat")
 async def chat_ia(req: ChatRequest, current_user: dict = Depends(get_current_user_optional)):
     """Rota para comunicação com o Agente de IA Financeiro"""
-    if not anthropic_client:
+    load_dotenv(override=True)
+    api_key = os.environ.get('ANTHROPIC_API_KEY', '')
+    modelo = os.environ.get('IA_MODELO', 'claude-3-5-sonnet-20241022')
+    
+    if not api_key:
         raise HTTPException(status_code=500, detail="Chave da Anthropic não configurada no backend.")
+    
+    client = anthropic.Anthropic(api_key=api_key)
     
     try:
         # Puxa alguns indicadores brutos para enriquecer o contexto da IA
@@ -520,8 +526,8 @@ Regra Importante: Responda as perguntas de forma direta, concisa e profissional.
         if not mensagens_anthropic:
             mensagens_anthropic.append({"role": "user", "content": "Olá, continue nossa conversa."})
 
-        response = anthropic_client.messages.create(
-            model=IA_MODELO,
+        response = client.messages.create(
+            model=modelo,
             system=system_prompt,
             messages=mensagens_anthropic,
             max_tokens=2048,
