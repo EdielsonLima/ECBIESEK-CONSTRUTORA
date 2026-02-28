@@ -136,9 +136,8 @@ const SelectPesquisavel = ({
                 key={c.id}
                 type="button"
                 onClick={() => { onChange(c.id === 0 ? null : c.id); setAberto(false); setBusca(''); }}
-                className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-colors ${
-                  (c.id === 0 ? null : c.id) === valor ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-700'
-                }`}
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-colors ${(c.id === 0 ? null : c.id) === valor ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-700'
+                  }`}
               >
                 {c.nome}
               </button>
@@ -160,6 +159,7 @@ const formatarEixoY = (valor: number) => {
 export const ExposicaoCaixa: React.FC = () => {
   const [aba, setAba] = useState<'tabela' | 'grafico'>('tabela');
   const [taxaMensal, setTaxaMensal] = useState(1.5);
+  const [tipoCusto, setTipoCusto] = useState<'simples' | 'composto'>('simples');
   const [centrosCusto, setCentrosCusto] = useState<CentroCusto[]>([]);
   const [centroCustoId, setCentroCustoId] = useState<number | null>(null);
   const [dataInicio, setDataInicio] = useState('2025-01');
@@ -265,25 +265,49 @@ export const ExposicaoCaixa: React.FC = () => {
   // Calcula linha a linha (tabela)
   const calculado = useMemo(() => {
     let acumulado = 0;
+    let jurosAcumulados = 0;
+
     return linhas.map((l) => {
       const resultadoMensal = l.recebido - l.pago;
       acumulado += resultadoMensal;
       const exposicaoNegativa = Math.min(0, acumulado);
-      const custoOportunidade = Math.abs(exposicaoNegativa) * (taxaMensal / 100);
-      return { resultadoMensal, acumulado, exposicaoNegativa, custoOportunidade };
+
+      let custoMensalSimples = 0;
+      let custoMensalComposto = 0;
+
+      if (exposicaoNegativa < 0) {
+        // Cálculo Simples Mensal
+        custoMensalSimples = Math.abs(exposicaoNegativa) * (taxaMensal / 100);
+
+        // Cálculo Composto
+        const baseLancamento = Math.abs(exposicaoNegativa) + jurosAcumulados;
+        custoMensalComposto = baseLancamento * (taxaMensal / 100);
+        jurosAcumulados += custoMensalComposto;
+      } else {
+        jurosAcumulados = 0; // zera quando a exposição volta a ser positiva
+      }
+
+      return {
+        resultadoMensal,
+        acumulado,
+        exposicaoNegativa,
+        custoMensalSimples,
+        custoMensalComposto,
+        custoCompostoAcumulado: jurosAcumulados
+      };
     });
   }, [linhas, taxaMensal]);
 
   const totais = useMemo(() => {
     const totalRecebido = linhas.reduce((s, l) => s + l.recebido, 0);
     const totalPago = linhas.reduce((s, l) => s + l.pago, 0);
-    const totalCusto = calculado.reduce((s, c) => s + c.custoOportunidade, 0);
+    const totalCusto = calculado.reduce((s, c) => s + (tipoCusto === 'simples' ? c.custoMensalSimples : c.custoMensalComposto), 0);
     const resultadoFinal = totalRecebido - totalPago;
     const picoExposicao = calculado.length ? Math.min(...calculado.map(c => c.exposicaoNegativa)) : 0;
     const mesesNegativos = calculado.filter(c => c.exposicaoNegativa < 0).length;
     const idxZero = calculado.findIndex((c, i) => i > 0 && c.exposicaoNegativa === 0 && calculado[i - 1].exposicaoNegativa < 0);
     return { totalRecebido, totalPago, totalCusto, resultadoFinal, picoExposicao, mesesNegativos, mesZero: idxZero >= 0 ? idxZero + 1 : null };
-  }, [linhas, calculado]);
+  }, [linhas, calculado, tipoCusto]);
 
   // Dados acumulados para o gráfico
   const dadosGrafico = useMemo(() => {
@@ -319,21 +343,19 @@ export const ExposicaoCaixa: React.FC = () => {
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
         <button
           onClick={() => setAba('tabela')}
-          className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
-            aba === 'tabela'
+          className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${aba === 'tabela'
               ? 'bg-white text-blue-700 shadow-sm'
               : 'text-gray-500 hover:text-gray-700'
-          }`}
+            }`}
         >
           Tabela
         </button>
         <button
           onClick={() => setAba('grafico')}
-          className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
-            aba === 'grafico'
+          className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${aba === 'grafico'
               ? 'bg-white text-blue-700 shadow-sm'
               : 'text-gray-500 hover:text-gray-700'
-          }`}
+            }`}
         >
           Gráfico
         </button>
@@ -345,7 +367,7 @@ export const ExposicaoCaixa: React.FC = () => {
           {/* Filtros */}
           <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Filtros e Premissas</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
 
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Centro de Custo</label>
@@ -357,27 +379,51 @@ export const ExposicaoCaixa: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Período Início (AAAA-MM)</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Período Início</label>
                 <input type="month" value={dataInicio} onChange={e => setDataInicio(e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Período Fim (AAAA-MM)</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Período Fim</label>
                 <input type="month" value={dataFim} onChange={e => setDataFim(e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-amber-700 mb-1">Taxa Mensal de Oportunidade (%)</label>
+                <label className="block text-xs font-semibold text-amber-700 mb-1">Taxa Mensal (%)</label>
                 <div className="flex items-center gap-2">
                   <input type="number" step="0.01" value={taxaMensal}
                     onChange={e => setTaxaMensal(parseFloat(e.target.value) || 0)}
-                    className="w-28 border-2 border-amber-400 rounded-lg px-3 py-2 text-sm font-bold bg-yellow-50 focus:outline-none"
+                    className="w-24 border-2 border-amber-400 rounded-lg px-3 py-2 text-sm font-bold bg-yellow-50 focus:outline-none"
                   />
                   <span className="text-amber-700 font-semibold text-sm">% a.m.</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Modo do Custo</label>
+                <div className="flex bg-gray-100 rounded-lg p-1 w-fit border border-gray-200">
+                  <button
+                    onClick={() => setTipoCusto('simples')}
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${tipoCusto === 'simples'
+                        ? 'bg-white shadow-sm text-purple-700'
+                        : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                  >
+                    Simples
+                  </button>
+                  <button
+                    onClick={() => setTipoCusto('composto')}
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${tipoCusto === 'composto'
+                        ? 'bg-white shadow-sm text-purple-700'
+                        : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                  >
+                    Composto
+                  </button>
                 </div>
               </div>
             </div>
@@ -386,9 +432,9 @@ export const ExposicaoCaixa: React.FC = () => {
               <button onClick={carregarDados} disabled={loading}
                 className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 transition-colors">
                 {loading ? (
-                  <><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Carregando...</>
+                  <><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" /></svg> Carregando...</>
                 ) : (
-                  <><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Carregar Dados Reais</>
+                  <><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> Carregar Dados Reais</>
                 )}
               </button>
               {erro && <span className="text-red-600 text-sm">{erro}</span>}
@@ -405,8 +451,11 @@ export const ExposicaoCaixa: React.FC = () => {
             </div>
 
             <p className="mt-3 text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
-              <strong>Regra:</strong> Custo de Oportunidade = |Exposição Negativa Acumulada| × Taxa Mensal.
-              Quando o acumulado (Recebido − Pago) é negativo, a empresa financia as obras com capital próprio que poderia estar rendendo juros.
+              <strong>Regra:</strong> Quando o acumulado é negativo, a empresa financia as obras com capital próprio.
+              <br />
+              <strong className="text-purple-600 mt-1 inline-block">Simples: </strong> Reverte e isola apenas o custo do mês atual <span className="opacity-70">( |Exposição| × Taxa )</span>
+              <br />
+              <strong className="text-purple-600">Composto: </strong> Soma os custos continuamente como se fosse uma dívida real <span className="opacity-70">( (|Exposição| + Juros Anteriores) × Taxa )</span>. Mês a mês, exibe o Custo Acumulado.
             </p>
           </div>
 
@@ -469,7 +518,9 @@ export const ExposicaoCaixa: React.FC = () => {
                       <th className="px-3 py-3 text-right">Resultado Mensal</th>
                       <th className="px-3 py-3 text-right">Resultado Acumulado</th>
                       <th className="px-3 py-3 text-right bg-orange-800">Exposição Negativa</th>
-                      <th className="px-3 py-3 text-right bg-purple-900">Custo de Oportunidade</th>
+                      <th className="px-3 py-3 text-right bg-purple-900 w-44 leading-tight">
+                        {tipoCusto === 'simples' ? 'Custo de Oportunidade\n(Simples Mensal)' : 'Custo de Oportunidade\n(Composto Acumulado)'}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -498,9 +549,15 @@ export const ExposicaoCaixa: React.FC = () => {
                               : <span className="text-gray-300">—</span>}
                           </td>
                           <td className="px-3 py-2 text-right bg-purple-50">
-                            {c.custoOportunidade > 0
-                              ? <span className="text-purple-700 font-semibold">{fmtNum(Math.round(c.custoOportunidade))}</span>
-                              : <span className="text-gray-300">—</span>}
+                            {tipoCusto === 'simples' ? (
+                              c.custoMensalSimples > 0
+                                ? <span className="text-purple-700 font-semibold">{fmtNum(Math.round(c.custoMensalSimples))}</span>
+                                : <span className="text-gray-300">—</span>
+                            ) : (
+                              c.custoCompostoAcumulado > 0
+                                ? <span className="text-purple-700 font-semibold">{fmtNum(Math.round(c.custoCompostoAcumulado))}</span>
+                                : <span className="text-gray-300">—</span>
+                            )}
                           </td>
                         </tr>
                       );
@@ -559,9 +616,9 @@ export const ExposicaoCaixa: React.FC = () => {
                 <button onClick={carregarGrafico} disabled={grafLoading}
                   className="w-full bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors">
                   {grafLoading ? (
-                    <><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Carregando...</>
+                    <><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" /></svg> Carregando...</>
                   ) : (
-                    <><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Carregar Gráfico</>
+                    <><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> Carregar Gráfico</>
                   )}
                 </button>
               </div>
