@@ -10,11 +10,51 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from decimal import Decimal
 import os
+import sqlite3
 from pathlib import Path
 import bcrypt
 from jose import JWTError, jwt
 import threading
 import time
+
+# Banco SQLite local para usuarios (auth)
+USERS_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.db')
+
+def get_users_db():
+    conn = sqlite3.connect(USERS_DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_users_db():
+    conn = get_users_db()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                nome TEXT NOT NULL,
+                senha_hash TEXT NOT NULL,
+                ativo INTEGER DEFAULT 1,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.commit()
+        # Criar usuario padrao se nao existir
+        senha_hash = bcrypt.hashpw(b'Darlene1321@', bcrypt.gensalt()).decode('utf-8')
+        conn.execute(
+            "INSERT OR IGNORE INTO usuarios (email, nome, senha_hash) VALUES (?, ?, ?)",
+            ('edielson@dtconsultorias.com', 'Edielson Lima', senha_hash)
+        )
+        conn.commit()
+        print("Banco de usuarios (SQLite) inicializado com sucesso")
+    except Exception as e:
+        print(f"Erro ao inicializar banco de usuarios: {e}")
+    finally:
+        conn.close()
+
+init_users_db()
+
+# SQLite mantido apenas para users.db — configs e snapshots agora usam PostgreSQL
 
 app = FastAPI(title="Dashboard Financeiro - Construtora")
 
@@ -121,14 +161,16 @@ def get_db_connection():
         raise HTTPException(status_code=500, detail=f"Erro ao conectar ao banco: {str(e)}")
 
 def get_replit_db_connection():
-    """Cria conexão com o banco de dados Replit (metas e configurações)"""
+    """Cria conexão com banco de configurações/usuários (Replit ou banco externo como fallback)"""
     try:
-        if not REPLIT_DB_URL:
-            raise HTTPException(status_code=500, detail="Banco de dados Replit não configurado")
-        conn = psycopg2.connect(REPLIT_DB_URL, cursor_factory=RealDictCursor)
+        if REPLIT_DB_URL:
+            conn = psycopg2.connect(REPLIT_DB_URL, cursor_factory=RealDictCursor)
+        else:
+            # Fallback: usa o mesmo banco externo dos dados financeiros
+            conn = psycopg2.connect(**DB_CONFIG, cursor_factory=RealDictCursor)
         return conn
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao conectar ao banco Replit: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao conectar ao banco: {str(e)}")
 
 def decimal_to_float(obj):
     """Converte Decimal para float"""
@@ -167,54 +209,6 @@ create_origem_metas_table()
 
 # ============ AUTENTICAÇÃO ============
 
-def create_users_table():
-    """Cria tabela de usuários no banco Replit se não existir"""
-    if not REPLIT_DB_URL:
-        print("Banco de dados Replit não configurado, pulando criação de tabela usuarios")
-        return
-    conn = get_replit_db_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS usuarios (
-                id SERIAL PRIMARY KEY,
-                email VARCHAR(255) UNIQUE NOT NULL,
-                nome VARCHAR(255) NOT NULL,
-                senha_hash VARCHAR(255) NOT NULL,
-                ativo BOOLEAN DEFAULT TRUE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        conn.commit()
-        print("Tabela usuarios criada/verificada com sucesso")
-
-        default_hash = bcrypt.hashpw('Darlene1321@'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        cursor.execute("SELECT id, email, senha_hash FROM usuarios WHERE email = %s", ('edielson@dtconsultorias.com',))
-        existing = cursor.fetchone()
-        if existing is None:
-            cursor.execute(
-                "INSERT INTO usuarios (email, nome, senha_hash) VALUES (%s, %s, %s)",
-                ('edielson@dtconsultorias.com', 'Edielson Lima', default_hash)
-            )
-            conn.commit()
-            print("Usuario padrao criado com sucesso")
-        elif not existing['senha_hash'].startswith('$2b$'):
-            cursor.execute("UPDATE usuarios SET senha_hash = %s WHERE id = %s", (default_hash, existing['id']))
-            conn.commit()
-            print(f"Senha do usuario padrao corrigida para bcrypt")
-        else:
-            print(f"Usuario padrao ja existe com hash bcrypt")
-    except Exception as e:
-        conn.rollback()
-        import traceback
-        traceback.print_exc()
-        print(f"Erro ao criar tabela usuarios: {e}")
-    finally:
-        cursor.close()
-        conn.close()
-
-create_users_table()
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verifica se a senha corresponde ao hash"""
@@ -236,16 +230,15 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 def get_user_by_email(email: str):
-    """Busca usuário por email"""
-    if not REPLIT_DB_URL:
-        return None
-    conn = get_replit_db_connection()
-    cursor = conn.cursor()
+    """Busca usuário por email (SQLite local)"""
+    conn = get_users_db()
     try:
-        cursor.execute("SELECT id, email, nome, senha_hash, ativo FROM usuarios WHERE email = %s", (email,))
-        return cursor.fetchone()
+        row = conn.execute(
+            "SELECT id, email, nome, senha_hash, ativo FROM usuarios WHERE email = ?",
+            (email.lower(),)
+        ).fetchone()
+        return dict(row) if row else None
     finally:
-        cursor.close()
         conn.close()
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
@@ -298,8 +291,6 @@ async def get_current_user_optional(token: str = Depends(oauth2_scheme)):
 @app.post("/api/auth/register")
 def register_user(user: UserCreate):
     """Registra novo usuário"""
-    if not REPLIT_DB_URL:
-        raise HTTPException(status_code=500, detail="Banco de dados não configurado")
     
     existing_user = get_user_by_email(user.email)
     if existing_user:
@@ -309,25 +300,20 @@ def register_user(user: UserCreate):
         raise HTTPException(status_code=400, detail="Senha deve ter pelo menos 6 caracteres")
     
     senha_hash = get_password_hash(user.senha)
-    
-    conn = get_replit_db_connection()
-    cursor = conn.cursor()
+
+    conn = get_users_db()
     try:
-        cursor.execute("""
-            INSERT INTO usuarios (email, nome, senha_hash)
-            VALUES (%s, %s, %s)
-            RETURNING id
-        """, (user.email.lower(), user.nome, senha_hash))
-        new_id = cursor.fetchone()['id']
+        cursor = conn.execute(
+            "INSERT INTO usuarios (email, nome, senha_hash) VALUES (?, ?, ?)",
+            (user.email.lower(), user.nome, senha_hash)
+        )
+        new_id = cursor.lastrowid
         conn.commit()
-        
         access_token = create_access_token(data={"sub": user.email.lower()})
         return {"access_token": access_token, "token_type": "bearer", "user": {"id": new_id, "email": user.email.lower(), "nome": user.nome}}
     except Exception as e:
-        conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))
     finally:
-        cursor.close()
         conn.close()
 
 @app.post("/api/auth/login")
@@ -917,59 +903,173 @@ def get_credores():
 
 @app.get("/api/filtros/empresas")
 def get_empresas():
-    """Retorna lista de empresas únicas (usando id_sienge_empresa)"""
+    """Retorna todas as empresas ativas (não excluídas nas configurações)"""
+    exclusoes = get_exclusoes()
     conn = get_db_connection()
     cursor = conn.cursor()
-
     try:
-        cursor.execute("""
-            SELECT DISTINCT cc.id_sienge_empresa, cc.nome_empresa
-            FROM contas_pagas cp
-            LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
-            WHERE cc.id_sienge_empresa IS NOT NULL
-            ORDER BY cc.id_sienge_empresa
-        """)
+        conditions = ["id_sienge_empresa IS NOT NULL", "nome_empresa IS NOT NULL"]
+        params = []
+        if exclusoes['empresas']:
+            placeholders = ','.join(['%s'] * len(exclusoes['empresas']))
+            conditions.append(f"id_sienge_empresa NOT IN ({placeholders})")
+            params.extend(exclusoes['empresas'])
+        where_clause = " AND ".join(conditions)
+        cursor.execute(f"""
+            SELECT DISTINCT id_sienge_empresa, nome_empresa
+            FROM dim_centrocusto
+            WHERE {where_clause}
+            ORDER BY nome_empresa
+        """, params)
         rows = cursor.fetchall()
         return [{'id': row['id_sienge_empresa'], 'nome': row['nome_empresa']} for row in rows]
+    finally:
+        cursor.close()
+        conn.close()
 
+@app.get("/api/filtros/empresas-recebidas")
+def get_empresas_recebidas():
+    """Retorna todas as empresas ativas (não excluídas nas configurações) — mesma fonte que /filtros/empresas"""
+    exclusoes = get_exclusoes()
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        conditions = ["id_sienge_empresa IS NOT NULL", "nome_empresa IS NOT NULL"]
+        params = []
+        if exclusoes['empresas']:
+            placeholders = ','.join(['%s'] * len(exclusoes['empresas']))
+            conditions.append(f"id_sienge_empresa NOT IN ({placeholders})")
+            params.extend(exclusoes['empresas'])
+        where_clause = " AND ".join(conditions)
+        cursor.execute(f"""
+            SELECT DISTINCT id_sienge_empresa, nome_empresa
+            FROM dim_centrocusto
+            WHERE {where_clause}
+            ORDER BY nome_empresa
+        """, params)
+        rows = cursor.fetchall()
+        return [{'id': row['id_sienge_empresa'], 'nome': row['nome_empresa']} for row in rows]
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/filtros/centros-custo-recebidas")
+def get_centros_custo_recebidas():
+    """Retorna centros de custo ativos (não excluídos nas configurações) — mesma fonte que /filtros/centros-custo"""
+    exclusoes = get_exclusoes()
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        conditions = ["id_interno_centrocusto IS NOT NULL"]
+        params = []
+        if exclusoes['empresas']:
+            placeholders = ','.join(['%s'] * len(exclusoes['empresas']))
+            conditions.append(f"id_sienge_empresa NOT IN ({placeholders})")
+            params.extend(exclusoes['empresas'])
+        if exclusoes['centros_custo']:
+            placeholders = ','.join(['%s'] * len(exclusoes['centros_custo']))
+            conditions.append(f"id_interno_centrocusto NOT IN ({placeholders})")
+            params.extend(exclusoes['centros_custo'])
+        where_clause = " AND ".join(conditions)
+        cursor.execute(f"""
+            SELECT id_interno_centrocusto, nome_centrocusto, id_sienge_empresa
+            FROM dim_centrocusto
+            WHERE {where_clause}
+            ORDER BY nome_centrocusto
+        """, params)
+        rows = cursor.fetchall()
+        return [{'id': row['id_interno_centrocusto'], 'nome': row['nome_centrocusto'], 'id_empresa': row['id_sienge_empresa']} for row in rows]
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/diagnostico/empresas-centros")
+def get_empresas_centros():
+    """Retorna todas as empresas com seus centros de custo aninhados (para diagnóstico)"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT
+                cc.id_sienge_empresa,
+                cc.nome_empresa,
+                cc.id_interno_centrocusto,
+                cc.nome_centrocusto
+            FROM dim_centrocusto cc
+            WHERE cc.nome_empresa IS NOT NULL
+            ORDER BY cc.nome_empresa, cc.nome_centrocusto
+        """)
+        rows = cursor.fetchall()
+        empresas_map: dict = {}
+        for r in rows:
+            eid = r['id_sienge_empresa']
+            if eid not in empresas_map:
+                empresas_map[eid] = {
+                    'id': eid,
+                    'nome': r['nome_empresa'],
+                    'centros': []
+                }
+            empresas_map[eid]['centros'].append({
+                'id': r['id_interno_centrocusto'],
+                'nome': r['nome_centrocusto']
+            })
+        return list(empresas_map.values())
     finally:
         cursor.close()
         conn.close()
 
 @app.get("/api/filtros/centros-custo")
 def get_centros_custo():
-    """Retorna lista de centros de custo com empresa associada"""
+    """Retorna centros de custo ativos (excluindo os marcados nas configurações)"""
+    exclusoes = get_exclusoes()
     conn = get_db_connection()
     cursor = conn.cursor()
-
     try:
-        cursor.execute("""
-            SELECT id_interno_centrocusto, nome_centrocusto, id_interno_empresa
+        conditions = ["id_interno_centrocusto IS NOT NULL"]
+        params = []
+        if exclusoes['empresas']:
+            placeholders = ','.join(['%s'] * len(exclusoes['empresas']))
+            conditions.append(f"id_sienge_empresa NOT IN ({placeholders})")
+            params.extend(exclusoes['empresas'])
+        if exclusoes['centros_custo']:
+            placeholders = ','.join(['%s'] * len(exclusoes['centros_custo']))
+            conditions.append(f"id_interno_centrocusto NOT IN ({placeholders})")
+            params.extend(exclusoes['centros_custo'])
+        where_clause = " AND ".join(conditions)
+        cursor.execute(f"""
+            SELECT id_interno_centrocusto, nome_centrocusto, id_sienge_empresa
             FROM dim_centrocusto
+            WHERE {where_clause}
             ORDER BY nome_centrocusto
-        """)
+        """, params)
         rows = cursor.fetchall()
-        return [{'id': row['id_interno_centrocusto'], 'nome': row['nome_centrocusto'], 'id_empresa': row['id_interno_empresa']} for row in rows]
-
+        return [{'id': row['id_interno_centrocusto'], 'nome': row['nome_centrocusto'], 'id_empresa': row['id_sienge_empresa']} for row in rows]
     finally:
         cursor.close()
         conn.close()
 
 @app.get("/api/filtros/tipos-documento")
 def get_tipos_documento():
-    """Retorna lista de tipos de documentos"""
+    """Retorna tipos de documento ativos (excluindo os marcados nas configurações)"""
+    exclusoes = get_exclusoes()
     conn = get_db_connection()
     cursor = conn.cursor()
-
     try:
-        cursor.execute("""
+        conditions = []
+        params = []
+        if exclusoes['tipos_documento']:
+            placeholders = ','.join(['%s'] * len(exclusoes['tipos_documento']))
+            conditions.append(f"TRIM(id_documento) NOT IN ({placeholders})")
+            params.extend(exclusoes['tipos_documento'])
+        where_clause = (" WHERE " + " AND ".join(conditions)) if conditions else ""
+        cursor.execute(f"""
             SELECT TRIM(id_documento) as id, TRIM(nome_documento) as nome
             FROM ecaddocumento
+            {where_clause}
             ORDER BY id_documento
-        """)
+        """, params)
         rows = cursor.fetchall()
         return [{'id': row['id'], 'nome': row['nome']} for row in rows]
-
     finally:
         cursor.close()
         conn.close()
@@ -1115,6 +1215,73 @@ def get_estatisticas_por_mes(
 
         return resultado
 
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/recebidas-por-mes")
+def get_recebidas_por_mes(
+    empresa: Optional[int] = None,
+    centro_custo: Optional[int] = None,
+    ano: Optional[str] = None
+):
+    """Retorna totais de contas recebidas agrupados por mês"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        conditions = []
+        params = []
+
+        if empresa is not None:
+            conditions.append("COALESCE(cc.id_sienge_empresa, e.id_sienge_empresa) = %s")
+            params.append(empresa)
+
+        if centro_custo is not None:
+            conditions.append("car_sub.id_interno_centro_custo = %s")
+            params.append(centro_custo)
+
+        if ano:
+            anos = [int(a.strip()) for a in ano.split(',')]
+            ano_placeholders = ', '.join(['%s'] * len(anos))
+            conditions.append(f"EXTRACT(YEAR FROM cr.data_recebimento) IN ({ano_placeholders})")
+            params.extend(anos)
+
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+
+        query = f"""
+            SELECT
+                TO_CHAR(cr.data_recebimento, 'YYYY-MM') as mes,
+                EXTRACT(MONTH FROM cr.data_recebimento) as mes_num,
+                COALESCE(SUM(cr.valor_liquido), 0) as valor_total,
+                COUNT(*) as quantidade
+            FROM contas_recebidas cr
+            LEFT JOIN dim_empresa e ON cr.id_interno_empresa = e.id_interno_empresa
+            LEFT JOIN LATERAL (
+                SELECT id_interno_centro_custo
+                FROM contas_a_receber
+                WHERE lancamento::TEXT = cr.titulo::TEXT
+                  AND numero_parcela::TEXT = cr.parcela::TEXT
+                LIMIT 1
+            ) car_sub ON true
+            LEFT JOIN dim_centrocusto cc ON car_sub.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE {where_clause}
+            GROUP BY TO_CHAR(cr.data_recebimento, 'YYYY-MM'), EXTRACT(MONTH FROM cr.data_recebimento)
+            ORDER BY mes
+        """
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+
+        meses_nomes = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+        resultado = []
+        for row in rows:
+            mes_num = int(row['mes_num'])
+            resultado.append({
+                'mes': row['mes'],
+                'mes_nome': meses_nomes[mes_num],
+                'valor': decimal_to_float(row['valor_total']),
+                'quantidade': row['quantidade']
+            })
+        return resultado
     finally:
         cursor.close()
         conn.close()
@@ -3058,21 +3225,36 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
 
         if status == "recebido":
             excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cr', has_cc_column=False, has_conta_corrente=True)
+            # Adiciona exclusão de empresa via sienge ID (via JOIN correto)
+            excl_empresa_cond = ""
+            excl_empresa_params = []
+            if exclusoes['empresas']:
+                ph = ','.join(['%s'] * len(exclusoes['empresas']))
+                excl_empresa_cond = f" AND (cc.id_sienge_empresa IS NULL OR cc.id_sienge_empresa NOT IN ({ph}))"
+                excl_empresa_params = exclusoes['empresas']
             excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
             query = f"""
                 SELECT cr.cliente, cr.data_recebimento as data_vencimento, cr.valor_liquido as valor_total,
-                       cr.titulo as lancamento, cr.id_documento, cr.id_interno_empresa,
+                       cr.titulo as lancamento, cr.id_documento,
+                       cc.id_sienge_empresa AS id_interno_empresa,
                        cc.nome_empresa, cc.nome_centrocusto,
                        TRIM(cr.id_documento) as id_documento,
                        cr.titulo, cr.parcela as numero_parcela,
                        cr.data_recebimento
                 FROM contas_recebidas cr
-                LEFT JOIN dim_centrocusto cc ON cr.id_interno_empresa = cc.id_sienge_empresa
-                WHERE 1=1{excl_where}
+                LEFT JOIN LATERAL (
+                    SELECT id_interno_centro_custo
+                    FROM contas_a_receber
+                    WHERE lancamento::TEXT = cr.titulo::TEXT
+                      AND numero_parcela::TEXT = cr.parcela::TEXT
+                    LIMIT 1
+                ) car_sub ON true
+                LEFT JOIN dim_centrocusto cc ON car_sub.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE 1=1{excl_where}{excl_empresa_cond}
                 ORDER BY cr.data_recebimento DESC
                 LIMIT %s
             """
-            cursor.execute(query, excl_params + [limite])
+            cursor.execute(query, excl_params + excl_empresa_params + [limite])
         elif status == "a_receber":
             excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='car')
             excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
@@ -3146,19 +3328,48 @@ def get_contas_recebidas_filtradas(
     data_fim: Optional[str] = None,
     limite: int = 100
 ):
-    """Retorna contas recebidas com filtros avançados"""
+    """Retorna contas recebidas com filtros avançados.
+    Faz JOIN com contas_a_receber para obter o centrocusto real de cada título.
+    """
     conn = get_db_connection()
     cursor = conn.cursor()
 
     try:
         exclusoes = get_exclusoes()
-        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cr', has_cc_column=False, has_conta_corrente=True)
-        conditions = list(excl_conds)
-        params = list(excl_params)
+        conditions = []
+        params = []
 
+        # Exclusão de empresas: usa COALESCE(cc.id_sienge_empresa, e.id_sienge_empresa)
+        # cc vem do chain contas_a_receber→dim_centrocusto; e vem de dim_empresa (fallback direto)
+        if exclusoes['empresas']:
+            ph = ','.join(['%s'] * len(exclusoes['empresas']))
+            conditions.append(f"(COALESCE(cc.id_sienge_empresa, e.id_sienge_empresa) IS NULL OR COALESCE(cc.id_sienge_empresa, e.id_sienge_empresa) NOT IN ({ph}))")
+            params.extend(exclusoes['empresas'])
+
+        # Exclusão de centros de custo (via JOIN com contas_a_receber)
+        if exclusoes['centros_custo']:
+            ph = ','.join(['%s'] * len(exclusoes['centros_custo']))
+            conditions.append(
+                f"(car_sub.id_interno_centro_custo IS NULL OR car_sub.id_interno_centro_custo NOT IN ({ph}))"
+            )
+            params.extend(exclusoes['centros_custo'])
+
+        # Exclusão de tipos de documento
+        if exclusoes['tipos_documento']:
+            ph = ','.join(['%s'] * len(exclusoes['tipos_documento']))
+            conditions.append(f"TRIM(cr.id_documento) NOT IN ({ph})")
+            params.extend(exclusoes['tipos_documento'])
+
+        # Filtro de empresa — COALESCE: tenta cc (via contas_a_receber→dim_centrocusto) depois e (dim_empresa direto)
+        # Lagoa: cr.id_interno_empresa=8 → e.id_sienge_empresa=3, mesmo valor do dropdown
         if empresa is not None:
-            conditions.append("cr.id_interno_empresa = %s")
+            conditions.append("COALESCE(cc.id_sienge_empresa, e.id_sienge_empresa) = %s")
             params.append(empresa)
+
+        # Filtro de centro de custo (via JOIN com contas_a_receber — centrocusto real)
+        if centro_custo is not None:
+            conditions.append("car_sub.id_interno_centro_custo = %s")
+            params.append(centro_custo)
 
         if cliente:
             conditions.append("cr.cliente ILIKE %s")
@@ -3200,11 +3411,22 @@ def get_contas_recebidas_filtradas(
                 cr.data_recebimento,
                 cr.valor_liquido as valor_total,
                 cr.titulo as lancamento,
-                cr.id_interno_empresa,
-                cc.nome_empresa,
-                TRIM(cr.id_documento) as id_documento
+                COALESCE(cc.id_sienge_empresa, e.id_sienge_empresa) AS id_interno_empresa,
+                COALESCE(cc.nome_empresa, e.nome_empresa) AS nome_empresa,
+                cc.id_interno_centrocusto,
+                cc.nome_centrocusto,
+                TRIM(cr.id_documento) as id_documento,
+                cr.parcela as numero_parcela
             FROM contas_recebidas cr
-            LEFT JOIN dim_centrocusto cc ON cr.id_interno_empresa = cc.id_sienge_empresa
+            LEFT JOIN dim_empresa e ON cr.id_interno_empresa = e.id_interno_empresa
+            LEFT JOIN LATERAL (
+                SELECT id_interno_centro_custo
+                FROM contas_a_receber
+                WHERE lancamento::TEXT = cr.titulo::TEXT
+                  AND numero_parcela::TEXT = cr.parcela::TEXT
+                LIMIT 1
+            ) car_sub ON true
+            LEFT JOIN dim_centrocusto cc ON car_sub.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE {where_clause}
             ORDER BY cr.data_recebimento DESC, cr.cliente, cr.valor_liquido
             LIMIT %s
@@ -3304,23 +3526,50 @@ def get_contas_receber_estatisticas(
 @app.get("/api/contas-recebidas-estatisticas")
 def get_contas_recebidas_estatisticas(
     empresa: Optional[int] = None,
+    centro_custo: Optional[int] = None,
     ano: Optional[str] = None,
     mes: Optional[str] = None,
     id_documento: Optional[str] = None
 ):
-    """Retorna estatísticas de contas recebidas"""
+    """Retorna estatísticas de contas recebidas.
+    Faz JOIN com contas_a_receber para suportar filtro de centrocusto real.
+    """
     conn = get_db_connection()
     cursor = conn.cursor()
 
     try:
         exclusoes = get_exclusoes()
-        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cr', has_cc_column=False, has_conta_corrente=True)
-        conditions = list(excl_conds)
-        params = list(excl_params)
+        conditions = []
+        params = []
 
+        # Exclusão de empresas: COALESCE para cobrir registros sem match em contas_a_receber
+        if exclusoes['empresas']:
+            ph = ','.join(['%s'] * len(exclusoes['empresas']))
+            conditions.append(f"(COALESCE(cc.id_sienge_empresa, e.id_sienge_empresa) IS NULL OR COALESCE(cc.id_sienge_empresa, e.id_sienge_empresa) NOT IN ({ph}))")
+            params.extend(exclusoes['empresas'])
+
+        # Exclusão de centros de custo
+        if exclusoes['centros_custo']:
+            ph = ','.join(['%s'] * len(exclusoes['centros_custo']))
+            conditions.append(
+                f"(car_sub.id_interno_centro_custo IS NULL OR car_sub.id_interno_centro_custo NOT IN ({ph}))"
+            )
+            params.extend(exclusoes['centros_custo'])
+
+        # Exclusão de tipos de documento
+        if exclusoes['tipos_documento']:
+            ph = ','.join(['%s'] * len(exclusoes['tipos_documento']))
+            conditions.append(f"TRIM(cr.id_documento) NOT IN ({ph})")
+            params.extend(exclusoes['tipos_documento'])
+
+        # Filtro empresa: COALESCE(cc, e) — fallback via dim_empresa para registros sem match no chain
         if empresa is not None:
-            conditions.append("cr.id_interno_empresa = %s")
+            conditions.append("COALESCE(cc.id_sienge_empresa, e.id_sienge_empresa) = %s")
             params.append(empresa)
+
+        if centro_custo is not None:
+            conditions.append("car_sub.id_interno_centro_custo = %s")
+            params.append(centro_custo)
 
         if ano:
             anos = [int(a.strip()) for a in ano.split(',')]
@@ -3350,9 +3599,18 @@ def get_contas_recebidas_estatisticas(
                 COALESCE(SUM(cr.valor_liquido), 0) as valor_total,
                 COALESCE(AVG(cr.valor_liquido), 0) as valor_medio
             FROM contas_recebidas cr
+            LEFT JOIN dim_empresa e ON cr.id_interno_empresa = e.id_interno_empresa
+            LEFT JOIN LATERAL (
+                SELECT id_interno_centro_custo
+                FROM contas_a_receber
+                WHERE lancamento::TEXT = cr.titulo::TEXT
+                  AND numero_parcela::TEXT = cr.parcela::TEXT
+                LIMIT 1
+            ) car_sub ON true
+            LEFT JOIN dim_centrocusto cc ON car_sub.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE {where_clause}
         """
-        
+
         cursor.execute(query, params)
         row = cursor.fetchone()
 
@@ -3457,7 +3715,7 @@ def get_contas_recebidas_por_cliente(
         params = list(excl_params)
 
         if empresa is not None:
-            conditions.append("cr.id_interno_empresa = %s")
+            conditions.append("COALESCE(cc.id_sienge_empresa, e.id_sienge_empresa) = %s")
             params.append(empresa)
 
         if ano:
@@ -3488,6 +3746,15 @@ def get_contas_recebidas_por_cliente(
                 SUM(cr.valor_liquido) as valor,
                 COUNT(*) as quantidade
             FROM contas_recebidas cr
+            LEFT JOIN dim_empresa e ON cr.id_interno_empresa = e.id_interno_empresa
+            LEFT JOIN LATERAL (
+                SELECT id_interno_centro_custo
+                FROM contas_a_receber
+                WHERE lancamento::TEXT = cr.titulo::TEXT
+                  AND numero_parcela::TEXT = cr.parcela::TEXT
+                LIMIT 1
+            ) car_sub ON true
+            LEFT JOIN dim_centrocusto cc ON car_sub.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE {where_clause}
             GROUP BY cr.cliente
             ORDER BY valor DESC
@@ -4010,12 +4277,9 @@ def get_origem_metas_status(
 # ============ CONFIGURAÇÕES (Exclusões) ============
 
 def init_configuracoes_tables():
-    database_url = os.environ.get('DATABASE_URL')
-    if not database_url:
-        print("DATABASE_URL não configurado - tabelas de configurações não serão criadas")
-        return
+    """Cria todas as tabelas de configuração no PostgreSQL (ecbiesek) se não existirem."""
     try:
-        conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS config_empresas_excluidas (
@@ -4049,20 +4313,44 @@ def init_configuracoes_tables():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS config_snapshot_horario (
+                id SERIAL PRIMARY KEY,
+                horario VARCHAR(5) NOT NULL DEFAULT '07:00',
+                ativo BOOLEAN NOT NULL DEFAULT true,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("SELECT COUNT(*) as cnt FROM config_snapshot_horario")
+        row = cursor.fetchone()
+        if row['cnt'] == 0:
+            cursor.execute("INSERT INTO config_snapshot_horario (horario, ativo) VALUES ('07:00', true)")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS snapshots_cards_pagar (
+                id SERIAL PRIMARY KEY,
+                data_snapshot DATE NOT NULL,
+                faixa VARCHAR(20) NOT NULL,
+                data_inicio DATE,
+                data_fim DATE,
+                valor_total NUMERIC(15,2) NOT NULL DEFAULT 0,
+                quantidade_titulos INTEGER NOT NULL DEFAULT 0,
+                quantidade_credores INTEGER NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(data_snapshot, faixa)
+            )
+        """)
         conn.commit()
-        print("Tabelas de configurações criadas/verificadas com sucesso")
+        print("Tabelas de configurações criadas/verificadas no PostgreSQL com sucesso")
     except Exception as e:
         print(f"Erro ao inicializar tabelas de configurações: {e}")
     finally:
-        if 'cursor' in dir():
-            cursor.close()
-        if 'conn' in dir():
-            conn.close()
+        cursor.close()
+        conn.close()
 
 init_configuracoes_tables()
 
 def get_exclusoes():
-    conn = get_replit_db_connection()
+    conn = get_db_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("SELECT id_sienge_empresa FROM config_empresas_excluidas")
@@ -4103,7 +4391,7 @@ def build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', has_
 
 @app.get("/api/configuracoes")
 def get_configuracoes():
-    conn = get_replit_db_connection()
+    conn = get_db_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("SELECT id_sienge_empresa, nome_empresa FROM config_empresas_excluidas ORDER BY nome_empresa")
@@ -4129,12 +4417,12 @@ def toggle_empresa_exclusao(data: dict):
     id_sienge_empresa = data.get('id_sienge_empresa')
     nome_empresa = data.get('nome_empresa', '')
     excluir = data.get('excluir', True)
-    conn = get_replit_db_connection()
+    conn = get_db_connection()
     cursor = conn.cursor()
     try:
         if excluir:
             cursor.execute(
-                "INSERT INTO config_empresas_excluidas (id_sienge_empresa, nome_empresa) VALUES (%s, %s) ON CONFLICT (id_sienge_empresa) DO NOTHING",
+                "INSERT INTO config_empresas_excluidas (id_sienge_empresa, nome_empresa) VALUES (%s, %s) ON CONFLICT DO NOTHING",
                 (id_sienge_empresa, nome_empresa)
             )
         else:
@@ -4150,12 +4438,12 @@ def toggle_centro_custo_exclusao(data: dict):
     id_interno = data.get('id_interno_centrocusto')
     nome = data.get('nome_centrocusto', '')
     excluir = data.get('excluir', True)
-    conn = get_replit_db_connection()
+    conn = get_db_connection()
     cursor = conn.cursor()
     try:
         if excluir:
             cursor.execute(
-                "INSERT INTO config_centros_custo_excluidos (id_interno_centrocusto, nome_centrocusto) VALUES (%s, %s) ON CONFLICT (id_interno_centrocusto) DO NOTHING",
+                "INSERT INTO config_centros_custo_excluidos (id_interno_centrocusto, nome_centrocusto) VALUES (%s, %s) ON CONFLICT DO NOTHING",
                 (id_interno, nome)
             )
         else:
@@ -4171,12 +4459,12 @@ def toggle_tipo_documento_exclusao(data: dict):
     id_documento = data.get('id_documento')
     nome_documento = data.get('nome_documento', '')
     excluir = data.get('excluir', True)
-    conn = get_replit_db_connection()
+    conn = get_db_connection()
     cursor = conn.cursor()
     try:
         if excluir:
             cursor.execute(
-                "INSERT INTO config_tipos_documento_excluidos (id_documento, nome_documento) VALUES (%s, %s) ON CONFLICT (id_documento) DO NOTHING",
+                "INSERT INTO config_tipos_documento_excluidos (id_documento, nome_documento) VALUES (%s, %s) ON CONFLICT DO NOTHING",
                 (id_documento, nome_documento)
             )
         else:
@@ -4189,14 +4477,28 @@ def toggle_tipo_documento_exclusao(data: dict):
 
 @app.get("/api/filtros/contas-correntes")
 def get_filtro_contas_correntes():
+    """Retorna contas correntes ativas (excluindo as marcadas nas configurações)"""
+    exclusoes = get_exclusoes()
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("""
+        conditions = []
+        params = []
+        if exclusoes['contas_correntes']:
+            placeholders = ','.join(['%s'] * len(exclusoes['contas_correntes']))
+            conditions.append(f"id_conta_corrente NOT IN ({placeholders})")
+            params.extend(exclusoes['contas_correntes'])
+        if exclusoes['empresas']:
+            placeholders = ','.join(['%s'] * len(exclusoes['empresas']))
+            conditions.append(f"id_interno_empresa NOT IN ({placeholders})")
+            params.extend(exclusoes['empresas'])
+        where_clause = (" WHERE " + " AND ".join(conditions)) if conditions else ""
+        cursor.execute(f"""
             SELECT DISTINCT id_conta_corrente, nome_conta_corrente, id_interno_empresa
             FROM ecadcontacorrente
+            {where_clause}
             ORDER BY nome_conta_corrente
-        """)
+        """, params)
         rows = cursor.fetchall()
         return [{"id": row['id_conta_corrente'], "nome": row['nome_conta_corrente'], "empresa_id": row['id_interno_empresa']} for row in rows]
     finally:
@@ -4210,12 +4512,12 @@ def toggle_conta_corrente_exclusao(data: dict):
         return {"success": False, "error": "id_conta_corrente is required"}
     nome_conta_corrente = data.get('nome_conta_corrente', '')
     excluir = data.get('excluir', True)
-    conn = get_replit_db_connection()
+    conn = get_db_connection()
     cursor = conn.cursor()
     try:
         if excluir:
             cursor.execute(
-                "INSERT INTO config_contas_correntes_excluidas (id_conta_corrente, nome_conta_corrente) VALUES (%s, %s) ON CONFLICT (id_conta_corrente) DO NOTHING",
+                "INSERT INTO config_contas_correntes_excluidas (id_conta_corrente, nome_conta_corrente) VALUES (%s, %s) ON CONFLICT DO NOTHING",
                 (id_conta_corrente, nome_conta_corrente)
             )
         else:
@@ -4228,77 +4530,35 @@ def toggle_conta_corrente_exclusao(data: dict):
 
 # ============ SNAPSHOTS CARDS A PAGAR ============
 
-def init_snapshots_table():
-    database_url = os.environ.get('DATABASE_URL')
-    if not database_url:
-        return
-    try:
-        conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS snapshots_cards_pagar (
-                id SERIAL PRIMARY KEY,
-                data_snapshot DATE NOT NULL,
-                faixa VARCHAR(20) NOT NULL,
-                data_inicio DATE,
-                data_fim DATE,
-                valor_total NUMERIC(15,2) NOT NULL DEFAULT 0,
-                quantidade_titulos INTEGER NOT NULL DEFAULT 0,
-                quantidade_credores INTEGER NOT NULL DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(data_snapshot, faixa)
-            )
-        """)
-        conn.commit()
-        print("Tabela snapshots_cards_pagar criada/verificada com sucesso")
-    except Exception as e:
-        print(f"Erro ao criar tabela snapshots_cards_pagar: {e}")
-    finally:
-        if 'cursor' in dir():
-            cursor.close()
-        if 'conn' in dir():
-            conn.close()
-
-init_snapshots_table()
-
 @app.post("/api/snapshots/cards-pagar")
 def salvar_snapshot_cards_pagar(dados: dict):
-    conn = get_replit_db_connection()
+    conn = get_db_connection()
     cursor = conn.cursor()
     try:
         cards = dados.get('cards', [])
         if not cards:
             raise HTTPException(status_code=400, detail="Nenhum card fornecido")
-        
         data_snapshot = dados.get('data_snapshot', datetime.now().strftime('%Y-%m-%d'))
-        
         for card in cards:
             cursor.execute("""
                 INSERT INTO snapshots_cards_pagar (data_snapshot, faixa, data_inicio, data_fim, valor_total, quantidade_titulos, quantidade_credores)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (data_snapshot, faixa)
-                DO UPDATE SET valor_total = EXCLUDED.valor_total,
-                              quantidade_titulos = EXCLUDED.quantidade_titulos,
-                              quantidade_credores = EXCLUDED.quantidade_credores,
-                              data_inicio = EXCLUDED.data_inicio,
-                              data_fim = EXCLUDED.data_fim,
-                              created_at = CURRENT_TIMESTAMP
+                ON CONFLICT (data_snapshot, faixa) DO UPDATE SET
+                    valor_total = EXCLUDED.valor_total,
+                    quantidade_titulos = EXCLUDED.quantidade_titulos,
+                    quantidade_credores = EXCLUDED.quantidade_credores,
+                    data_inicio = EXCLUDED.data_inicio,
+                    data_fim = EXCLUDED.data_fim,
+                    created_at = CURRENT_TIMESTAMP
             """, (
-                data_snapshot,
-                card['faixa'],
-                card.get('data_inicio'),
-                card.get('data_fim'),
-                card['valor_total'],
-                card['quantidade_titulos'],
-                card['quantidade_credores']
+                data_snapshot, card['faixa'], card.get('data_inicio'), card.get('data_fim'),
+                card['valor_total'], card['quantidade_titulos'], card['quantidade_credores']
             ))
-        
         conn.commit()
         return {"success": True, "message": f"Snapshot salvo para {data_snapshot}", "data_snapshot": data_snapshot}
     except HTTPException:
         raise
     except Exception as e:
-        conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         cursor.close()
@@ -4306,44 +4566,36 @@ def salvar_snapshot_cards_pagar(dados: dict):
 
 @app.get("/api/snapshots/cards-pagar")
 def listar_snapshots_cards_pagar():
-    conn = get_replit_db_connection()
+    conn = get_db_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("""
-            SELECT DISTINCT data_snapshot, 
-                   MIN(created_at) as created_at
-            FROM snapshots_cards_pagar 
+            SELECT data_snapshot, MIN(created_at) as created_at
+            FROM snapshots_cards_pagar
             GROUP BY data_snapshot
             ORDER BY data_snapshot DESC
             LIMIT 30
         """)
-        snapshots = cursor.fetchall()
-        result = []
-        for s in snapshots:
-            result.append({
-                'data_snapshot': s['data_snapshot'].strftime('%Y-%m-%d') if s['data_snapshot'] else None,
-                'created_at': s['created_at'].isoformat() if s['created_at'] else None
-            })
-        return result
+        rows = cursor.fetchall()
+        return [{'data_snapshot': r['data_snapshot'].strftime('%Y-%m-%d') if hasattr(r['data_snapshot'], 'strftime') else str(r['data_snapshot']), 'created_at': str(r['created_at'])} for r in rows]
     finally:
         cursor.close()
         conn.close()
 
 @app.get("/api/snapshots/cards-pagar/{data}")
 def get_snapshot_cards_pagar(data: str):
-    conn = get_replit_db_connection()
+    conn = get_db_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("""
             SELECT faixa, data_inicio, data_fim, valor_total, quantidade_titulos, quantidade_credores, data_snapshot
-            FROM snapshots_cards_pagar 
+            FROM snapshots_cards_pagar
             WHERE data_snapshot = %s
             ORDER BY faixa
         """, (data,))
         rows = cursor.fetchall()
         if not rows:
             raise HTTPException(status_code=404, detail="Snapshot não encontrado")
-        
         cards = {}
         for r in rows:
             cards[r['faixa']] = {
@@ -4354,61 +4606,23 @@ def get_snapshot_cards_pagar(data: str):
                 'quantidade_titulos': r['quantidade_titulos'],
                 'quantidade_credores': r['quantidade_credores']
             }
-        return {
-            'data_snapshot': data,
-            'cards': cards
-        }
+        return {'data_snapshot': data, 'cards': cards}
     finally:
         cursor.close()
         conn.close()
 
 # ============ SNAPSHOT SCHEDULE CONFIG ============
 
-def init_snapshot_horario_table():
-    database_url = os.environ.get('DATABASE_URL')
-    if not database_url:
-        return
-    try:
-        conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS config_snapshot_horario (
-                id SERIAL PRIMARY KEY,
-                horario VARCHAR(5) NOT NULL DEFAULT '07:00',
-                ativo BOOLEAN NOT NULL DEFAULT true,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        cursor.execute("SELECT COUNT(*) as cnt FROM config_snapshot_horario")
-        row = cursor.fetchone()
-        if row['cnt'] == 0:
-            cursor.execute("INSERT INTO config_snapshot_horario (horario, ativo) VALUES ('07:00', true)")
-        conn.commit()
-        print("Tabela config_snapshot_horario criada/verificada com sucesso")
-    except Exception as e:
-        print(f"Erro ao criar tabela config_snapshot_horario: {e}")
-    finally:
-        if 'cursor' in dir():
-            cursor.close()
-        if 'conn' in dir():
-            conn.close()
-
-init_snapshot_horario_table()
-
 @app.get("/api/configuracoes/snapshot-horario")
 def get_snapshot_horario():
-    conn = get_replit_db_connection()
+    conn = get_db_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("SELECT horario, ativo, updated_at FROM config_snapshot_horario ORDER BY id LIMIT 1")
         row = cursor.fetchone()
         if not row:
             return {'horario': '07:00', 'ativo': True}
-        return {
-            'horario': row['horario'],
-            'ativo': row['ativo'],
-            'updated_at': row['updated_at'].isoformat() if row['updated_at'] else None
-        }
+        return {'horario': row['horario'], 'ativo': bool(row['ativo']), 'updated_at': str(row['updated_at'])}
     finally:
         cursor.close()
         conn.close()
@@ -4426,7 +4640,7 @@ def set_snapshot_horario(dados: dict):
             raise ValueError()
     except:
         raise HTTPException(status_code=400, detail="Horario invalido. Use valores entre 00:00 e 23:59")
-    conn = get_replit_db_connection()
+    conn = get_db_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("SELECT id FROM config_snapshot_horario ORDER BY id LIMIT 1")
@@ -4437,14 +4651,10 @@ def set_snapshot_horario(dados: dict):
                 (horario, ativo, row['id'])
             )
         else:
-            cursor.execute(
-                "INSERT INTO config_snapshot_horario (horario, ativo) VALUES (%s, %s)",
-                (horario, ativo)
-            )
+            cursor.execute("INSERT INTO config_snapshot_horario (horario, ativo) VALUES (%s, %s)", (horario, ativo))
         conn.commit()
         return {"success": True, "horario": horario, "ativo": ativo}
     except Exception as e:
-        conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         cursor.close()
@@ -4453,29 +4663,23 @@ def set_snapshot_horario(dados: dict):
 # ============ AUTO-SNAPSHOT BACKGROUND THREAD ============
 
 def _get_snapshot_config():
-    database_url = os.environ.get('DATABASE_URL')
-    if not database_url:
-        return None
     try:
-        conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT horario, ativo FROM config_snapshot_horario ORDER BY id LIMIT 1")
         row = cursor.fetchone()
         cursor.close()
         conn.close()
         if row:
-            return {'horario': row['horario'], 'ativo': row['ativo']}
+            return {'horario': row['horario'], 'ativo': bool(row['ativo'])}
         return {'horario': '07:00', 'ativo': True}
     except Exception as e:
         print(f"Erro ao ler config snapshot: {e}")
         return None
 
 def _snapshot_already_exists_today():
-    database_url = os.environ.get('DATABASE_URL')
-    if not database_url:
-        return True
     try:
-        conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
+        conn = get_db_connection()
         cursor = conn.cursor()
         hoje = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d')
         cursor.execute("SELECT COUNT(*) as cnt FROM snapshots_cards_pagar WHERE data_snapshot = %s", (hoje,))
@@ -4496,24 +4700,7 @@ def _calcular_e_salvar_snapshot_auto():
         fim15 = hoje + timedelta(days=15)
         fim30 = hoje + timedelta(days=30)
 
-        exclusoes = {'empresas': [], 'centros_custo': [], 'tipos_documento': [], 'contas_correntes': []}
-        replit_url = os.environ.get('DATABASE_URL')
-        if replit_url:
-            try:
-                rconn = psycopg2.connect(replit_url, cursor_factory=RealDictCursor)
-                rcursor = rconn.cursor()
-                rcursor.execute("SELECT id_sienge_empresa FROM config_empresas_excluidas")
-                exclusoes['empresas'] = [r['id_sienge_empresa'] for r in rcursor.fetchall()]
-                rcursor.execute("SELECT id_interno_centrocusto FROM config_centros_custo_excluidos")
-                exclusoes['centros_custo'] = [r['id_interno_centrocusto'] for r in rcursor.fetchall()]
-                rcursor.execute("SELECT id_documento FROM config_tipos_documento_excluidos")
-                exclusoes['tipos_documento'] = [r['id_documento'] for r in rcursor.fetchall()]
-                rcursor.execute("SELECT id_conta_corrente FROM config_contas_correntes_excluidas")
-                exclusoes['contas_correntes'] = [r['id_conta_corrente'] for r in rcursor.fetchall()]
-                rcursor.close()
-                rconn.close()
-            except Exception as e:
-                print(f"Auto-snapshot: Aviso ao carregar exclusoes: {e}")
+        exclusoes = get_exclusoes()
 
         excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap')
         excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
@@ -4585,11 +4772,11 @@ def _calcular_e_salvar_snapshot_auto():
             {'faixa': '30dias', 'data_inicio': amanha.isoformat(), 'data_fim': fim30.isoformat(), 'valor_total': d30_valor, 'quantidade_titulos': d30_titulos, 'quantidade_credores': len(credores_30)},
         ]
 
-        rconn = psycopg2.connect(replit_url, cursor_factory=RealDictCursor)
-        rcursor = rconn.cursor()
+        sconn = get_db_connection()
+        scursor = sconn.cursor()
         data_snapshot = hoje.isoformat()
         for card in cards:
-            rcursor.execute("""
+            scursor.execute("""
                 INSERT INTO snapshots_cards_pagar (data_snapshot, faixa, data_inicio, data_fim, valor_total, quantidade_titulos, quantidade_credores)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (data_snapshot, faixa)
@@ -4607,9 +4794,9 @@ def _calcular_e_salvar_snapshot_auto():
                 card['quantidade_titulos'],
                 card['quantidade_credores']
             ))
-        rconn.commit()
-        rcursor.close()
-        rconn.close()
+        sconn.commit()
+        scursor.close()
+        sconn.close()
         print(f"Auto-snapshot: Snapshot salvo com sucesso para {data_snapshot}")
     except Exception as e:
         print(f"Auto-snapshot: Erro ao salvar snapshot: {e}")
