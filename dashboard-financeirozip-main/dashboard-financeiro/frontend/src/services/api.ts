@@ -97,6 +97,12 @@ export const authService = {
 };
 
 export const apiService = {
+  // Chat IA
+  chatIA: async (messages: { role: string; content: string }[]): Promise<{ reply: string }> => {
+    const response = await api.post('/ia/chat', { messages });
+    return response.data;
+  },
+
   // Métricas principais
   getMetricas: async (): Promise<DashboardMetrics> => {
     const response = await api.get<DashboardMetrics>('/metricas');
@@ -108,7 +114,7 @@ export const apiService = {
     const params = new URLSearchParams();
     if (status) params.append('status', status);
     params.append('limite', limite.toString());
-    
+
     const response = await api.get<ContaPagar[]>(`/contas?${params.toString()}`);
     return response.data;
   },
@@ -555,7 +561,7 @@ export const apiService = {
     const params = new URLSearchParams();
     if (status) params.append('status', status);
     params.append('limite', limite.toString());
-    
+
     const response = await api.get<ContaReceber[]>(`/contas-receber?${params.toString()}`);
     return response.data;
   },
@@ -728,7 +734,7 @@ export const apiService = {
     const params = new URLSearchParams();
     params.append('cliente', cliente);
     if (titulo) params.append('titulo', titulo);
-    
+
     const response = await api.get(`/extrato-cliente?${params.toString()}`);
     return response.data;
   },
