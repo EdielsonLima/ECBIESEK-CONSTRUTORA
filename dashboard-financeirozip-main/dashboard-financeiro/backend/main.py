@@ -86,6 +86,14 @@ DB_CONFIG = {
 # Configuração do banco de dados Replit (metas e configurações)
 REPLIT_DB_URL = os.environ.get('DATABASE_URL')
 
+# Banco de configurações separado (gravável) — via env var ou SQLite como fallback
+# No EasyPanel: crie um PostgreSQL de configs e defina CONFIG_DB_URL nas variáveis de ambiente
+CONFIG_DB_URL = os.environ.get('CONFIG_DB_URL') or os.environ.get('DATABASE_URL')
+
+# Caminho do SQLite de fallback — monte este diretório como volume persistente no EasyPanel
+import sqlite3 as _sqlite3
+CONFIG_SQLITE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ecbiesek_config.db')
+
 # Modelos Pydantic
 class ContaPagar(BaseModel):
     credor: Optional[str]
@@ -171,6 +179,71 @@ def get_replit_db_connection():
         return conn
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao conectar ao banco: {str(e)}")
+
+# ---- Banco de configurações gravável (SQLite ou PostgreSQL separado) ----
+
+class _SqliteRealDictRow(dict):
+    pass
+
+class _SqliteConn:
+    """Wrapper SQLite que imita interface psycopg2 (commit/close/cursor)."""
+    def __init__(self, path):
+        self._conn = _sqlite3.connect(path)
+        self._conn.row_factory = _sqlite3.Row
+    def cursor(self):
+        return _SqliteCursor(self._conn.cursor())
+    def commit(self):
+        self._conn.commit()
+    def rollback(self):
+        self._conn.rollback()
+    def close(self):
+        self._conn.close()
+
+class _SqliteCursor:
+    """Wrapper cursor SQLite — adapta SQL PostgreSQL para SQLite."""
+    def __init__(self, cur):
+        self._cur = cur
+    def execute(self, sql, params=None):
+        import re as _re
+        sql = sql.replace('%s', '?')
+        # INSERT ... ON CONFLICT DO NOTHING → INSERT OR IGNORE ...
+        if _re.search(r'ON CONFLICT\s+DO NOTHING', sql, _re.IGNORECASE):
+            sql = _re.sub(r'\s+ON CONFLICT\s+DO NOTHING', '', sql, flags=_re.IGNORECASE)
+            sql = _re.sub(r'^INSERT\s+INTO', 'INSERT OR IGNORE INTO', sql.strip(), flags=_re.IGNORECASE)
+        # INSERT ... ON CONFLICT (...) DO UPDATE SET ... → INSERT OR REPLACE ...
+        elif _re.search(r'ON CONFLICT\s*\(', sql, _re.IGNORECASE):
+            sql = _re.sub(r'\s+ON CONFLICT\s*\(.*', '', sql, flags=_re.IGNORECASE | _re.DOTALL)
+            sql = _re.sub(r'^INSERT\s+INTO', 'INSERT OR REPLACE INTO', sql.strip(), flags=_re.IGNORECASE)
+        # SERIAL → não existe no SQLite (é INTEGER PRIMARY KEY AUTOINCREMENT)
+        sql = _re.sub(r'\bSERIAL\b', 'INTEGER', sql, flags=_re.IGNORECASE)
+        # TIMESTAMP/VARCHAR com tamanho → SQLite ignora tipos mas aceita
+        if params:
+            self._cur.execute(sql, params)
+        else:
+            self._cur.execute(sql)
+    def fetchall(self):
+        rows = self._cur.fetchall()
+        return [dict(r) for r in rows]
+    def fetchone(self):
+        r = self._cur.fetchone()
+        return dict(r) if r else None
+    def close(self):
+        self._cur.close()
+
+_CONFIG_USE_POSTGRES = bool(CONFIG_DB_URL)
+
+def get_config_db_connection():
+    """Retorna conexão com o banco de configurações gravável.
+    - Se CONFIG_DB_URL estiver definido: usa PostgreSQL dedicado (crie no EasyPanel)
+    - Caso contrário: usa SQLite local (monte /backend como volume persistente no EasyPanel)
+    """
+    if CONFIG_DB_URL:
+        try:
+            conn = psycopg2.connect(CONFIG_DB_URL, cursor_factory=RealDictCursor)
+            return conn
+        except Exception:
+            pass  # Fallback para SQLite se PostgreSQL falhar
+    return _SqliteConn(CONFIG_SQLITE_PATH)
 
 def decimal_to_float(obj):
     """Converte Decimal para float"""
@@ -4236,58 +4309,64 @@ def get_origem_metas_status(
 # ============ CONFIGURAÇÕES (Exclusões) ============
 
 def init_configuracoes_tables():
-    """Cria todas as tabelas de configuração no PostgreSQL se não existirem.
-    Usa get_replit_db_connection() que em EasyPanel usa DATABASE_URL com credenciais de owner."""
+    """Cria todas as tabelas de configuração no banco de configs (PostgreSQL ou SQLite)."""
+    is_pg = _CONFIG_USE_POSTGRES
+    # PostgreSQL usa SERIAL e TIMESTAMP; SQLite usa INTEGER e DATETIME
+    serial = "SERIAL" if is_pg else "INTEGER"
+    ts = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP" if is_pg else "DATETIME DEFAULT CURRENT_TIMESTAMP"
+    bool_true = "true" if is_pg else "1"
+    unique_conflict = "ON CONFLICT DO NOTHING" if is_pg else "OR IGNORE"
+
     try:
-        conn = get_replit_db_connection()
+        conn = get_config_db_connection()
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS config_empresas_excluidas (
-                id SERIAL PRIMARY KEY,
+                id {serial} PRIMARY KEY,
                 id_sienge_empresa INTEGER NOT NULL UNIQUE,
                 nome_empresa VARCHAR(255),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at {ts}
             )
         """)
-        cursor.execute("""
+        cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS config_centros_custo_excluidos (
-                id SERIAL PRIMARY KEY,
+                id {serial} PRIMARY KEY,
                 id_interno_centrocusto INTEGER NOT NULL UNIQUE,
                 nome_centrocusto VARCHAR(255),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at {ts}
             )
         """)
-        cursor.execute("""
+        cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS config_tipos_documento_excluidos (
-                id SERIAL PRIMARY KEY,
+                id {serial} PRIMARY KEY,
                 id_documento VARCHAR(50) NOT NULL UNIQUE,
                 nome_documento VARCHAR(255),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at {ts}
             )
         """)
-        cursor.execute("""
+        cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS config_contas_correntes_excluidas (
-                id SERIAL PRIMARY KEY,
+                id {serial} PRIMARY KEY,
                 id_conta_corrente VARCHAR(100) NOT NULL UNIQUE,
                 nome_conta_corrente VARCHAR(255),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at {ts}
             )
         """)
-        cursor.execute("""
+        cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS config_snapshot_horario (
-                id SERIAL PRIMARY KEY,
+                id {serial} PRIMARY KEY,
                 horario VARCHAR(5) NOT NULL DEFAULT '07:00',
-                ativo BOOLEAN NOT NULL DEFAULT true,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                ativo BOOLEAN NOT NULL DEFAULT {bool_true},
+                updated_at {ts}
             )
         """)
         cursor.execute("SELECT COUNT(*) as cnt FROM config_snapshot_horario")
         row = cursor.fetchone()
-        if row['cnt'] == 0:
-            cursor.execute("INSERT INTO config_snapshot_horario (horario, ativo) VALUES ('07:00', true)")
-        cursor.execute("""
+        if row and int(row['cnt']) == 0:
+            cursor.execute("INSERT INTO config_snapshot_horario (horario, ativo) VALUES ('07:00', 1)")
+        cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS snapshots_cards_pagar (
-                id SERIAL PRIMARY KEY,
+                id {serial} PRIMARY KEY,
                 data_snapshot DATE NOT NULL,
                 faixa VARCHAR(20) NOT NULL,
                 data_inicio DATE,
@@ -4295,12 +4374,13 @@ def init_configuracoes_tables():
                 valor_total NUMERIC(15,2) NOT NULL DEFAULT 0,
                 quantidade_titulos INTEGER NOT NULL DEFAULT 0,
                 quantidade_credores INTEGER NOT NULL DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_at {ts},
                 UNIQUE(data_snapshot, faixa)
             )
         """)
         conn.commit()
-        print("Tabelas de configurações criadas/verificadas no PostgreSQL com sucesso")
+        backend = "PostgreSQL" if is_pg else f"SQLite ({CONFIG_SQLITE_PATH})"
+        print(f"Tabelas de configurações criadas/verificadas em {backend}")
     except Exception as e:
         print(f"Erro ao inicializar tabelas de configurações: {e}")
     finally:
@@ -4312,7 +4392,7 @@ init_configuracoes_tables()
 def get_exclusoes():
     """Retorna listas de IDs excluídos nas configurações. Retorna listas vazias em caso de erro."""
     try:
-        conn = get_replit_db_connection()
+        conn = get_config_db_connection()
         cursor = conn.cursor()
         try:
             cursor.execute("SELECT id_sienge_empresa FROM config_empresas_excluidas")
@@ -4361,7 +4441,7 @@ def get_configuracoes():
         'tipos_documento_excluidos': [], 'contas_correntes_excluidas': []
     }
     try:
-        conn = get_replit_db_connection()
+        conn = get_config_db_connection()
         cursor = conn.cursor()
         try:
             cursor.execute("SELECT id_sienge_empresa, nome_empresa FROM config_empresas_excluidas ORDER BY nome_empresa")
@@ -4393,7 +4473,7 @@ def toggle_empresa_exclusao(data: dict):
     id_sienge_empresa = data.get('id_sienge_empresa')
     nome_empresa = data.get('nome_empresa', '')
     excluir = data.get('excluir', True)
-    conn = get_replit_db_connection()
+    conn = get_config_db_connection()
     cursor = conn.cursor()
     try:
         if excluir:
@@ -4416,7 +4496,7 @@ def toggle_centro_custo_exclusao(data: dict):
     id_interno = data.get('id_interno_centrocusto')
     nome = data.get('nome_centrocusto', '')
     excluir = data.get('excluir', True)
-    conn = get_replit_db_connection()
+    conn = get_config_db_connection()
     cursor = conn.cursor()
     try:
         if excluir:
@@ -4439,7 +4519,7 @@ def toggle_tipo_documento_exclusao(data: dict):
     id_documento = data.get('id_documento')
     nome_documento = data.get('nome_documento', '')
     excluir = data.get('excluir', True)
-    conn = get_replit_db_connection()
+    conn = get_config_db_connection()
     cursor = conn.cursor()
     try:
         if excluir:
@@ -4570,7 +4650,7 @@ def toggle_conta_corrente_exclusao(data: dict):
         return {"success": False, "error": "id_conta_corrente is required"}
     nome_conta_corrente = data.get('nome_conta_corrente', '')
     excluir = data.get('excluir', True)
-    conn = get_replit_db_connection()
+    conn = get_config_db_connection()
     cursor = conn.cursor()
     try:
         if excluir:
@@ -4590,7 +4670,7 @@ def toggle_conta_corrente_exclusao(data: dict):
 
 @app.post("/api/snapshots/cards-pagar")
 def salvar_snapshot_cards_pagar(dados: dict):
-    conn = get_replit_db_connection()
+    conn = get_config_db_connection()
     cursor = conn.cursor()
     try:
         cards = dados.get('cards', [])
@@ -4624,7 +4704,7 @@ def salvar_snapshot_cards_pagar(dados: dict):
 
 @app.get("/api/snapshots/cards-pagar")
 def listar_snapshots_cards_pagar():
-    conn = get_replit_db_connection()
+    conn = get_config_db_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("""
@@ -4642,7 +4722,7 @@ def listar_snapshots_cards_pagar():
 
 @app.get("/api/snapshots/cards-pagar/{data}")
 def get_snapshot_cards_pagar(data: str):
-    conn = get_replit_db_connection()
+    conn = get_config_db_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("""
@@ -4673,7 +4753,7 @@ def get_snapshot_cards_pagar(data: str):
 
 @app.get("/api/configuracoes/snapshot-horario")
 def get_snapshot_horario():
-    conn = get_replit_db_connection()
+    conn = get_config_db_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("SELECT horario, ativo, updated_at FROM config_snapshot_horario ORDER BY id LIMIT 1")
@@ -4698,7 +4778,7 @@ def set_snapshot_horario(dados: dict):
             raise ValueError()
     except:
         raise HTTPException(status_code=400, detail="Horario invalido. Use valores entre 00:00 e 23:59")
-    conn = get_replit_db_connection()
+    conn = get_config_db_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("SELECT id FROM config_snapshot_horario ORDER BY id LIMIT 1")
@@ -4722,7 +4802,7 @@ def set_snapshot_horario(dados: dict):
 
 def _get_snapshot_config():
     try:
-        conn = get_replit_db_connection()
+        conn = get_config_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT horario, ativo FROM config_snapshot_horario ORDER BY id LIMIT 1")
         row = cursor.fetchone()
@@ -4737,7 +4817,7 @@ def _get_snapshot_config():
 
 def _snapshot_already_exists_today():
     try:
-        conn = get_replit_db_connection()
+        conn = get_config_db_connection()
         cursor = conn.cursor()
         hoje = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d')
         cursor.execute("SELECT COUNT(*) as cnt FROM snapshots_cards_pagar WHERE data_snapshot = %s", (hoje,))
