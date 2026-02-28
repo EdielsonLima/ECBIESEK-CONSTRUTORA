@@ -112,40 +112,40 @@ function App() {
       />
 
       <div className={`relative z-20 min-h-screen bg-gray-50 transition-all duration-300 ${sidebarOpen ? 'pl-64' : 'pl-20'}`}>
-        <header className="bg-gradient-to-r from-blue-600 to-blue-800 shadow-lg">
-          <div className="flex items-center justify-between px-8 py-6">
+        <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-100 transition-all duration-300">
+          <div className="flex items-center justify-between px-8 py-5">
             <div>
-              <h1 className="text-3xl font-bold text-white">
-              {currentPage === 'dashboard' && 'ECBIESEK-CONSTRUTORA'}
-              {currentPage === 'contas-a-pagar' && 'Contas a Pagar'}
-              {currentPage === 'contas-pagas' && 'Contas Pagas'}
-              {currentPage === 'contas-atrasadas' && 'Contas Atrasadas'}
-              {currentPage === 'contas-a-receber' && 'Contas a Receber'}
-              {currentPage === 'contas-recebidas' && 'Contas Recebidas'}
-              {currentPage === 'recebimentos-atrasados' && 'Recebimentos em Atraso'}
-              {currentPage === 'extrato-cliente' && 'Extrato Cliente'}
-              {currentPage === 'kpis' && 'KPIs'}
-              {currentPage === 'configuracoes' && 'Configuracoes'}
-              {currentPage === 'exposicao-caixa' && 'Exposição de Caixa'}
+              <h1 className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-blue-700 to-indigo-600 bg-clip-text text-transparent">
+                {currentPage === 'dashboard' && 'ECBIESEK-CONSTRUTORA'}
+                {currentPage === 'contas-a-pagar' && 'Contas a Pagar'}
+                {currentPage === 'contas-pagas' && 'Contas Pagas'}
+                {currentPage === 'contas-atrasadas' && 'Contas Atrasadas'}
+                {currentPage === 'contas-a-receber' && 'Contas a Receber'}
+                {currentPage === 'contas-recebidas' && 'Contas Recebidas'}
+                {currentPage === 'recebimentos-atrasados' && 'Recebimentos em Atraso'}
+                {currentPage === 'extrato-cliente' && 'Extrato Cliente'}
+                {currentPage === 'kpis' && 'KPIs'}
+                {currentPage === 'configuracoes' && 'Configurações'}
+                {currentPage === 'exposicao-caixa' && 'Exposição de Caixa'}
               </h1>
-              <p className="mt-1 text-blue-100">Gestão Financeira - Construtora</p>
+              <p className="mt-1 text-sm font-medium text-gray-500">Gestão Financeira - Construtora</p>
             </div>
             <div className="flex items-center gap-4">
               {user && (
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500 text-white font-bold">
+                <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-full border border-gray-100 shadow-sm">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold shadow-md">
                     {user.nome.charAt(0).toUpperCase()}
                   </div>
-                  <div className="text-white">
-                    <p className="text-sm font-medium">{user.nome}</p>
-                    <p className="text-xs text-blue-200">{user.email}</p>
+                  <div className="text-gray-700">
+                    <p className="text-sm font-semibold leading-tight">{user.nome}</p>
+                    <p className="text-xs text-gray-500">{user.email}</p>
                   </div>
                 </div>
               )}
               <button
                 type="button"
                 onClick={handleLogout}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
+                className="rounded-full bg-red-50 p-2.5 text-red-600 hover:bg-red-100 hover:text-red-700 transition-colors shadow-sm"
                 title="Sair"
               >
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -155,7 +155,7 @@ function App() {
               <button
                 type="button"
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="rounded-lg bg-blue-700 p-2 text-white hover:bg-blue-800"
+                className="rounded-full bg-white p-2.5 text-gray-600 hover:bg-gray-50 border border-gray-200 transition-colors shadow-sm"
                 aria-label="Toggle sidebar"
                 title="Abrir/Fechar Menu"
               >

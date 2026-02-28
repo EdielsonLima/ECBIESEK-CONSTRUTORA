@@ -118,9 +118,11 @@ export const Dashboard: React.FC = () => {
   }
 
   return (
-    <div>
+    <div className="space-y-8 animate-fade-in">
       {/* Métricas Contas a Pagar */}
-      <h2 className="mb-4 text-lg font-semibold text-gray-700">Contas a Pagar</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-bold text-gray-800">Visão Geral: <span className="text-blue-600">Contas a Pagar</span></h2>
+      </div>
       {metricas && (
         <div className="mb-8 grid gap-6 md:grid-cols-3">
           <MetricCard
@@ -148,7 +150,9 @@ export const Dashboard: React.FC = () => {
       )}
 
       {/* Métricas Contas a Receber */}
-      <h2 className="mb-4 text-lg font-semibold text-gray-700">Contas a Receber</h2>
+      <div className="flex items-center justify-between mb-6 mt-12">
+        <h2 className="text-xl font-bold text-gray-800">Visão Geral: <span className="text-blue-600">Contas a Receber</span></h2>
+      </div>
       {metricasReceber && (
         <div className="mb-8 grid gap-6 md:grid-cols-3">
           <MetricCard

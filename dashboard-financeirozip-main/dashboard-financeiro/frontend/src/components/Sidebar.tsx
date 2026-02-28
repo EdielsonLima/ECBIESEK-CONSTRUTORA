@@ -41,7 +41,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
   useEffect(() => {
     apiService.getUltimaAtualizacao()
       .then(r => { if (r.data) setUltimaAtualizacao(formatarDataPt(r.data)); })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({
@@ -238,22 +238,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
     <>
       {/* Sidebar */}
       <div
-        className={`fixed left-0 top-0 z-50 h-screen bg-gray-900 text-white transition-all duration-300 flex flex-col ${
-          isOpen ? 'w-64' : 'w-20'
-        }`}
+        className={`fixed left-0 top-0 z-50 h-screen bg-slate-900 border-r border-slate-800 text-slate-300 transition-all duration-300 flex flex-col shadow-2xl ${isOpen ? 'w-64' : 'w-20'
+          }`}
       >
         {/* Logo e Toggle */}
-        <div className="flex h-16 flex-shrink-0 items-center justify-between border-b border-gray-700 px-4">
+        <div className="flex h-16 flex-shrink-0 items-center justify-between border-b border-slate-800 px-4">
           {isOpen && (
-            <span className="text-sm font-bold tracking-widest text-gray-300 uppercase">
-              ECB
+            <span className="text-lg font-bold tracking-widest text-white flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/30">
+                <span className="text-white text-sm">ECB</span>
+              </div>
             </span>
           )}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="rounded-lg p-2 hover:bg-gray-700 transition-colors"
+            className="rounded-lg p-2 hover:bg-slate-800 transition-colors"
           >
-            <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-6 w-6 text-slate-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               {isOpen ? (
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
               ) : (
@@ -274,21 +275,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
                 {/* Group Header */}
                 <button
                   onClick={() => isOpen && toggleGroup(key)}
-                  className={`flex w-full items-center rounded-md px-3 py-2 transition-colors ${
-                    isOpen ? 'hover:bg-gray-800 cursor-pointer' : 'cursor-default'
-                  }`}
+                  className={`flex w-full items-center rounded-md px-3 py-2 transition-colors ${isOpen ? 'hover:bg-slate-800/50 cursor-pointer' : 'cursor-default'
+                    }`}
                   title={!isOpen ? group.group : undefined}
                 >
-                  <span className="flex-shrink-0 text-blue-400">{group.icon}</span>
+                  <span className="flex-shrink-0 text-blue-500">{group.icon}</span>
                   {isOpen && (
                     <>
-                      <span className="ml-2 flex-1 text-left text-xs font-semibold uppercase tracking-wider text-blue-400">
+                      <span className="ml-2 flex-1 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">
                         {group.group}
                       </span>
                       <svg
-                        className={`h-3 w-3 text-blue-400 transition-transform duration-200 ${
-                          isGroupOpen ? 'rotate-90' : ''
-                        }`}
+                        className={`h-3 w-3 text-blue-400 transition-transform duration-200 ${isGroupOpen ? 'rotate-90' : ''
+                          }`}
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -301,7 +300,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
 
                 {/* Divider */}
                 {isOpen && (
-                  <div className="mx-3 mb-1 border-t border-gray-700" />
+                  <div className="mx-3 mb-1 border-t border-slate-800/80" />
                 )}
 
                 {/* Group Items */}
@@ -323,11 +322,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
                               }
                             }}
                             title={!isOpen ? item.label : undefined}
-                            className={`flex w-full items-center rounded-lg px-3 py-2.5 transition-colors ${
-                              isActive
-                                ? 'bg-blue-600 text-white'
-                                : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                            }`}
+                            className={`flex w-full items-center rounded-lg px-3 py-2.5 transition-all duration-200 ${isActive
+                              ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md shadow-blue-900/50'
+                              : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                              }`}
                           >
                             <span className="flex-shrink-0">{item.icon}</span>
                             {isOpen && (
@@ -335,9 +333,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
                                 <span className="ml-3 flex-1 text-left text-sm">{item.label}</span>
                                 {item.submenu && (
                                   <svg
-                                    className={`h-4 w-4 transition-transform duration-200 ${
-                                      isSubmenuOpen ? 'rotate-90' : ''
-                                    }`}
+                                    className={`h-4 w-4 transition-transform duration-200 ${isSubmenuOpen ? 'rotate-90' : ''
+                                      }`}
                                     fill="none"
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"
@@ -351,16 +348,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
 
                           {/* Submenu */}
                           {item.submenu && isOpen && isSubmenuOpen && (
-                            <div className="ml-3 mt-0.5 space-y-0.5 border-l border-gray-700 pl-3">
+                            <div className="ml-3 mt-0.5 space-y-0.5 border-l border-slate-800 pl-3">
                               {item.submenu.map((subItem) => (
                                 <button
                                   key={subItem.id}
                                   onClick={() => onNavigate(subItem.id)}
-                                  className={`flex w-full items-center rounded-lg px-3 py-2 text-sm transition-colors ${
-                                    currentPage === subItem.id
-                                      ? 'bg-blue-600 text-white'
-                                      : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                                  }`}
+                                  className={`flex w-full items-center rounded-lg px-3 py-2 text-sm transition-all duration-200 ${currentPage === subItem.id
+                                    ? 'text-blue-400 font-medium bg-slate-800/50'
+                                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                                    }`}
                                 >
                                   <span className="h-1.5 w-1.5 rounded-full bg-current mr-2 flex-shrink-0" />
                                   {subItem.label}
@@ -389,15 +385,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
         )}
 
         {/* Configurações no rodapé */}
-        <div className="flex-shrink-0 border-t border-gray-700 px-2 py-3">
+        <div className="flex-shrink-0 border-t border-slate-800 px-2 py-3">
           <button
             onClick={() => onNavigate('configuracoes')}
             title={!isOpen ? 'Configurações' : undefined}
-            className={`flex w-full items-center rounded-lg px-3 py-2.5 transition-colors ${
-              currentPage === 'configuracoes'
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-            }`}
+            className={`flex w-full items-center rounded-lg px-3 py-2.5 transition-all ${currentPage === 'configuracoes'
+              ? 'bg-slate-800 text-white'
+              : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+              }`}
           >
             <svg className="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
