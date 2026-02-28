@@ -106,7 +106,7 @@ interface DadosPorCredor {
 }
 
 interface DadosPorEmpresa {
-  empresa: string;
+  centroCusto: string;
   valor: number;
   quantidade: number;
 }
@@ -438,17 +438,17 @@ export const ContasAPagar: React.FC = () => {
       .slice(0, 15);
     setDadosPorCredor(credorArray);
 
-    const empresaMap = new Map<string, { valor: number; quantidade: number }>();
+    const ccMap = new Map<string, { valor: number; quantidade: number }>();
     contasFiltradas.forEach(c => {
-      const empresa = c.nome_empresa || 'Sem Empresa';
-      const atual = empresaMap.get(empresa) || { valor: 0, quantidade: 0 };
-      empresaMap.set(empresa, {
+      const cc = (c as any).nome_centrocusto || 'Sem Centro de Custo';
+      const atual = ccMap.get(cc) || { valor: 0, quantidade: 0 };
+      ccMap.set(cc, {
         valor: atual.valor + (c.valor_total || 0),
         quantidade: atual.quantidade + 1,
       });
     });
-    const empresaArray = Array.from(empresaMap.entries())
-      .map(([empresa, data]) => ({ empresa, ...data }))
+    const empresaArray = Array.from(ccMap.entries())
+      .map(([centroCusto, data]) => ({ centroCusto, ...data }))
       .sort((a, b) => b.valor - a.valor);
     setDadosPorEmpresa(empresaArray);
 
@@ -876,14 +876,14 @@ export const ContasAPagar: React.FC = () => {
 
       {dadosPorEmpresa.length > 0 && (
         <div className="rounded-lg bg-white p-6 shadow">
-          <h3 className="mb-2 text-xl font-semibold text-gray-900">Valores a Pagar por Empresa</h3>
-          <p className="mb-4 text-sm text-gray-500">Distribuicao de valores pendentes por empresa</p>
+          <h3 className="mb-2 text-xl font-semibold text-gray-900">Valores a Pagar por Centro de Custo</h3>
+          <p className="mb-4 text-sm text-gray-500">Distribuicao de valores pendentes por centro de custo</p>
           <div style={{ height: Math.max(300, dadosPorEmpresa.length * 35) }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dadosPorEmpresa} layout="vertical" margin={{ top: 5, right: 100, left: 200, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" tickFormatter={(value) => formatCurrencyShort(value)} tick={{ fontSize: 11 }} />
-                <YAxis type="category" dataKey="empresa" tick={{ fontSize: 9 }} width={190} />
+                <YAxis type="category" dataKey="centroCusto" tick={{ fontSize: 9 }} width={190} />
                 <Tooltip
                   content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {

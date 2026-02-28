@@ -1091,6 +1091,45 @@ def get_empresas_centros():
         cursor.close()
         conn.close()
 
+@app.get("/api/ultima-atualizacao")
+def get_ultima_atualizacao():
+    """Retorna a data da última carga de dados a partir de fulldump_log."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Descobre as colunas de data/timestamp da tabela
+        cursor.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'fulldump_log'
+              AND data_type IN ('date', 'timestamp without time zone', 'timestamp with time zone')
+            ORDER BY ordinal_position
+        """)
+        date_cols = [r['column_name'] for r in cursor.fetchall()]
+
+        if not date_cols:
+            # Fallback: pega última linha por primeira coluna
+            cursor.execute("SELECT * FROM fulldump_log ORDER BY 1 DESC LIMIT 1")
+            row = cursor.fetchone()
+            if not row:
+                return {"data": None}
+            for val in row.values():
+                if hasattr(val, 'year'):
+                    return {"data": str(val)}
+            return {"data": None}
+
+        # Usa a última coluna de data (geralmente data_fim / updated_at)
+        col = date_cols[-1]
+        cursor.execute(f"SELECT MAX({col}) as ultima FROM fulldump_log")
+        row = cursor.fetchone()
+        val = row['ultima'] if row else None
+        return {"data": str(val) if val else None}
+    except Exception as e:
+        return {"data": None, "erro": str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
 @app.get("/api/filtros/centros-custo")
 def get_centros_custo():
     """Retorna centros de custo ativos (excluindo os marcados nas configurações)"""
@@ -1205,7 +1244,9 @@ def get_estatisticas_por_mes(
     id_documento: Optional[str] = None,
     origem_dado: Optional[str] = None,
     tipo_baixa: Optional[str] = None,
-    ano: Optional[str] = None
+    ano: Optional[str] = None,
+    origens_titulo: Optional[str] = None,
+    tipos_baixa_exposicao: Optional[str] = None
 ):
     """Retorna estatísticas de contas pagas agrupadas por mês"""
     conn = get_db_connection()
@@ -1251,6 +1292,20 @@ def get_estatisticas_por_mes(
             conditions.append(f"cp.id_tipo_baixa IN ({tipo_placeholders})")
             params.extend(tipos)
 
+        if origens_titulo:
+            siglas = [s.strip().upper() for s in origens_titulo.split(',') if s.strip()]
+            if siglas:
+                ot_placeholders = ', '.join(['%s'] * len(siglas))
+                conditions.append(f"TRIM(UPPER(cp.id_origem)) IN ({ot_placeholders})")
+                params.extend(siglas)
+
+        if tipos_baixa_exposicao:
+            tb_ids = [int(t.strip()) for t in tipos_baixa_exposicao.split(',') if t.strip()]
+            if tb_ids:
+                tb_placeholders = ', '.join(['%s'] * len(tb_ids))
+                conditions.append(f"cp.id_tipo_baixa IN ({tb_placeholders})")
+                params.extend(tb_ids)
+
         if ano:
             anos = [int(a.strip()) for a in ano.split(',')]
             ano_placeholders = ', '.join(['%s'] * len(anos))
@@ -1260,10 +1315,10 @@ def get_estatisticas_por_mes(
         where_clause = " AND ".join(conditions) if conditions else "1=1"
 
         query = f"""
-            SELECT 
+            SELECT
                 TO_CHAR(cp.data_pagamento, 'YYYY-MM') as mes,
                 EXTRACT(MONTH FROM cp.data_pagamento) as mes_num,
-                COALESCE(SUM(cp.valor_liquido), 0) as valor_total,
+                COALESCE(SUM(CASE WHEN cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_baixa ELSE 0 END), 0) as valor_total,
                 COUNT(*) as quantidade
             FROM contas_pagas cp
             LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
@@ -1302,8 +1357,10 @@ def get_recebidas_por_mes(
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        conditions = []
-        params = []
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cr', has_cc_column=False, has_conta_corrente=True)
+        conditions = list(excl_conds)
+        params = list(excl_params)
 
         if empresa is not None:
             conditions.append("cc.id_sienge_empresa = %s")
@@ -3384,6 +3441,7 @@ def get_contas_recebidas_filtradas(
     mes: Optional[str] = None,
     data_inicio: Optional[str] = None,
     data_fim: Optional[str] = None,
+    tipo_baixa: Optional[str] = None,
     limite: int = 100
 ):
     """Retorna contas recebidas com filtros avançados.
@@ -3459,6 +3517,13 @@ def get_contas_recebidas_filtradas(
             conditions.append("cr.data_recebimento <= %s")
             params.append(data_fim)
 
+        if tipo_baixa:
+            tb_ids = [int(t.strip()) for t in tipo_baixa.split(',') if t.strip()]
+            if tb_ids:
+                tb_placeholders = ', '.join(['%s'] * len(tb_ids))
+                conditions.append(f"cr.id_tipo_baixa IN ({tb_placeholders})")
+                params.extend(tb_ids)
+
         where_clause = " AND ".join(conditions) if conditions else "1=1"
 
         query = f"""
@@ -3472,7 +3537,8 @@ def get_contas_recebidas_filtradas(
                 cr.id_interno_centro_custo AS id_interno_centrocusto,
                 cc.nome_centrocusto,
                 TRIM(cr.id_documento) as id_documento,
-                cr.parcela as numero_parcela
+                cr.parcela as numero_parcela,
+                cr.id_tipo_baixa
             FROM contas_recebidas cr
             LEFT JOIN dim_centrocusto cc ON cr.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE {where_clause}
@@ -3485,6 +3551,89 @@ def get_contas_recebidas_filtradas(
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
 
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/contas-recebidas-totais")
+def get_contas_recebidas_totais(
+    empresa: Optional[int] = None,
+    centro_custo: Optional[int] = None,
+    cliente: Optional[str] = None,
+    id_documento: Optional[str] = None,
+    ano: Optional[str] = None,
+    mes: Optional[str] = None,
+    tipo_baixa: Optional[str] = None,
+):
+    """Retorna total e quantidade de contas recebidas sem LIMIT (para estatísticas corretas)."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        exclusoes = get_exclusoes()
+        conditions = []
+        params = []
+
+        if exclusoes['empresas']:
+            ph = ','.join(['%s'] * len(exclusoes['empresas']))
+            conditions.append(f"(cc.id_sienge_empresa IS NULL OR cc.id_sienge_empresa NOT IN ({ph}))")
+            params.extend(exclusoes['empresas'])
+
+        if exclusoes['centros_custo']:
+            ph = ','.join(['%s'] * len(exclusoes['centros_custo']))
+            conditions.append(f"(cr.id_interno_centro_custo IS NULL OR cr.id_interno_centro_custo NOT IN ({ph}))")
+            params.extend(exclusoes['centros_custo'])
+
+        if exclusoes['tipos_documento']:
+            ph = ','.join(['%s'] * len(exclusoes['tipos_documento']))
+            conditions.append(f"TRIM(cr.id_documento) NOT IN ({ph})")
+            params.extend(exclusoes['tipos_documento'])
+
+        if empresa is not None:
+            conditions.append("cc.id_sienge_empresa = %s")
+            params.append(empresa)
+
+        if centro_custo is not None:
+            conditions.append("cr.id_interno_centro_custo = %s")
+            params.append(centro_custo)
+
+        if cliente:
+            conditions.append("cr.cliente ILIKE %s")
+            params.append(f"%{cliente}%")
+
+        if id_documento:
+            docs = [doc.strip() for doc in id_documento.split(',')]
+            doc_conditions = [f"TRIM(cr.id_documento) = %s" for doc in docs]
+            params.extend(docs)
+            conditions.append(f"({' OR '.join(doc_conditions)})")
+
+        if ano:
+            anos = [int(a.strip()) for a in ano.split(',')]
+            conditions.append(f"EXTRACT(YEAR FROM cr.data_recebimento) IN ({', '.join(['%s'] * len(anos))})")
+            params.extend(anos)
+
+        if mes:
+            meses = [int(m.strip()) for m in mes.split(',')]
+            conditions.append(f"EXTRACT(MONTH FROM cr.data_recebimento) IN ({', '.join(['%s'] * len(meses))})")
+            params.extend(meses)
+
+        if tipo_baixa:
+            tb_ids = [int(t.strip()) for t in tipo_baixa.split(',') if t.strip()]
+            if tb_ids:
+                conditions.append(f"cr.id_tipo_baixa IN ({', '.join(['%s'] * len(tb_ids))})")
+                params.extend(tb_ids)
+
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+
+        cursor.execute(f"""
+            SELECT
+                COUNT(*) as quantidade,
+                COALESCE(SUM(cr.valor_liquido), 0) as total
+            FROM contas_recebidas cr
+            LEFT JOIN dim_centrocusto cc ON cr.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE {where_clause}
+        """, params)
+        row = cursor.fetchone()
+        return {"total": float(row["total"]), "quantidade": int(row["quantidade"])}
     finally:
         cursor.close()
         conn.close()
@@ -4365,6 +4514,28 @@ def init_configuracoes_tables():
         if row and int(row['cnt']) == 0:
             cursor.execute("INSERT INTO config_snapshot_horario (horario, ativo) VALUES ('07:00', 1)")
         cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS config_origens_exposicao_caixa (
+                id {serial} PRIMARY KEY,
+                id_origem_titulo INTEGER NOT NULL UNIQUE,
+                sigla VARCHAR(10) NOT NULL,
+                descricao VARCHAR(255),
+                incluir BOOLEAN NOT NULL DEFAULT {bool_true},
+                paginas TEXT NOT NULL DEFAULT 'exposicao_caixa',
+                created_at {ts}
+            )
+        """)
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS config_tipos_baixa_exposicao_caixa (
+                id {serial} PRIMARY KEY,
+                id_tipo_baixa INTEGER NOT NULL UNIQUE,
+                nome_tipo_baixa VARCHAR(255),
+                flag_sistema_uso VARCHAR(5),
+                incluir BOOLEAN NOT NULL DEFAULT {bool_true},
+                paginas TEXT NOT NULL DEFAULT 'exposicao_caixa',
+                created_at {ts}
+            )
+        """)
+        cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS snapshots_cards_pagar (
                 id {serial} PRIMARY KEY,
                 data_snapshot DATE NOT NULL,
@@ -4609,6 +4780,191 @@ def get_todas_contas_correntes():
         return [{"id": row['id_conta_corrente'], "nome": row['nome_conta_corrente'], "empresa_id": row['id_interno_empresa']} for row in rows]
     except Exception:
         return []
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/filtros/origens-titulo")
+def get_origens_titulo():
+    """Retorna lista completa de origens de título da tabela ecadorigemtitulo."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT id_origem_titulo, sigla, descricao
+            FROM ecadorigemtitulo
+            ORDER BY id_origem_titulo
+        """)
+        rows = cursor.fetchall()
+        return [{"id": row['id_origem_titulo'], "sigla": row['sigla'].strip() if row['sigla'] else '', "descricao": row['descricao']} for row in rows]
+    except Exception:
+        return []
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/configuracoes/origens-exposicao")
+def get_origens_exposicao():
+    """Retorna a configuração de origens para Exposição de Caixa."""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id_origem_titulo, sigla, descricao, incluir, paginas FROM config_origens_exposicao_caixa ORDER BY id_origem_titulo")
+        rows = cursor.fetchall()
+        return [{"id_origem_titulo": r['id_origem_titulo'], "sigla": r['sigla'], "descricao": r['descricao'], "incluir": bool(r['incluir']), "paginas": r['paginas']} for r in rows]
+    except Exception:
+        return []
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.post("/api/configuracoes/origens-exposicao/toggle")
+def toggle_origem_exposicao(data: dict):
+    """Insere ou atualiza a configuração de uma origem para Exposição de Caixa."""
+    id_origem_titulo = data.get('id_origem_titulo')
+    sigla = data.get('sigla', '')
+    descricao = data.get('descricao', '')
+    incluir = data.get('incluir', True)
+    paginas = data.get('paginas', 'exposicao_caixa')
+    if not id_origem_titulo:
+        raise HTTPException(status_code=400, detail="id_origem_titulo is required")
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Upsert
+        cursor.execute("SELECT id FROM config_origens_exposicao_caixa WHERE id_origem_titulo = %s", (id_origem_titulo,))
+        row = cursor.fetchone()
+        if row:
+            cursor.execute(
+                "UPDATE config_origens_exposicao_caixa SET incluir = %s, paginas = %s WHERE id_origem_titulo = %s",
+                (incluir, paginas, id_origem_titulo)
+            )
+        else:
+            cursor.execute(
+                "INSERT INTO config_origens_exposicao_caixa (id_origem_titulo, sigla, descricao, incluir, paginas) VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+                (id_origem_titulo, sigla, descricao, incluir, paginas)
+            )
+        conn.commit()
+        return {"success": True}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/configuracoes/origens-exposicao-caixa-siglas")
+def get_origens_exposicao_caixa_siglas():
+    """Retorna as siglas das origens marcadas como incluir=true para exposicao_caixa.
+    Retorna lista vazia se nenhuma configuração existir (sem filtro aplicado)."""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT COUNT(*) as cnt FROM config_origens_exposicao_caixa")
+        row = cursor.fetchone()
+        if not row or int(row['cnt']) == 0:
+            return {"siglas": [], "configurado": False}
+        cursor.execute(
+            "SELECT sigla FROM config_origens_exposicao_caixa WHERE incluir = %s AND paginas LIKE %s",
+            (True, '%exposicao_caixa%')
+        )
+        rows = cursor.fetchall()
+        return {"siglas": [r['sigla'] for r in rows], "configurado": True}
+    except Exception:
+        return {"siglas": [], "configurado": False}
+    finally:
+        cursor.close()
+        conn.close()
+
+# ============ TIPOS DE BAIXA — Exposição de Caixa ============
+
+@app.get("/api/filtros/tipos-baixa-completo")
+def get_tipos_baixa_completo():
+    """Retorna lista completa de tipos de baixa da tabela ecadtipobaixa."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT id_tipo_baixa, nome_tipo_baixa, flag_sistema_uso, descricao_relatorio
+            FROM ecadtipobaixa
+            ORDER BY id_tipo_baixa
+        """)
+        rows = cursor.fetchall()
+        return [{"id": row['id_tipo_baixa'], "nome": row['nome_tipo_baixa'], "flag": (row['flag_sistema_uso'] or '').strip(), "descricao": row['descricao_relatorio']} for row in rows]
+    except Exception:
+        return []
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/configuracoes/tipos-baixa-exposicao")
+def get_tipos_baixa_exposicao():
+    """Retorna a configuração de tipos de baixa para Exposição de Caixa."""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id_tipo_baixa, nome_tipo_baixa, flag_sistema_uso, incluir, paginas FROM config_tipos_baixa_exposicao_caixa ORDER BY id_tipo_baixa")
+        rows = cursor.fetchall()
+        return [{"id_tipo_baixa": r['id_tipo_baixa'], "nome_tipo_baixa": r['nome_tipo_baixa'], "flag_sistema_uso": r['flag_sistema_uso'], "incluir": bool(r['incluir']), "paginas": r['paginas']} for r in rows]
+    except Exception:
+        return []
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.post("/api/configuracoes/tipos-baixa-exposicao/toggle")
+def toggle_tipo_baixa_exposicao(data: dict):
+    """Insere ou atualiza a configuração de um tipo de baixa para Exposição de Caixa."""
+    id_tipo_baixa = data.get('id_tipo_baixa')
+    nome_tipo_baixa = data.get('nome_tipo_baixa', '')
+    flag_sistema_uso = data.get('flag_sistema_uso', '')
+    incluir = data.get('incluir', True)
+    paginas = data.get('paginas', 'exposicao_caixa')
+    if not id_tipo_baixa:
+        raise HTTPException(status_code=400, detail="id_tipo_baixa is required")
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id FROM config_tipos_baixa_exposicao_caixa WHERE id_tipo_baixa = %s", (id_tipo_baixa,))
+        row = cursor.fetchone()
+        if row:
+            cursor.execute(
+                "UPDATE config_tipos_baixa_exposicao_caixa SET incluir = %s, paginas = %s WHERE id_tipo_baixa = %s",
+                (incluir, paginas, id_tipo_baixa)
+            )
+        else:
+            cursor.execute(
+                "INSERT INTO config_tipos_baixa_exposicao_caixa (id_tipo_baixa, nome_tipo_baixa, flag_sistema_uso, incluir, paginas) VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+                (id_tipo_baixa, nome_tipo_baixa, flag_sistema_uso, incluir, paginas)
+            )
+        conn.commit()
+        return {"success": True}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/configuracoes/tipos-baixa-exposicao-caixa-ids")
+def get_tipos_baixa_exposicao_caixa_ids():
+    """Retorna os IDs dos tipos de baixa marcados como incluir=true para exposicao_caixa.
+    Retorna lista vazia se nenhuma configuração existir (sem filtro aplicado)."""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT COUNT(*) as cnt FROM config_tipos_baixa_exposicao_caixa")
+        row = cursor.fetchone()
+        if not row or int(row['cnt']) == 0:
+            return {"ids": [], "configurado": False}
+        cursor.execute(
+            "SELECT id_tipo_baixa FROM config_tipos_baixa_exposicao_caixa WHERE incluir = %s AND paginas LIKE %s",
+            (True, '%exposicao_caixa%')
+        )
+        rows = cursor.fetchall()
+        return {"ids": [r['id_tipo_baixa'] for r in rows], "configurado": True}
+    except Exception:
+        return {"ids": [], "configurado": False}
     finally:
         cursor.close()
         conn.close()

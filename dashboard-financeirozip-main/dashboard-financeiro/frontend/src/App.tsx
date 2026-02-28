@@ -11,6 +11,7 @@ import { ExtratoCliente } from './pages/ExtratoCliente';
 import { KPIs } from './pages/KPIs';
 import { ClassificacaoCentroCusto } from './pages/ClassificacaoCentroCusto';
 import { Configuracoes } from './pages/Configuracoes';
+import { ExposicaoCaixa } from './pages/ExposicaoCaixa';
 import { Login } from './pages/Login';
 import { authService, User } from './services/api';
 
@@ -94,6 +95,8 @@ function App() {
         return <ClassificacaoCentroCusto />;
       case 'configuracoes':
         return <Configuracoes />;
+      case 'exposicao-caixa':
+        return <ExposicaoCaixa />;
       default:
         return <Dashboard />;
     }
@@ -123,6 +126,7 @@ function App() {
               {currentPage === 'extrato-cliente' && 'Extrato Cliente'}
               {currentPage === 'kpis' && 'KPIs'}
               {currentPage === 'configuracoes' && 'Configuracoes'}
+              {currentPage === 'exposicao-caixa' && 'Exposição de Caixa'}
               </h1>
               <p className="mt-1 text-blue-100">Gestão Financeira - Construtora</p>
             </div>

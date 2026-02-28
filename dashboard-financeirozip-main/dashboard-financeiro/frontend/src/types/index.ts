@@ -29,6 +29,7 @@ export interface EmpresaOption {
 export interface CentroCustoOption {
   id: number;
   nome: string;
+  id_empresa?: number;
 }
 
 export interface TipoDocumentoOption {
@@ -189,6 +190,7 @@ export interface ContaReceber {
   nome_centrocusto?: string;
   titulo?: string;
   numero_parcela?: string;
+  id_tipo_baixa?: number;
 }
 
 export interface MetricasReceber {
