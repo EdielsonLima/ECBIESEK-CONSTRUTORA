@@ -69,7 +69,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 horas
 
 # Configuração API Anthropic
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
-IA_MODELO = os.environ.get('IA_MODELO', 'claude-3-5-sonnet-20241022')
+IA_MODELO = os.environ.get('IA_MODELO', 'claude-3-5-sonnet-20240620')
 
 if ANTHROPIC_API_KEY:
     anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
@@ -482,7 +482,7 @@ async def chat_ia(req: ChatRequest, current_user: dict = Depends(get_current_use
     """Rota para comunicação com o Agente de IA Financeiro"""
     load_dotenv(override=True)
     api_key = os.environ.get('ANTHROPIC_API_KEY', '')
-    modelo = os.environ.get('IA_MODELO', 'claude-3-5-sonnet-20241022')
+    modelo = os.environ.get('IA_MODELO', 'claude-3-5-sonnet-20240620')
     
     if not api_key:
         raise HTTPException(status_code=500, detail="Chave da Anthropic não configurada no backend.")
