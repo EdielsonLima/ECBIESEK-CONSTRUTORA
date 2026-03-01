@@ -149,6 +149,8 @@ export const ContasAPagar: React.FC = () => {
   const [tipoDocDropdownAberto, setTipoDocDropdownAberto] = useState(false);
   const [empresaDropdownAberto, setEmpresaDropdownAberto] = useState(false);
   const [ccDropdownAberto, setCcDropdownAberto] = useState(false);
+  const [credorDropdownAberto, setCredorDropdownAberto] = useState(false);
+  const [filtroCredor, setFiltroCredor] = useState<string[]>([]);
   const [classDropdownAberto, setClassDropdownAberto] = useState(false);
   const [anoDropdownAberto, setAnoDropdownAberto] = useState(false);
   const [snapshotsDisponiveis, setSnapshotsDisponiveis] = useState<Array<{ data_snapshot: string; created_at: string }>>([]);
@@ -158,9 +160,12 @@ export const ContasAPagar: React.FC = () => {
   const [snapshotMsg, setSnapshotMsg] = useState<string | null>(null);
   const [filtroAnoSemana, setFiltroAnoSemana] = useState<number>(new Date().getFullYear());
   const [filtroSemanas, setFiltroSemanas] = useState<number[]>([]);
+  const [subAbaCentroCusto, setSubAbaCentroCusto] = useState<'tabela' | 'grafico'>('tabela');
+  const [subAbaCredor, setSubAbaCredor] = useState<'tabela' | 'grafico'>('tabela');
   const [contasAno, setContasAno] = useState<ContaPagar[]>([]);
   const [loadingContasAno, setLoadingContasAno] = useState(false);
   const [semanaExpandida, setSemanaExpandida] = useState<number | null>(null);
+  const [credorExpandido, setCredorExpandido] = useState<string | null>(null);
 
   // Carregar contas do ano inteiro quando a aba Por Semana Ã© ativada
   useEffect(() => {
@@ -214,6 +219,10 @@ export const ContasAPagar: React.FC = () => {
           valorA = ((a as any).nome_centrocusto || '').toLowerCase();
           valorB = ((b as any).nome_centrocusto || '').toLowerCase();
           break;
+        case 'id_documento':
+          valorA = (a.id_documento || '').toLowerCase();
+          valorB = (b.id_documento || '').toLowerCase();
+          break;
         default:
           return 0;
       }
@@ -255,11 +264,22 @@ export const ContasAPagar: React.FC = () => {
     { valor: 11, nome: 'Novembro' },
     { valor: 12, nome: 'Dezembro' },
   ];
+  const anosDisponiveis = React.useMemo(() => {
+    const anos = new Set<number>();
+    todasContas.forEach(c => {
+      if (c.data_vencimento) {
+        const anoVenc = parseInt(c.data_vencimento.split('T')[0].split('-')[0]);
+        if (!isNaN(anoVenc)) anos.add(anoVenc);
+      }
+    });
 
-  const anosDisponiveis = () => {
-    const anoAtual = new Date().getFullYear();
-    return [anoAtual - 1, anoAtual, anoAtual + 1];
-  };
+    if (anos.size === 0) {
+      const anoAtual = new Date().getFullYear();
+      return [anoAtual - 1, anoAtual, anoAtual + 1];
+    }
+
+    return Array.from(anos).sort((a, b) => a - b);
+  }, [todasContas]);
 
   const formatCurrency = (value: number | undefined) => {
     if (!value) return 'R$ 0,00';
@@ -317,10 +337,10 @@ export const ContasAPagar: React.FC = () => {
     const carregarFiltros = async () => {
       try {
         const [empresasData, ccData, tiposDocData, classificacoesData] = await Promise.all([
-          apiService.getEmpresas(),
-          apiService.getCentrosCusto(),
-          apiService.getTiposDocumento(),
-          apiService.getClassificacoesCentrosCusto(),
+          apiService.getEmpresas().catch(() => []),
+          apiService.getCentrosCusto().catch(() => []),
+          apiService.getTiposDocumento().catch(() => []),
+          apiService.getClassificacoesCentrosCusto().catch(() => []),
         ]);
         setEmpresas(empresasData);
         setCentrosCusto(ccData);
@@ -395,7 +415,8 @@ export const ContasAPagar: React.FC = () => {
     prazo: string,
     ano: number[],
     mesesSelecionados: number[],
-    tiposDocSelecionados: string[]
+    tiposDocSelecionados: string[],
+    credoresSelecionados: string[]
   ) => {
     let contasFiltradas = [...dados];
 
@@ -430,6 +451,11 @@ export const ContasAPagar: React.FC = () => {
         return c.id_documento && tiposDocSelecionados.includes(c.id_documento);
       });
     }
+    if (credoresSelecionados.length > 0) {
+      contasFiltradas = contasFiltradas.filter(c => {
+        return c.credor && credoresSelecionados.includes(c.credor);
+      });
+    }
     if (prazo !== 'todos') {
       contasFiltradas = contasFiltradas.filter(c => {
         const dias = calcularDiasAteVencimento(c.data_vencimento as any);
@@ -449,7 +475,7 @@ export const ContasAPagar: React.FC = () => {
   useEffect(() => {
     if (todasContas.length === 0) return;
 
-    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento);
+    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor);
     setContas(contasFiltradas);
 
     const stats: Estatisticas = {
@@ -520,7 +546,7 @@ export const ContasAPagar: React.FC = () => {
       .filter(d => d.quantidade > 0)
       .sort((a, b) => a.ordem - b.ordem);
     setDadosPorVencimento(vencimentoArray);
-  }, [todasContas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento]);
+  }, [todasContas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor]);
 
   useEffect(() => {
     carregarDados();
@@ -538,7 +564,16 @@ export const ContasAPagar: React.FC = () => {
     setFiltroAno([]);
     setFiltroMes([]);
     setFiltroTipoDocumento([]);
+    setFiltroCredor([]);
   };
+
+  const credoresDisponiveis = React.useMemo(() => {
+    const credorSet = new Set<string>();
+    todasContas.forEach(c => {
+      if (c.credor) credorSet.add(c.credor);
+    });
+    return Array.from(credorSet).sort((a, b) => a.localeCompare(b));
+  }, [todasContas]);
 
   if (loading) {
     return (
@@ -586,6 +621,15 @@ export const ContasAPagar: React.FC = () => {
           searchable={true}
         />
         <MultiSelectDropdown
+          label="Credor"
+          items={credoresDisponiveis.map(c => ({ id: c, nome: c }))}
+          selected={filtroCredor}
+          setSelected={setFiltroCredor}
+          isOpen={credorDropdownAberto}
+          setIsOpen={setCredorDropdownAberto}
+          searchable={true}
+        />
+        <MultiSelectDropdown
           label="Classificacao"
           items={classificacaoOptions}
           selected={filtroClassificacao}
@@ -609,7 +653,7 @@ export const ContasAPagar: React.FC = () => {
         </div>
         <MultiSelectDropdown
           label="Ano"
-          items={anosDisponiveis().map(a => ({ id: a, nome: String(a) }))}
+          items={anosDisponiveis.map(a => ({ id: a, nome: String(a) }))}
           selected={filtroAno}
           setSelected={setFiltroAno}
           isOpen={anoDropdownAberto}
@@ -673,6 +717,10 @@ export const ContasAPagar: React.FC = () => {
     if (filtroCentroCusto.length > 0) {
       const nomes = filtroCentroCusto.map(id => centrosCusto.find(c => c.id === id)?.nome).filter(Boolean).join(', ');
       tags.push({ label: 'Centros de Custo', value: nomes, onRemove: () => setFiltroCentroCusto([]) });
+    }
+
+    if (filtroCredor.length > 0) {
+      tags.push({ label: 'Credor', value: filtroCredor.length === 1 ? filtroCredor[0] : `${filtroCredor.length} credores`, onRemove: () => setFiltroCredor([]) });
     }
 
     if (filtroClassificacao.length > 0) {
@@ -784,6 +832,9 @@ export const ContasAPagar: React.FC = () => {
                 <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Centro de Custo{renderSortIcon('nome_centrocusto')}
                 </th>
+                <th onClick={() => toggleOrdenacao('id_documento')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                  Tipo Doc.{renderSortIcon('id_documento')}
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 bg-white">
@@ -800,6 +851,7 @@ export const ContasAPagar: React.FC = () => {
                     <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-blue-600">{formatCurrency(conta.valor_total)}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{(conta as any).nome_centrocusto || '-'}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 font-mono">{conta.id_documento || '-'}</td>
                   </tr>
                 );
               })}
@@ -868,85 +920,6 @@ export const ContasAPagar: React.FC = () => {
         </div>
       )}
 
-      {dadosPorCredor.length > 0 && (
-        <div className="rounded-lg bg-white p-6 shadow">
-          <h3 className="mb-2 text-xl font-semibold text-gray-900">Top 15 Credores - Valores a Pagar</h3>
-          <p className="mb-4 text-sm text-gray-500">Maiores valores pendentes por credor</p>
-          <div className="h-96">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dadosPorCredor} layout="vertical" margin={{ top: 5, right: 80, left: 180, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" tickFormatter={(value) => formatCurrencyShort(value)} tick={{ fontSize: 11 }} />
-                <YAxis type="category" dataKey="credor" tick={{ fontSize: 10 }} width={170} />
-                <Tooltip
-                  content={({ active, payload, label }) => {
-                    if (active && payload && payload.length) {
-                      const data = payload[0].payload;
-                      const totalCredores = dadosPorCredor.reduce((acc, c) => acc + c.valor, 0);
-                      const percentual = totalCredores > 0 ? ((data.valor / totalCredores) * 100).toFixed(1) : '0';
-                      return (
-                        <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
-                          <p className="mb-2 font-semibold text-gray-900">{label}</p>
-                          <p className="text-sm text-blue-600">Valor: {formatCurrency(data.valor)}</p>
-                          <p className="text-sm text-purple-600">Percentual: {percentual}%</p>
-                          <p className="text-sm text-gray-600">Titulos: {data.quantidade}</p>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-                <Bar dataKey="valor" fill="#3B82F6" radius={[0, 4, 4, 0]}>
-                  {dadosPorCredor.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                  <LabelList dataKey="valor" position="right" formatter={(value: number) => formatCurrencyShort(value)} style={{ fontSize: 9, fill: '#374151' }} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-
-      {dadosPorEmpresa.length > 0 && (
-        <div className="rounded-lg bg-white p-6 shadow">
-          <h3 className="mb-2 text-xl font-semibold text-gray-900">Valores a Pagar por Centro de Custo</h3>
-          <p className="mb-4 text-sm text-gray-500">Distribuicao de valores pendentes por centro de custo</p>
-          <div style={{ height: Math.max(300, dadosPorEmpresa.length * 35) }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dadosPorEmpresa} layout="vertical" margin={{ top: 5, right: 100, left: 200, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" tickFormatter={(value) => formatCurrencyShort(value)} tick={{ fontSize: 11 }} />
-                <YAxis type="category" dataKey="centroCusto" tick={{ fontSize: 9 }} width={190} />
-                <Tooltip
-                  content={({ active, payload, label }) => {
-                    if (active && payload && payload.length) {
-                      const data = payload[0].payload;
-                      const totalEmpresas = dadosPorEmpresa.reduce((acc, e) => acc + e.valor, 0);
-                      const percentual = totalEmpresas > 0 ? ((data.valor / totalEmpresas) * 100).toFixed(1) : '0';
-                      return (
-                        <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
-                          <p className="mb-2 font-semibold text-gray-900">{label}</p>
-                          <p className="text-sm text-blue-600">Valor: {formatCurrency(data.valor)}</p>
-                          <p className="text-sm text-purple-600">Percentual: {percentual}%</p>
-                          <p className="text-sm text-gray-600">Titulos: {data.quantidade}</p>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-                <Bar dataKey="valor" fill="#3B82F6" radius={[0, 4, 4, 0]}>
-                  {dadosPorEmpresa.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                  <LabelList dataKey="valor" position="right" formatter={(value: number) => formatCurrencyShort(value)} style={{ fontSize: 9, fill: '#374151' }} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
     </div>
   );
 
@@ -1278,62 +1251,167 @@ export const ContasAPagar: React.FC = () => {
                   {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
                 </button>
               </div>
+
+              <div className="mt-4 flex gap-2 border-b border-gray-200 pb-2">
+                <button
+                  onClick={() => setSubAbaCredor('tabela')}
+                  className={`rounded-t-lg px-4 py-2 text-sm font-medium ${subAbaCredor === 'tabela' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  Tabela
+                </button>
+                <button
+                  onClick={() => setSubAbaCredor('grafico')}
+                  className={`rounded-t-lg px-4 py-2 text-sm font-medium ${subAbaCredor === 'grafico' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  Grafico
+                </button>
+              </div>
+
               {mostrarFiltros && renderFiltros()}
               {!mostrarFiltros && renderFiltrosTags()}
             </div>
 
-            <div className="overflow-hidden rounded-lg bg-white shadow">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-blue-50">
-                    <tr>
-                      <th onClick={() => toggleOrdenacao('rank')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-12 cursor-pointer hover:bg-blue-100">#{renderSortIcon('rank')}</th>
-                      <th onClick={() => toggleOrdenacao('credor')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Credor{renderSortIcon('credor')}</th>
-                      <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Qtd TÃ­tulos{renderSortIcon('quantidade')}</th>
-                      <th onClick={() => toggleOrdenacao('valor')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Valor{renderSortIcon('valor')}</th>
-                      <th onClick={() => toggleOrdenacao('percentual')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">% do Total{renderSortIcon('percentual')}</th>
-                      <th onClick={() => toggleOrdenacao('acumulado')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">% Acumulado{renderSortIcon('acumulado')}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {credoresExibidos.map((c, index) => (
-                      <tr key={index} className={`hover:bg-gray-50 ${c.acumulado <= 80 ? 'bg-green-50/30' : c.acumulado <= 95 ? 'bg-yellow-50/30' : ''}`}>
-                        <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-400 font-mono">{c.rank}</td>
-                        <td className="whitespace-nowrap px-6 py-3 text-sm font-medium text-gray-900">{c.credor}</td>
-                        <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500 text-center">{c.quantidade}</td>
-                        <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-blue-600 text-right">{formatCurrency(c.valor)}</td>
-                        <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-700 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <div className="w-20 bg-gray-200 rounded-full h-2">
-                              <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${Math.min(c.percentual * 2, 100)}%` }}></div>
-                            </div>
-                            <span className="w-14 text-right">{c.percentual.toFixed(2)}%</span>
-                          </div>
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-right">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${c.acumulado <= 80 ? 'bg-green-100 text-green-700' :
-                            c.acumulado <= 95 ? 'bg-yellow-100 text-yellow-700' :
-                              'bg-red-100 text-red-700'
-                            }`}>
-                            {c.acumulado.toFixed(2)}%
-                          </span>
-                        </td>
+            {subAbaCredor === 'tabela' && (
+              <div className="overflow-hidden rounded-lg bg-white shadow">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-blue-50">
+                      <tr>
+                        <th onClick={() => toggleOrdenacao('rank')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-12 cursor-pointer hover:bg-blue-100">#{renderSortIcon('rank')}</th>
+                        <th onClick={() => toggleOrdenacao('credor')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Credor{renderSortIcon('credor')}</th>
+                        <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Qtd TÃ­tulos{renderSortIcon('quantidade')}</th>
+                        <th onClick={() => toggleOrdenacao('valor')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Valor{renderSortIcon('valor')}</th>
+                        <th onClick={() => toggleOrdenacao('percentual')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">% do Total{renderSortIcon('percentual')}</th>
+                        <th onClick={() => toggleOrdenacao('acumulado')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">% Acumulado{renderSortIcon('acumulado')}</th>
                       </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="bg-gray-100">
-                    <tr className="font-bold">
-                      <td className="px-4 py-3 text-sm"></td>
-                      <td className="px-6 py-3 text-sm text-gray-900">TOTAL</td>
-                      <td className="px-6 py-3 text-sm text-gray-900 text-center">{contas.length}</td>
-                      <td className="px-6 py-3 text-sm text-blue-700 text-right">{formatCurrency(totalGeral)}</td>
-                      <td className="px-6 py-3 text-sm text-gray-900 text-right">100,00%</td>
-                      <td className="px-6 py-3 text-sm"></td>
-                    </tr>
-                  </tfoot>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 bg-white">
+                      {credoresExibidos.map((c, index) => (
+                        <React.Fragment key={index}>
+                          <tr
+                            onClick={() => setCredorExpandido(credorExpandido === c.credor ? null : c.credor)}
+                            className={`cursor-pointer hover:bg-gray-50 transition-colors ${credorExpandido === c.credor ? 'bg-blue-50/50' : c.acumulado <= 80 ? 'bg-green-50/30' : c.acumulado <= 95 ? 'bg-yellow-50/30' : ''}`}
+                          >
+                            <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-400 font-mono">
+                              <span className={`inline-block transition-transform mr-2 text-[10px] ${credorExpandido === c.credor ? 'rotate-90' : ''}`}>▶</span>
+                              {c.rank}
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm font-medium text-gray-900">{c.credor}</td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500 text-center">{c.quantidade}</td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-blue-600 text-right">{formatCurrency(c.valor)}</td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-700 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <div className="w-20 bg-gray-200 rounded-full h-2">
+                                  <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${Math.min(c.percentual * 2, 100)}%` }}></div>
+                                </div>
+                                <span className="w-14 text-right">{c.percentual.toFixed(2)}%</span>
+                              </div>
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-right">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${c.acumulado <= 80 ? 'bg-green-100 text-green-700' :
+                                c.acumulado <= 95 ? 'bg-yellow-100 text-yellow-700' :
+                                  'bg-red-100 text-red-700'
+                                }`}>
+                                {c.acumulado.toFixed(2)}%
+                              </span>
+                            </td>
+                          </tr>
+                          {credorExpandido === c.credor && (
+                            <tr className="bg-gray-50">
+                              <td colSpan={6} className="px-8 py-4">
+                                <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-inner">
+                                  <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                      <tr>
+                                        <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vencimento</th>
+                                        <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Título</th>
+                                        <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                        <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Centro de Custo</th>
+                                        <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                      {contas.filter(conta => (conta.credor || 'Sem Credor') === c.credor).map((conta, j) => {
+                                        const dias = calcularDiasAteVencimento(conta.data_vencimento as any);
+                                        const corDias = dias < 0 ? 'text-red-600' : dias === 0 ? 'text-orange-600' : 'text-green-600';
+                                        return (
+                                          <tr key={j} className="hover:bg-blue-50/50">
+                                            <td className="whitespace-nowrap px-6 py-2 text-sm text-gray-500">{formatDate(conta.data_vencimento as any)}</td>
+                                            <td className="whitespace-nowrap px-6 py-2 text-sm font-medium text-gray-900">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
+                                            <td className={`whitespace-nowrap px-6 py-2 text-sm font-semibold ${corDias}`}>
+                                              {dias < 0 ? `${Math.abs(dias)}d atraso` : dias === 0 ? 'Hoje' : `${dias}d`}
+                                            </td>
+                                            <td className="whitespace-nowrap px-6 py-2 text-sm text-gray-500">{(conta as any).nome_centrocusto || '-'}</td>
+                                            <td className="whitespace-nowrap px-6 py-2 text-sm text-blue-600 font-semibold text-right">{formatCurrency(conta.valor_total || 0)}</td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-gray-100">
+                      <tr className="font-bold">
+                        <td className="px-4 py-3 text-sm"></td>
+                        <td className="px-6 py-3 text-sm text-gray-900">TOTAL</td>
+                        <td className="px-6 py-3 text-sm text-gray-900 text-center">{contas.length}</td>
+                        <td className="px-6 py-3 text-sm text-blue-700 text-right">{formatCurrency(totalGeral)}</td>
+                        <td className="px-6 py-3 text-sm text-gray-900 text-right">100,00%</td>
+                        <td className="px-6 py-3 text-sm"></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
               </div>
-            </div>
+            )}
+
+            {subAbaCredor === 'grafico' && (
+              <div className="mb-6 rounded-lg bg-white p-6 shadow">
+                <p className="mb-4 text-sm text-gray-500">Distribuição de valores pendentes por credor</p>
+                <div style={{ height: Math.max(300, credoresExibidos.length * 45) }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={credoresExibidos}
+                      layout="vertical"
+                      margin={{ top: 5, right: 30, left: 150, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} tick={{ fontSize: 11 }} />
+                      <YAxis dataKey="credor" type="category" width={140} tick={{ fontSize: 11 }} />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
+                                <p className="mb-1 font-semibold text-gray-900">{data.credor}</p>
+                                <p className="text-sm font-semibold text-blue-600">Valor: {formatCurrency(data.valor)}</p>
+                                <p className="text-sm text-gray-600">Representatividade: {data.percentual.toFixed(2)}%</p>
+                                <p className="text-sm text-gray-600">Títulos: {data.quantidade}</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Bar dataKey="valor" radius={[0, 4, 4, 0]}>
+                        {credoresExibidos.map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={entry.acumulado <= 80 ? '#10B981' : entry.acumulado <= 95 ? '#EAB308' : '#EF4444'}
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
 
             {/* Legenda Pareto */}
             <div className="mt-4 flex items-center gap-6 text-xs text-gray-500">
@@ -1409,62 +1487,124 @@ export const ContasAPagar: React.FC = () => {
                   {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
                 </button>
               </div>
+
+              <div className="mt-4 flex gap-2 border-b border-gray-200 pb-2">
+                <button
+                  onClick={() => setSubAbaCentroCusto('tabela')}
+                  className={`rounded-t-lg px-4 py-2 text-sm font-medium ${subAbaCentroCusto === 'tabela' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  Tabela
+                </button>
+                <button
+                  onClick={() => setSubAbaCentroCusto('grafico')}
+                  className={`rounded-t-lg px-4 py-2 text-sm font-medium ${subAbaCentroCusto === 'grafico' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  Grafico
+                </button>
+              </div>
+
               {mostrarFiltros && renderFiltros()}
               {!mostrarFiltros && renderFiltrosTags()}
             </div>
 
-            <div className="overflow-hidden rounded-lg bg-white shadow">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-blue-50">
-                    <tr>
-                      <th onClick={() => toggleOrdenacao('rank')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-12 cursor-pointer hover:bg-blue-100">#{renderSortIcon('rank')}</th>
-                      <th onClick={() => toggleOrdenacao('centroCusto')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Centro de Custo{renderSortIcon('centroCusto')}</th>
-                      <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Qtd TÃ­tulos{renderSortIcon('quantidade')}</th>
-                      <th onClick={() => toggleOrdenacao('valor')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Valor{renderSortIcon('valor')}</th>
-                      <th onClick={() => toggleOrdenacao('percentual')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">% do Total{renderSortIcon('percentual')}</th>
-                      <th onClick={() => toggleOrdenacao('acumulado')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">% Acumulado{renderSortIcon('acumulado')}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {ccExibidos.map((c, index) => (
-                      <tr key={index} className={`hover:bg-gray-50 ${c.acumulado <= 80 ? 'bg-green-50/30' : c.acumulado <= 95 ? 'bg-yellow-50/30' : ''}`}>
-                        <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-400 font-mono">{c.rank}</td>
-                        <td className="whitespace-nowrap px-6 py-3 text-sm font-medium text-gray-900">{c.centroCusto}</td>
-                        <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500 text-center">{c.quantidade}</td>
-                        <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-blue-600 text-right">{formatCurrency(c.valor)}</td>
-                        <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-700 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <div className="w-20 bg-gray-200 rounded-full h-2">
-                              <div className="bg-teal-500 h-2 rounded-full" style={{ width: `${Math.min(c.percentual * 2, 100)}%` }}></div>
-                            </div>
-                            <span className="w-14 text-right">{c.percentual.toFixed(2)}%</span>
-                          </div>
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-right">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${c.acumulado <= 80 ? 'bg-green-100 text-green-700' :
-                            c.acumulado <= 95 ? 'bg-yellow-100 text-yellow-700' :
-                              'bg-red-100 text-red-700'
-                            }`}>
-                            {c.acumulado.toFixed(2)}%
-                          </span>
-                        </td>
+            {subAbaCentroCusto === 'tabela' && (
+
+              <div className="overflow-hidden rounded-lg bg-white shadow">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-blue-50">
+                      <tr>
+                        <th onClick={() => toggleOrdenacao('rank')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-12 cursor-pointer hover:bg-blue-100">#{renderSortIcon('rank')}</th>
+                        <th onClick={() => toggleOrdenacao('centroCusto')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Centro de Custo{renderSortIcon('centroCusto')}</th>
+                        <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Qtd TÃ­tulos{renderSortIcon('quantidade')}</th>
+                        <th onClick={() => toggleOrdenacao('valor')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Valor{renderSortIcon('valor')}</th>
+                        <th onClick={() => toggleOrdenacao('percentual')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">% do Total{renderSortIcon('percentual')}</th>
+                        <th onClick={() => toggleOrdenacao('acumulado')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">% Acumulado{renderSortIcon('acumulado')}</th>
                       </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="bg-gray-100">
-                    <tr className="font-bold">
-                      <td className="px-4 py-3 text-sm"></td>
-                      <td className="px-6 py-3 text-sm text-gray-900">TOTAL</td>
-                      <td className="px-6 py-3 text-sm text-gray-900 text-center">{contas.length}</td>
-                      <td className="px-6 py-3 text-sm text-blue-700 text-right">{formatCurrency(totalGeral)}</td>
-                      <td className="px-6 py-3 text-sm text-gray-900 text-right">100,00%</td>
-                      <td className="px-6 py-3 text-sm"></td>
-                    </tr>
-                  </tfoot>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 bg-white">
+                      {ccExibidos.map((c, index) => (
+                        <tr key={index} className={`hover:bg-gray-50 ${c.acumulado <= 80 ? 'bg-green-50/30' : c.acumulado <= 95 ? 'bg-yellow-50/30' : ''}`}>
+                          <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-400 font-mono">{c.rank}</td>
+                          <td className="whitespace-nowrap px-6 py-3 text-sm font-medium text-gray-900">{c.centroCusto}</td>
+                          <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500 text-center">{c.quantidade}</td>
+                          <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-blue-600 text-right">{formatCurrency(c.valor)}</td>
+                          <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-700 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <div className="w-20 bg-gray-200 rounded-full h-2">
+                                <div className="bg-teal-500 h-2 rounded-full" style={{ width: `${Math.min(c.percentual * 2, 100)}%` }}></div>
+                              </div>
+                              <span className="w-14 text-right">{c.percentual.toFixed(2)}%</span>
+                            </div>
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-right">
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${c.acumulado <= 80 ? 'bg-green-100 text-green-700' :
+                              c.acumulado <= 95 ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-red-100 text-red-700'
+                              }`}>
+                              {c.acumulado.toFixed(2)}%
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-gray-100">
+                      <tr className="font-bold">
+                        <td className="px-4 py-3 text-sm"></td>
+                        <td className="px-6 py-3 text-sm text-gray-900">TOTAL</td>
+                        <td className="px-6 py-3 text-sm text-gray-900 text-center">{contas.length}</td>
+                        <td className="px-6 py-3 text-sm text-blue-700 text-right">{formatCurrency(totalGeral)}</td>
+                        <td className="px-6 py-3 text-sm text-gray-900 text-right">100,00%</td>
+                        <td className="px-6 py-3 text-sm"></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
               </div>
-            </div>
+            )}
+
+            {subAbaCentroCusto === 'grafico' && (
+              <div className="mb-6 rounded-lg bg-white p-6 shadow">
+                <p className="mb-4 text-sm text-gray-500">Distribuição de valores pendentes por centro de custo</p>
+                <div style={{ height: Math.max(300, ccExibidos.length * 45) }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={ccExibidos}
+                      layout="vertical"
+                      margin={{ top: 5, right: 30, left: 150, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} tick={{ fontSize: 11 }} />
+                      <YAxis dataKey="centroCusto" type="category" width={140} tick={{ fontSize: 11 }} />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
+                                <p className="mb-1 font-semibold text-gray-900">{data.centroCusto}</p>
+                                <p className="text-sm font-semibold text-blue-600">Valor: {formatCurrency(data.valor)}</p>
+                                <p className="text-sm text-gray-600">Representatividade: {data.percentual.toFixed(2)}%</p>
+                                <p className="text-sm text-gray-600">Títulos: {data.quantidade}</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Bar dataKey="valor" radius={[0, 4, 4, 0]}>
+                        {ccExibidos.map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={entry.acumulado <= 80 ? '#10B981' : entry.acumulado <= 95 ? '#EAB308' : '#EF4444'}
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
 
             {/* Legenda Pareto */}
             <div className="mt-4 flex items-center gap-6 text-xs text-gray-500">
