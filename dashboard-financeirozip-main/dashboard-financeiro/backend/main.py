@@ -69,7 +69,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 horas
 
 # Configuração API Anthropic
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
-IA_MODELO = os.environ.get('IA_MODELO', 'claude-3-5-sonnet-20240620')
+IA_MODELO = os.environ.get('IA_MODELO', 'claude-3-haiku-20240307')
 
 if ANTHROPIC_API_KEY:
     anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
@@ -482,7 +482,7 @@ async def chat_ia(req: ChatRequest, current_user: dict = Depends(get_current_use
     """Rota para comunicação com o Agente de IA Financeiro"""
     load_dotenv(override=True)
     api_key = os.environ.get('ANTHROPIC_API_KEY', '')
-    modelo = os.environ.get('IA_MODELO', 'claude-3-5-sonnet-20240620')
+    modelo = os.environ.get('IA_MODELO', 'claude-3-haiku-20240307')
     
     if not api_key:
         raise HTTPException(status_code=500, detail="Chave da Anthropic não configurada no backend.")
@@ -639,7 +639,8 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                        cap.id_interno_empresa, cap.id_interno_centro_custo,
                        cc.nome_empresa, cc.nome_centrocusto,
                        cc.id_sienge_empresa,
-                       TRIM(cap.id_documento) as id_documento
+                       TRIM(cap.id_documento) as id_documento,
+                       TRIM(cap.id_origem) as id_origem
                 FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE cap.data_vencimento >= %s{excl_where}
@@ -656,7 +657,8 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                        cap.id_interno_empresa, cap.id_interno_centro_custo,
                        cc.nome_empresa, cc.nome_centrocusto,
                        cc.id_sienge_empresa,
-                       TRIM(cap.id_documento) as id_documento
+                       TRIM(cap.id_documento) as id_documento,
+                       TRIM(cap.id_origem) as id_origem
                 FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE cap.data_vencimento < %s{excl_where}
@@ -683,6 +685,39 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
 
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/contas-ano")
+def get_contas_ano(ano: int = None):
+    """Retorna todas as contas a pagar de um ano específico (a partir de hoje, sem limite)"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        if ano is None:
+            ano = datetime.now().year
+        hoje = datetime.now().date()
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap')
+        excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
+        query = f"""
+            SELECT cap.credor, cap.data_vencimento, cap.valor_total,
+                   cap.lancamento, cap.numero_documento, cap.id_plano_financeiro,
+                   cap.id_interno_empresa, cap.id_interno_centro_custo,
+                   cc.nome_empresa, cc.nome_centrocusto,
+                   cc.id_sienge_empresa,
+                   TRIM(cap.id_documento) as id_documento,
+                   TRIM(cap.id_origem) as id_origem
+            FROM contas_a_pagar cap
+            LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE cap.data_vencimento >= %s
+              AND EXTRACT(YEAR FROM cap.data_vencimento) = %s{excl_where}
+            ORDER BY cap.data_vencimento ASC
+        """
+        cursor.execute(query, [hoje, ano] + excl_params)
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
     finally:
         cursor.close()
         conn.close()

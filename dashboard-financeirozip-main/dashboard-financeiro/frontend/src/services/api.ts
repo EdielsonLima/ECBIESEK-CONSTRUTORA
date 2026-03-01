@@ -119,6 +119,14 @@ export const apiService = {
     return response.data;
   },
 
+  // Contas a pagar do ano inteiro (sem filtro de data mínima)
+  getContasAno: async (ano?: number): Promise<ContaPagar[]> => {
+    const params = new URLSearchParams();
+    if (ano) params.append('ano', ano.toString());
+    const response = await api.get<ContaPagar[]>(`/contas-ano?${params.toString()}`);
+    return response.data;
+  },
+
   // Gráfico mensal
   getGraficoMensal: async (): Promise<GraficoMensal[]> => {
     const response = await api.get<GraficoMensal[]>('/grafico-mensal');

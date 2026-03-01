@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { apiService } from '../services/api';
 import { ContaPagar, EmpresaOption, CentroCustoOption, TipoDocumentoOption } from '../types';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList, Line, ComposedChart } from 'recharts';
 
 interface MultiSelectDropdownProps {
   label: string;
@@ -118,7 +118,7 @@ interface DadosPorVencimento {
   ordem: number;
 }
 
-type AbaAtiva = 'dados' | 'analises';
+type AbaAtiva = 'dados' | 'analises' | 'por-credor' | 'por-centro-custo' | 'por-semana' | 'por-origem';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1'];
 
@@ -156,12 +156,35 @@ export const ContasAPagar: React.FC = () => {
   const [snapshotDados, setSnapshotDados] = useState<Record<string, { faixa: string; data_inicio: string | null; data_fim: string | null; valor_total: number; quantidade_titulos: number; quantidade_credores: number }> | null>(null);
   const [salvandoSnapshot, setSalvandoSnapshot] = useState(false);
   const [snapshotMsg, setSnapshotMsg] = useState<string | null>(null);
+  const [filtroAnoSemana, setFiltroAnoSemana] = useState<number>(new Date().getFullYear());
+  const [filtroSemanas, setFiltroSemanas] = useState<number[]>([]);
+  const [contasAno, setContasAno] = useState<ContaPagar[]>([]);
+  const [loadingContasAno, setLoadingContasAno] = useState(false);
+  const [semanaExpandida, setSemanaExpandida] = useState<number | null>(null);
+
+  // Carregar contas do ano inteiro quando a aba Por Semana Ã© ativada
+  useEffect(() => {
+    if (abaAtiva === 'por-semana') {
+      const carregarContasAno = async () => {
+        try {
+          setLoadingContasAno(true);
+          const data = await apiService.getContasAno(filtroAnoSemana);
+          setContasAno(data);
+        } catch (err) {
+          console.error('Erro ao carregar contas do ano:', err);
+        } finally {
+          setLoadingContasAno(false);
+        }
+      };
+      carregarContasAno();
+    }
+  }, [abaAtiva, filtroAnoSemana]);
 
   const ordenarContas = (contasParaOrdenar: ContaPagar[]) => {
     return [...contasParaOrdenar].sort((a, b) => {
       let valorA: any;
       let valorB: any;
-      
+
       switch (ordenacao.campo) {
         case 'credor':
           valorA = (a.credor || '').toLowerCase();
@@ -194,7 +217,7 @@ export const ContasAPagar: React.FC = () => {
         default:
           return 0;
       }
-      
+
       if (valorA < valorB) return ordenacao.direcao === 'asc' ? -1 : 1;
       if (valorA > valorB) return ordenacao.direcao === 'asc' ? 1 : -1;
       return 0;
@@ -211,9 +234,9 @@ export const ContasAPagar: React.FC = () => {
   const renderSortIcon = (campo: string) => (
     <span className="ml-1 inline-block">
       {ordenacao.campo === campo ? (
-        ordenacao.direcao === 'asc' ? '▲' : '▼'
+        ordenacao.direcao === 'asc' ? 'â–²' : 'â–¼'
       ) : (
-        <span className="text-gray-300">▼</span>
+        <span className="text-gray-300">â–¼</span>
       )}
     </span>
   );
@@ -263,6 +286,21 @@ export const ContasAPagar: React.FC = () => {
     return `${day}/${month}/${year}`;
   };
 
+  const calcularTitulosUnicos = (listaContas: ContaPagar[]): number => {
+    const unicos = new Set<string>();
+    listaContas.forEach(c => {
+      if (c.lancamento && String(c.lancamento).includes('/')) {
+        // Ex: "10589/22" -> usa só a parte "10589" (ID base do título que gerou as parcelas)
+        unicos.add(String(c.lancamento).split('/')[0]);
+      } else if (c.numero_documento) {
+        unicos.add(String(c.numero_documento));
+      } else {
+        unicos.add(`fallback-${c.id}`);
+      }
+    });
+    return unicos.size;
+  };
+
   const calcularDiasAteVencimento = (dataVencimento: string | undefined) => {
     if (!dataVencimento) return 0;
     const hoje = new Date();
@@ -287,7 +325,7 @@ export const ContasAPagar: React.FC = () => {
         setEmpresas(empresasData);
         setCentrosCusto(ccData);
         setTiposDocumento(tiposDocData);
-        
+
         const classMap = new Map<number, string>();
         classificacoesData.forEach(c => {
           classMap.set(c.id_interno_centrocusto, c.classificacao);
@@ -332,13 +370,13 @@ export const ContasAPagar: React.FC = () => {
   const carregarDados = async () => {
     try {
       setLoading(true);
-      const data = await apiService.getContas('a_pagar', 500);
-      
+      const data = await apiService.getContas('a_pagar', 10000);
+
       const contasNaoVencidas = data.filter(c => {
         const dias = calcularDiasAteVencimento(c.data_vencimento as any);
         return dias >= 0;
       });
-      
+
       setTodasContas(contasNaoVencidas);
     } catch (err) {
       setError('Erro ao carregar contas a pagar');
@@ -360,7 +398,7 @@ export const ContasAPagar: React.FC = () => {
     tiposDocSelecionados: string[]
   ) => {
     let contasFiltradas = [...dados];
-    
+
     if (empresa.length > 0) {
       contasFiltradas = contasFiltradas.filter(c => empresa.includes(c.id_sienge_empresa as number));
     }
@@ -404,21 +442,21 @@ export const ContasAPagar: React.FC = () => {
         }
       });
     }
-    
+
     return contasFiltradas;
   };
 
   useEffect(() => {
     if (todasContas.length === 0) return;
-    
+
     const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento);
     setContas(contasFiltradas);
 
     const stats: Estatisticas = {
-      quantidade_titulos: contasFiltradas.length,
+      quantidade_titulos: calcularTitulosUnicos(contasFiltradas),
       valor_total: contasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0),
-      valor_medio: contasFiltradas.length > 0 
-        ? contasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0) / contasFiltradas.length 
+      valor_medio: contasFiltradas.length > 0
+        ? contasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0) / contasFiltradas.length
         : 0,
     };
     setEstatisticas(stats);
@@ -460,10 +498,10 @@ export const ContasAPagar: React.FC = () => {
       { faixa: '31-60 dias', min: 31, max: 60, ordem: 5 },
       { faixa: '+60 dias', min: 61, max: Infinity, ordem: 6 },
     ];
-    
+
     const vencimentoMap = new Map<string, { valor: number; quantidade: number; ordem: number }>();
     faixas.forEach(f => vencimentoMap.set(f.faixa, { valor: 0, quantidade: 0, ordem: f.ordem }));
-    
+
     contasFiltradas.forEach(c => {
       const dias = calcularDiasAteVencimento(c.data_vencimento as any);
       const faixa = faixas.find(f => dias >= f.min && dias <= f.max);
@@ -476,7 +514,7 @@ export const ContasAPagar: React.FC = () => {
         });
       }
     });
-    
+
     const vencimentoArray = Array.from(vencimentoMap.entries())
       .map(([faixa, data]) => ({ faixa, ...data }))
       .filter(d => d.quantidade > 0)
@@ -489,7 +527,7 @@ export const ContasAPagar: React.FC = () => {
   }, []);
 
   const aplicarFiltros = () => {
-    // Filtros já são aplicados automaticamente pelo useEffect
+    // Filtros jÃ¡ sÃ£o aplicados automaticamente pelo useEffect
   };
 
   const limparFiltros = () => {
@@ -626,21 +664,21 @@ export const ContasAPagar: React.FC = () => {
 
   const renderFiltrosTags = () => {
     const tags: { label: string; value: string; onRemove: () => void }[] = [];
-    
+
     if (filtroEmpresa.length > 0) {
       const nomes = filtroEmpresa.map(id => empresas.find(e => e.id === id)?.nome).filter(Boolean).join(', ');
       tags.push({ label: 'Empresas', value: nomes, onRemove: () => setFiltroEmpresa([]) });
     }
-    
+
     if (filtroCentroCusto.length > 0) {
       const nomes = filtroCentroCusto.map(id => centrosCusto.find(c => c.id === id)?.nome).filter(Boolean).join(', ');
       tags.push({ label: 'Centros de Custo', value: nomes, onRemove: () => setFiltroCentroCusto([]) });
     }
-    
+
     if (filtroClassificacao.length > 0) {
       tags.push({ label: 'Classificacao', value: filtroClassificacao.join(', '), onRemove: () => setFiltroClassificacao([]) });
     }
-    
+
     const prazoNome = getPrazoNome(filtroPrazo);
     if (prazoNome) {
       tags.push({ label: 'Prazo', value: prazoNome, onRemove: () => setFiltroPrazo('todos') });
@@ -705,7 +743,7 @@ export const ContasAPagar: React.FC = () => {
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Contas a Pagar</h2>
             <p className="mt-1 text-sm text-gray-600">
-              {contas.length} conta(s) pendentes
+              {calcularTitulosUnicos(contas)} título(s) pendente(s)
             </p>
           </div>
           <button
@@ -743,9 +781,6 @@ export const ContasAPagar: React.FC = () => {
                 <th onClick={() => toggleOrdenacao('lancamento')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Titulo{renderSortIcon('lancamento')}
                 </th>
-                <th onClick={() => toggleOrdenacao('nome_empresa')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
-                  Empresa{renderSortIcon('nome_empresa')}
-                </th>
                 <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Centro de Custo{renderSortIcon('nome_centrocusto')}
                 </th>
@@ -764,7 +799,6 @@ export const ContasAPagar: React.FC = () => {
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-blue-600">{formatCurrency(conta.valor_total)}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.nome_empresa || '-'}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{(conta as any).nome_centrocusto || '-'}</td>
                   </tr>
                 );
@@ -821,9 +855,9 @@ export const ContasAPagar: React.FC = () => {
                 />
                 <Bar dataKey="valor" fill="#3B82F6" radius={[4, 4, 0, 0]}>
                   {dadosPorVencimento.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={entry.faixa === 'Hoje' ? '#F59E0B' : COLORS[index % COLORS.length]} 
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={entry.faixa === 'Hoje' ? '#F59E0B' : COLORS[index % COLORS.length]}
                     />
                   ))}
                   <LabelList dataKey="valor" position="top" formatter={(value: number) => formatCurrencyShort(value)} style={{ fontSize: 10, fill: '#374151' }} />
@@ -960,10 +994,10 @@ export const ContasAPagar: React.FC = () => {
 
       const cards = [
         { faixa: 'total', data_inicio: null, data_fim: null, valor_total: estatisticas.valor_total, quantidade_titulos: estatisticas.quantidade_titulos, quantidade_credores: new Set(contas.map(c => c.credor)).size },
-        { faixa: 'hoje', data_inicio: toISO(hoje), data_fim: toISO(hoje), valor_total: contasHoje.reduce((acc, c) => acc + (c.valor_total || 0), 0), quantidade_titulos: contasHoje.length, quantidade_credores: new Set(contasHoje.map(c => c.credor)).size },
-        { faixa: '7dias', data_inicio: toISO(amanha), data_fim: toISO(fim7), valor_total: contas7dias.reduce((acc, c) => acc + (c.valor_total || 0), 0), quantidade_titulos: contas7dias.length, quantidade_credores: new Set(contas7dias.map(c => c.credor)).size },
-        { faixa: '15dias', data_inicio: toISO(amanha), data_fim: toISO(fim15), valor_total: contas15dias.reduce((acc, c) => acc + (c.valor_total || 0), 0), quantidade_titulos: contas15dias.length, quantidade_credores: new Set(contas15dias.map(c => c.credor)).size },
-        { faixa: '30dias', data_inicio: toISO(amanha), data_fim: toISO(fim30), valor_total: contas30dias.reduce((acc, c) => acc + (c.valor_total || 0), 0), quantidade_titulos: contas30dias.length, quantidade_credores: new Set(contas30dias.map(c => c.credor)).size },
+        { faixa: 'hoje', data_inicio: toISO(hoje), data_fim: toISO(hoje), valor_total: contasHoje.reduce((acc, c) => acc + (c.valor_total || 0), 0), quantidade_titulos: calcularTitulosUnicos(contasHoje), quantidade_credores: new Set(contasHoje.map(c => c.credor)).size },
+        { faixa: '7dias', data_inicio: toISO(amanha), data_fim: toISO(fim7), valor_total: contas7dias.reduce((acc, c) => acc + (c.valor_total || 0), 0), quantidade_titulos: calcularTitulosUnicos(contas7dias), quantidade_credores: new Set(contas7dias.map(c => c.credor)).size },
+        { faixa: '15dias', data_inicio: toISO(amanha), data_fim: toISO(fim15), valor_total: contas15dias.reduce((acc, c) => acc + (c.valor_total || 0), 0), quantidade_titulos: calcularTitulosUnicos(contas15dias), quantidade_credores: new Set(contas15dias.map(c => c.credor)).size },
+        { faixa: '30dias', data_inicio: toISO(amanha), data_fim: toISO(fim30), valor_total: contas30dias.reduce((acc, c) => acc + (c.valor_total || 0), 0), quantidade_titulos: calcularTitulosUnicos(contas30dias), quantidade_credores: new Set(contas30dias.map(c => c.credor)).size },
       ];
 
       await apiService.salvarSnapshotCardsPagar({ data_snapshot: toISO(hoje), cards });
@@ -1014,87 +1048,87 @@ export const ContasAPagar: React.FC = () => {
         const valor30dias = contas30dias.reduce((acc, c) => acc + (c.valor_total || 0), 0);
 
         return (
-        <>
-        <div className="mb-3 flex items-center justify-end gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">Comparar com snapshot:</label>
-            <select
-              value={snapshotSelecionado}
-              onChange={(e) => setSnapshotSelecionado(e.target.value)}
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-            >
-              <option value="">Nenhum</option>
-              {snapshotsDisponiveis.map(s => (
-                <option key={s.data_snapshot} value={s.data_snapshot}>
-                  {formatarDataSnapshot(s.data_snapshot)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button
-            type="button"
-            onClick={handleSalvarSnapshot}
-            disabled={salvandoSnapshot}
-            className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-1.5 text-sm text-white hover:bg-green-700 disabled:opacity-50"
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            {salvandoSnapshot ? 'Salvando...' : 'Salvar Snapshot'}
-          </button>
-          {snapshotMsg && (
-            <span className={`text-sm ${snapshotMsg.includes('Erro') ? 'text-red-600' : 'text-green-600'}`}>{snapshotMsg}</span>
-          )}
-        </div>
-        <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-          <div className="rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 p-5 text-white shadow-lg">
-            <div className="mb-1 text-xs font-medium opacity-90">Total a Pagar</div>
-            <div className="text-xl font-bold">{formatCurrency(estatisticas.valor_total)}</div>
-            <div className="mt-1 text-xs opacity-75">{estatisticas.quantidade_titulos.toLocaleString('pt-BR')} titulos | {credoresTotal} credores</div>
-            {renderComparacao('total', estatisticas.valor_total)}
-          </div>
-
-          <div className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 p-5 text-white shadow-lg">
-            <div className="mb-1 text-xs font-medium opacity-90">Vencendo Hoje</div>
-            <div className="text-xl font-bold">{formatCurrency(valorHoje)}</div>
-            <div className="mt-1 text-xs opacity-75">
-              {contasHoje.length} titulo(s) | {credoresHoje} credores
+          <>
+            <div className="mb-3 flex items-center justify-end gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">Comparar com snapshot:</label>
+                <select
+                  value={snapshotSelecionado}
+                  onChange={(e) => setSnapshotSelecionado(e.target.value)}
+                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                >
+                  <option value="">Nenhum</option>
+                  {snapshotsDisponiveis.map(s => (
+                    <option key={s.data_snapshot} value={s.data_snapshot}>
+                      {formatarDataSnapshot(s.data_snapshot)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                onClick={handleSalvarSnapshot}
+                disabled={salvandoSnapshot}
+                className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-1.5 text-sm text-white hover:bg-green-700 disabled:opacity-50"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                {salvandoSnapshot ? 'Salvando...' : 'Salvar Snapshot'}
+              </button>
+              {snapshotMsg && (
+                <span className={`text-sm ${snapshotMsg.includes('Erro') ? 'text-red-600' : 'text-green-600'}`}>{snapshotMsg}</span>
+              )}
             </div>
-            {renderComparacao('hoje', valorHoje)}
-          </div>
+            <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+              <div className="rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 p-5 text-white shadow-lg">
+                <div className="mb-1 text-xs font-medium opacity-90">Total a Pagar</div>
+                <div className="text-xl font-bold">{formatCurrency(estatisticas.valor_total)}</div>
+                <div className="mt-1 text-xs opacity-75">{estatisticas.quantidade_titulos.toLocaleString('pt-BR')} titulos | {credoresTotal} credores</div>
+                {renderComparacao('total', estatisticas.valor_total)}
+              </div>
 
-          <div className="rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 p-5 text-white shadow-lg">
-            <div className="mb-1 text-xs font-medium opacity-90">Proximos 7 dias</div>
-            <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(amanha)} ate {formatarDataCurta(fim7)}</div>
-            <div className="text-xl font-bold">{formatCurrency(valor7dias)}</div>
-            <div className="mt-1 text-xs opacity-75">
-              {contas7dias.length} titulo(s) | {credores7dias} credores
-            </div>
-            {renderComparacao('7dias', valor7dias)}
-          </div>
+              <div className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 p-5 text-white shadow-lg">
+                <div className="mb-1 text-xs font-medium opacity-90">Vencendo Hoje</div>
+                <div className="text-xl font-bold">{formatCurrency(valorHoje)}</div>
+                <div className="mt-1 text-xs opacity-75">
+                  {calcularTitulosUnicos(contasHoje)} titulo(s) | {credoresHoje} credores
+                </div>
+                {renderComparacao('hoje', valorHoje)}
+              </div>
 
-          <div className="rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 p-5 text-white shadow-lg">
-            <div className="mb-1 text-xs font-medium opacity-90">Proximos 15 dias</div>
-            <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(amanha)} ate {formatarDataCurta(fim15)}</div>
-            <div className="text-xl font-bold">{formatCurrency(valor15dias)}</div>
-            <div className="mt-1 text-xs opacity-75">
-              {contas15dias.length} titulo(s) | {credores15dias} credores
-            </div>
-            {renderComparacao('15dias', valor15dias)}
-          </div>
+              <div className="rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 p-5 text-white shadow-lg">
+                <div className="mb-1 text-xs font-medium opacity-90">Proximos 7 dias</div>
+                <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(amanha)} ate {formatarDataCurta(fim7)}</div>
+                <div className="text-xl font-bold">{formatCurrency(valor7dias)}</div>
+                <div className="mt-1 text-xs opacity-75">
+                  {calcularTitulosUnicos(contas7dias)} titulo(s) | {credores7dias} credores
+                </div>
+                {renderComparacao('7dias', valor7dias)}
+              </div>
 
-          <div className="rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 p-5 text-white shadow-lg">
-            <div className="mb-1 text-xs font-medium opacity-90">Proximos 30 dias</div>
-            <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(amanha)} ate {formatarDataCurta(fim30)}</div>
-            <div className="text-xl font-bold">{formatCurrency(valor30dias)}</div>
-            <div className="mt-1 text-xs opacity-75">
-              {contas30dias.length} titulo(s) | {credores30dias} credores
+              <div className="rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 p-5 text-white shadow-lg">
+                <div className="mb-1 text-xs font-medium opacity-90">Proximos 15 dias</div>
+                <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(amanha)} ate {formatarDataCurta(fim15)}</div>
+                <div className="text-xl font-bold">{formatCurrency(valor15dias)}</div>
+                <div className="mt-1 text-xs opacity-75">
+                  {calcularTitulosUnicos(contas15dias)} titulo(s) | {credores15dias} credores
+                </div>
+                {renderComparacao('15dias', valor15dias)}
+              </div>
+
+              <div className="rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 p-5 text-white shadow-lg">
+                <div className="mb-1 text-xs font-medium opacity-90">Proximos 30 dias</div>
+                <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(amanha)} ate {formatarDataCurta(fim30)}</div>
+                <div className="text-xl font-bold">{formatCurrency(valor30dias)}</div>
+                <div className="mt-1 text-xs opacity-75">
+                  {calcularTitulosUnicos(contas30dias)} titulo(s) | {credores30dias} credores
+                </div>
+                {renderComparacao('30dias', valor30dias)}
+              </div>
             </div>
-            {renderComparacao('30dias', valor30dias)}
-          </div>
-        </div>
-        </>
+          </>
         );
       })()}
 
@@ -1104,11 +1138,10 @@ export const ContasAPagar: React.FC = () => {
             <button
               type="button"
               onClick={() => setAbaAtiva('dados')}
-              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
-                abaAtiva === 'dados'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-              }`}
+              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'dados'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -1118,16 +1151,67 @@ export const ContasAPagar: React.FC = () => {
             <button
               type="button"
               onClick={() => setAbaAtiva('analises')}
-              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
-                abaAtiva === 'analises'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-              }`}
+              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'analises'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
               Analises
+            </button>
+            <button
+              type="button"
+              onClick={() => setAbaAtiva('por-credor')}
+              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'por-credor'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                }`}
+            >
+              <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Por Credor
+            </button>
+            <button
+              type="button"
+              onClick={() => setAbaAtiva('por-centro-custo')}
+              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'por-centro-custo'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                }`}
+            >
+              <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              Por Centro de Custo
+            </button>
+            <button
+              type="button"
+              onClick={() => setAbaAtiva('por-semana')}
+              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'por-semana'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                }`}
+            >
+              <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Por Semana
+            </button>
+            <button
+              type="button"
+              onClick={() => setAbaAtiva('por-origem')}
+              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'por-origem'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                }`}
+            >
+              <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              Por Origem
             </button>
           </nav>
         </div>
@@ -1135,6 +1219,938 @@ export const ContasAPagar: React.FC = () => {
 
       {abaAtiva === 'dados' && renderAbaDados()}
       {abaAtiva === 'analises' && renderAbaAnalises()}
+      {abaAtiva === 'por-credor' && (() => {
+        // Calcular dados de Pareto por credor
+        const credorMap = new Map<string, { valor: number; quantidade: number }>();
+        contas.forEach(c => {
+          const credor = c.credor || 'Sem Credor';
+          const atual = credorMap.get(credor) || { valor: 0, quantidade: 0 };
+          credorMap.set(credor, {
+            valor: atual.valor + (c.valor_total || 0),
+            quantidade: atual.quantidade + 1,
+          });
+        });
+        // Sempre ordenar por valor para calcular o Pareto (rank + acumulado)
+        const credoresPorValor = Array.from(credorMap.entries())
+          .map(([credor, data]) => ({ credor, ...data }))
+          .sort((a, b) => b.valor - a.valor);
+
+        const totalGeral = credoresPorValor.reduce((acc, c) => acc + c.valor, 0);
+        let acumulado = 0;
+        const credoresComPareto = credoresPorValor.map((c, i) => {
+          const percentual = totalGeral > 0 ? (c.valor / totalGeral) * 100 : 0;
+          acumulado += percentual;
+          return { ...c, rank: i + 1, percentual, acumulado };
+        });
+
+        // Aplicar ordenaÃ§Ã£o selecionada pelo usuÃ¡rio para exibiÃ§Ã£o
+        const credoresExibidos = [...credoresComPareto].sort((a, b) => {
+          const dir = ordenacao.direcao === 'asc' ? 1 : -1;
+          switch (ordenacao.campo) {
+            case 'credor': return a.credor.localeCompare(b.credor) * dir;
+            case 'quantidade': return (a.quantidade - b.quantidade) * dir;
+            case 'valor': return (a.valor - b.valor) * dir;
+            case 'percentual': return (a.percentual - b.percentual) * dir;
+            case 'acumulado': return (a.acumulado - b.acumulado) * dir;
+            case 'rank': return (a.rank - b.rank) * dir;
+            default: return (a.rank - b.rank) * dir;
+          }
+        });
+
+        return (
+          <>
+            <div className="mb-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Contas a Pagar por Credor</h2>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {credoresComPareto.length} credor(es) | Total: {formatCurrency(totalGeral)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMostrarFiltros(!mostrarFiltros)}
+                  className="flex items-center rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                >
+                  <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                  </svg>
+                  {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
+                </button>
+              </div>
+              {mostrarFiltros && renderFiltros()}
+              {!mostrarFiltros && renderFiltrosTags()}
+            </div>
+
+            <div className="overflow-hidden rounded-lg bg-white shadow">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-blue-50">
+                    <tr>
+                      <th onClick={() => toggleOrdenacao('rank')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-12 cursor-pointer hover:bg-blue-100">#{renderSortIcon('rank')}</th>
+                      <th onClick={() => toggleOrdenacao('credor')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Credor{renderSortIcon('credor')}</th>
+                      <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Qtd TÃ­tulos{renderSortIcon('quantidade')}</th>
+                      <th onClick={() => toggleOrdenacao('valor')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Valor{renderSortIcon('valor')}</th>
+                      <th onClick={() => toggleOrdenacao('percentual')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">% do Total{renderSortIcon('percentual')}</th>
+                      <th onClick={() => toggleOrdenacao('acumulado')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">% Acumulado{renderSortIcon('acumulado')}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {credoresExibidos.map((c, index) => (
+                      <tr key={index} className={`hover:bg-gray-50 ${c.acumulado <= 80 ? 'bg-green-50/30' : c.acumulado <= 95 ? 'bg-yellow-50/30' : ''}`}>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-400 font-mono">{c.rank}</td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm font-medium text-gray-900">{c.credor}</td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500 text-center">{c.quantidade}</td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-blue-600 text-right">{formatCurrency(c.valor)}</td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-700 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <div className="w-20 bg-gray-200 rounded-full h-2">
+                              <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${Math.min(c.percentual * 2, 100)}%` }}></div>
+                            </div>
+                            <span className="w-14 text-right">{c.percentual.toFixed(2)}%</span>
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-right">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${c.acumulado <= 80 ? 'bg-green-100 text-green-700' :
+                            c.acumulado <= 95 ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-red-100 text-red-700'
+                            }`}>
+                            {c.acumulado.toFixed(2)}%
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-gray-100">
+                    <tr className="font-bold">
+                      <td className="px-4 py-3 text-sm"></td>
+                      <td className="px-6 py-3 text-sm text-gray-900">TOTAL</td>
+                      <td className="px-6 py-3 text-sm text-gray-900 text-center">{contas.length}</td>
+                      <td className="px-6 py-3 text-sm text-blue-700 text-right">{formatCurrency(totalGeral)}</td>
+                      <td className="px-6 py-3 text-sm text-gray-900 text-right">100,00%</td>
+                      <td className="px-6 py-3 text-sm"></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+            {/* Legenda Pareto */}
+            <div className="mt-4 flex items-center gap-6 text-xs text-gray-500">
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-full bg-green-100 border border-green-300"></span>
+                A (atÃ© 80%) â€” Principais credores
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-full bg-yellow-100 border border-yellow-300"></span>
+                B (80-95%) â€” Credores intermediÃ¡rios
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-full bg-red-100 border border-red-300"></span>
+                C (95-100%) â€” Credores menores
+              </div>
+            </div>
+          </>
+        );
+      })()}
+      {abaAtiva === 'por-centro-custo' && (() => {
+        const ccMap = new Map<string, { valor: number; quantidade: number }>();
+        contas.forEach(c => {
+          const cc = (c as any).nome_centrocusto || 'Sem Centro de Custo';
+          const atual = ccMap.get(cc) || { valor: 0, quantidade: 0 };
+          ccMap.set(cc, {
+            valor: atual.valor + (c.valor_total || 0),
+            quantidade: atual.quantidade + 1,
+          });
+        });
+        const ccPorValor = Array.from(ccMap.entries())
+          .map(([centroCusto, data]) => ({ centroCusto, ...data }))
+          .sort((a, b) => b.valor - a.valor);
+
+        const totalGeral = ccPorValor.reduce((acc, c) => acc + c.valor, 0);
+        let acumulado = 0;
+        const ccComPareto = ccPorValor.map((c, i) => {
+          const percentual = totalGeral > 0 ? (c.valor / totalGeral) * 100 : 0;
+          acumulado += percentual;
+          return { ...c, rank: i + 1, percentual, acumulado };
+        });
+
+        const ccExibidos = [...ccComPareto].sort((a, b) => {
+          const dir = ordenacao.direcao === 'asc' ? 1 : -1;
+          switch (ordenacao.campo) {
+            case 'centroCusto': return a.centroCusto.localeCompare(b.centroCusto) * dir;
+            case 'quantidade': return (a.quantidade - b.quantidade) * dir;
+            case 'valor': return (a.valor - b.valor) * dir;
+            case 'percentual': return (a.percentual - b.percentual) * dir;
+            case 'acumulado': return (a.acumulado - b.acumulado) * dir;
+            case 'rank': return (a.rank - b.rank) * dir;
+            default: return (a.rank - b.rank) * dir;
+          }
+        });
+
+        return (
+          <>
+            <div className="mb-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Contas a Pagar por Centro de Custo</h2>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {ccComPareto.length} centro(s) de custo | Total: {formatCurrency(totalGeral)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMostrarFiltros(!mostrarFiltros)}
+                  className="flex items-center rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                >
+                  <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                  </svg>
+                  {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
+                </button>
+              </div>
+              {mostrarFiltros && renderFiltros()}
+              {!mostrarFiltros && renderFiltrosTags()}
+            </div>
+
+            <div className="overflow-hidden rounded-lg bg-white shadow">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-blue-50">
+                    <tr>
+                      <th onClick={() => toggleOrdenacao('rank')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-12 cursor-pointer hover:bg-blue-100">#{renderSortIcon('rank')}</th>
+                      <th onClick={() => toggleOrdenacao('centroCusto')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Centro de Custo{renderSortIcon('centroCusto')}</th>
+                      <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Qtd TÃ­tulos{renderSortIcon('quantidade')}</th>
+                      <th onClick={() => toggleOrdenacao('valor')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Valor{renderSortIcon('valor')}</th>
+                      <th onClick={() => toggleOrdenacao('percentual')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">% do Total{renderSortIcon('percentual')}</th>
+                      <th onClick={() => toggleOrdenacao('acumulado')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">% Acumulado{renderSortIcon('acumulado')}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {ccExibidos.map((c, index) => (
+                      <tr key={index} className={`hover:bg-gray-50 ${c.acumulado <= 80 ? 'bg-green-50/30' : c.acumulado <= 95 ? 'bg-yellow-50/30' : ''}`}>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-400 font-mono">{c.rank}</td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm font-medium text-gray-900">{c.centroCusto}</td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500 text-center">{c.quantidade}</td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-blue-600 text-right">{formatCurrency(c.valor)}</td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-700 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <div className="w-20 bg-gray-200 rounded-full h-2">
+                              <div className="bg-teal-500 h-2 rounded-full" style={{ width: `${Math.min(c.percentual * 2, 100)}%` }}></div>
+                            </div>
+                            <span className="w-14 text-right">{c.percentual.toFixed(2)}%</span>
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-right">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${c.acumulado <= 80 ? 'bg-green-100 text-green-700' :
+                            c.acumulado <= 95 ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-red-100 text-red-700'
+                            }`}>
+                            {c.acumulado.toFixed(2)}%
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-gray-100">
+                    <tr className="font-bold">
+                      <td className="px-4 py-3 text-sm"></td>
+                      <td className="px-6 py-3 text-sm text-gray-900">TOTAL</td>
+                      <td className="px-6 py-3 text-sm text-gray-900 text-center">{contas.length}</td>
+                      <td className="px-6 py-3 text-sm text-blue-700 text-right">{formatCurrency(totalGeral)}</td>
+                      <td className="px-6 py-3 text-sm text-gray-900 text-right">100,00%</td>
+                      <td className="px-6 py-3 text-sm"></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+            {/* Legenda Pareto */}
+            <div className="mt-4 flex items-center gap-6 text-xs text-gray-500">
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-full bg-green-100 border border-green-300"></span>
+                A (atÃ© 80%) â€” Principais centros de custo
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-full bg-yellow-100 border border-yellow-300"></span>
+                B (80-95%) â€” Centros intermediÃ¡rios
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-full bg-red-100 border border-red-300"></span>
+                C (95-100%) â€” Centros menores
+              </div>
+            </div>
+          </>
+        );
+      })()}
+      {abaAtiva === 'por-semana' && (() => {
+        // FunÃ§Ã£o para obter o nÃºmero da semana ISO
+        const getWeekNumber = (d: Date): [number, number] => {
+          const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+          date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+          const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+          const weekNo = Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+          return [date.getUTCFullYear(), weekNo];
+        };
+
+        // FunÃ§Ã£o para obter datas de inÃ­cio e fim de uma semana
+        const getWeekDates = (year: number, week: number): [Date, Date] => {
+          const jan1 = new Date(year, 0, 1);
+          const dayOffset = jan1.getDay() <= 4 ? jan1.getDay() - 1 : jan1.getDay() - 8;
+          const startDate = new Date(year, 0, 1 + (week - 1) * 7 - dayOffset);
+          const endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + 6);
+          return [startDate, endDate];
+        };
+
+        const formatDateShort = (d: Date) => {
+          const dd = String(d.getDate()).padStart(2, '0');
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const yy = String(d.getFullYear()).slice(2);
+          return `${dd}/${mm}/${yy}`;
+        };
+
+        // Agrupar contas por semana do ano selecionado
+        const semanaMap = new Map<number, { valor: number; quantidade: number }>();
+        const anosDisp = new Set<number>();
+
+        if (loadingContasAno) {
+          return (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Carregando dados do ano {filtroAnoSemana}...</p>
+              </div>
+            </div>
+          );
+        }
+
+        contasAno.forEach(c => {
+          if (!c.data_vencimento) return;
+          const dv = new Date(c.data_vencimento.split('T')[0]);
+          const [ano, semana] = getWeekNumber(dv);
+          anosDisp.add(ano);
+          if (ano !== filtroAnoSemana) return;
+          if (filtroSemanas.length > 0 && !filtroSemanas.includes(semana)) return;
+          const atual = semanaMap.get(semana) || { valor: 0, quantidade: 0 };
+          semanaMap.set(semana, {
+            valor: atual.valor + (c.valor_total || 0),
+            quantidade: atual.quantidade + 1,
+          });
+        });
+
+        // Gerar todas as 52 semanas do ano
+        const totalSemanasAno = 52;
+        const semanasOrdenadas: { semana: number; periodo: string; valor: number; quantidade: number }[] = [];
+        for (let s = 1; s <= totalSemanasAno; s++) {
+          const [inicio, fim] = getWeekDates(filtroAnoSemana, s);
+          const dados = semanaMap.get(s) || { valor: 0, quantidade: 0 };
+          if (filtroSemanas.length > 0 && !filtroSemanas.includes(s)) continue;
+          semanasOrdenadas.push({
+            semana: s,
+            periodo: `${formatDateShort(inicio)} - ${formatDateShort(fim)}`,
+            ...dados,
+          });
+        }
+
+        const totalGeral = semanasOrdenadas.reduce((acc, s) => acc + s.valor, 0);
+        let acumulado = 0;
+        // Pareto calculado pela ordem de valor decrescente
+        const semanasPorValor = [...semanasOrdenadas].sort((a, b) => b.valor - a.valor);
+        const rankMap = new Map<number, { rank: number; percentual: number; acumulado: number }>();
+        semanasPorValor.forEach((s, i) => {
+          const percentual = totalGeral > 0 ? (s.valor / totalGeral) * 100 : 0;
+          acumulado += percentual;
+          rankMap.set(s.semana, { rank: i + 1, percentual, acumulado });
+        });
+
+        const semanasComPareto = semanasOrdenadas.map(s => {
+          const pareto = rankMap.get(s.semana) || { rank: 0, percentual: 0, acumulado: 0 };
+          return { ...s, ...pareto };
+        });
+
+        // OrdenaÃ§Ã£o da tabela
+        const semanasExibidas = [...semanasComPareto].sort((a, b) => {
+          const dir = ordenacao.direcao === 'asc' ? 1 : -1;
+          switch (ordenacao.campo) {
+            case 'semana': return (a.semana - b.semana) * dir;
+            case 'periodo': return a.periodo.localeCompare(b.periodo) * dir;
+            case 'quantidade': return (a.quantidade - b.quantidade) * dir;
+            case 'valor': return (a.valor - b.valor) * dir;
+            case 'percentual': return (a.percentual - b.percentual) * dir;
+            case 'acumulado': return (a.acumulado - b.acumulado) * dir;
+            default: return (a.semana - b.semana) * dir;
+          }
+        });
+
+        // Dados para grÃ¡fico
+        const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'SÃ¡b'];
+        const semanaSelecionadaUnica = filtroSemanas.length === 1 ? filtroSemanas[0] : null;
+
+        let dadosGrafico: { name: string; valor: number; quantidade: number; periodo: string }[];
+
+        if (semanaSelecionadaUnica) {
+          // VisÃ£o diÃ¡ria: mostrar todos os dias da semana selecionada
+          const [inicioSemana, fimSemana] = getWeekDates(filtroAnoSemana, semanaSelecionadaUnica);
+          const diasMap = new Map<string, { valor: number; quantidade: number }>();
+
+          // Inicializar todos os 7 dias da semana
+          for (let d = new Date(inicioSemana); d <= fimSemana; d.setDate(d.getDate() + 1)) {
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            diasMap.set(key, { valor: 0, quantidade: 0 });
+          }
+
+          // Preencher com dados das contas
+          contasAno.forEach(c => {
+            if (!c.data_vencimento) return;
+            const dStr = c.data_vencimento.split('T')[0];
+            if (diasMap.has(dStr)) {
+              const atual = diasMap.get(dStr)!;
+              diasMap.set(dStr, {
+                valor: atual.valor + (c.valor_total || 0),
+                quantidade: atual.quantidade + 1,
+              });
+            }
+          });
+
+          dadosGrafico = Array.from(diasMap.entries())
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([dateStr, data]) => {
+              const dt = new Date(dateStr + 'T12:00:00');
+              const diaSemana = diasSemana[dt.getDay()];
+              const dd = dateStr.split('-')[2];
+              const mm = dateStr.split('-')[1];
+              return {
+                name: `${diaSemana} ${dd}/${mm}`,
+                valor: data.valor,
+                quantidade: data.quantidade,
+                periodo: `${dd}/${mm}/${dateStr.split('-')[0].slice(2)}`,
+              };
+            });
+        } else {
+          // VisÃ£o semanal padrÃ£o
+          dadosGrafico = semanasOrdenadas.map(s => ({
+            name: `S${s.semana}`,
+            valor: s.valor,
+            quantidade: s.quantidade,
+            periodo: s.periodo,
+          }));
+        }
+
+        // Semanas disponÃ­veis para filtro
+        const semanasDisponiveis = Array.from(semanaMap.keys()).sort((a, b) => a - b);
+        const semanasParaFiltro = Array.from({ length: totalSemanasAno }, (_, i) => i + 1);
+
+        const anosArray = Array.from(anosDisp).sort();
+        // Adicionar ano atual se nÃ£o tiver
+        if (!anosArray.includes(new Date().getFullYear())) anosArray.push(new Date().getFullYear());
+        anosArray.sort();
+
+        // Semana atual para highlight
+        const [, semanaAtual] = getWeekNumber(new Date());
+
+        const tituloGrafico = semanaSelecionadaUnica
+          ? `Valores por Dia â€” Semana ${semanaSelecionadaUnica} de ${filtroAnoSemana}`
+          : `Valores por Semana â€” ${filtroAnoSemana}`;
+
+        return (
+          <>
+            <div className="mb-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Contas a Pagar por Semana do Ano</h2>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {semanasComPareto.length} semana(s) | Total: {formatCurrency(totalGeral)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Filtros de Ano e Semana */}
+              <div className="mt-4 flex flex-wrap items-end gap-4">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Ano</label>
+                  <select
+                    value={filtroAnoSemana}
+                    onChange={(e) => { setFiltroAnoSemana(Number(e.target.value)); setFiltroSemanas([]); }}
+                    className="rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                  >
+                    {anosArray.map(a => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex-1 min-w-[200px]">
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Semanas ({filtroSemanas.length > 0 ? filtroSemanas.length + ' selecionada(s)' : 'Todas'})</label>
+                  <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto p-2 border rounded-lg bg-gray-50">
+                    {semanasParaFiltro.map(s => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => {
+                          setFiltroSemanas(prev =>
+                            prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]
+                          );
+                        }}
+                        className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${filtroSemanas.includes(s)
+                          ? 'bg-blue-600 text-white'
+                          : s === semanaAtual
+                            ? 'bg-orange-100 text-orange-700 border border-orange-300'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          }`}
+                      >
+                        S{s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {filtroSemanas.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setFiltroSemanas([])}
+                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    Limpar semanas
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Insights dinÃ¢micos */}
+            {(() => {
+              const semanasComValor = semanasComPareto.filter(s => s.valor > 0);
+              if (semanasComValor.length === 0) return null;
+              const maiorSemana = semanasComValor.reduce((prev, curr) => curr.valor > prev.valor ? curr : prev);
+              const menorSemana = semanasComValor.reduce((prev, curr) => curr.valor < prev.valor ? curr : prev);
+              const mediaSemanal = totalGeral / semanasComValor.length;
+              return (
+                <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <svg className="h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                      </svg>
+                      <span className="text-sm font-semibold text-green-700">Semana com maior valor</span>
+                    </div>
+                    <p className="text-lg font-bold text-green-800">
+                      Semana {maiorSemana.semana} <span className="text-sm font-normal text-green-600">({maiorSemana.periodo})</span>
+                    </p>
+                    <p className="text-xl font-bold text-green-900">{formatCurrency(maiorSemana.valor)}</p>
+                    <p className="text-xs text-green-600">{maiorSemana.quantidade} tÃ­tulo(s) | {maiorSemana.percentual.toFixed(2)}% do total</p>
+                  </div>
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+                      </svg>
+                      <span className="text-sm font-semibold text-blue-700">Semana com menor valor</span>
+                    </div>
+                    <p className="text-lg font-bold text-blue-800">
+                      Semana {menorSemana.semana} <span className="text-sm font-normal text-blue-600">({menorSemana.periodo})</span>
+                    </p>
+                    <p className="text-xl font-bold text-blue-900">{formatCurrency(menorSemana.valor)}</p>
+                    <p className="text-xs text-blue-600">{menorSemana.quantidade} tÃ­tulo(s) | {menorSemana.percentual.toFixed(2)}% do total</p>
+                  </div>
+                  <div className="rounded-lg border border-purple-200 bg-purple-50 p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <svg className="h-5 w-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      <span className="text-sm font-semibold text-purple-700">MÃ©dia semanal</span>
+                    </div>
+                    <p className="text-xl font-bold text-purple-900">{formatCurrency(mediaSemanal)}</p>
+                    <p className="text-xs text-purple-600">{semanasComValor.length} semana(s) com valores</p>
+                    <p className="text-xs text-purple-600">MÃ©dia de {Math.round(semanasComValor.reduce((a, s) => a + s.quantidade, 0) / semanasComValor.length)} tÃ­tulo(s)/semana</p>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* GrÃ¡fico */}
+            {dadosGrafico.length > 0 && (() => {
+              // Calcular mÃ©dia mÃ³vel de 4 semanas
+              const dadosComMedia = dadosGrafico.map((d, i) => {
+                if (semanaSelecionadaUnica) return { ...d, media: undefined };
+                const janela = dadosGrafico.slice(Math.max(0, i - 3), i + 1).filter(x => x.valor > 0);
+                const media = janela.length > 0 ? janela.reduce((a, x) => a + x.valor, 0) / janela.length : 0;
+                return { ...d, media: media > 0 ? media : undefined };
+              });
+
+              return (
+                <div className="mb-6 rounded-lg bg-white p-6 shadow">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">{tituloGrafico}</h3>
+                    {!semanaSelecionadaUnica && (
+                      <div className="flex items-center gap-4 text-xs text-gray-500">
+                        <div className="flex items-center gap-1.5">
+                          <span className="inline-block w-3 h-3 rounded bg-blue-400"></span> Valor semanal
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="inline-block w-6 h-0.5 bg-red-500"></span> MÃ©dia mÃ³vel (4 sem.)
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={dadosComMedia} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" tick={{ fontSize: semanaSelecionadaUnica ? 14 : 11 }} />
+                        <YAxis tickFormatter={(value) => formatCurrencyShort(value)} tick={{ fontSize: semanaSelecionadaUnica ? 13 : 11 }} />
+                        <Tooltip
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              const data = payload[0].payload;
+                              return (
+                                <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
+                                  <p className="mb-1 font-semibold text-gray-900">{data.name}</p>
+                                  <p className="text-sm text-blue-600">Valor: {formatCurrency(data.valor)}</p>
+                                  <p className="text-sm text-gray-600">TÃ­tulos: {data.quantidade}</p>
+                                  {data.media && <p className="text-sm text-red-500">MÃ©dia mÃ³vel: {formatCurrency(data.media)}</p>}
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Bar dataKey="valor" radius={[4, 4, 0, 0]}>
+                          {dadosComMedia.map((entry, index) => (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={semanaSelecionadaUnica
+                                ? (entry.valor === 0 ? '#E5E7EB' : COLORS[index % COLORS.length])
+                                : (entry.name === `S${semanaAtual}` ? '#F59E0B' : COLORS[index % COLORS.length])
+                              }
+                            />
+                          ))}
+                          <LabelList dataKey="valor" position="top" formatter={(value: number) => value > 0 ? formatCurrencyShort(value) : ''} style={{ fontSize: semanaSelecionadaUnica ? 14 : 9, fontWeight: semanaSelecionadaUnica ? 600 : 400, fill: '#374151' }} />
+                        </Bar>
+                        {!semanaSelecionadaUnica && (
+                          <Line type="monotone" dataKey="media" stroke="#EF4444" strokeWidth={2} dot={false} connectNulls />
+                        )}
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Tabela */}
+            <div className="overflow-hidden rounded-lg bg-white shadow">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-blue-50">
+                    <tr>
+                      <th onClick={() => toggleOrdenacao('semana')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Sem.{renderSortIcon('semana')}</th>
+                      <th onClick={() => toggleOrdenacao('periodo')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">PerÃ­odo{renderSortIcon('periodo')}</th>
+                      <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Qtd{renderSortIcon('quantidade')}</th>
+                      <th onClick={() => toggleOrdenacao('valor')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Valor{renderSortIcon('valor')}</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">Var.</th>
+                      <th onClick={() => toggleOrdenacao('percentual')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">%{renderSortIcon('percentual')}</th>
+                      <th onClick={() => toggleOrdenacao('acumulado')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">% Acum{renderSortIcon('acumulado')}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {semanasExibidas.map((s, index) => {
+                      // Calcular variaÃ§Ã£o com semana anterior
+                      const semanaAnterior = semanasComPareto.find(x => x.semana === s.semana - 1);
+                      const variacao = semanaAnterior && semanaAnterior.valor > 0 && s.valor > 0
+                        ? ((s.valor - semanaAnterior.valor) / semanaAnterior.valor) * 100
+                        : null;
+                      return (
+                        <React.Fragment key={index}>
+                          <tr
+                            onClick={() => s.valor > 0 ? setSemanaExpandida(semanaExpandida === s.semana ? null : s.semana) : null}
+                            className={`${s.valor > 0 ? 'cursor-pointer' : ''} hover:bg-gray-50 ${s.semana === semanaAtual ? 'bg-orange-50/50 border-l-4 border-l-orange-400' : s.acumulado <= 80 ? 'bg-green-50/30' : s.acumulado <= 95 ? 'bg-yellow-50/30' : ''}`}
+                          >
+                            <td className="whitespace-nowrap px-4 py-3 text-sm font-mono font-semibold text-gray-700">
+                              <div className="flex items-center gap-1.5">
+                                {s.valor > 0 && (
+                                  <span className={`text-gray-400 text-xs transition-transform ${semanaExpandida === s.semana ? 'rotate-90' : ''}`}>â–¶</span>
+                                )}
+                                {s.semana}
+                                {s.semana === semanaAtual && (
+                                  <span className="px-1.5 py-0.5 bg-orange-400 text-white text-[10px] font-bold rounded">ATUAL</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-600">{s.periodo}</td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500 text-center">{s.quantidade > 0 ? s.quantidade : ''}</td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-blue-600 text-right">{s.valor > 0 ? formatCurrency(s.valor) : ''}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-center">
+                              {variacao !== null && (
+                                <span className={`text-xs font-semibold ${variacao > 0 ? 'text-red-500' : variacao < 0 ? 'text-green-500' : 'text-gray-400'
+                                  }`}>
+                                  {variacao > 0 ? 'â†‘' : variacao < 0 ? 'â†“' : 'â†’'}
+                                  {Math.abs(variacao).toFixed(0)}%
+                                </span>
+                              )}
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-700 text-right">{s.percentual > 0 ? s.percentual.toFixed(2) + '%' : ''}</td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-right">
+                              {s.acumulado > 0 && (
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${s.acumulado <= 80 ? 'bg-green-100 text-green-700' :
+                                  s.acumulado <= 95 ? 'bg-yellow-100 text-yellow-700' :
+                                    'bg-red-100 text-red-700'
+                                  }`}>
+                                  {s.acumulado.toFixed(2)}%
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                          {/* Linha expandida com detalhes */}
+                          {semanaExpandida === s.semana && s.valor > 0 && (() => {
+                            const titulosSemana = contasAno.filter(c => {
+                              if (!c.data_vencimento) return false;
+                              const dv = new Date(c.data_vencimento.split('T')[0]);
+                              const [, sem] = getWeekNumber(dv);
+                              return sem === s.semana;
+                            }).sort((a, b) => (b.valor_total || 0) - (a.valor_total || 0));
+                            return (
+                              <tr>
+                                <td colSpan={7} className="p-0">
+                                  <div className="bg-gray-50 border-t border-b border-gray-200 px-8 py-3">
+                                    <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider">TÃ­tulos da Semana {s.semana} ({titulosSemana.length} registro(s))</p>
+                                    <div className="max-h-60 overflow-y-auto">
+                                      <table className="w-full text-sm">
+                                        <thead>
+                                          <tr className="text-xs text-gray-400 uppercase">
+                                            <th className="text-left py-1 pr-3">Credor</th>
+                                            <th className="text-left py-1 pr-3">Vencimento</th>
+                                            <th className="text-left py-1 pr-3">Documento</th>
+                                            <th className="text-left py-1 pr-3">Centro Custo</th>
+                                            <th className="text-right py-1">Valor</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {titulosSemana.map((t, ti) => (
+                                            <tr key={ti} className="border-t border-gray-100 hover:bg-gray-100">
+                                              <td className="py-1.5 pr-3 text-gray-700 max-w-[250px] truncate" title={t.credor}>{t.credor}</td>
+                                              <td className="py-1.5 pr-3 text-gray-500">
+                                                {t.data_vencimento ? new Date(t.data_vencimento.toString().split('T')[0] + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}
+                                              </td>
+                                              <td className="py-1.5 pr-3 text-gray-500 font-mono text-xs">{t.numero_documento || '-'}</td>
+                                              <td className="py-1.5 pr-3 text-gray-500 max-w-[200px] truncate" title={t.nome_centrocusto || ''}>{t.nome_centrocusto || '-'}</td>
+                                              <td className="py-1.5 text-right font-semibold text-blue-600">{formatCurrency(t.valor_total || 0)}</td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })()}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot className="bg-gray-100">
+                    <tr className="font-bold">
+                      <td className="px-4 py-3 text-sm">Total</td>
+                      <td className="px-6 py-3 text-sm text-gray-500">-</td>
+                      <td className="px-6 py-3 text-sm text-gray-900 text-center">{contasAno.length}</td>
+                      <td className="px-6 py-3 text-sm text-blue-700 text-right">{formatCurrency(totalGeral)}</td>
+                      <td className="px-4 py-3 text-sm"></td>
+                      <td className="px-6 py-3 text-sm text-gray-900 text-right">100,00%</td>
+                      <td className="px-6 py-3 text-sm text-gray-900 text-right">100,00%</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </>
+        );
+      })()}
+
+      {abaAtiva === 'por-origem' && (() => {
+        const NOMES_ORIGEM: Record<string, string> = {
+          'CP': 'Contas a Pagar',
+          'AC': 'Acordo',
+          'ME': 'MediÃ§Ã£o',
+          'CO': 'Contrato',
+          'NF': 'Nota Fiscal',
+          'GR': 'Guia de Recolhimento',
+          'RE': 'Recibo',
+          'BO': 'Boleto',
+          'CH': 'Cheque',
+          'DP': 'DepÃ³sito',
+        };
+
+        const origemMap = new Map<string, { valor: number; quantidade: number }>();
+        contas.forEach(c => {
+          const origem = (c.id_origem || 'Outros').trim();
+          const atual = origemMap.get(origem) || { valor: 0, quantidade: 0 };
+          origemMap.set(origem, {
+            valor: atual.valor + (c.valor_total || 0),
+            quantidade: atual.quantidade + 1,
+          });
+        });
+
+        const origensOrdenadas = Array.from(origemMap.entries())
+          .map(([origem, data]) => ({ origem, ...data }))
+          .sort((a, b) => b.valor - a.valor);
+
+        const totalGeral = origensOrdenadas.reduce((acc, o) => acc + o.valor, 0);
+        let acumulado = 0;
+        const origensComPareto = origensOrdenadas.map((o, i) => {
+          const percentual = totalGeral > 0 ? (o.valor / totalGeral) * 100 : 0;
+          acumulado += percentual;
+          return { ...o, rank: i + 1, percentual, acumulado };
+        });
+
+        const origensExibidas = [...origensComPareto].sort((a, b) => {
+          const dir = ordenacao.direcao === 'asc' ? 1 : -1;
+          switch (ordenacao.campo) {
+            case 'rank': return (a.rank - b.rank) * dir;
+            case 'credor': return a.origem.localeCompare(b.origem) * dir;
+            case 'quantidade': return (a.quantidade - b.quantidade) * dir;
+            case 'valor': return (a.valor - b.valor) * dir;
+            case 'percentual': return (a.percentual - b.percentual) * dir;
+            case 'acumulado': return (a.acumulado - b.acumulado) * dir;
+            default: return (a.rank - b.rank) * dir;
+          }
+        });
+
+        const dadosGrafico = origensComPareto.slice(0, 10).map(o => ({
+          name: o.origem,
+          nomeCompleto: NOMES_ORIGEM[o.origem] || o.origem,
+          valor: o.valor,
+          quantidade: o.quantidade,
+          percentual: o.percentual,
+        }));
+
+        return (
+          <>
+            <div className="mb-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Contas a Pagar por Origem</h2>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {origensComPareto.length} origem(s) | Total: {formatCurrency(totalGeral)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMostrarFiltros(!mostrarFiltros)}
+                  className="flex items-center rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                >
+                  <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                  </svg>
+                  {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
+                </button>
+              </div>
+              {mostrarFiltros && renderFiltros()}
+              {!mostrarFiltros && renderFiltrosTags()}
+            </div>
+
+            {dadosGrafico.length > 0 && (
+              <div className="mb-6 rounded-lg bg-white p-6 shadow">
+                <h3 className="mb-4 text-lg font-semibold text-gray-900">DistribuiÃ§Ã£o por Origem</h3>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={dadosGrafico} layout="vertical" margin={{ top: 5, right: 30, left: 60, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis type="number" tickFormatter={(value) => formatCurrencyShort(value)} tick={{ fontSize: 11 }} />
+                      <YAxis type="category" dataKey="name" tick={{ fontSize: 13, fontWeight: 600 }} width={50} />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
+                                <p className="mb-1 font-semibold text-gray-900">{data.name} â€” {data.nomeCompleto}</p>
+                                <p className="text-sm text-blue-600">Valor: {formatCurrency(data.valor)}</p>
+                                <p className="text-sm text-gray-600">TÃ­tulos: {data.quantidade}</p>
+                                <p className="text-sm text-gray-600">{data.percentual.toFixed(2)}% do total</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Bar dataKey="valor" radius={[0, 4, 4, 0]}>
+                        {dadosGrafico.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                        <LabelList dataKey="valor" position="right" formatter={(value: number) => formatCurrencyShort(value)} style={{ fontSize: 11, fill: '#374151' }} />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
+            <div className="overflow-hidden rounded-lg bg-white shadow">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-blue-50">
+                    <tr>
+                      <th onClick={() => toggleOrdenacao('rank')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">#</th>
+                      <th onClick={() => toggleOrdenacao('credor')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Origem{renderSortIcon('credor')}</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">DescriÃ§Ã£o</th>
+                      <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Qtd{renderSortIcon('quantidade')}</th>
+                      <th onClick={() => toggleOrdenacao('valor')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Valor{renderSortIcon('valor')}</th>
+                      <th onClick={() => toggleOrdenacao('percentual')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">%{renderSortIcon('percentual')}</th>
+                      <th onClick={() => toggleOrdenacao('acumulado')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">% Acum{renderSortIcon('acumulado')}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {origensExibidas.map((o, index) => (
+                      <tr key={index} className={`hover:bg-gray-50 ${o.acumulado <= 80 ? 'bg-green-50/30' : o.acumulado <= 95 ? 'bg-yellow-50/30' : ''}`}>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm font-mono font-semibold text-gray-400">{o.rank}</td>
+                        <td className="whitespace-nowrap px-6 py-3">
+                          <span className="inline-flex items-center gap-2">
+                            <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[(o.rank - 1) % COLORS.length] }}></span>
+                            <span className="text-sm font-bold text-gray-900">{o.origem}</span>
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500">{NOMES_ORIGEM[o.origem] || '-'}</td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500 text-center">{o.quantidade}</td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-blue-600 text-right">{formatCurrency(o.valor)}</td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-700 text-right">{o.percentual.toFixed(2)}%</td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-right">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${o.acumulado <= 80 ? 'bg-green-100 text-green-700' :
+                            o.acumulado <= 95 ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-red-100 text-red-700'
+                            }`}>
+                            {o.acumulado.toFixed(2)}%
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-gray-100">
+                    <tr className="font-bold">
+                      <td className="px-4 py-3 text-sm">Total</td>
+                      <td className="px-6 py-3 text-sm text-gray-500" colSpan={2}>-</td>
+                      <td className="px-6 py-3 text-sm text-gray-900 text-center">{origensComPareto.reduce((a, o) => a + o.quantidade, 0)}</td>
+                      <td className="px-6 py-3 text-sm text-blue-700 text-right">{formatCurrency(totalGeral)}</td>
+                      <td className="px-6 py-3 text-sm text-gray-900 text-right">100,00%</td>
+                      <td className="px-6 py-3 text-sm text-gray-900 text-right">100,00%</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              <div className="flex items-center gap-4 px-6 py-3 border-t border-gray-200 bg-gray-50">
+                <span className="flex items-center gap-1.5 text-xs">
+                  <span className="inline-block w-3 h-3 rounded bg-green-100 border border-green-300"></span> A (atÃ© 80%)
+                </span>
+                <span className="flex items-center gap-1.5 text-xs">
+                  <span className="inline-block w-3 h-3 rounded bg-yellow-100 border border-yellow-300"></span> B (80-95%)
+                </span>
+                <span className="flex items-center gap-1.5 text-xs">
+                  <span className="inline-block w-3 h-3 rounded bg-red-100 border border-red-300"></span> C (95-100%)
+                </span>
+              </div>
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 };
+
