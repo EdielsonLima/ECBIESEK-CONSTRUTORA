@@ -82,7 +82,7 @@ export const ContasAtrasadas: React.FC = () => {
     return [...contasParaOrdenar].sort((a, b) => {
       let valorA: any;
       let valorB: any;
-      
+
       switch (ordenacao.campo) {
         case 'credor':
           valorA = (a.credor || '').toLowerCase();
@@ -111,7 +111,7 @@ export const ContasAtrasadas: React.FC = () => {
         default:
           return 0;
       }
-      
+
       if (valorA < valorB) return ordenacao.direcao === 'asc' ? -1 : 1;
       if (valorA > valorB) return ordenacao.direcao === 'asc' ? 1 : -1;
       return 0;
@@ -158,6 +158,20 @@ export const ContasAtrasadas: React.FC = () => {
     if (parts.length !== 3) return '-';
     const [year, month, day] = parts;
     return `${day}/${month}/${year}`;
+  };
+
+  const calcularTitulosUnicos = (listaContas: ContaPagar[]): number => {
+    const unicos = new Set<string>();
+    listaContas.forEach(c => {
+      if (c.lancamento && String(c.lancamento).includes('/')) {
+        unicos.add(String(c.lancamento).split('/')[0]);
+      } else if (c.numero_documento) {
+        unicos.add(String(c.numero_documento));
+      } else {
+        unicos.add(`fallback-${c.id}`);
+      }
+    });
+    return unicos.size;
   };
 
   const calcularDiasAtraso = (dataVencimento: string | undefined) => {
@@ -212,7 +226,7 @@ export const ContasAtrasadas: React.FC = () => {
     tiposDocSelecionados: string[]
   ) => {
     let contasFiltradas = [...dados];
-    
+
     if (empresa) {
       contasFiltradas = contasFiltradas.filter(c => c.id_interno_empresa === empresa);
     }
@@ -238,22 +252,22 @@ export const ContasAtrasadas: React.FC = () => {
         return c.id_documento && tiposDocSelecionados.includes(c.id_documento);
       });
     }
-    
+
     return contasFiltradas;
   };
 
   useEffect(() => {
     if (todasContas.length === 0) return;
-    
+
     const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroAno, filtroMes, filtroTipoDocumento);
     setContas(contasFiltradas);
 
     const totalDiasAtraso = contasFiltradas.reduce((acc, c) => acc + calcularDiasAtraso(c.data_vencimento as any), 0);
     const stats: Estatisticas = {
-      quantidade_titulos: contasFiltradas.length,
+      quantidade_titulos: calcularTitulosUnicos(contasFiltradas),
       valor_total: contasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0),
-      valor_medio: contasFiltradas.length > 0 
-        ? contasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0) / contasFiltradas.length 
+      valor_medio: contasFiltradas.length > 0
+        ? contasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0) / contasFiltradas.length
         : 0,
       dias_atraso_medio: contasFiltradas.length > 0 ? Math.round(totalDiasAtraso / contasFiltradas.length) : 0,
     };
@@ -298,10 +312,10 @@ export const ContasAtrasadas: React.FC = () => {
       { faixa: '61-90 dias', min: 61, max: 90, ordem: 5 },
       { faixa: '+90 dias', min: 91, max: Infinity, ordem: 6 },
     ];
-    
+
     const faixaMap = new Map<string, { valor: number; quantidade: number; ordem: number }>();
     faixas.forEach(f => faixaMap.set(f.faixa, { valor: 0, quantidade: 0, ordem: f.ordem }));
-    
+
     contasFiltradas.forEach(c => {
       const dias = calcularDiasAtraso(c.data_vencimento as any);
       const faixa = faixas.find(f => dias >= f.min && dias <= f.max);
@@ -314,7 +328,7 @@ export const ContasAtrasadas: React.FC = () => {
         });
       }
     });
-    
+
     const faixaArray = Array.from(faixaMap.entries())
       .map(([faixa, data]) => ({ faixa, ...data }))
       .filter(d => d.quantidade > 0)
@@ -530,12 +544,12 @@ export const ContasAtrasadas: React.FC = () => {
 
   const renderFiltrosTags = () => {
     const tags: { label: string; value: string; onRemove: () => void }[] = [];
-    
+
     const empresaNome = getEmpresaNome(filtroEmpresa);
     if (empresaNome) {
       tags.push({ label: 'Empresa', value: empresaNome, onRemove: () => setFiltroEmpresa(null) });
     }
-    
+
     const ccNome = getCentroCustoNome(filtroCentroCusto);
     if (ccNome) {
       tags.push({ label: 'Centro de Custo', value: ccNome, onRemove: () => setFiltroCentroCusto(null) });
@@ -600,7 +614,7 @@ export const ContasAtrasadas: React.FC = () => {
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Contas Atrasadas</h2>
             <p className="mt-1 text-sm text-gray-600">
-              {contas.length} conta(s) em atraso
+              {calcularTitulosUnicos(contas)} título(s) em atraso
             </p>
           </div>
           <button
@@ -669,9 +683,8 @@ export const ContasAtrasadas: React.FC = () => {
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.numero_documento || '-'}</td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.nome_empresa || '-'}</td>
                       <td className="whitespace-nowrap px-6 py-4">
-                        <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                          diasAtraso > 30 ? 'bg-red-100 text-red-800' : 'bg-orange-100 text-orange-800'
-                        }`}>
+                        <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${diasAtraso > 30 ? 'bg-red-100 text-red-800' : 'bg-orange-100 text-orange-800'
+                          }`}>
                           {diasAtraso > 30 ? 'Critico' : 'Em Atraso'}
                         </span>
                       </td>
@@ -862,41 +875,41 @@ export const ContasAtrasadas: React.FC = () => {
   return (
     <div>
       {estatisticas && contas.length > 0 && (() => {
-          const credoresTotal = new Set(contas.map(c => c.credor)).size;
-          const contasCriticas = contas.filter(c => calcularDiasAtraso(c.data_vencimento as any) > 30);
-          const credoresCriticos = new Set(contasCriticas.map(c => c.credor)).size;
-          return (
-        <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-lg bg-gradient-to-br from-red-500 to-red-600 p-5 text-white shadow-lg">
-            <div className="mb-1 text-xs font-medium opacity-90">Total em Atraso</div>
-            <div className="text-2xl font-bold">{formatCurrency(estatisticas.valor_total)}</div>
-            <div className="mt-1 text-xs opacity-75">{estatisticas.quantidade_titulos.toLocaleString('pt-BR')} titulos | {credoresTotal} credores</div>
-          </div>
-
-          <div className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 p-5 text-white shadow-lg">
-            <div className="mb-1 text-xs font-medium opacity-90">Media de Atraso</div>
-            <div className="text-2xl font-bold">{estatisticas.dias_atraso_medio} dias</div>
-            <div className="mt-1 text-xs opacity-75">Por titulo</div>
-          </div>
-
-          <div className="rounded-lg bg-gradient-to-br from-yellow-500 to-yellow-600 p-5 text-white shadow-lg">
-            <div className="mb-1 text-xs font-medium opacity-90">Ticket Medio</div>
-            <div className="text-2xl font-bold">{formatCurrency(estatisticas.valor_medio)}</div>
-            <div className="mt-1 text-xs opacity-75">Por titulo</div>
-          </div>
-
-          <div className="rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 p-5 text-white shadow-lg">
-            <div className="mb-1 text-xs font-medium opacity-90">Criticos (+30d)</div>
-            <div className="text-2xl font-bold">
-              {contasCriticas.length}
+        const credoresTotal = new Set(contas.map(c => c.credor)).size;
+        const contasCriticas = contas.filter(c => calcularDiasAtraso(c.data_vencimento as any) > 30);
+        const credoresCriticos = new Set(contasCriticas.map(c => c.credor)).size;
+        return (
+          <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-lg bg-gradient-to-br from-red-500 to-red-600 p-5 text-white shadow-lg">
+              <div className="mb-1 text-xs font-medium opacity-90">Total em Atraso</div>
+              <div className="text-2xl font-bold">{formatCurrency(estatisticas.valor_total)}</div>
+              <div className="mt-1 text-xs opacity-75">{estatisticas.quantidade_titulos.toLocaleString('pt-BR')} titulos | {credoresTotal} credores</div>
             </div>
-            <div className="mt-1 text-xs opacity-75">
-              {formatCurrency(contasCriticas.reduce((acc, c) => acc + (c.valor_total || 0), 0))} | {credoresCriticos} credores
+
+            <div className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 p-5 text-white shadow-lg">
+              <div className="mb-1 text-xs font-medium opacity-90">Media de Atraso</div>
+              <div className="text-2xl font-bold">{estatisticas.dias_atraso_medio} dias</div>
+              <div className="mt-1 text-xs opacity-75">Por titulo</div>
+            </div>
+
+            <div className="rounded-lg bg-gradient-to-br from-yellow-500 to-yellow-600 p-5 text-white shadow-lg">
+              <div className="mb-1 text-xs font-medium opacity-90">Ticket Medio</div>
+              <div className="text-2xl font-bold">{formatCurrency(estatisticas.valor_medio)}</div>
+              <div className="mt-1 text-xs opacity-75">Por titulo</div>
+            </div>
+
+            <div className="rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 p-5 text-white shadow-lg">
+              <div className="mb-1 text-xs font-medium opacity-90">Criticos (+30d)</div>
+              <div className="text-2xl font-bold">
+                {contasCriticas.length}
+              </div>
+              <div className="mt-1 text-xs opacity-75">
+                {formatCurrency(contasCriticas.reduce((acc, c) => acc + (c.valor_total || 0), 0))} | {credoresCriticos} credores
+              </div>
             </div>
           </div>
-        </div>
-          );
-        })()}
+        );
+      })()}
 
       <div className="mb-6">
         <div className="border-b border-gray-200">
@@ -904,11 +917,10 @@ export const ContasAtrasadas: React.FC = () => {
             <button
               type="button"
               onClick={() => setAbaAtiva('dados')}
-              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
-                abaAtiva === 'dados'
+              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'dados'
                   ? 'border-red-500 text-red-600'
                   : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-              }`}
+                }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -918,11 +930,10 @@ export const ContasAtrasadas: React.FC = () => {
             <button
               type="button"
               onClick={() => setAbaAtiva('analises')}
-              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
-                abaAtiva === 'analises'
+              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'analises'
                   ? 'border-red-500 text-red-600'
                   : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-              }`}
+                }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
