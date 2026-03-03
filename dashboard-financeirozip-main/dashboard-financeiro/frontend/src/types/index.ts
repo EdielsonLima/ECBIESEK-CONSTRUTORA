@@ -54,6 +54,12 @@ export interface ContaCorrenteOption {
   empresa_id: number;
 }
 
+export interface OrigemTituloOption {
+  id: number;
+  sigla: string;
+  descricao: string;
+}
+
 export interface DashboardMetrics {
   total_pago: number;
   total_a_pagar: number;
