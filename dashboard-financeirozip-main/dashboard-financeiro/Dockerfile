@@ -7,6 +7,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # ── Stage 2: Backend Python + serve o frontend ──────────────
+# CACHE BUST: 2026-03-03-v3
 FROM python:3.11-slim
 WORKDIR /app/backend
 
@@ -20,10 +21,7 @@ COPY backend/ ./
 # Frontend buildado
 COPY --from=frontend-build /app/frontend/dist /app/frontend/dist
 
-# Teste de import durante o build — falha aqui = erro visível no Build Log
-RUN python -c "import sys; sys.path.insert(0, '.'); import importlib; print('Imports OK')" || true
-
 EXPOSE 8000
 
-# Usa python main.py (mostra traceback completo se falhar, ao invés de "attribute not found")
+# python main.py mostra traceback completo se falhar
 CMD ["python", "main.py"]
