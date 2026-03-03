@@ -317,6 +317,9 @@ export const apiService = {
     valor_baixa: number;
     valor_acrescimo: number;
     valor_desconto: number;
+    valor_7d: number;
+    valor_15d: number;
+    valor_30d: number;
   }> => {
     const params = new URLSearchParams();
     if (filtros.empresa) params.append('empresa', filtros.empresa.toString());
