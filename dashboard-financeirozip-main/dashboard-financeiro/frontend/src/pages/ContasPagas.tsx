@@ -491,13 +491,14 @@ export const ContasPagas: React.FC = () => {
   const exportarCSV = () => {
     if (contas.length === 0) return;
 
-    const headers = ['Credor', 'Data Pagamento', 'Valor Pago', 'Títulos', 'Centro Custo'];
+    const headers = ['Credor', 'Data Pagamento', 'Valor Pago', 'Títulos', 'Centro Custo', 'Origem'];
     const rows = contas.map(conta => [
       conta.credor || '',
       conta.data_pagamento ? formatDate(conta.data_pagamento) : '',
       conta.valor_total?.toString() || '0',
       conta.lancamento || '',
       conta.nome_centrocusto || '',
+      (conta as any).id_origem || '',
     ]);
 
     const csvContent = [
