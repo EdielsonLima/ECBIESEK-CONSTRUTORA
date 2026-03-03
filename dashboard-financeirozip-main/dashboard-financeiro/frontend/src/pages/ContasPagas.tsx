@@ -2208,27 +2208,27 @@ export const ContasPagas: React.FC = () => {
           return (
         <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <div className="rounded-lg bg-gradient-to-br from-green-500 to-green-600 p-5 text-white shadow-lg">
-            <div className="mb-1 text-xs font-medium opacity-90">Valor Total</div>
-            <div className="text-2xl font-bold">{formatCurrency(estatisticas.valor_baixa)}</div>
+            <div className="mb-1 text-xs font-medium opacity-90">Líquido Total</div>
+            <div className="text-2xl font-bold">{formatCurrency(estatisticas.valor_liquido)}</div>
             <div className="mt-1 text-xs opacity-75">{estatisticas.quantidade_titulos.toLocaleString('pt-BR')} títulos | {credoresTotal} credores</div>
           </div>
 
           <div className="rounded-lg bg-gradient-to-br from-sky-500 to-sky-600 p-5 text-white shadow-lg">
             <div className="mb-1 text-xs font-medium opacity-90">Últimos 7 dias</div>
             <div className="text-2xl font-bold">{formatCurrency(estatisticas.valor_7d ?? 0)}</div>
-            <div className="mt-1 text-xs opacity-75">Valor pago</div>
+            <div className="mt-1 text-xs opacity-75">Líquido pago</div>
           </div>
 
           <div className="rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 p-5 text-white shadow-lg">
             <div className="mb-1 text-xs font-medium opacity-90">Últimos 15 dias</div>
             <div className="text-2xl font-bold">{formatCurrency(estatisticas.valor_15d ?? 0)}</div>
-            <div className="mt-1 text-xs opacity-75">Valor pago</div>
+            <div className="mt-1 text-xs opacity-75">Líquido pago</div>
           </div>
 
           <div className="rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 p-5 text-white shadow-lg">
             <div className="mb-1 text-xs font-medium opacity-90">Últimos 30 dias</div>
             <div className="text-2xl font-bold">{formatCurrency(estatisticas.valor_30d ?? 0)}</div>
-            <div className="mt-1 text-xs opacity-75">Valor pago</div>
+            <div className="mt-1 text-xs opacity-75">Líquido pago</div>
           </div>
 
           <div className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 p-5 text-white shadow-lg">
