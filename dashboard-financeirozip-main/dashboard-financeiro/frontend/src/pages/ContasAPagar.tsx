@@ -999,6 +999,10 @@ export const ContasAPagar: React.FC = () => {
         const credores15dias = new Set(contas15dias.map(c => c.credor)).size;
         const credores30dias = new Set(contas30dias.map(c => c.credor)).size;
 
+        const totalTitulos = estatisticas.quantidade_titulos;
+        const pct = (v: number, total: number) =>
+          total > 0 ? (v / total * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%' : '0%';
+
         const hoje = new Date();
         hoje.setHours(0, 0, 0, 0);
         const formatarDataCurta = (d: Date) => {
@@ -1066,7 +1070,11 @@ export const ContasAPagar: React.FC = () => {
                 <div className="mb-1 text-xs font-medium opacity-90">Vencendo Hoje</div>
                 <div className="text-xl font-bold">{formatCurrency(valorHoje)}</div>
                 <div className="mt-1 text-xs opacity-75">
-                  {calcularTitulosUnicos(contasHoje)} titulo(s) | {credoresHoje} credores
+                  {calcularTitulosUnicos(contasHoje)} titulo(s)
+                  <span className="ml-1 font-semibold opacity-90">({pct(calcularTitulosUnicos(contasHoje), totalTitulos)})</span>
+                  {' | '}
+                  {credoresHoje} credores
+                  <span className="ml-1 font-semibold opacity-90">({pct(credoresHoje, credoresTotal)})</span>
                 </div>
                 {renderComparacao('hoje', valorHoje)}
               </div>
@@ -1076,7 +1084,11 @@ export const ContasAPagar: React.FC = () => {
                 <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(amanha)} ate {formatarDataCurta(fim7)}</div>
                 <div className="text-xl font-bold">{formatCurrency(valor7dias)}</div>
                 <div className="mt-1 text-xs opacity-75">
-                  {calcularTitulosUnicos(contas7dias)} titulo(s) | {credores7dias} credores
+                  {calcularTitulosUnicos(contas7dias)} titulo(s)
+                  <span className="ml-1 font-semibold opacity-90">({pct(calcularTitulosUnicos(contas7dias), totalTitulos)})</span>
+                  {' | '}
+                  {credores7dias} credores
+                  <span className="ml-1 font-semibold opacity-90">({pct(credores7dias, credoresTotal)})</span>
                 </div>
                 {renderComparacao('7dias', valor7dias)}
               </div>
@@ -1086,7 +1098,11 @@ export const ContasAPagar: React.FC = () => {
                 <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(amanha)} ate {formatarDataCurta(fim15)}</div>
                 <div className="text-xl font-bold">{formatCurrency(valor15dias)}</div>
                 <div className="mt-1 text-xs opacity-75">
-                  {calcularTitulosUnicos(contas15dias)} titulo(s) | {credores15dias} credores
+                  {calcularTitulosUnicos(contas15dias)} titulo(s)
+                  <span className="ml-1 font-semibold opacity-90">({pct(calcularTitulosUnicos(contas15dias), totalTitulos)})</span>
+                  {' | '}
+                  {credores15dias} credores
+                  <span className="ml-1 font-semibold opacity-90">({pct(credores15dias, credoresTotal)})</span>
                 </div>
                 {renderComparacao('15dias', valor15dias)}
               </div>
@@ -1096,7 +1112,11 @@ export const ContasAPagar: React.FC = () => {
                 <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(amanha)} ate {formatarDataCurta(fim30)}</div>
                 <div className="text-xl font-bold">{formatCurrency(valor30dias)}</div>
                 <div className="mt-1 text-xs opacity-75">
-                  {calcularTitulosUnicos(contas30dias)} titulo(s) | {credores30dias} credores
+                  {calcularTitulosUnicos(contas30dias)} titulo(s)
+                  <span className="ml-1 font-semibold opacity-90">({pct(calcularTitulosUnicos(contas30dias), totalTitulos)})</span>
+                  {' | '}
+                  {credores30dias} credores
+                  <span className="ml-1 font-semibold opacity-90">({pct(credores30dias, credoresTotal)})</span>
                 </div>
                 {renderComparacao('30dias', valor30dias)}
               </div>

@@ -157,7 +157,7 @@ const formatarEixoY = (valor: number) => {
 };
 
 export const ExposicaoCaixa: React.FC = () => {
-  const [aba, setAba] = useState<'tabela' | 'grafico'>('tabela');
+  const [aba, setAba] = useState<'tabela' | 'comparativo' | 'grafico'>('tabela');
   const [taxaMensal, setTaxaMensal] = useState(1.5);
   const [tipoCusto, setTipoCusto] = useState<'simples' | 'composto'>('simples');
   const [centrosCusto, setCentrosCusto] = useState<CentroCusto[]>([]);
@@ -293,7 +293,8 @@ export const ExposicaoCaixa: React.FC = () => {
         exposicaoNegativa,
         custoMensalSimples,
         custoMensalComposto,
-        custoCompostoAcumulado: jurosAcumulados
+        custoCompostoAcumulado: jurosAcumulados,
+        exposicaoAjustada: exposicaoNegativa < 0 ? Math.abs(exposicaoNegativa) + (jurosAcumulados - custoMensalComposto) : 0,
       };
     });
   }, [linhas, taxaMensal]);
@@ -301,12 +302,15 @@ export const ExposicaoCaixa: React.FC = () => {
   const totais = useMemo(() => {
     const totalRecebido = linhas.reduce((s, l) => s + l.recebido, 0);
     const totalPago = linhas.reduce((s, l) => s + l.pago, 0);
-    const totalCusto = calculado.reduce((s, c) => s + (tipoCusto === 'simples' ? c.custoMensalSimples : c.custoMensalComposto), 0);
+    const totalCustoSimples = calculado.reduce((s, c) => s + c.custoMensalSimples, 0);
+    const totalCustoComposto = calculado.reduce((s, c) => s + c.custoMensalComposto, 0);
+    const totalCusto = tipoCusto === 'simples' ? totalCustoSimples : totalCustoComposto;
     const resultadoFinal = totalRecebido - totalPago;
     const picoExposicao = calculado.length ? Math.min(...calculado.map(c => c.exposicaoNegativa)) : 0;
+    const picoExposicaoAjustada = calculado.length ? Math.max(...calculado.map(c => c.exposicaoAjustada)) : 0;
     const mesesNegativos = calculado.filter(c => c.exposicaoNegativa < 0).length;
     const idxZero = calculado.findIndex((c, i) => i > 0 && c.exposicaoNegativa === 0 && calculado[i - 1].exposicaoNegativa < 0);
-    return { totalRecebido, totalPago, totalCusto, resultadoFinal, picoExposicao, mesesNegativos, mesZero: idxZero >= 0 ? idxZero + 1 : null };
+    return { totalRecebido, totalPago, totalCusto, totalCustoSimples, totalCustoComposto, resultadoFinal, picoExposicao, picoExposicaoAjustada, mesesNegativos, mesZero: idxZero >= 0 ? idxZero + 1 : null };
   }, [linhas, calculado, tipoCusto]);
 
   // Dados acumulados para o gráfico
@@ -349,6 +353,15 @@ export const ExposicaoCaixa: React.FC = () => {
             }`}
         >
           Tabela
+        </button>
+        <button
+          onClick={() => setAba('comparativo')}
+          className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${aba === 'comparativo'
+              ? 'bg-white text-blue-700 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+            }`}
+        >
+          Comparativo
         </button>
         <button
           onClick={() => setAba('grafico')}
@@ -578,6 +591,219 @@ export const ExposicaoCaixa: React.FC = () => {
               </div>
             )}
           </div>
+        </>
+      )}
+
+      {/* ==================== ABA COMPARATIVO ==================== */}
+      {aba === 'comparativo' && (
+        <>
+          {/* Filtros (mesmos da aba Tabela) */}
+          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Filtros e Premissas</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Centro de Custo</label>
+                <SelectPesquisavel centros={centrosCusto} valor={centroCustoId} onChange={setCentroCustoId} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Período Início</label>
+                <input type="month" value={dataInicio} onChange={e => setDataInicio(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Período Fim</label>
+                <input type="month" value={dataFim} onChange={e => setDataFim(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-amber-700 mb-1">Taxa Mensal (%)</label>
+                <div className="flex items-center gap-2">
+                  <input type="number" step="0.01" value={taxaMensal}
+                    onChange={e => setTaxaMensal(parseFloat(e.target.value) || 0)}
+                    className="w-24 border-2 border-amber-400 rounded-lg px-3 py-2 text-sm font-bold bg-yellow-50 focus:outline-none" />
+                  <span className="text-amber-700 font-semibold text-sm">% a.m.</span>
+                </div>
+              </div>
+              <div className="flex items-end">
+                <button onClick={carregarDados} disabled={loading}
+                  className="w-full bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors">
+                  {loading
+                    ? <><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" /></svg> Carregando...</>
+                    : <><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> Carregar Dados Reais</>
+                  }
+                </button>
+              </div>
+            </div>
+            {erro && <p className="mt-2 text-red-600 text-sm">{erro}</p>}
+          </div>
+
+          {linhas.length > 0 && (
+            <>
+              {/* Resumo Executivo Comparativo */}
+              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">
+                  Resumo Executivo — Comparativo Simples vs Composto
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
+                    <p className="text-xs text-green-600 font-semibold uppercase mb-1">Total Recebido</p>
+                    <p className="text-sm font-bold text-green-700">{fmt(totais.totalRecebido)}</p>
+                  </div>
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
+                    <p className="text-xs text-red-600 font-semibold uppercase mb-1">Total Pago</p>
+                    <p className="text-sm font-bold text-red-700">{fmt(totais.totalPago)}</p>
+                  </div>
+                  <div className={`${totais.resultadoFinal >= 0 ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200'} border rounded-xl p-3 text-center`}>
+                    <p className={`text-xs font-semibold uppercase mb-1 ${totais.resultadoFinal >= 0 ? 'text-blue-600' : 'text-red-600'}`}>Resultado Final</p>
+                    <p className={`text-sm font-bold ${totais.resultadoFinal >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                      {totais.resultadoFinal >= 0 ? fmt(totais.resultadoFinal) : `(${fmt(Math.abs(totais.resultadoFinal))})`}
+                    </p>
+                  </div>
+                  <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-center">
+                    <p className="text-xs text-orange-600 font-semibold uppercase mb-1">Pico Exposição Negativa</p>
+                    <p className="text-sm font-bold text-orange-700">({fmt(Math.abs(totais.picoExposicao))})</p>
+                  </div>
+                  <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-center">
+                    <p className="text-xs text-indigo-600 font-semibold uppercase mb-1">Pico Exposição Ajustada</p>
+                    <p className="text-sm font-bold text-indigo-700">({fmt(totais.picoExposicaoAjustada)})</p>
+                  </div>
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
+                    <p className="text-xs text-gray-500 font-semibold uppercase mb-1">Meses em Exposição</p>
+                    <p className="text-xl font-bold text-gray-700">{totais.mesesNegativos}</p>
+                    <p className="text-xs text-gray-400">{totais.mesZero ? `Equilíbrio: mês ${totais.mesZero}` : 'Nunca positivo'}</p>
+                  </div>
+                </div>
+
+                {/* Bloco Simples vs Composto */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-pink-50 border border-pink-300 rounded-xl p-4">
+                    <p className="text-xs font-bold text-pink-700 uppercase mb-1">Custo de Oportunidade SIMPLES Total</p>
+                    <p className="text-2xl font-bold text-pink-800">{fmt(totais.totalCustoSimples)}</p>
+                    <p className="text-xs text-pink-500 mt-1">Soma dos custos mensais isolados ( |Exposição| × {taxaMensal}% )</p>
+                  </div>
+                  <div className="bg-orange-50 border border-orange-400 rounded-xl p-4">
+                    <p className="text-xs font-bold text-orange-700 uppercase mb-1">Custo de Oportunidade COMPOSTO Total</p>
+                    <p className="text-2xl font-bold text-orange-800">{fmt(totais.totalCustoComposto)}</p>
+                    <p className="text-xs text-orange-500 mt-1">Juros sobre juros acumulados ( (|Exposição| + Juros Ant.) × {taxaMensal}% )</p>
+                  </div>
+                </div>
+
+                {totais.totalCustoSimples > 0 && (
+                  <div className="mt-3 grid grid-cols-2 gap-4">
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-between">
+                      <span className="text-sm text-gray-600 font-medium">Diferença (Composto − Simples)</span>
+                      <span className="text-sm font-bold text-gray-800">{fmt(totais.totalCustoComposto - totais.totalCustoSimples)}</span>
+                    </div>
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-between">
+                      <span className="text-sm text-gray-600 font-medium">Impacto % do Composto sobre o Simples</span>
+                      <span className="text-sm font-bold text-gray-800">
+                        {((totais.totalCustoComposto - totais.totalCustoSimples) / totais.totalCustoSimples * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Tabela Comparativa Completa */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
+                  <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
+                    Memória de Cálculo — Simples vs Composto
+                    <span className="ml-2 text-gray-400 font-normal text-xs">({linhas.length} meses · taxa {taxaMensal}% a.m.)</span>
+                  </h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-white text-center" style={{ fontSize: '10px' }}>
+                        <th className="bg-blue-900 px-2 py-2 w-6">#</th>
+                        <th className="bg-blue-900 px-2 py-2 text-left">Período</th>
+                        <th className="bg-green-800 px-2 py-2">Recebido no Mês</th>
+                        <th className="bg-red-900 px-2 py-2">Pago no Mês</th>
+                        <th className="bg-blue-900 px-2 py-2">Resultado Mensal</th>
+                        <th className="bg-blue-900 px-2 py-2">Resultado Acumulado</th>
+                        <th className="bg-orange-700 px-2 py-2">Exposição Negativa</th>
+                        <th className="bg-pink-700 px-2 py-2">Custo Simples Mensal</th>
+                        <th className="bg-indigo-700 px-2 py-2">Exposição Ajustada (Composta)</th>
+                        <th className="bg-purple-800 px-2 py-2">Custo Composto Mensal</th>
+                        <th className="bg-purple-900 px-2 py-2">Custo Composto Acumulado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {linhas.map((linha, i) => {
+                        const c = calculado[i];
+                        const zebra = i % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                        return (
+                          <tr key={linha.mesKey} className={`${zebra} hover:bg-blue-50 transition-colors`}>
+                            <td className="px-2 py-1.5 text-center text-gray-400">{i + 1}</td>
+                            <td className="px-2 py-1.5 font-medium text-gray-700">{linha.periodo}</td>
+                            <td className="px-2 py-1.5 bg-green-50 text-right text-green-700">{fmtNum(linha.recebido)}</td>
+                            <td className="px-2 py-1.5 bg-red-50 text-right text-red-700">{fmtNum(linha.pago)}</td>
+                            <td className={`px-2 py-1.5 text-right ${corRes(c.resultadoMensal)}`}>
+                              {c.resultadoMensal >= 0 ? fmtNum(c.resultadoMensal) : `(${fmtNum(Math.abs(c.resultadoMensal))})`}
+                            </td>
+                            <td className={`px-2 py-1.5 text-right ${corRes(c.acumulado)}`}>
+                              {c.acumulado >= 0 ? fmtNum(c.acumulado) : `(${fmtNum(Math.abs(c.acumulado))})`}
+                            </td>
+                            <td className="px-2 py-1.5 bg-orange-50 text-right">
+                              {c.exposicaoNegativa < 0
+                                ? <span className="text-orange-700 font-semibold">({fmtNum(Math.abs(c.exposicaoNegativa))})</span>
+                                : <span className="text-gray-300">—</span>}
+                            </td>
+                            <td className="px-2 py-1.5 bg-pink-50 text-right">
+                              {c.custoMensalSimples > 0
+                                ? <span className="text-pink-700 font-semibold">{fmtNum(Math.round(c.custoMensalSimples))}</span>
+                                : <span className="text-gray-300">—</span>}
+                            </td>
+                            <td className="px-2 py-1.5 bg-indigo-50 text-right">
+                              {c.exposicaoAjustada > 0
+                                ? <span className="text-indigo-700 font-semibold">({fmtNum(Math.round(c.exposicaoAjustada))})</span>
+                                : <span className="text-gray-300">—</span>}
+                            </td>
+                            <td className="px-2 py-1.5 bg-purple-50 text-right">
+                              {c.custoMensalComposto > 0
+                                ? <span className="text-purple-700 font-semibold">{fmtNum(Math.round(c.custoMensalComposto))}</span>
+                                : <span className="text-gray-300">—</span>}
+                            </td>
+                            <td className="px-2 py-1.5 bg-purple-50 text-right">
+                              {c.custoCompostoAcumulado > 0
+                                ? <span className="text-purple-900 font-bold">{fmtNum(Math.round(c.custoCompostoAcumulado))}</span>
+                                : <span className="text-gray-300">—</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr className="font-bold text-xs text-white">
+                        <td colSpan={2} className="bg-blue-900 px-2 py-2 text-right text-xs uppercase tracking-wider">TOTAIS</td>
+                        <td className="bg-green-800 px-2 py-2 text-right">{fmtNum(totais.totalRecebido)}</td>
+                        <td className="bg-red-900 px-2 py-2 text-right">{fmtNum(totais.totalPago)}</td>
+                        <td className="bg-blue-900 px-2 py-2 text-right">
+                          {totais.resultadoFinal >= 0 ? fmtNum(totais.resultadoFinal) : `(${fmtNum(Math.abs(totais.resultadoFinal))})`}
+                        </td>
+                        <td className="bg-blue-900 px-2 py-2" />
+                        <td className="bg-orange-700 px-2 py-2 text-right">({fmtNum(Math.abs(totais.picoExposicao))})</td>
+                        <td className="bg-pink-700 px-2 py-2 text-right">{fmtNum(Math.round(totais.totalCustoSimples))}</td>
+                        <td className="bg-indigo-700 px-2 py-2 text-right">({fmtNum(Math.round(totais.picoExposicaoAjustada))})</td>
+                        <td className="bg-purple-800 px-2 py-2 text-right">{fmtNum(Math.round(totais.totalCustoComposto))}</td>
+                        <td className="bg-purple-900 px-2 py-2 text-right">{fmtNum(Math.round(totais.totalCustoComposto))}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+
+          {linhas.length === 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 py-20 text-center text-gray-400">
+              <svg className="h-12 w-12 mx-auto mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <p className="text-sm">Selecione os filtros e clique em <strong>Carregar Dados Reais</strong></p>
+            </div>
+          )}
         </>
       )}
 

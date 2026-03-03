@@ -29,7 +29,7 @@ const RefreshIcon = () => (
   </svg>
 );
 
-export const KPIs: React.FC = () => {
+export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
   const [activeTab, setActiveTab] = useState<TabType>('monitoramento');
   const [kpis, setKpis] = useState<KPI[]>([]);
   const [variacaoDiaria, setVariacaoDiaria] = useState<KPIVariacaoDiaria[]>([]);
@@ -431,12 +431,14 @@ export const KPIs: React.FC = () => {
             <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-semibold text-gray-900">KPIs Cadastrados</h2>
-                <button
-                  onClick={() => setShowForm(true)}
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-                >
-                  Novo KPI
-                </button>
+                {isAdmin && (
+                  <button
+                    onClick={() => setShowForm(true)}
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                  >
+                    Novo KPI
+                  </button>
+                )}
               </div>
 
               {showForm && (
@@ -643,18 +645,22 @@ export const KPIs: React.FC = () => {
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                            <button
-                              onClick={() => handleEdit(kpi)}
-                              className="text-blue-600 hover:text-blue-900 mr-3"
-                            >
-                              Editar
-                            </button>
-                            <button
-                              onClick={() => handleDelete(kpi.id)}
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              Excluir
-                            </button>
+                            {isAdmin && (
+                              <>
+                                <button
+                                  onClick={() => handleEdit(kpi)}
+                                  className="text-blue-600 hover:text-blue-900 mr-3"
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(kpi.id)}
+                                  className="text-red-600 hover:text-red-900"
+                                >
+                                  Excluir
+                                </button>
+                              </>
+                            )}
                           </td>
                         </tr>
                       ))
