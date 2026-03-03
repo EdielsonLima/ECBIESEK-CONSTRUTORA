@@ -52,6 +52,7 @@ interface TipoBaixaConfigItem {
 
 const PAGINAS_DISPONIVEIS = [
   { key: 'exposicao_caixa', label: 'Exposição de Caixa' },
+  { key: 'contas_pagas', label: 'Contas Pagas' },
 ];
 
 export const Configuracoes: React.FC = () => {
@@ -769,7 +770,7 @@ export const Configuracoes: React.FC = () => {
                   {origensTitulo.length} origem(s) | {origensTitulo.filter(o => !o.configurado || o.incluir).length} ativa(s) | {totalOrigensExcluidas} excluida(s)
                 </span>
                 <span className="text-xs text-gray-500 bg-yellow-50 border border-yellow-200 rounded px-2 py-1">
-                  Afeta: <strong>Exposicao de Caixa</strong> (Tabela e Grafico)
+                  Afeta: <strong>Exposicao de Caixa</strong> (Tabela e Grafico) e <strong>Contas Pagas</strong>
                 </span>
               </div>
               <p className="mt-1 text-xs text-gray-500">
