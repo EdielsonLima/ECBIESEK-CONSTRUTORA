@@ -1100,22 +1100,22 @@ def get_contas_pagas_filtradas(
             # Suporta múltiplos anos separados por vírgula
             anos = [int(a.strip()) for a in ano.split(',')]
             ano_placeholders = ', '.join(['%s'] * len(anos))
-            conditions.append(f"EXTRACT(YEAR FROM cp.data_pagamento) IN ({ano_placeholders})")
+            conditions.append(f"EXTRACT(YEAR FROM (cp.data_pagamento + INTERVAL '1 day')) IN ({ano_placeholders})")
             params.extend(anos)
 
         if mes:
             # Suporta múltiplos meses separados por vírgula
             meses = [int(m.strip()) for m in mes.split(',')]
             mes_placeholders = ', '.join(['%s'] * len(meses))
-            conditions.append(f"EXTRACT(MONTH FROM cp.data_pagamento) IN ({mes_placeholders})")
+            conditions.append(f"EXTRACT(MONTH FROM (cp.data_pagamento + INTERVAL '1 day')) IN ({mes_placeholders})")
             params.extend(meses)
 
         if data_inicio:
-            conditions.append("cp.data_pagamento >= %s")
+            conditions.append("(cp.data_pagamento + INTERVAL '1 day')::date >= %s")
             params.append(data_inicio)
 
         if data_fim:
-            conditions.append("cp.data_pagamento <= %s")
+            conditions.append("(cp.data_pagamento + INTERVAL '1 day')::date <= %s")
             params.append(data_fim)
 
         where_clause = " AND ".join(conditions) if conditions else "1=1"
@@ -1171,6 +1171,31 @@ def get_estatisticas_contas_pagas(
         conditions = list(excl_conds)
         params = list(excl_params)
 
+        # Auto-excluir origens configuradas como excluídas para contas_pagas
+        try:
+            cfg_conn = get_config_db_connection()
+            cfg_cursor = cfg_conn.cursor()
+            try:
+                cfg_cursor.execute(
+                    "SELECT COUNT(*) as cnt FROM config_origens_exposicao_caixa"
+                )
+                cnt_row = cfg_cursor.fetchone()
+                if cnt_row and int(cnt_row['cnt']) > 0:
+                    cfg_cursor.execute(
+                        "SELECT sigla FROM config_origens_exposicao_caixa WHERE incluir = %s AND paginas LIKE %s",
+                        (False, '%contas_pagas%')
+                    )
+                    origens_excluidas_cp = [r['sigla'].strip().upper() for r in cfg_cursor.fetchall() if r['sigla']]
+                    if origens_excluidas_cp:
+                        oe_placeholders = ', '.join(['%s'] * len(origens_excluidas_cp))
+                        conditions.append(f"TRIM(UPPER(cp.id_origem)) NOT IN ({oe_placeholders})")
+                        params.extend(origens_excluidas_cp)
+            finally:
+                cfg_cursor.close()
+                cfg_conn.close()
+        except Exception:
+            pass
+
         if empresa is not None:
             conditions.append("cc.id_sienge_empresa = %s")
             params.append(empresa)
@@ -1208,21 +1233,21 @@ def get_estatisticas_contas_pagas(
         if ano:
             anos = [int(a.strip()) for a in ano.split(',')]
             ano_placeholders = ', '.join(['%s'] * len(anos))
-            conditions.append(f"EXTRACT(YEAR FROM cp.data_pagamento) IN ({ano_placeholders})")
+            conditions.append(f"EXTRACT(YEAR FROM (cp.data_pagamento + INTERVAL '1 day')) IN ({ano_placeholders})")
             params.extend(anos)
 
         if mes:
             meses = [int(m.strip()) for m in mes.split(',')]
             mes_placeholders = ', '.join(['%s'] * len(meses))
-            conditions.append(f"EXTRACT(MONTH FROM cp.data_pagamento) IN ({mes_placeholders})")
+            conditions.append(f"EXTRACT(MONTH FROM (cp.data_pagamento + INTERVAL '1 day')) IN ({mes_placeholders})")
             params.extend(meses)
 
         if data_inicio:
-            conditions.append("cp.data_pagamento >= %s")
+            conditions.append("(cp.data_pagamento + INTERVAL '1 day')::date >= %s")
             params.append(data_inicio)
 
         if data_fim:
-            conditions.append("cp.data_pagamento <= %s")
+            conditions.append("(cp.data_pagamento + INTERVAL '1 day')::date <= %s")
             params.append(data_fim)
 
         where_clause = " AND ".join(conditions) if conditions else "1=1"
@@ -1234,9 +1259,9 @@ def get_estatisticas_contas_pagas(
                 COALESCE(SUM(CASE WHEN cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_baixa ELSE 0 END), 0) as valor_baixa_total,
                 COALESCE(SUM(cp.valor_acrescimo), 0) as valor_acrescimo_total,
                 COALESCE(SUM(cp.valor_desconto), 0) as valor_desconto_total,
-                COALESCE(SUM(CASE WHEN cp.data_pagamento >= CURRENT_DATE - INTERVAL '7 days' AND cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_baixa ELSE 0 END), 0) as valor_7d,
-                COALESCE(SUM(CASE WHEN cp.data_pagamento >= CURRENT_DATE - INTERVAL '15 days' AND cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_baixa ELSE 0 END), 0) as valor_15d,
-                COALESCE(SUM(CASE WHEN cp.data_pagamento >= CURRENT_DATE - INTERVAL '30 days' AND cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_baixa ELSE 0 END), 0) as valor_30d
+                COALESCE(SUM(CASE WHEN (cp.data_pagamento + INTERVAL '1 day')::date >= CURRENT_DATE - INTERVAL '7 days' AND cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_baixa ELSE 0 END), 0) as valor_7d,
+                COALESCE(SUM(CASE WHEN (cp.data_pagamento + INTERVAL '1 day')::date >= CURRENT_DATE - INTERVAL '15 days' AND cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_baixa ELSE 0 END), 0) as valor_15d,
+                COALESCE(SUM(CASE WHEN (cp.data_pagamento + INTERVAL '1 day')::date >= CURRENT_DATE - INTERVAL '30 days' AND cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_baixa ELSE 0 END), 0) as valor_30d
             FROM contas_pagas cp
             LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE {where_clause}
