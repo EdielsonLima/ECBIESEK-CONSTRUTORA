@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { apiService } from '../services/api';
-import { ContaPagar, EmpresaOption, CentroCustoOption, TipoDocumentoOption, OrigemDadoOption, TipoBaixaOption, ContaCorrenteOption } from '../types';
+import { ContaPagar, EmpresaOption, CentroCustoOption, TipoDocumentoOption, OrigemDadoOption, TipoBaixaOption, ContaCorrenteOption, OrigemTituloOption } from '../types';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line, Legend } from 'recharts';
 
@@ -116,6 +116,7 @@ export const ContasPagas: React.FC = () => {
   const [origensDado, setOrigensDado] = useState<OrigemDadoOption[]>([]);
   const [tiposBaixa, setTiposBaixa] = useState<TipoBaixaOption[]>([]);
   const [contasCorrentes, setContasCorrentes] = useState<ContaCorrenteOption[]>([]);
+  const [origensTitulo, setOrigensTitulo] = useState<OrigemTituloOption[]>([]);
 
   const [empresasPadrao, setEmpresasPadrao] = useState<number[]>([]);
   const [centrosCustoPadrao, setCentrosCustoPadrao] = useState<number[]>([]);
@@ -128,6 +129,8 @@ export const ContasPagas: React.FC = () => {
   const [filtroOrigemDado, setFiltroOrigemDado] = useState<string[]>([]);
   const [filtroTipoBaixa, setFiltroTipoBaixa] = useState<number[]>([]);
   const [filtroContaCorrente, setFiltroContaCorrente] = useState<string | undefined>();
+  const [filtroOrigemTitulo, setFiltroOrigemTitulo] = useState<string[]>([]);
+  const [mostrarDropdownOrigemTitulo, setMostrarDropdownOrigemTitulo] = useState(false);
   const [filtroAno, setFiltroAno] = useState<number[]>([]);
   const [filtroMes, setFiltroMes] = useState<number[]>([]);
   const [filtroDataInicio, setFiltroDataInicio] = useState<string>('');
@@ -250,6 +253,7 @@ export const ContasPagas: React.FC = () => {
           apiService.getOrigensDado(),
           apiService.getTiposBaixa(),
           apiService.getContasCorrente(),
+          apiService.getOrigensTitulo(),
         ]);
         setEmpresas(empData);
         setCentrosCusto(ccData);
@@ -258,6 +262,7 @@ export const ContasPagas: React.FC = () => {
         setOrigensDado(origensData);
         setTiposBaixa(tiposBaixaData);
         setContasCorrentes(contasCorrentesData);
+        setOrigensTitulo(origensTituloData);
       } catch (err) {
         console.error('Erro ao carregar filtros:', err);
       }
@@ -292,6 +297,7 @@ export const ContasPagas: React.FC = () => {
         origem_dado: filtroOrigemDado.length > 0 ? filtroOrigemDado.join(',') : undefined,
         tipo_baixa: filtroTipoBaixa.length > 0 ? filtroTipoBaixa.join(',') : undefined,
         conta_corrente: filtroContaCorrente,
+        origem_titulo: filtroOrigemTitulo.length > 0 ? filtroOrigemTitulo.join(',') : undefined,
         ano: filtroAno.length > 0 ? filtroAno.join(',') : undefined,
         mes: filtroMes.length > 0 ? filtroMes.join(',') : undefined,
         data_inicio: filtroDataInicio || undefined,
@@ -472,6 +478,7 @@ export const ContasPagas: React.FC = () => {
     setFiltroOrigemDado([]);
     setFiltroTipoBaixa([]);
     setFiltroContaCorrente(undefined);
+    setFiltroOrigemTitulo([]);
     setFiltroAno([]);
     setFiltroMes([]);
     setFiltroDataInicio('');
@@ -564,6 +571,75 @@ export const ContasPagas: React.FC = () => {
           placeholder="Selecione uma conta corrente..."
           emptyText="Todas"
         />
+
+        <div className="relative">
+          <label className="mb-2 block text-sm font-medium text-gray-700">
+            Origem de Documento
+          </label>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setMostrarDropdownOrigemTitulo(!mostrarDropdownOrigemTitulo)}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-blue-500 focus:outline-none"
+            >
+              {filtroOrigemTitulo.length === 0 ? (
+                <span className="text-gray-500">Selecione as origens...</span>
+              ) : (
+                <span>{filtroOrigemTitulo.length} origem(ns) selecionada(s)</span>
+              )}
+              <svg
+                className={`absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 transition-transform ${mostrarDropdownOrigemTitulo ? 'rotate-180' : ''}`}
+                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {mostrarDropdownOrigemTitulo && (
+              <div className="absolute z-10 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg">
+                <div className="flex gap-2 border-b border-gray-200 bg-gray-50 p-2">
+                  <button
+                    type="button"
+                    onClick={() => setFiltroOrigemTitulo(origensTitulo.map(o => o.sigla.trim()))}
+                    className="flex-1 rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
+                  >
+                    Selecionar Todos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFiltroOrigemTitulo([])}
+                    className="flex-1 rounded bg-gray-600 px-3 py-1 text-sm text-white hover:bg-gray-700"
+                  >
+                    Limpar Seleção
+                  </button>
+                </div>
+                <div className="max-h-60 overflow-auto">
+                  {origensTitulo.map((origem) => (
+                    <label
+                      key={origem.id}
+                      className="flex cursor-pointer items-center px-3 py-2 hover:bg-gray-100"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={filtroOrigemTitulo.includes(origem.sigla.trim())}
+                        onChange={(e) => {
+                          const sigla = origem.sigla.trim();
+                          if (e.target.checked) {
+                            setFiltroOrigemTitulo([...filtroOrigemTitulo, sigla]);
+                          } else {
+                            setFiltroOrigemTitulo(filtroOrigemTitulo.filter(s => s !== sigla));
+                          }
+                        }}
+                        className="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-mono font-semibold text-blue-700 mr-2">{origem.sigla.trim()}</span>
+                      <span className="text-sm text-gray-600">{origem.descricao}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
         <div className="relative">
           <label className="mb-2 block text-sm font-medium text-gray-700">

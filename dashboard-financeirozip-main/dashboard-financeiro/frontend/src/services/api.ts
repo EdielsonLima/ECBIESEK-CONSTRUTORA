@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ContaPagar, DashboardMetrics, GraficoMensal, GraficoPorCategoria, EmpresaOption, CentroCustoOption, TipoDocumentoOption, OrigemDadoOption, TipoBaixaOption, ContaCorrenteOption, KPI, KPICreate, KPIHistorico, KPIResumo, CalculoDisponivel, TipoDocumento, ContaReceber, MetricasReceber, KPIVariacaoDiaria, KPIHistoricoVariacaoResponse, SnapshotDiarioResponse } from '../types';
+import { ContaPagar, DashboardMetrics, GraficoMensal, GraficoPorCategoria, EmpresaOption, CentroCustoOption, TipoDocumentoOption, OrigemDadoOption, TipoBaixaOption, ContaCorrenteOption, OrigemTituloOption, KPI, KPICreate, KPIHistorico, KPIResumo, CalculoDisponivel, TipoDocumento, ContaReceber, MetricasReceber, KPIVariacaoDiaria, KPIHistoricoVariacaoResponse, SnapshotDiarioResponse } from '../types';
 
 const API_URL = '/api';
 
@@ -201,6 +201,7 @@ export const apiService = {
     origem_dado?: string;
     tipo_baixa?: string;
     conta_corrente?: string;
+    origem_titulo?: string;
     ano?: string;
     mes?: string;
     data_inicio?: string;
@@ -215,6 +216,7 @@ export const apiService = {
     if (filtros.origem_dado) params.append('origem_dado', filtros.origem_dado);
     if (filtros.tipo_baixa) params.append('tipo_baixa', filtros.tipo_baixa);
     if (filtros.conta_corrente) params.append('conta_corrente', filtros.conta_corrente);
+    if (filtros.origem_titulo) params.append('origem_titulo', filtros.origem_titulo);
     if (filtros.ano) params.append('ano', filtros.ano);
     if (filtros.mes) params.append('mes', filtros.mes);
     if (filtros.data_inicio) params.append('data_inicio', filtros.data_inicio);
@@ -991,6 +993,11 @@ export const apiService = {
 
   getContasCorrente: async (): Promise<ContaCorrenteOption[]> => {
     const response = await api.get<ContaCorrenteOption[]>('/filtros/contas-correntes');
+    return response.data;
+  },
+
+  getOrigensTitulo: async (): Promise<OrigemTituloOption[]> => {
+    const response = await api.get<OrigemTituloOption[]>('/filtros/origens-titulo');
     return response.data;
   },
 
