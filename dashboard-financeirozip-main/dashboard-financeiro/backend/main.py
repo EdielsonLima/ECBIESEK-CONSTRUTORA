@@ -1027,19 +1027,27 @@ def get_contas_pagas_filtradas(
             cfg_cursor = cfg_conn.cursor()
             try:
                 cfg_cursor.execute(
-                    "SELECT COUNT(*) as cnt FROM config_origens_exposicao_caixa"
+                    "SELECT COUNT(*) as cnt FROM config_origens_exposicao_caixa WHERE paginas LIKE %s",
+                    ('%contas_pagas%',)
                 )
                 cnt_row = cfg_cursor.fetchone()
                 if cnt_row and int(cnt_row['cnt']) > 0:
+                    # Lógica de página: exclui onde incluir=False OU contas_pagas não está em paginas
                     cfg_cursor.execute(
-                        "SELECT sigla FROM config_origens_exposicao_caixa WHERE incluir = %s AND paginas LIKE %s",
+                        "SELECT sigla FROM config_origens_exposicao_caixa WHERE incluir = %s OR paginas NOT LIKE %s",
                         (False, '%contas_pagas%')
                     )
-                    origens_excluidas_cp = [r['sigla'].strip().upper() for r in cfg_cursor.fetchall() if r['sigla']]
-                    if origens_excluidas_cp:
-                        oe_placeholders = ', '.join(['%s'] * len(origens_excluidas_cp))
-                        conditions.append(f"TRIM(UPPER(cp.id_origem)) NOT IN ({oe_placeholders})")
-                        params.extend(origens_excluidas_cp)
+                else:
+                    # Sem config específica para contas_pagas: exclui apenas globalmente excluídas
+                    cfg_cursor.execute(
+                        "SELECT sigla FROM config_origens_exposicao_caixa WHERE incluir = %s",
+                        (False,)
+                    )
+                origens_excluidas_cp = [r['sigla'].strip().upper() for r in cfg_cursor.fetchall() if r['sigla']]
+                if origens_excluidas_cp:
+                    oe_placeholders = ', '.join(['%s'] * len(origens_excluidas_cp))
+                    conditions.append(f"TRIM(UPPER(cp.id_origem)) NOT IN ({oe_placeholders})")
+                    params.extend(origens_excluidas_cp)
             finally:
                 cfg_cursor.close()
                 cfg_conn.close()
@@ -1130,6 +1138,7 @@ def get_contas_pagas_filtradas(
                 cp.id_plano_financeiro,
                 cp.id_interno_empresa,
                 cp.id_interno_centro_custo,
+                cp.id_origem,
                 cc.nome_empresa,
                 cc.nome_centrocusto
             FROM contas_pagas cp
