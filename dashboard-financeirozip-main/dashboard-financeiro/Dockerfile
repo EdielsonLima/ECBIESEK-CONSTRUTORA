@@ -1,27 +1,20 @@
 # ── Stage 1: Build do frontend ──────────────────────────────
 FROM node:20-alpine AS frontend-build
 WORKDIR /app/frontend
-COPY frontend/package*.json ./
+COPY dashboard-financeirozip-main/dashboard-financeiro/frontend/package*.json ./
 RUN npm ci
-COPY frontend/ ./
+COPY dashboard-financeirozip-main/dashboard-financeiro/frontend/ ./
 RUN npm run build
 
-# ── Stage 2: Backend Python + serve o frontend ──────────────
-# CACHE BUST: 2026-03-03-v3
+# ── Stage 2: Backend Python ──────────────────────────────────
 FROM python:3.11-slim
 WORKDIR /app/backend
 
-# Dependências Python
-COPY backend/requirements.txt ./
+COPY dashboard-financeirozip-main/dashboard-financeiro/backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Código do backend
-COPY backend/ ./
-
-# Frontend buildado
+COPY dashboard-financeirozip-main/dashboard-financeiro/backend/ ./
 COPY --from=frontend-build /app/frontend/dist /app/frontend/dist
 
 EXPOSE 8000
-
-# python main.py mostra traceback completo se falhar
-CMD ["python", "main.py"]
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
