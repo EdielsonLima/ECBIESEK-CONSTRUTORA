@@ -245,7 +245,7 @@ export const ContasPagas: React.FC = () => {
   useEffect(() => {
     const carregarFiltros = async () => {
       try {
-        const [empData, ccData, credData, tiposDocData, origensData, tiposBaixaData, contasCorrentesData] = await Promise.all([
+        const [empData, ccData, credData, tiposDocData, origensData, tiposBaixaData, contasCorrentesData, origensTituloData] = await Promise.all([
           apiService.getEmpresas(),
           apiService.getCentrosCusto(),
           apiService.getCredores(),

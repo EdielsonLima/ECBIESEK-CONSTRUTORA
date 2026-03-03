@@ -935,9 +935,9 @@ export const apiService = {
     return response.data;
   },
 
-  // Origens de Título (ecadorigemtitulo) — para Exposição de Caixa
-  getOrigensTitulo: async (): Promise<Array<{ id: number; sigla: string; descricao: string }>> => {
-    const response = await api.get('/filtros/origens-titulo');
+  // Origens de Título (ecadorigemtitulo) — para Exposição de Caixa e Contas Pagas
+  getOrigensTitulo: async (): Promise<OrigemTituloOption[]> => {
+    const response = await api.get<OrigemTituloOption[]>('/filtros/origens-titulo');
     return response.data;
   },
   getOrigensExposicao: async (): Promise<Array<{ id_origem_titulo: number; sigla: string; descricao: string; incluir: boolean; paginas: string }>> => {
@@ -993,11 +993,6 @@ export const apiService = {
 
   getContasCorrente: async (): Promise<ContaCorrenteOption[]> => {
     const response = await api.get<ContaCorrenteOption[]>('/filtros/contas-correntes');
-    return response.data;
-  },
-
-  getOrigensTitulo: async (): Promise<OrigemTituloOption[]> => {
-    const response = await api.get<OrigemTituloOption[]>('/filtros/origens-titulo');
     return response.data;
   },
 
