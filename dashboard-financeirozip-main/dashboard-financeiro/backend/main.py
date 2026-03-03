@@ -100,6 +100,10 @@ else:
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
 # Configurar CORS
 app.add_middleware(
     CORSMiddleware,
