@@ -157,13 +157,9 @@ export const ContasPagas: React.FC = () => {
           valorA = a.valor_total || 0;
           valorB = b.valor_total || 0;
           break;
-        case 'numero_documento':
-          valorA = (a.numero_documento || '').toLowerCase();
-          valorB = (b.numero_documento || '').toLowerCase();
-          break;
-        case 'nome_empresa':
-          valorA = (a.nome_empresa || '').toLowerCase();
-          valorB = (b.nome_empresa || '').toLowerCase();
+        case 'lancamento':
+          valorA = (a.lancamento || '').toLowerCase();
+          valorB = (b.lancamento || '').toLowerCase();
           break;
         case 'nome_centrocusto':
           valorA = (a.nome_centrocusto || '').toLowerCase();
@@ -479,13 +475,12 @@ export const ContasPagas: React.FC = () => {
   const exportarCSV = () => {
     if (contas.length === 0) return;
 
-    const headers = ['Credor', 'Data Pagamento', 'Valor Pago', 'Documento', 'Empresa', 'Centro Custo'];
+    const headers = ['Credor', 'Data Pagamento', 'Valor Pago', 'Títulos', 'Centro Custo'];
     const rows = contas.map(conta => [
       conta.credor || '',
       conta.data_pagamento ? formatDate(conta.data_pagamento) : '',
       conta.valor_total?.toString() || '0',
-      conta.numero_documento || '',
-      conta.nome_empresa || '',
+      conta.lancamento || '',
       conta.nome_centrocusto || '',
     ]);
 
@@ -1022,11 +1017,8 @@ export const ContasPagas: React.FC = () => {
                 <th onClick={() => toggleOrdenacao('valor_total')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
                   Valor Pago{renderSortIcon('valor_total')}
                 </th>
-                <th onClick={() => toggleOrdenacao('numero_documento')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
-                  Documento{renderSortIcon('numero_documento')}
-                </th>
-                <th onClick={() => toggleOrdenacao('nome_empresa')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
-                  Empresa{renderSortIcon('nome_empresa')}
+                <th onClick={() => toggleOrdenacao('lancamento')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                  Títulos{renderSortIcon('lancamento')}
                 </th>
                 <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
                   Centro Custo{renderSortIcon('nome_centrocusto')}
@@ -1046,10 +1038,7 @@ export const ContasPagas: React.FC = () => {
                     {formatCurrency(conta.valor_total)}
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                    {conta.numero_documento || '-'}
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                    {conta.nome_empresa || '-'}
+                    {conta.lancamento || '-'}
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                     {conta.nome_centrocusto || '-'}
