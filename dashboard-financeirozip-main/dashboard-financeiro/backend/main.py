@@ -1254,7 +1254,7 @@ def get_estatisticas_contas_pagas(
             )
             SELECT
                 COUNT(*) as quantidade_titulos,
-                COALESCE(SUM(CASE WHEN cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_liquido ELSE 0 END), 0) as valor_liquido_total,
+                COALESCE(SUM(cp.valor_liquido), 0) as valor_liquido_total,
                 COALESCE(SUM(CASE WHEN cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_baixa ELSE 0 END), 0) as valor_baixa_total,
                 COALESCE(SUM(cp.valor_acrescimo), 0) as valor_acrescimo_total,
                 COALESCE(SUM(cp.valor_desconto), 0) as valor_desconto_total,
