@@ -14,6 +14,9 @@ import { Configuracoes } from './pages/Configuracoes';
 import { ExposicaoCaixa } from './pages/ExposicaoCaixa';
 import { ChatIA } from './pages/ChatIA';
 import { Login } from './pages/Login';
+import { GerenciarUsuarios } from './pages/GerenciarUsuarios';
+import { LogAtividades } from './pages/LogAtividades';
+import { AlterarSenha } from './pages/AlterarSenha';
 import { authService, User } from './services/api';
 
 function App() {
@@ -55,7 +58,23 @@ function App() {
 
   const handleLogout = () => {
     authService.logout();
+    setIsAuthenticated(false);
+    setUser(null);
   };
+
+  const isAdmin = user?.permissao === 'admin';
+
+  const AcessoNegado = () => (
+    <div className="flex flex-col items-center justify-center min-h-[40vh] text-center">
+      <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+        <svg className="h-8 w-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+        </svg>
+      </div>
+      <h2 className="text-xl font-bold text-gray-800 mb-2">Acesso Negado</h2>
+      <p className="text-gray-500 text-sm">Você não tem permissão para acessar esta página.</p>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -91,15 +110,21 @@ function App() {
       case 'extrato-cliente':
         return <ExtratoCliente />;
       case 'kpis':
-        return <KPIs />;
+        return <KPIs isAdmin={isAdmin} />;
       case 'classificacao-centro-custo':
         return <ClassificacaoCentroCusto />;
       case 'configuracoes':
-        return <Configuracoes />;
+        return isAdmin ? <Configuracoes /> : <AcessoNegado />;
       case 'exposicao-caixa':
         return <ExposicaoCaixa />;
       case 'chat-ia':
         return <ChatIA />;
+      case 'gerenciar-usuarios':
+        return isAdmin ? <GerenciarUsuarios /> : <AcessoNegado />;
+      case 'log-atividades':
+        return isAdmin ? <LogAtividades /> : <AcessoNegado />;
+      case 'alterar-senha':
+        return <AlterarSenha />;
       default:
         return <Dashboard />;
     }
@@ -112,6 +137,8 @@ function App() {
         onNavigate={setCurrentPage}
         isOpen={sidebarOpen}
         setIsOpen={setSidebarOpen}
+        user={user}
+        onLogout={handleLogout}
       />
 
       <div className={`relative z-20 min-h-screen bg-gray-50 transition-all duration-300 ${sidebarOpen ? 'pl-64' : 'pl-20'}`}>
@@ -131,6 +158,9 @@ function App() {
                 {currentPage === 'configuracoes' && 'Configurações'}
                 {currentPage === 'exposicao-caixa' && 'Exposição de Caixa'}
                 {currentPage === 'chat-ia' && 'Chat IA'}
+                {currentPage === 'gerenciar-usuarios' && 'Gerenciar Usuários'}
+                {currentPage === 'log-atividades' && 'Log de Atividades'}
+                {currentPage === 'alterar-senha' && 'Alterar Senha'}
               </h1>
               <p className="mt-1 text-sm font-medium text-gray-500">Gestão Financeira - Construtora</p>
             </div>

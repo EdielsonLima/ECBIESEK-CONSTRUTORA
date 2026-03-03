@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -22,7 +22,8 @@ import anthropic
 load_dotenv()
 
 # Banco SQLite local para usuarios (auth)
-USERS_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.db')
+_DATA_DIR = os.environ.get('DATA_DIR', os.path.dirname(os.path.abspath(__file__)))
+USERS_DB_PATH = os.path.join(_DATA_DIR, 'users.db')
 
 def get_users_db():
     conn = sqlite3.connect(USERS_DB_PATH)
@@ -39,6 +40,22 @@ def init_users_db():
                 nome TEXT NOT NULL,
                 senha_hash TEXT NOT NULL,
                 ativo INTEGER DEFAULT 1,
+                permissao TEXT DEFAULT 'admin',
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        # Adicionar coluna permissao se não existir (migração para bancos antigos)
+        try:
+            conn.execute("ALTER TABLE usuarios ADD COLUMN permissao TEXT DEFAULT 'admin'")
+        except Exception:
+            pass  # Coluna já existe
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS log_atividades (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT NOT NULL,
+                acao TEXT NOT NULL,
+                detalhes TEXT,
+                ip TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -46,8 +63,8 @@ def init_users_db():
         # Criar usuario padrao se nao existir
         senha_hash = bcrypt.hashpw(b'Darlene1321@', bcrypt.gensalt()).decode('utf-8')
         conn.execute(
-            "INSERT OR IGNORE INTO usuarios (email, nome, senha_hash) VALUES (?, ?, ?)",
-            ('edielson@dtconsultorias.com', 'Edielson Lima', senha_hash)
+            "INSERT OR IGNORE INTO usuarios (email, nome, senha_hash, permissao) VALUES (?, ?, ?, ?)",
+            ('edielson@dtconsultorias.com', 'Edielson Lima', senha_hash, 'admin')
         )
         conn.commit()
         print("Banco de usuarios (SQLite) inicializado com sucesso")
@@ -105,7 +122,7 @@ CONFIG_DB_URL = os.environ.get('CONFIG_DB_URL') or os.environ.get('DATABASE_URL'
 
 # Caminho do SQLite de fallback — monte este diretório como volume persistente no EasyPanel
 import sqlite3 as _sqlite3
-CONFIG_SQLITE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ecbiesek_config.db')
+CONFIG_SQLITE_PATH = os.path.join(_DATA_DIR, 'ecbiesek_config.db')
 
 # Modelos Pydantic
 class ContaPagar(BaseModel):
@@ -328,12 +345,25 @@ def get_user_by_email(email: str):
     conn = get_users_db()
     try:
         row = conn.execute(
-            "SELECT id, email, nome, senha_hash, ativo FROM usuarios WHERE email = ?",
+            "SELECT id, email, nome, senha_hash, ativo, permissao FROM usuarios WHERE email = ?",
             (email.lower(),)
         ).fetchone()
         return dict(row) if row else None
     finally:
         conn.close()
+
+def log_atividade(email: str, acao: str, detalhes: str = None, ip: str = None):
+    """Registra uma atividade no log"""
+    try:
+        conn = get_users_db()
+        conn.execute(
+            "INSERT INTO log_atividades (email, acao, detalhes, ip) VALUES (?, ?, ?, ?)",
+            (email, acao, detalhes, ip)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Erro ao registrar log: {e}")
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     """Obtém usuário atual a partir do token JWT"""
@@ -367,6 +397,12 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user
+
+async def require_admin(current_user: dict = Depends(get_current_user)):
+    """Verifica se o usuário é admin"""
+    if current_user.get('permissao') != 'admin':
+        raise HTTPException(status_code=403, detail="Acesso restrito a administradores")
+    return current_user
 
 async def get_current_user_optional(token: str = Depends(oauth2_scheme)):
     """Obtém usuário atual se autenticado, ou None se não"""
@@ -411,69 +447,162 @@ def register_user(user: UserCreate):
         conn.close()
 
 @app.post("/api/auth/login")
-def login(form_data: OAuth2PasswordRequestForm = Depends()):
+def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
     """Login de usuário"""
     user = get_user_by_email(form_data.username.lower())
+    ip = request.client.host if request.client else None
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou senha incorretos",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email ou senha incorretos", headers={"WWW-Authenticate": "Bearer"})
     if not verify_password(form_data.password, user['senha_hash']):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou senha incorretos",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email ou senha incorretos", headers={"WWW-Authenticate": "Bearer"})
     if not user['ativo']:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuário desativado",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuário desativado", headers={"WWW-Authenticate": "Bearer"})
+    log_atividade(user['email'], 'LOGIN', 'Login realizado', ip)
     access_token = create_access_token(data={"sub": user['email']})
-    return {"access_token": access_token, "token_type": "bearer", "user": {"id": user['id'], "email": user['email'], "nome": user['nome']}}
+    return {"access_token": access_token, "token_type": "bearer", "user": {"id": user['id'], "email": user['email'], "nome": user['nome'], "permissao": user.get('permissao', 'admin')}}
 
 @app.post("/api/auth/login-json")
-def login_json(user_login: UserLogin):
+def login_json(request: Request, user_login: UserLogin):
     """Login de usuário via JSON"""
     user = get_user_by_email(user_login.email.lower())
+    ip = request.client.host if request.client else None
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou senha incorretos",
-        )
-    
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email ou senha incorretos")
     if not verify_password(user_login.senha, user['senha_hash']):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou senha incorretos",
-        )
-    
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email ou senha incorretos")
     if not user['ativo']:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuário desativado",
-        )
-    
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuário desativado")
+    log_atividade(user['email'], 'LOGIN', 'Login realizado', ip)
     access_token = create_access_token(data={"sub": user['email']})
-    return {"access_token": access_token, "token_type": "bearer", "user": {"id": user['id'], "email": user['email'], "nome": user['nome']}}
+    return {"access_token": access_token, "token_type": "bearer", "user": {"id": user['id'], "email": user['email'], "nome": user['nome'], "permissao": user.get('permissao', 'admin')}}
 
 @app.get("/api/auth/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
     """Retorna dados do usuário autenticado"""
-    return {"id": current_user['id'], "email": current_user['email'], "nome": current_user['nome'], "ativo": current_user['ativo']}
+    return {"id": current_user['id'], "email": current_user['email'], "nome": current_user['nome'], "ativo": current_user['ativo'], "permissao": current_user.get('permissao', 'admin')}
 
 @app.get("/api/auth/check")
 async def check_auth(current_user: dict = Depends(get_current_user_optional)):
     """Verifica se usuário está autenticado"""
     if current_user:
-        return {"authenticated": True, "user": {"id": current_user['id'], "email": current_user['email'], "nome": current_user['nome']}}
+        return {"authenticated": True, "user": {"id": current_user['id'], "email": current_user['email'], "nome": current_user['nome'], "permissao": current_user.get('permissao', 'admin')}}
     return {"authenticated": False}
+
+@app.post("/api/auth/alterar-senha")
+async def alterar_senha(dados: dict, request: Request, current_user: dict = Depends(get_current_user)):
+    """Altera senha do usuário autenticado"""
+    senha_atual = dados.get('senha_atual', '')
+    nova_senha = dados.get('nova_senha', '')
+    if not verify_password(senha_atual, current_user['senha_hash']):
+        raise HTTPException(status_code=400, detail="Senha atual incorreta")
+    if len(nova_senha) < 6:
+        raise HTTPException(status_code=400, detail="Nova senha deve ter pelo menos 6 caracteres")
+    nova_hash = get_password_hash(nova_senha)
+    conn = get_users_db()
+    try:
+        conn.execute("UPDATE usuarios SET senha_hash = ? WHERE id = ?", (nova_hash, current_user['id']))
+        conn.commit()
+        ip = request.client.host if request.client else None
+        log_atividade(current_user['email'], 'ALTERAR_SENHA', 'Senha alterada com sucesso', ip)
+        return {"success": True, "message": "Senha alterada com sucesso"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+# ==================== ADMIN — GERENCIAR USUÁRIOS ====================
+
+@app.get("/api/admin/usuarios")
+async def listar_usuarios(current_user: dict = Depends(require_admin)):
+    """Lista todos os usuários (admin only)"""
+    conn = get_users_db()
+    try:
+        rows = conn.execute(
+            "SELECT id, email, nome, permissao, ativo, created_at FROM usuarios ORDER BY created_at ASC"
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+@app.post("/api/admin/usuarios")
+async def criar_usuario(dados: dict, request: Request, current_user: dict = Depends(require_admin)):
+    """Cria novo usuário (admin only)"""
+    email = dados.get('email', '').lower().strip()
+    nome = dados.get('nome', '').strip()
+    senha = dados.get('senha', '')
+    permissao = dados.get('permissao', 'somente_leitura')
+    if not email or not nome:
+        raise HTTPException(status_code=400, detail="Email e nome são obrigatórios")
+    if len(senha) < 6:
+        raise HTTPException(status_code=400, detail="Senha deve ter pelo menos 6 caracteres")
+    if permissao not in ('admin', 'somente_leitura'):
+        raise HTTPException(status_code=400, detail="Permissão inválida")
+    if get_user_by_email(email):
+        raise HTTPException(status_code=400, detail="Email já cadastrado")
+    senha_hash = get_password_hash(senha)
+    conn = get_users_db()
+    try:
+        cursor = conn.execute(
+            "INSERT INTO usuarios (email, nome, senha_hash, permissao) VALUES (?, ?, ?, ?)",
+            (email, nome, senha_hash, permissao)
+        )
+        conn.commit()
+        ip = request.client.host if request.client else None
+        log_atividade(current_user['email'], 'CRIAR_USUARIO', f'Usuário {email} criado', ip)
+        return {"success": True, "id": cursor.lastrowid, "email": email, "nome": nome, "permissao": permissao}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@app.delete("/api/admin/usuarios/{usuario_id}")
+async def desativar_usuario(usuario_id: int, request: Request, current_user: dict = Depends(require_admin)):
+    """Desativa um usuário (admin only) — não permite desativar a si mesmo"""
+    if usuario_id == current_user['id']:
+        raise HTTPException(status_code=400, detail="Não é possível desativar seu próprio usuário")
+    conn = get_users_db()
+    try:
+        row = conn.execute("SELECT email FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+        conn.execute("DELETE FROM usuarios WHERE id = ?", (usuario_id,))
+        conn.commit()
+        ip = request.client.host if request.client else None
+        log_atividade(current_user['email'], 'REMOVER_USUARIO', f'Usuário {row["email"]} removido', ip)
+        return {"success": True}
+    finally:
+        conn.close()
+
+@app.put("/api/admin/usuarios/{usuario_id}")
+async def atualizar_usuario(usuario_id: int, dados: dict, request: Request, current_user: dict = Depends(require_admin)):
+    """Altera permissão de um usuário (admin only)"""
+    nova_permissao = dados.get('permissao', '').strip()
+    if nova_permissao not in ('admin', 'somente_leitura'):
+        raise HTTPException(status_code=400, detail="Permissão inválida")
+    conn = get_users_db()
+    try:
+        row = conn.execute("SELECT email FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+        conn.execute("UPDATE usuarios SET permissao = ? WHERE id = ?", (nova_permissao, usuario_id))
+        conn.commit()
+        ip = request.client.host if request.client else None
+        log_atividade(current_user['email'], 'ALTERAR_PERMISSAO', f'Permissão de {row["email"]} → {nova_permissao}', ip)
+        return {"success": True}
+    finally:
+        conn.close()
+
+@app.get("/api/admin/atividades")
+async def listar_atividades(current_user: dict = Depends(require_admin)):
+    """Lista log de atividades (admin only)"""
+    conn = get_users_db()
+    try:
+        rows = conn.execute(
+            "SELECT id, email, acao, detalhes, ip, created_at FROM log_atividades ORDER BY created_at DESC LIMIT 200"
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
 
 # ==================== ROTAS DE IA ====================
 
@@ -5422,6 +5551,20 @@ def _auto_snapshot_loop():
     print("Auto-snapshot: Thread iniciada")
     snapshot_salvo_hoje = None
 
+    # Ao iniciar: se o snapshot de hoje estiver faltando, salva agora
+    # (resolve o caso de o backend ter sido fechado antes do horário configurado)
+    try:
+        config_startup = _get_snapshot_config()
+        if config_startup and config_startup['ativo']:
+            if not _snapshot_already_exists_today():
+                hoje_startup = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d')
+                print(f"Auto-snapshot: Snapshot de {hoje_startup} nao encontrado. Salvando ao iniciar...")
+                _calcular_e_salvar_snapshot_auto()
+                snapshot_salvo_hoje = hoje_startup
+                print("Auto-snapshot: Snapshot de startup salvo com sucesso.")
+    except Exception as e:
+        print(f"Auto-snapshot: Erro no snapshot de startup: {e}")
+
     while True:
         try:
             config = _get_snapshot_config()
@@ -5474,4 +5617,4 @@ if FRONTEND_BUILD_DIR.exists():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))

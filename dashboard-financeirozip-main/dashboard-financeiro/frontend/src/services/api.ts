@@ -42,6 +42,7 @@ export interface User {
   id: number;
   email: string;
   nome: string;
+  permissao: string;
 }
 
 export interface AuthResponse {
@@ -93,7 +94,53 @@ export const authService = {
 
   isAuthenticated: (): boolean => {
     return !!localStorage.getItem('access_token');
-  }
+  },
+
+  alterarSenha: async (senha_atual: string, nova_senha: string): Promise<{ success: boolean; message: string }> => {
+    const response = await api.post('/auth/alterar-senha', { senha_atual, nova_senha });
+    return response.data;
+  },
+};
+
+export interface UsuarioAdmin {
+  id: number;
+  email: string;
+  nome: string;
+  permissao: string;
+  ativo: number;
+  created_at: string;
+}
+
+export interface AtividadeLog {
+  id: number;
+  email: string;
+  acao: string;
+  detalhes: string | null;
+  ip: string | null;
+  created_at: string;
+}
+
+export const adminService = {
+  getUsuarios: async (): Promise<UsuarioAdmin[]> => {
+    const response = await api.get('/admin/usuarios');
+    return response.data;
+  },
+  criarUsuario: async (email: string, nome: string, senha: string, permissao: string): Promise<any> => {
+    const response = await api.post('/admin/usuarios', { email, nome, senha, permissao });
+    return response.data;
+  },
+  deletarUsuario: async (id: number): Promise<any> => {
+    const response = await api.delete(`/admin/usuarios/${id}`);
+    return response.data;
+  },
+  atualizarPermissao: async (id: number, permissao: string): Promise<any> => {
+    const response = await api.put(`/admin/usuarios/${id}`, { permissao });
+    return response.data;
+  },
+  getAtividades: async (): Promise<AtividadeLog[]> => {
+    const response = await api.get('/admin/atividades');
+    return response.data;
+  },
 };
 
 export const apiService = {
