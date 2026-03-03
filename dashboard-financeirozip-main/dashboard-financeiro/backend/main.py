@@ -1176,20 +1176,29 @@ def get_estatisticas_contas_pagas(
             cfg_conn = get_config_db_connection()
             cfg_cursor = cfg_conn.cursor()
             try:
+                # Verifica se alguma origem já foi configurada especificamente para contas_pagas
                 cfg_cursor.execute(
-                    "SELECT COUNT(*) as cnt FROM config_origens_exposicao_caixa"
+                    "SELECT COUNT(*) as cnt FROM config_origens_exposicao_caixa WHERE paginas LIKE %s",
+                    ('%contas_pagas%',)
                 )
                 cnt_row = cfg_cursor.fetchone()
                 if cnt_row and int(cnt_row['cnt']) > 0:
+                    # Usa lógica de página: exclui onde incluir=False OU contas_pagas não está em paginas
                     cfg_cursor.execute(
-                        "SELECT sigla FROM config_origens_exposicao_caixa WHERE incluir = %s AND paginas LIKE %s",
+                        "SELECT sigla FROM config_origens_exposicao_caixa WHERE incluir = %s OR paginas NOT LIKE %s",
                         (False, '%contas_pagas%')
                     )
-                    origens_excluidas_cp = [r['sigla'].strip().upper() for r in cfg_cursor.fetchall() if r['sigla']]
-                    if origens_excluidas_cp:
-                        oe_placeholders = ', '.join(['%s'] * len(origens_excluidas_cp))
-                        conditions.append(f"TRIM(UPPER(cp.id_origem)) NOT IN ({oe_placeholders})")
-                        params.extend(origens_excluidas_cp)
+                else:
+                    # Sem config de página específica: exclui apenas globalmente excluídas
+                    cfg_cursor.execute(
+                        "SELECT sigla FROM config_origens_exposicao_caixa WHERE incluir = %s",
+                        (False,)
+                    )
+                origens_excluidas_cp = [r['sigla'].strip().upper() for r in cfg_cursor.fetchall() if r['sigla']]
+                if origens_excluidas_cp:
+                    oe_placeholders = ', '.join(['%s'] * len(origens_excluidas_cp))
+                    conditions.append(f"TRIM(UPPER(cp.id_origem)) NOT IN ({oe_placeholders})")
+                    params.extend(origens_excluidas_cp)
             finally:
                 cfg_cursor.close()
                 cfg_conn.close()
