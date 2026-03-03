@@ -1044,7 +1044,8 @@ def get_contas_pagas_filtradas(
             pass
 
         if empresa is not None:
-            conditions.append("cc.id_sienge_empresa = %s")
+            conditions.append("(cc.id_sienge_empresa = %s OR (cc.id_sienge_empresa IS NULL AND cp.id_interno_empresa = %s))")
+            params.append(empresa)
             params.append(empresa)
 
         if centro_custo is not None:
@@ -1192,7 +1193,8 @@ def get_estatisticas_contas_pagas(
             pass
 
         if empresa is not None:
-            conditions.append("cc.id_sienge_empresa = %s")
+            conditions.append("(cc.id_sienge_empresa = %s OR (cc.id_sienge_empresa IS NULL AND cp.id_interno_empresa = %s))")
+            params.append(empresa)
             params.append(empresa)
 
         if centro_custo is not None:
