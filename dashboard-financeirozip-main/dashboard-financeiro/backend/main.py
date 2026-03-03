@@ -1097,14 +1097,14 @@ def get_contas_pagas_filtradas(
             # Suporta múltiplos anos separados por vírgula
             anos = [int(a.strip()) for a in ano.split(',')]
             ano_placeholders = ', '.join(['%s'] * len(anos))
-            conditions.append(f"EXTRACT(YEAR FROM (cp.data_pagamento + INTERVAL '1 day')) IN ({ano_placeholders})")
+            conditions.append(f"EXTRACT(YEAR FROM cp.data_pagamento) IN ({ano_placeholders})")
             params.extend(anos)
 
         if mes:
             # Suporta múltiplos meses separados por vírgula
             meses = [int(m.strip()) for m in mes.split(',')]
             mes_placeholders = ', '.join(['%s'] * len(meses))
-            conditions.append(f"EXTRACT(MONTH FROM (cp.data_pagamento + INTERVAL '1 day')) IN ({mes_placeholders})")
+            conditions.append(f"EXTRACT(MONTH FROM cp.data_pagamento) IN ({mes_placeholders})")
             params.extend(meses)
 
         if data_inicio:
@@ -1228,13 +1228,13 @@ def get_estatisticas_contas_pagas(
         if ano:
             anos = [int(a.strip()) for a in ano.split(',')]
             ano_placeholders = ', '.join(['%s'] * len(anos))
-            conditions.append(f"EXTRACT(YEAR FROM (cp.data_pagamento + INTERVAL '1 day')) IN ({ano_placeholders})")
+            conditions.append(f"EXTRACT(YEAR FROM cp.data_pagamento) IN ({ano_placeholders})")
             params.extend(anos)
 
         if mes:
             meses = [int(m.strip()) for m in mes.split(',')]
             mes_placeholders = ', '.join(['%s'] * len(meses))
-            conditions.append(f"EXTRACT(MONTH FROM (cp.data_pagamento + INTERVAL '1 day')) IN ({mes_placeholders})")
+            conditions.append(f"EXTRACT(MONTH FROM cp.data_pagamento) IN ({mes_placeholders})")
             params.extend(meses)
 
         if data_inicio:
