@@ -1309,6 +1309,36 @@ def get_estatisticas_contas_pagas(
         cursor.close()
         conn.close()
 
+@app.get("/api/debug/empresa-cr")
+def debug_empresa_cr(empresa: int = 3):
+    """Diagnóstico: mostra registros CR e mapeamento de empresa"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # 1. Tabelas com 'empresa' no nome
+        cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_name LIKE '%empresa%' AND table_schema = 'public' ORDER BY table_name")
+        tabelas = [r['table_name'] for r in cursor.fetchall()]
+
+        # 2. id_interno_empresa dos registros CR
+        cursor.execute("SELECT DISTINCT cp.id_interno_empresa, cp.id_origem, COUNT(*) as qtd, SUM(cp.valor_liquido) as total FROM contas_pagas cp WHERE cp.id_origem = 'CR' GROUP BY cp.id_interno_empresa, cp.id_origem ORDER BY cp.id_interno_empresa")
+        cr_records = [dict(r) for r in cursor.fetchall()]
+
+        # 3. Subquery result - quais id_interno_empresa pertencem à empresa
+        cursor.execute("""SELECT DISTINCT cp2.id_interno_empresa FROM contas_pagas cp2
+            JOIN dim_centrocusto cc2 ON cp2.id_interno_centro_custo = cc2.id_interno_centrocusto
+            WHERE cc2.id_sienge_empresa = %s""", (empresa,))
+        mapped_ids = [r['id_interno_empresa'] for r in cursor.fetchall()]
+
+        return {
+            "tabelas_empresa": tabelas,
+            "cr_por_empresa_interna": cr_records,
+            "ids_internos_mapeados_para_empresa": mapped_ids,
+            "empresa_sienge": empresa
+        }
+    finally:
+        cursor.close()
+        conn.close()
+
 @app.get("/api/filtros/credores")
 def get_credores():
     """Retorna lista de credores únicos"""
