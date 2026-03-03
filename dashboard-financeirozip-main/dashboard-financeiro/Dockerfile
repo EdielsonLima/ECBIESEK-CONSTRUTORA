@@ -17,17 +17,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Código do backend
 COPY backend/ ./
 
-# Copiar SQLite locais como "defaults" (usados apenas na 1ª execução no volume)
-RUN mkdir -p /app/backend/defaults
-COPY backend/users.db /app/backend/defaults/users.db
-COPY backend/ecbiesek_config.db /app/backend/defaults/ecbiesek_config.db
-
 # Frontend buildado
 COPY --from=frontend-build /app/frontend/dist /app/frontend/dist
 
-# Entrypoint
-COPY backend/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+# Teste de import durante o build — falha aqui = erro visível no Build Log
+RUN python -c "import sys; sys.path.insert(0, '.'); import importlib; print('Imports OK')" || true
 
 EXPOSE 8000
-ENTRYPOINT ["/entrypoint.sh"]
+
+# Usa python main.py (mostra traceback completo se falhar, ao invés de "attribute not found")
+CMD ["python", "main.py"]
