@@ -31,8 +31,9 @@ def get_users_db():
     return conn
 
 def init_users_db():
-    conn = get_users_db()
+    conn = None
     try:
+        conn = get_users_db()
         conn.execute("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -71,9 +72,13 @@ def init_users_db():
     except Exception as e:
         print(f"Erro ao inicializar banco de usuarios: {e}")
     finally:
-        conn.close()
+        if conn:
+            conn.close()
 
-init_users_db()
+try:
+    init_users_db()
+except Exception as e:
+    print(f"[WARN] Falha ao inicializar DB de usuarios: {e}")
 
 # SQLite mantido apenas para users.db — configs e snapshots agora usam PostgreSQL
 
