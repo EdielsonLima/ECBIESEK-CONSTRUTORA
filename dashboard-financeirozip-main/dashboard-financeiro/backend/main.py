@@ -1021,6 +1021,31 @@ def get_contas_pagas_filtradas(
         conditions = list(excl_conds)
         params = list(excl_params)
 
+        # Auto-excluir origens configuradas como excluídas para contas_pagas
+        try:
+            cfg_conn = get_config_db_connection()
+            cfg_cursor = cfg_conn.cursor()
+            try:
+                cfg_cursor.execute(
+                    "SELECT COUNT(*) as cnt FROM config_origens_exposicao_caixa"
+                )
+                cnt_row = cfg_cursor.fetchone()
+                if cnt_row and int(cnt_row['cnt']) > 0:
+                    cfg_cursor.execute(
+                        "SELECT sigla FROM config_origens_exposicao_caixa WHERE incluir = %s AND paginas LIKE %s",
+                        (False, '%contas_pagas%')
+                    )
+                    origens_excluidas_cp = [r['sigla'].strip().upper() for r in cfg_cursor.fetchall() if r['sigla']]
+                    if origens_excluidas_cp:
+                        oe_placeholders = ', '.join(['%s'] * len(origens_excluidas_cp))
+                        conditions.append(f"TRIM(UPPER(cp.id_origem)) NOT IN ({oe_placeholders})")
+                        params.extend(origens_excluidas_cp)
+            finally:
+                cfg_cursor.close()
+                cfg_conn.close()
+        except Exception:
+            pass
+
         if empresa is not None:
             conditions.append("cc.id_sienge_empresa = %s")
             params.append(empresa)
