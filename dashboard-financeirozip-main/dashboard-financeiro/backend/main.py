@@ -1003,6 +1003,7 @@ def get_contas_pagas_filtradas(
     id_documento: Optional[str] = None,
     origem_dado: Optional[str] = None,
     tipo_baixa: Optional[str] = None,
+    conta_corrente: Optional[str] = None,
     ano: Optional[str] = None,
     mes: Optional[str] = None,
     data_inicio: Optional[str] = None,
@@ -1055,6 +1056,12 @@ def get_contas_pagas_filtradas(
             tipo_placeholders = ', '.join(['%s'] * len(tipos))
             conditions.append(f"cp.id_tipo_baixa IN ({tipo_placeholders})")
             params.extend(tipos)
+
+        if conta_corrente:
+            contas = [c.strip() for c in conta_corrente.split(',')]
+            conta_placeholders = ', '.join(['%s'] * len(contas))
+            conditions.append(f"cp.id_conta_corrente IN ({conta_placeholders})")
+            params.extend(contas)
 
         if ano:
             # Suporta múltiplos anos separados por vírgula

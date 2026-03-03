@@ -48,6 +48,12 @@ export interface TipoBaixaOption {
   nome: string;
 }
 
+export interface ContaCorrenteOption {
+  id: string;
+  nome: string;
+  empresa_id: number;
+}
+
 export interface DashboardMetrics {
   total_pago: number;
   total_a_pagar: number;

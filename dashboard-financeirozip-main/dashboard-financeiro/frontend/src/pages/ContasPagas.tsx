@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { apiService } from '../services/api';
-import { ContaPagar, EmpresaOption, CentroCustoOption, TipoDocumentoOption, OrigemDadoOption, TipoBaixaOption } from '../types';
+import { ContaPagar, EmpresaOption, CentroCustoOption, TipoDocumentoOption, OrigemDadoOption, TipoBaixaOption, ContaCorrenteOption } from '../types';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line, Legend } from 'recharts';
 
@@ -115,6 +115,7 @@ export const ContasPagas: React.FC = () => {
   const [tiposDocumento, setTiposDocumento] = useState<TipoDocumentoOption[]>([]);
   const [origensDado, setOrigensDado] = useState<OrigemDadoOption[]>([]);
   const [tiposBaixa, setTiposBaixa] = useState<TipoBaixaOption[]>([]);
+  const [contasCorrentes, setContasCorrentes] = useState<ContaCorrenteOption[]>([]);
 
   const [empresasPadrao, setEmpresasPadrao] = useState<number[]>([]);
   const [centrosCustoPadrao, setCentrosCustoPadrao] = useState<number[]>([]);
@@ -126,6 +127,7 @@ export const ContasPagas: React.FC = () => {
   const [filtroIdDocumento, setFiltroIdDocumento] = useState<string[]>([]);
   const [filtroOrigemDado, setFiltroOrigemDado] = useState<string[]>([]);
   const [filtroTipoBaixa, setFiltroTipoBaixa] = useState<number[]>([]);
+  const [filtroContaCorrente, setFiltroContaCorrente] = useState<string | undefined>();
   const [filtroAno, setFiltroAno] = useState<number[]>([]);
   const [filtroMes, setFiltroMes] = useState<number[]>([]);
   const [filtroDataInicio, setFiltroDataInicio] = useState<string>('');
@@ -240,13 +242,14 @@ export const ContasPagas: React.FC = () => {
   useEffect(() => {
     const carregarFiltros = async () => {
       try {
-        const [empData, ccData, credData, tiposDocData, origensData, tiposBaixaData] = await Promise.all([
+        const [empData, ccData, credData, tiposDocData, origensData, tiposBaixaData, contasCorrentesData] = await Promise.all([
           apiService.getEmpresas(),
           apiService.getCentrosCusto(),
           apiService.getCredores(),
           apiService.getTiposDocumento(),
           apiService.getOrigensDado(),
           apiService.getTiposBaixa(),
+          apiService.getContasCorrente(),
         ]);
         setEmpresas(empData);
         setCentrosCusto(ccData);
@@ -254,6 +257,7 @@ export const ContasPagas: React.FC = () => {
         setTiposDocumento(tiposDocData);
         setOrigensDado(origensData);
         setTiposBaixa(tiposBaixaData);
+        setContasCorrentes(contasCorrentesData);
       } catch (err) {
         console.error('Erro ao carregar filtros:', err);
       }
@@ -287,6 +291,7 @@ export const ContasPagas: React.FC = () => {
         id_documento: filtroIdDocumento.length > 0 ? filtroIdDocumento.join(',') : undefined,
         origem_dado: filtroOrigemDado.length > 0 ? filtroOrigemDado.join(',') : undefined,
         tipo_baixa: filtroTipoBaixa.length > 0 ? filtroTipoBaixa.join(',') : undefined,
+        conta_corrente: filtroContaCorrente,
         ano: filtroAno.length > 0 ? filtroAno.join(',') : undefined,
         mes: filtroMes.length > 0 ? filtroMes.join(',') : undefined,
         data_inicio: filtroDataInicio || undefined,
@@ -466,6 +471,7 @@ export const ContasPagas: React.FC = () => {
     setFiltroIdDocumento([]);
     setFiltroOrigemDado([]);
     setFiltroTipoBaixa([]);
+    setFiltroContaCorrente(undefined);
     setFiltroAno([]);
     setFiltroMes([]);
     setFiltroDataInicio('');
@@ -548,6 +554,15 @@ export const ContasPagas: React.FC = () => {
           label="Credor/Fornecedor"
           placeholder="Selecione um credor..."
           emptyText="Todos"
+        />
+
+        <SearchableSelect
+          options={contasCorrentes}
+          value={filtroContaCorrente}
+          onChange={(value) => setFiltroContaCorrente(value as string | undefined)}
+          label="Conta Corrente"
+          placeholder="Selecione uma conta corrente..."
+          emptyText="Todas"
         />
 
         <div className="relative">
