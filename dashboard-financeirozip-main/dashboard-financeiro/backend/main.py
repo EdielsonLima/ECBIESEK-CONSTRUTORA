@@ -1021,28 +1021,17 @@ def get_contas_pagas_filtradas(
         conditions = list(excl_conds)
         params = list(excl_params)
 
-        # Auto-excluir origens configuradas como excluídas para contas_pagas
+        # Auto-excluir origens que estão na tabela de config mas sem contas_pagas habilitado
+        # Lógica: exclui se (incluir=False) OU (paginas não contém 'contas_pagas')
+        # Origens fora da tabela são permitidas por padrão (não configuradas = incluir)
         try:
             cfg_conn = get_config_db_connection()
             cfg_cursor = cfg_conn.cursor()
             try:
                 cfg_cursor.execute(
-                    "SELECT COUNT(*) as cnt FROM config_origens_exposicao_caixa WHERE paginas LIKE %s",
-                    ('%contas_pagas%',)
+                    "SELECT sigla FROM config_origens_exposicao_caixa WHERE incluir = %s OR paginas NOT LIKE %s",
+                    (False, '%contas_pagas%')
                 )
-                cnt_row = cfg_cursor.fetchone()
-                if cnt_row and int(cnt_row['cnt']) > 0:
-                    # Lógica de página: exclui onde incluir=False OU contas_pagas não está em paginas
-                    cfg_cursor.execute(
-                        "SELECT sigla FROM config_origens_exposicao_caixa WHERE incluir = %s OR paginas NOT LIKE %s",
-                        (False, '%contas_pagas%')
-                    )
-                else:
-                    # Sem config específica para contas_pagas: exclui apenas globalmente excluídas
-                    cfg_cursor.execute(
-                        "SELECT sigla FROM config_origens_exposicao_caixa WHERE incluir = %s",
-                        (False,)
-                    )
                 origens_excluidas_cp = [r['sigla'].strip().upper() for r in cfg_cursor.fetchall() if r['sigla']]
                 if origens_excluidas_cp:
                     oe_placeholders = ', '.join(['%s'] * len(origens_excluidas_cp))
@@ -1180,29 +1169,17 @@ def get_estatisticas_contas_pagas(
         conditions = list(excl_conds)
         params = list(excl_params)
 
-        # Auto-excluir origens configuradas como excluídas para contas_pagas
+        # Auto-excluir origens que estão na tabela de config mas sem contas_pagas habilitado
+        # Lógica: exclui se (incluir=False) OU (paginas não contém 'contas_pagas')
+        # Origens fora da tabela são permitidas por padrão (não configuradas = incluir)
         try:
             cfg_conn = get_config_db_connection()
             cfg_cursor = cfg_conn.cursor()
             try:
-                # Verifica se alguma origem já foi configurada especificamente para contas_pagas
                 cfg_cursor.execute(
-                    "SELECT COUNT(*) as cnt FROM config_origens_exposicao_caixa WHERE paginas LIKE %s",
-                    ('%contas_pagas%',)
+                    "SELECT sigla FROM config_origens_exposicao_caixa WHERE incluir = %s OR paginas NOT LIKE %s",
+                    (False, '%contas_pagas%')
                 )
-                cnt_row = cfg_cursor.fetchone()
-                if cnt_row and int(cnt_row['cnt']) > 0:
-                    # Usa lógica de página: exclui onde incluir=False OU contas_pagas não está em paginas
-                    cfg_cursor.execute(
-                        "SELECT sigla FROM config_origens_exposicao_caixa WHERE incluir = %s OR paginas NOT LIKE %s",
-                        (False, '%contas_pagas%')
-                    )
-                else:
-                    # Sem config de página específica: exclui apenas globalmente excluídas
-                    cfg_cursor.execute(
-                        "SELECT sigla FROM config_origens_exposicao_caixa WHERE incluir = %s",
-                        (False,)
-                    )
                 origens_excluidas_cp = [r['sigla'].strip().upper() for r in cfg_cursor.fetchall() if r['sigla']]
                 if origens_excluidas_cp:
                     oe_placeholders = ', '.join(['%s'] * len(origens_excluidas_cp))
