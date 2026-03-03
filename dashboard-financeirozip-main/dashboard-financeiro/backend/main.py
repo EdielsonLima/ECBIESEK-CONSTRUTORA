@@ -1225,6 +1225,11 @@ def get_estatisticas_contas_pagas(
             conditions.append(f"cp.id_tipo_baixa IN ({tipo_placeholders})")
             params.extend(tipos)
 
+        # Salvar condições-base ANTES de ano/mês/data (para cards de período)
+        # Power BI usa ALL(d_Calendario[Date]) nos cards de período = ignora filtro de data
+        conditions_base = list(conditions)
+        params_base = list(params)
+
         if ano:
             anos = [int(a.strip()) for a in ano.split(',')]
             ano_placeholders = ', '.join(['%s'] * len(anos))
@@ -1247,20 +1252,14 @@ def get_estatisticas_contas_pagas(
 
         where_clause = " AND ".join(conditions) if conditions else "1=1"
 
+        # Query 1: Totais com todos os filtros (ano, mês, data)
         query = f"""
-            WITH ref AS (
-                SELECT (MAX(cp2.data_pagamento) + INTERVAL '1 day')::date AS hoje
-                FROM contas_pagas cp2
-            )
             SELECT
                 COUNT(*) as quantidade_titulos,
                 COALESCE(SUM(CASE WHEN cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_liquido ELSE 0 END), 0) as valor_liquido_total,
                 COALESCE(SUM(CASE WHEN cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_baixa ELSE 0 END), 0) as valor_baixa_total,
                 COALESCE(SUM(cp.valor_acrescimo), 0) as valor_acrescimo_total,
-                COALESCE(SUM(cp.valor_desconto), 0) as valor_desconto_total,
-                COALESCE(SUM(CASE WHEN (cp.data_pagamento + INTERVAL '1 day')::date >= (SELECT hoje - INTERVAL '7 days' FROM ref) AND cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_baixa ELSE 0 END), 0) as valor_7d,
-                COALESCE(SUM(CASE WHEN (cp.data_pagamento + INTERVAL '1 day')::date >= (SELECT hoje - INTERVAL '15 days' FROM ref) AND cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_baixa ELSE 0 END), 0) as valor_15d,
-                COALESCE(SUM(CASE WHEN (cp.data_pagamento + INTERVAL '1 day')::date >= (SELECT hoje - INTERVAL '30 days' FROM ref) AND cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_baixa ELSE 0 END), 0) as valor_30d
+                COALESCE(SUM(cp.valor_desconto), 0) as valor_desconto_total
             FROM contas_pagas cp
             LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE {where_clause}
@@ -1269,15 +1268,31 @@ def get_estatisticas_contas_pagas(
         cursor.execute(query, params)
         row = cursor.fetchone()
 
+        # Query 2: Cards de período (ignora filtros de ano/mês/data, como Power BI ALL(Date))
+        # Usa CURRENT_DATE como hoje, range: [hoje-N, hoje) excluindo hoje
+        where_clause_base = " AND ".join(conditions_base) if conditions_base else "1=1"
+        query_periodo = f"""
+            SELECT
+                COALESCE(SUM(CASE WHEN cp.data_pagamento >= CURRENT_DATE - INTERVAL '7 days' AND cp.data_pagamento < CURRENT_DATE AND cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_liquido ELSE 0 END), 0) as valor_7d,
+                COALESCE(SUM(CASE WHEN cp.data_pagamento >= CURRENT_DATE - INTERVAL '15 days' AND cp.data_pagamento < CURRENT_DATE AND cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_liquido ELSE 0 END), 0) as valor_15d,
+                COALESCE(SUM(CASE WHEN cp.data_pagamento >= CURRENT_DATE - INTERVAL '30 days' AND cp.data_pagamento < CURRENT_DATE AND cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_liquido ELSE 0 END), 0) as valor_30d
+            FROM contas_pagas cp
+            LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE {where_clause_base}
+        """
+
+        cursor.execute(query_periodo, params_base)
+        row_periodo = cursor.fetchone()
+
         return {
             'quantidade_titulos': row['quantidade_titulos'],
             'valor_liquido': decimal_to_float(row['valor_liquido_total']),
             'valor_baixa': decimal_to_float(row['valor_baixa_total']),
             'valor_acrescimo': decimal_to_float(row['valor_acrescimo_total']),
             'valor_desconto': decimal_to_float(row['valor_desconto_total']),
-            'valor_7d': decimal_to_float(row['valor_7d']),
-            'valor_15d': decimal_to_float(row['valor_15d']),
-            'valor_30d': decimal_to_float(row['valor_30d']),
+            'valor_7d': decimal_to_float(row_periodo['valor_7d']),
+            'valor_15d': decimal_to_float(row_periodo['valor_15d']),
+            'valor_30d': decimal_to_float(row_periodo['valor_30d']),
         }
 
     finally:
