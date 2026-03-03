@@ -10,6 +10,9 @@ interface Estatisticas {
   valor_baixa: number;
   valor_acrescimo: number;
   valor_desconto: number;
+  valor_7d?: number;
+  valor_15d?: number;
+  valor_30d?: number;
 }
 
 interface DadosPorMes {
@@ -2203,21 +2206,33 @@ export const ContasPagas: React.FC = () => {
       {estatisticas && (() => {
           const credoresTotal = new Set(contas.map(c => c.credor)).size;
           return (
-        <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-          <div className="rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 p-5 text-white shadow-lg">
-            <div className="mb-1 text-xs font-medium opacity-90">Valor Liquido Total</div>
-            <div className="text-2xl font-bold">{formatCurrency(estatisticas.valor_liquido)}</div>
-            <div className="mt-1 text-xs opacity-75">{estatisticas.quantidade_titulos.toLocaleString('pt-BR')} titulos | {credoresTotal} credores</div>
+        <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="rounded-lg bg-gradient-to-br from-green-500 to-green-600 p-5 text-white shadow-lg">
+            <div className="mb-1 text-xs font-medium opacity-90">Valor Total</div>
+            <div className="text-2xl font-bold">{formatCurrency(estatisticas.valor_baixa)}</div>
+            <div className="mt-1 text-xs opacity-75">{estatisticas.quantidade_titulos.toLocaleString('pt-BR')} títulos | {credoresTotal} credores</div>
           </div>
 
-          <div className="rounded-lg bg-gradient-to-br from-green-500 to-green-600 p-5 text-white shadow-lg">
-            <div className="mb-1 text-xs font-medium opacity-90">Valor Baixa</div>
-            <div className="text-2xl font-bold">{formatCurrency(estatisticas.valor_baixa)}</div>
-            <div className="mt-1 text-xs opacity-75">Total pago</div>
+          <div className="rounded-lg bg-gradient-to-br from-sky-500 to-sky-600 p-5 text-white shadow-lg">
+            <div className="mb-1 text-xs font-medium opacity-90">Últimos 7 dias</div>
+            <div className="text-2xl font-bold">{formatCurrency(estatisticas.valor_7d ?? 0)}</div>
+            <div className="mt-1 text-xs opacity-75">Valor pago</div>
+          </div>
+
+          <div className="rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 p-5 text-white shadow-lg">
+            <div className="mb-1 text-xs font-medium opacity-90">Últimos 15 dias</div>
+            <div className="text-2xl font-bold">{formatCurrency(estatisticas.valor_15d ?? 0)}</div>
+            <div className="mt-1 text-xs opacity-75">Valor pago</div>
+          </div>
+
+          <div className="rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 p-5 text-white shadow-lg">
+            <div className="mb-1 text-xs font-medium opacity-90">Últimos 30 dias</div>
+            <div className="text-2xl font-bold">{formatCurrency(estatisticas.valor_30d ?? 0)}</div>
+            <div className="mt-1 text-xs opacity-75">Valor pago</div>
           </div>
 
           <div className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 p-5 text-white shadow-lg">
-            <div className="mb-1 text-xs font-medium opacity-90">Acrescimos</div>
+            <div className="mb-1 text-xs font-medium opacity-90">Acréscimos</div>
             <div className="text-2xl font-bold">{formatCurrency(estatisticas.valor_acrescimo)}</div>
             <div className="mt-1 text-xs opacity-75">Juros/multas</div>
           </div>
@@ -2226,16 +2241,6 @@ export const ContasPagas: React.FC = () => {
             <div className="mb-1 text-xs font-medium opacity-90">Descontos</div>
             <div className="text-2xl font-bold">{formatCurrency(estatisticas.valor_desconto)}</div>
             <div className="mt-1 text-xs opacity-75">Economizado</div>
-          </div>
-
-          <div className="rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 p-5 text-white shadow-lg">
-            <div className="mb-1 text-xs font-medium opacity-90">Ticket Medio</div>
-            <div className="text-2xl font-bold">
-              {estatisticas.quantidade_titulos > 0 
-                ? formatCurrency(estatisticas.valor_liquido / estatisticas.quantidade_titulos)
-                : 'R$ 0,00'}
-            </div>
-            <div className="mt-1 text-xs opacity-75">Por titulo</div>
           </div>
         </div>
           );

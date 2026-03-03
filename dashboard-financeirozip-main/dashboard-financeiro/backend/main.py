@@ -1233,7 +1233,10 @@ def get_estatisticas_contas_pagas(
                 COALESCE(SUM(cp.valor_liquido), 0) as valor_liquido_total,
                 COALESCE(SUM(CASE WHEN cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_baixa ELSE 0 END), 0) as valor_baixa_total,
                 COALESCE(SUM(cp.valor_acrescimo), 0) as valor_acrescimo_total,
-                COALESCE(SUM(cp.valor_desconto), 0) as valor_desconto_total
+                COALESCE(SUM(cp.valor_desconto), 0) as valor_desconto_total,
+                COALESCE(SUM(CASE WHEN cp.data_pagamento >= CURRENT_DATE - INTERVAL '7 days' AND cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_baixa ELSE 0 END), 0) as valor_7d,
+                COALESCE(SUM(CASE WHEN cp.data_pagamento >= CURRENT_DATE - INTERVAL '15 days' AND cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_baixa ELSE 0 END), 0) as valor_15d,
+                COALESCE(SUM(CASE WHEN cp.data_pagamento >= CURRENT_DATE - INTERVAL '30 days' AND cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_baixa ELSE 0 END), 0) as valor_30d
             FROM contas_pagas cp
             LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE {where_clause}
@@ -1248,6 +1251,9 @@ def get_estatisticas_contas_pagas(
             'valor_baixa': decimal_to_float(row['valor_baixa_total']),
             'valor_acrescimo': decimal_to_float(row['valor_acrescimo_total']),
             'valor_desconto': decimal_to_float(row['valor_desconto_total']),
+            'valor_7d': decimal_to_float(row['valor_7d']),
+            'valor_15d': decimal_to_float(row['valor_15d']),
+            'valor_30d': decimal_to_float(row['valor_30d']),
         }
 
     finally:
