@@ -88,11 +88,31 @@ interface OrigemMetaStatus {
   meta_atingida: boolean;
 }
 
+interface FornecedorAgrupado {
+  credor: string;
+  titulos_7d: number;
+  valor_7d: number;
+  titulos_15d: number;
+  valor_15d: number;
+  titulos_30d: number;
+  valor_30d: number;
+  titulos_total: number;
+  valor_total: number;
+}
+
+interface DadosPorFornecedor {
+  ref_date: string | null;
+  fornecedores: FornecedorAgrupado[];
+  total_fornecedores: number;
+}
+
 type AbaAtiva = 'dados' | 'analises' | 'configuracoes';
 
 export const ContasPagas: React.FC = () => {
   const [abaAtiva, setAbaAtiva] = useState<AbaAtiva>('dados');
   const [contas, setContas] = useState<ContaPagar[]>([]);
+  const [dadosFornecedores, setDadosFornecedores] = useState<DadosPorFornecedor | null>(null);
+  const [buscaFornecedor, setBuscaFornecedor] = useState('');
   const [estatisticas, setEstatisticas] = useState<Estatisticas | null>(null);
   const [dadosPorMes, setDadosPorMes] = useState<DadosPorMes[]>([]);
   const [dadosPorEmpresa, setDadosPorEmpresa] = useState<DadosPorEmpresa[]>([]);
@@ -308,9 +328,10 @@ export const ContasPagas: React.FC = () => {
         limite: 500,
       };
 
-      const [contasData, estatData, mesData, empresaData, origemData, compAnualData, compMensalData, rankingData] = await Promise.all([
+      const [contasData, estatData, fornecedoresData, mesData, empresaData, origemData, compAnualData, compMensalData, rankingData] = await Promise.all([
         apiService.getContasPagasFiltradas(filtros),
         apiService.getEstatisticasContasPagas(filtros),
+        apiService.getContasPagasPorFornecedor(filtros),
         apiService.getEstatisticasPorMes({
           empresa: filtroEmpresa,
           centro_custo: filtroCentroCusto,
@@ -374,6 +395,7 @@ export const ContasPagas: React.FC = () => {
 
       setContas(contasData);
       setEstatisticas(estatData);
+      setDadosFornecedores(fornecedoresData);
       setDadosPorMes(mesData);
       setDadosPorEmpresa(empresaData);
       setDadosPorOrigem(origemData);
@@ -489,16 +511,19 @@ export const ContasPagas: React.FC = () => {
   };
 
   const exportarCSV = () => {
-    if (contas.length === 0) return;
+    if (!dadosFornecedores || dadosFornecedores.fornecedores.length === 0) return;
 
-    const headers = ['Credor', 'Data Pagamento', 'Valor Pago', 'Títulos', 'Centro Custo', 'Origem'];
-    const rows = contas.map(conta => [
-      conta.credor || '',
-      conta.data_pagamento ? formatDate(conta.data_pagamento) : '',
-      conta.valor_total?.toString() || '0',
-      conta.lancamento || '',
-      conta.nome_centrocusto || '',
-      (conta as any).id_origem || '',
+    const headers = ['#', 'Fornecedor', '7d Qtd Títulos', '7d Valor', '15d Qtd Títulos', '15d Valor', '30d Qtd Títulos', '30d Valor', 'Total Valor'];
+    const rows = dadosFornecedores.fornecedores.map((f, idx) => [
+      (idx + 1).toString(),
+      f.credor,
+      f.titulos_7d.toString(),
+      f.valor_7d.toFixed(2).replace('.', ','),
+      f.titulos_15d.toString(),
+      f.valor_15d.toFixed(2).replace('.', ','),
+      f.titulos_30d.toString(),
+      f.valor_30d.toFixed(2).replace('.', ','),
+      f.valor_total.toFixed(2).replace('.', ','),
     ]);
 
     const csvContent = [
@@ -510,7 +535,7 @@ export const ContasPagas: React.FC = () => {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `contas_pagas_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `contas_pagas_fornecedor_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1032,21 +1057,49 @@ export const ContasPagas: React.FC = () => {
     if (filtroDataInicio) filtrosAtivos.push(`Data Inicio: ${filtroDataInicio}`);
     if (filtroDataFim) filtrosAtivos.push(`Data Fim: ${filtroDataFim}`);
 
+    const fornecedores = dadosFornecedores?.fornecedores || [];
+    const fornecedoresFiltrados = buscaFornecedor
+      ? fornecedores.filter(f => f.credor.toLowerCase().includes(buscaFornecedor.toLowerCase()))
+      : fornecedores;
+
+    // Totais
+    const totais = fornecedoresFiltrados.reduce((acc, f) => ({
+      titulos_7d: acc.titulos_7d + f.titulos_7d,
+      valor_7d: acc.valor_7d + f.valor_7d,
+      titulos_15d: acc.titulos_15d + f.titulos_15d,
+      valor_15d: acc.valor_15d + f.valor_15d,
+      titulos_30d: acc.titulos_30d + f.titulos_30d,
+      valor_30d: acc.valor_30d + f.valor_30d,
+      titulos_total: acc.titulos_total + f.titulos_total,
+      valor_total: acc.valor_total + f.valor_total,
+    }), { titulos_7d: 0, valor_7d: 0, titulos_15d: 0, valor_15d: 0, titulos_30d: 0, valor_30d: 0, titulos_total: 0, valor_total: 0 });
+
+    const refDateFormatted = dadosFornecedores?.ref_date
+      ? (() => {
+          const safe = dadosFornecedores.ref_date!.includes('T') ? dadosFornecedores.ref_date! : dadosFornecedores.ref_date! + 'T12:00:00';
+          const d = new Date(safe);
+          return isNaN(d.getTime()) ? dadosFornecedores.ref_date : `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+        })()
+      : '-';
+
     return (
       <>
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Contas Pagas</h2>
+              <h2 className="text-2xl font-bold text-gray-900">
+                Pagamentos por Fornecedor
+              </h2>
               <p className="mt-1 text-sm text-gray-600">
-                {contas.length} conta(s) exibida(s)
+                Ref.: {refDateFormatted} &middot; {dadosFornecedores?.total_fornecedores || 0} fornecedor(es)
+                {buscaFornecedor && ` &middot; ${fornecedoresFiltrados.length} exibido(s)`}
               </p>
             </div>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={exportarCSV}
-                disabled={contas.length === 0}
+                disabled={fornecedores.length === 0}
                 className="flex items-center rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
               >
                 <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1098,52 +1151,68 @@ export const ContasPagas: React.FC = () => {
           {mostrarFiltros && renderFiltros()}
         </div>
 
-      <div className="overflow-hidden rounded-lg bg-white shadow">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-green-50">
-              <tr>
-                <th onClick={() => toggleOrdenacao('credor')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
-                  Credor{renderSortIcon('credor')}
-                </th>
-                <th onClick={() => toggleOrdenacao('data_pagamento')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
-                  Data Pagamento{renderSortIcon('data_pagamento')}
-                </th>
-                <th onClick={() => toggleOrdenacao('valor_total')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
-                  Valor Pago{renderSortIcon('valor_total')}
-                </th>
-                <th onClick={() => toggleOrdenacao('lancamento')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
-                  Títulos{renderSortIcon('lancamento')}
-                </th>
-                <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
-                  Centro Custo{renderSortIcon('nome_centrocusto')}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 bg-white">
-              {ordenarContas(contas).map((conta, index) => (
-                <tr key={`${conta.credor}-${conta.data_pagamento}-${index}`} className="hover:bg-gray-50">
-                  <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                    {conta.credor || '-'}
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                    {formatDate(conta.data_pagamento)}
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-green-600">
-                    {formatCurrency(conta.valor_total)}
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                    {conta.lancamento || '-'}
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                    {conta.nome_centrocusto || '-'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* Busca dentro da tabela */}
+        <div className="mb-4">
+          <input
+            type="text"
+            value={buscaFornecedor}
+            onChange={(e) => setBuscaFornecedor(e.target.value)}
+            placeholder="Buscar fornecedor..."
+            className="w-full max-w-md rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-green-500 focus:outline-none"
+          />
         </div>
-      </div>
+
+        <div className="overflow-hidden rounded-lg bg-white shadow">
+          <div className="overflow-x-auto max-h-[700px] overflow-y-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-green-700 sticky top-0 z-10">
+                <tr>
+                  <th rowSpan={2} className="px-3 py-2 text-center text-xs font-bold text-white border border-green-600">#</th>
+                  <th rowSpan={2} className="px-3 py-2 text-left text-xs font-bold text-white border border-green-600">Fornecedor</th>
+                  <th colSpan={2} className="px-3 py-2 text-center text-xs font-bold text-white border border-green-600 bg-green-800">7 Dias</th>
+                  <th colSpan={2} className="px-3 py-2 text-center text-xs font-bold text-white border border-green-600 bg-green-800">15 Dias</th>
+                  <th colSpan={2} className="px-3 py-2 text-center text-xs font-bold text-white border border-green-600 bg-green-800">30 Dias</th>
+                  <th rowSpan={2} className="px-3 py-2 text-center text-xs font-bold text-white border border-green-600">Todo o Período</th>
+                </tr>
+                <tr>
+                  <th className="px-3 py-1 text-center text-xs font-medium text-green-100 border border-green-600 bg-green-600">Qtd</th>
+                  <th className="px-3 py-1 text-center text-xs font-medium text-green-100 border border-green-600 bg-green-600">Valor (R$)</th>
+                  <th className="px-3 py-1 text-center text-xs font-medium text-green-100 border border-green-600 bg-green-600">Qtd</th>
+                  <th className="px-3 py-1 text-center text-xs font-medium text-green-100 border border-green-600 bg-green-600">Valor (R$)</th>
+                  <th className="px-3 py-1 text-center text-xs font-medium text-green-100 border border-green-600 bg-green-600">Qtd</th>
+                  <th className="px-3 py-1 text-center text-xs font-medium text-green-100 border border-green-600 bg-green-600">Valor (R$)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {fornecedoresFiltrados.map((f, index) => (
+                  <tr key={f.credor} className={`hover:bg-green-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                    <td className="px-3 py-2 text-center text-xs text-gray-500 border-r border-gray-100">{index + 1}</td>
+                    <td className="px-3 py-2 text-sm font-medium text-gray-900 border-r border-gray-100 max-w-xs truncate" title={f.credor}>{f.credor}</td>
+                    <td className="px-3 py-2 text-center text-xs text-gray-600 border-r border-gray-100">{f.titulos_7d || '-'}</td>
+                    <td className="px-3 py-2 text-right text-xs text-gray-700 border-r border-gray-100 font-mono">{f.valor_7d ? formatCurrency(f.valor_7d) : '-'}</td>
+                    <td className="px-3 py-2 text-center text-xs text-gray-600 border-r border-gray-100">{f.titulos_15d || '-'}</td>
+                    <td className="px-3 py-2 text-right text-xs text-gray-700 border-r border-gray-100 font-mono">{f.valor_15d ? formatCurrency(f.valor_15d) : '-'}</td>
+                    <td className="px-3 py-2 text-center text-xs text-gray-600 border-r border-gray-100">{f.titulos_30d || '-'}</td>
+                    <td className="px-3 py-2 text-right text-xs text-gray-700 border-r border-gray-100 font-mono">{f.valor_30d ? formatCurrency(f.valor_30d) : '-'}</td>
+                    <td className="px-3 py-2 text-right text-sm font-semibold text-green-700 font-mono">{formatCurrency(f.valor_total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-green-100 sticky bottom-0">
+                <tr className="font-bold">
+                  <td className="px-3 py-3 text-sm text-gray-900 border-t-2 border-green-300" colSpan={2}>TOTAL GERAL</td>
+                  <td className="px-3 py-3 text-center text-sm text-gray-900 border-t-2 border-green-300">{totais.titulos_7d}</td>
+                  <td className="px-3 py-3 text-right text-sm text-gray-900 border-t-2 border-green-300 font-mono">{formatCurrency(totais.valor_7d)}</td>
+                  <td className="px-3 py-3 text-center text-sm text-gray-900 border-t-2 border-green-300">{totais.titulos_15d}</td>
+                  <td className="px-3 py-3 text-right text-sm text-gray-900 border-t-2 border-green-300 font-mono">{formatCurrency(totais.valor_15d)}</td>
+                  <td className="px-3 py-3 text-center text-sm text-gray-900 border-t-2 border-green-300">{totais.titulos_30d}</td>
+                  <td className="px-3 py-3 text-right text-sm text-gray-900 border-t-2 border-green-300 font-mono">{formatCurrency(totais.valor_30d)}</td>
+                  <td className="px-3 py-3 text-right text-sm font-bold text-green-800 border-t-2 border-green-300 font-mono">{formatCurrency(totais.valor_total)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
       </>
     );
   };
