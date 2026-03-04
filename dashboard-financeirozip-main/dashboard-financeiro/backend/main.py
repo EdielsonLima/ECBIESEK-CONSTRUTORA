@@ -1383,6 +1383,203 @@ def get_contas_pagas_por_fornecedor(
         cursor.close()
         conn.close()
 
+@app.get("/api/contas-pagas-por-centro-custo")
+def get_contas_pagas_por_centro_custo(
+    empresa: Optional[int] = None,
+    centro_custo: Optional[int] = None,
+    credor: Optional[str] = None,
+    id_documento: Optional[str] = None,
+    origem_dado: Optional[str] = None,
+    tipo_baixa: Optional[str] = None,
+    conta_corrente: Optional[str] = None,
+    origem_titulo: Optional[str] = None,
+    ano: Optional[str] = None,
+    mes: Optional[str] = None,
+    data_inicio: Optional[str] = None,
+    data_fim: Optional[str] = None,
+):
+    """Retorna contas pagas agrupadas por centro de custo com períodos 7d/15d/30d/total."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT MAX(dump_date) as ultima FROM fulldump_log")
+        ref_row = cursor.fetchone()
+        ref_date = ref_row['ultima'] if ref_row else None
+
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(
+            exclusoes, cc_alias='cc', table_alias='cp',
+            has_join=False, has_doc_column=False, has_conta_corrente=False
+        )
+        conditions = list(excl_conds)
+        params = list(excl_params)
+
+        try:
+            cfg_conn = get_config_db_connection()
+            cfg_cursor = cfg_conn.cursor()
+            try:
+                cfg_cursor.execute(
+                    "SELECT sigla FROM config_origens_exposicao_caixa WHERE incluir = %s OR paginas NOT LIKE %s",
+                    (False, '%contas_pagas%')
+                )
+                origens_excluidas_cp = [r['sigla'].strip().upper() for r in cfg_cursor.fetchall() if r['sigla']]
+                if origens_excluidas_cp:
+                    oe_placeholders = ', '.join(['%s'] * len(origens_excluidas_cp))
+                    conditions.append(f"TRIM(UPPER(cp.id_origem)) NOT IN ({oe_placeholders})")
+                    params.extend(origens_excluidas_cp)
+
+                cfg_cursor.execute(
+                    "SELECT id_tipo_baixa FROM config_tipos_baixa_exposicao_caixa WHERE incluir = 1 AND paginas LIKE %s",
+                    ('%contas_pagas%',)
+                )
+                tipos_baixa_config = [r['id_tipo_baixa'] for r in cfg_cursor.fetchall()]
+            finally:
+                cfg_cursor.close()
+                cfg_conn.close()
+        except Exception:
+            tipos_baixa_config = []
+
+        if tipos_baixa_config and not tipo_baixa:
+            tb_placeholders = ', '.join(['%s'] * len(tipos_baixa_config))
+            conditions.append(f"cp.id_tipo_baixa IN ({tb_placeholders})")
+            params.extend(tipos_baixa_config)
+
+        if empresa is not None:
+            conditions.append("""cp.id_interno_empresa IN (
+                SELECT DISTINCT cp2.id_interno_empresa FROM contas_pagas cp2
+                JOIN dim_centrocusto cc2 ON cp2.id_interno_centro_custo = cc2.id_interno_centrocusto
+                WHERE cc2.id_sienge_empresa = %s
+            )""")
+            params.append(empresa)
+
+        if centro_custo is not None:
+            conditions.append("cp.id_interno_centro_custo = %s")
+            params.append(centro_custo)
+
+        if credor:
+            conditions.append("cp.credor ILIKE %s")
+            params.append(f"%{credor}%")
+
+        if id_documento:
+            docs = [doc.strip() for doc in id_documento.split(',')]
+            doc_conditions = []
+            for doc in docs:
+                doc_conditions.append("TRIM(cp.id_documento) = %s")
+                params.append(doc)
+            conditions.append(f"({' OR '.join(doc_conditions)})")
+
+        if origem_dado:
+            origens = [origem.strip() for origem in origem_dado.split(',')]
+            origem_conditions = []
+            for origem in origens:
+                origem_conditions.append("TRIM(cp.origem_dado) = %s")
+                params.append(origem)
+            conditions.append(f"({' OR '.join(origem_conditions)})")
+
+        if tipo_baixa:
+            tipos = [int(t.strip()) for t in tipo_baixa.split(',')]
+            tipo_placeholders = ', '.join(['%s'] * len(tipos))
+            conditions.append(f"cp.id_tipo_baixa IN ({tipo_placeholders})")
+            params.extend(tipos)
+
+        if conta_corrente:
+            contas = [c.strip() for c in conta_corrente.split(',')]
+            conta_placeholders = ', '.join(['%s'] * len(contas))
+            conditions.append(f"cp.id_conta_corrente IN ({conta_placeholders})")
+            params.extend(contas)
+
+        if origem_titulo:
+            siglas = [s.strip().upper() for s in origem_titulo.split(',') if s.strip()]
+            if siglas:
+                ot_placeholders = ', '.join(['%s'] * len(siglas))
+                conditions.append(f"TRIM(UPPER(cp.id_origem)) IN ({ot_placeholders})")
+                params.extend(siglas)
+
+        if ano:
+            anos = [int(a.strip()) for a in ano.split(',')]
+            ano_placeholders = ', '.join(['%s'] * len(anos))
+            conditions.append(f"EXTRACT(YEAR FROM cp.data_pagamento) IN ({ano_placeholders})")
+            params.extend(anos)
+
+        if mes:
+            meses_list = [int(m.strip()) for m in mes.split(',')]
+            mes_placeholders = ', '.join(['%s'] * len(meses_list))
+            conditions.append(f"EXTRACT(MONTH FROM cp.data_pagamento) IN ({mes_placeholders})")
+            params.extend(meses_list)
+
+        if data_inicio:
+            conditions.append("(cp.data_pagamento + INTERVAL '1 day')::date >= %s")
+            params.append(data_inicio)
+
+        if data_fim:
+            conditions.append("(cp.data_pagamento + INTERVAL '1 day')::date <= %s")
+            params.append(data_fim)
+
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+
+        query_params = []
+        if ref_date:
+            d7 = ref_date - __import__('datetime').timedelta(days=6)
+            d15 = ref_date - __import__('datetime').timedelta(days=14)
+            d30 = ref_date - __import__('datetime').timedelta(days=29)
+            query_params = [d7, ref_date, d15, ref_date, d30, ref_date]
+
+        if ref_date:
+            query = f"""
+                SELECT
+                    cc.id_sienge_centrocusto as codigo_cc,
+                    COALESCE(cc.nome_centrocusto, 'SEM CENTRO DE CUSTO') as nome_centrocusto,
+                    COALESCE(SUM(CASE WHEN cp.data_pagamento >= %s AND cp.data_pagamento <= %s THEN cp.valor_liquido ELSE 0 END), 0) as valor_7d,
+                    COALESCE(SUM(CASE WHEN cp.data_pagamento >= %s AND cp.data_pagamento <= %s THEN cp.valor_liquido ELSE 0 END), 0) as valor_15d,
+                    COALESCE(SUM(CASE WHEN cp.data_pagamento >= %s AND cp.data_pagamento <= %s THEN cp.valor_liquido ELSE 0 END), 0) as valor_30d,
+                    COALESCE(SUM(cp.valor_liquido), 0) as valor_total
+                FROM contas_pagas cp
+                LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE {where_clause}
+                GROUP BY cc.id_sienge_centrocusto, cc.nome_centrocusto
+                ORDER BY valor_total DESC
+            """
+            all_params = query_params + params
+        else:
+            query = f"""
+                SELECT
+                    cc.id_sienge_centrocusto as codigo_cc,
+                    COALESCE(cc.nome_centrocusto, 'SEM CENTRO DE CUSTO') as nome_centrocusto,
+                    0 as valor_7d, 0 as valor_15d, 0 as valor_30d,
+                    COALESCE(SUM(cp.valor_liquido), 0) as valor_total
+                FROM contas_pagas cp
+                LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE {where_clause}
+                GROUP BY cc.id_sienge_centrocusto, cc.nome_centrocusto
+                ORDER BY valor_total DESC
+            """
+            all_params = params
+
+        cursor.execute(query, all_params)
+        rows = cursor.fetchall()
+
+        centros_custo = []
+        for row in rows:
+            centros_custo.append({
+                'codigo_cc': row['codigo_cc'],
+                'nome_centrocusto': row['nome_centrocusto'],
+                'valor_7d': decimal_to_float(row['valor_7d']),
+                'valor_15d': decimal_to_float(row['valor_15d']),
+                'valor_30d': decimal_to_float(row['valor_30d']),
+                'valor_total': decimal_to_float(row['valor_total']),
+            })
+
+        return {
+            'ref_date': str(ref_date) if ref_date else None,
+            'centros_custo': centros_custo,
+            'total_centros': len(centros_custo),
+        }
+
+    finally:
+        cursor.close()
+        conn.close()
+
 @app.get("/api/estatisticas-contas-pagas")
 def get_estatisticas_contas_pagas(
     empresa: Optional[int] = None,

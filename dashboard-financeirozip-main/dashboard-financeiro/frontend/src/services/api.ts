@@ -274,6 +274,50 @@ export const apiService = {
     return response.data;
   },
 
+  // Contas pagas agrupadas por centro de custo
+  getContasPagasPorCentroCusto: async (filtros: {
+    empresa?: number;
+    centro_custo?: number;
+    credor?: string;
+    id_documento?: string;
+    origem_dado?: string;
+    tipo_baixa?: string;
+    conta_corrente?: string;
+    origem_titulo?: string;
+    ano?: string;
+    mes?: string;
+    data_inicio?: string;
+    data_fim?: string;
+  }): Promise<{
+    ref_date: string | null;
+    centros_custo: Array<{
+      codigo_cc: number;
+      nome_centrocusto: string;
+      valor_7d: number;
+      valor_15d: number;
+      valor_30d: number;
+      valor_total: number;
+    }>;
+    total_centros: number;
+  }> => {
+    const params = new URLSearchParams();
+    if (filtros.empresa) params.append('empresa', filtros.empresa.toString());
+    if (filtros.centro_custo) params.append('centro_custo', filtros.centro_custo.toString());
+    if (filtros.credor) params.append('credor', filtros.credor);
+    if (filtros.id_documento) params.append('id_documento', filtros.id_documento);
+    if (filtros.origem_dado) params.append('origem_dado', filtros.origem_dado);
+    if (filtros.tipo_baixa) params.append('tipo_baixa', filtros.tipo_baixa);
+    if (filtros.conta_corrente) params.append('conta_corrente', filtros.conta_corrente);
+    if (filtros.origem_titulo) params.append('origem_titulo', filtros.origem_titulo);
+    if (filtros.ano) params.append('ano', filtros.ano);
+    if (filtros.mes) params.append('mes', filtros.mes);
+    if (filtros.data_inicio) params.append('data_inicio', filtros.data_inicio);
+    if (filtros.data_fim) params.append('data_fim', filtros.data_fim);
+
+    const response = await api.get(`/contas-pagas-por-centro-custo?${params.toString()}`);
+    return response.data;
+  },
+
   // Filtros - Credores
   getCredores: async (): Promise<string[]> => {
     const response = await api.get<string[]>('/filtros/credores');

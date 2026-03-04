@@ -106,14 +106,32 @@ interface DadosPorFornecedor {
   total_fornecedores: number;
 }
 
-type AbaAtiva = 'dados' | 'analises' | 'configuracoes';
+interface CentroCustoAgrupado {
+  codigo_cc: number;
+  nome_centrocusto: string;
+  valor_7d: number;
+  valor_15d: number;
+  valor_30d: number;
+  valor_total: number;
+}
+
+interface DadosPorCentroCusto {
+  ref_date: string | null;
+  centros_custo: CentroCustoAgrupado[];
+  total_centros: number;
+}
+
+type AbaAtiva = 'fornecedor' | 'centro-custo' | 'analises' | 'configuracoes';
 
 export const ContasPagas: React.FC = () => {
-  const [abaAtiva, setAbaAtiva] = useState<AbaAtiva>('dados');
+  const [abaAtiva, setAbaAtiva] = useState<AbaAtiva>('fornecedor');
   const [contas, setContas] = useState<ContaPagar[]>([]);
   const [dadosFornecedores, setDadosFornecedores] = useState<DadosPorFornecedor | null>(null);
+  const [dadosCentroCusto, setDadosCentroCusto] = useState<DadosPorCentroCusto | null>(null);
   const [buscaFornecedor, setBuscaFornecedor] = useState('');
+  const [buscaCentroCusto, setBuscaCentroCusto] = useState('');
   const [filtroPeriodo, setFiltroPeriodo] = useState<'todos' | '7d' | '15d' | '30d'>('todos');
+  const [filtroPeriodoCC, setFiltroPeriodoCC] = useState<'todos' | '7d' | '15d' | '30d'>('todos');
   const [estatisticas, setEstatisticas] = useState<Estatisticas | null>(null);
   const [dadosPorMes, setDadosPorMes] = useState<DadosPorMes[]>([]);
   const [dadosPorEmpresa, setDadosPorEmpresa] = useState<DadosPorEmpresa[]>([]);
@@ -329,10 +347,11 @@ export const ContasPagas: React.FC = () => {
         limite: 500,
       };
 
-      const [contasData, estatData, fornecedoresData, mesData, empresaData, origemData, compAnualData, compMensalData, rankingData] = await Promise.all([
+      const [contasData, estatData, fornecedoresData, centroCustoData, mesData, empresaData, origemData, compAnualData, compMensalData, rankingData] = await Promise.all([
         apiService.getContasPagasFiltradas(filtros),
         apiService.getEstatisticasContasPagas(filtros),
         apiService.getContasPagasPorFornecedor(filtros),
+        apiService.getContasPagasPorCentroCusto(filtros),
         apiService.getEstatisticasPorMes({
           empresa: filtroEmpresa,
           centro_custo: filtroCentroCusto,
@@ -397,6 +416,7 @@ export const ContasPagas: React.FC = () => {
       setContas(contasData);
       setEstatisticas(estatData);
       setDadosFornecedores(fornecedoresData);
+      setDadosCentroCusto(centroCustoData);
       setDadosPorMes(mesData);
       setDadosPorEmpresa(empresaData);
       setDadosPorOrigem(origemData);
@@ -1688,6 +1708,154 @@ export const ContasPagas: React.FC = () => {
     </div>
   );
 
+  const exportarCSVCentroCusto = () => {
+    if (!dadosCentroCusto?.centros_custo.length) return;
+    const centros = dadosCentroCusto.centros_custo;
+    const header = '#;Código CC;Nome Centro de Custo;Total 7 Dias;Total 15 Dias;Total 30 Dias;Todo o Período';
+    const rows = centros.map((cc, i) =>
+      `${i + 1};${cc.codigo_cc};${cc.nome_centrocusto};${cc.valor_7d.toFixed(2).replace('.', ',')};${cc.valor_15d.toFixed(2).replace('.', ',')};${cc.valor_30d.toFixed(2).replace('.', ',')};${cc.valor_total.toFixed(2).replace('.', ',')}`
+    );
+    const csv = [header, ...rows].join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `contas_pagas_centro_custo_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const renderAbaCentroCusto = () => {
+    const centros = dadosCentroCusto?.centros_custo || [];
+    const centrosPorPeriodo = filtroPeriodoCC === 'todos'
+      ? centros
+      : centros.filter(cc => {
+          if (filtroPeriodoCC === '7d') return cc.valor_7d > 0;
+          if (filtroPeriodoCC === '15d') return cc.valor_15d > 0;
+          return cc.valor_30d > 0;
+        });
+    const centrosFiltrados = buscaCentroCusto
+      ? centrosPorPeriodo.filter(cc => cc.nome_centrocusto.toLowerCase().includes(buscaCentroCusto.toLowerCase()))
+      : centrosPorPeriodo;
+
+    const totais = centrosFiltrados.reduce((acc, cc) => ({
+      valor_7d: acc.valor_7d + cc.valor_7d,
+      valor_15d: acc.valor_15d + cc.valor_15d,
+      valor_30d: acc.valor_30d + cc.valor_30d,
+      valor_total: acc.valor_total + cc.valor_total,
+    }), { valor_7d: 0, valor_15d: 0, valor_30d: 0, valor_total: 0 });
+
+    const refDateFormatted = dadosCentroCusto?.ref_date
+      ? (() => {
+          const safe = dadosCentroCusto.ref_date!.includes('T') ? dadosCentroCusto.ref_date! : dadosCentroCusto.ref_date! + 'T12:00:00';
+          const d = new Date(safe);
+          return isNaN(d.getTime()) ? dadosCentroCusto.ref_date : `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+        })()
+      : '-';
+
+    return (
+      <>
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">
+                Pagamentos por Centro de Custo
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Ref.: {refDateFormatted} &middot; {dadosCentroCusto?.total_centros || 0} centro(s) de custo
+                {(buscaCentroCusto || filtroPeriodoCC !== 'todos') && ` \u00b7 ${centrosFiltrados.length} exibido(s)`}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={exportarCSVCentroCusto}
+                disabled={centros.length === 0}
+                className="flex items-center rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
+              >
+                <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Exportar CSV
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-4 flex flex-wrap items-center gap-4">
+          <input
+            type="text"
+            value={buscaCentroCusto}
+            onChange={(e) => setBuscaCentroCusto(e.target.value)}
+            placeholder="Buscar centro de custo..."
+            className="w-full max-w-md rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-green-500 focus:outline-none"
+          />
+          <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+            {([
+              { key: 'todos' as const, label: 'Todos' },
+              { key: '7d' as const, label: '7 Dias' },
+              { key: '15d' as const, label: '15 Dias' },
+              { key: '30d' as const, label: '30 Dias' },
+            ]).map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setFiltroPeriodoCC(key)}
+                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                  filtroPeriodoCC === key
+                    ? 'bg-green-600 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                } ${key !== 'todos' ? 'border-l border-gray-300' : ''}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-lg bg-white shadow">
+          <div className="overflow-x-auto max-h-[700px] overflow-y-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-green-700 sticky top-0 z-10">
+                <tr>
+                  <th className="px-3 py-3 text-center text-xs font-bold text-white border border-green-600 w-12">#</th>
+                  <th className="px-3 py-3 text-center text-xs font-bold text-white border border-green-600 w-20">Código CC</th>
+                  <th className="px-3 py-3 text-left text-xs font-bold text-white border border-green-600">Nome Centro de Custo</th>
+                  <th className="px-3 py-3 text-center text-xs font-bold text-white border border-green-600 bg-green-800">Total 7 Dias</th>
+                  <th className="px-3 py-3 text-center text-xs font-bold text-white border border-green-600 bg-green-800">Total 15 Dias</th>
+                  <th className="px-3 py-3 text-center text-xs font-bold text-white border border-green-600 bg-green-800">Total 30 Dias</th>
+                  <th className="px-3 py-3 text-center text-xs font-bold text-white border border-green-600">Todo o Período</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {centrosFiltrados.map((cc, index) => (
+                  <tr key={cc.codigo_cc || index} className={`hover:bg-green-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                    <td className="px-3 py-2 text-center text-xs text-gray-500 border-r border-gray-100">{index + 1}</td>
+                    <td className="px-3 py-2 text-center text-xs font-medium text-gray-700 border-r border-gray-100">{cc.codigo_cc}</td>
+                    <td className="px-3 py-2 text-sm font-medium text-gray-900 border-r border-gray-100 max-w-sm truncate" title={cc.nome_centrocusto}>{cc.nome_centrocusto}</td>
+                    <td className="px-3 py-2 text-right text-xs text-gray-700 border-r border-gray-100 font-mono">{cc.valor_7d ? formatCurrency(cc.valor_7d) : '-'}</td>
+                    <td className="px-3 py-2 text-right text-xs text-gray-700 border-r border-gray-100 font-mono">{cc.valor_15d ? formatCurrency(cc.valor_15d) : '-'}</td>
+                    <td className="px-3 py-2 text-right text-xs text-gray-700 border-r border-gray-100 font-mono">{cc.valor_30d ? formatCurrency(cc.valor_30d) : '-'}</td>
+                    <td className="px-3 py-2 text-right text-sm font-semibold text-green-700 font-mono">{formatCurrency(cc.valor_total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-green-100 sticky bottom-0">
+                <tr className="font-bold">
+                  <td className="px-3 py-3 text-sm text-gray-900 border-t-2 border-green-300" colSpan={3}>TOTAL GERAL</td>
+                  <td className="px-3 py-3 text-right text-sm text-gray-900 border-t-2 border-green-300 font-mono">{formatCurrency(totais.valor_7d)}</td>
+                  <td className="px-3 py-3 text-right text-sm text-gray-900 border-t-2 border-green-300 font-mono">{formatCurrency(totais.valor_15d)}</td>
+                  <td className="px-3 py-3 text-right text-sm text-gray-900 border-t-2 border-green-300 font-mono">{formatCurrency(totais.valor_30d)}</td>
+                  <td className="px-3 py-3 text-right text-sm font-bold text-green-800 border-t-2 border-green-300 font-mono">{formatCurrency(totais.valor_total)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </>
+    );
+  };
+
   const renderAbaAnalises = () => {
     const anoAtual = new Date().getFullYear();
     const anoAnterior = anoAtual - 1;
@@ -2350,17 +2518,31 @@ export const ContasPagas: React.FC = () => {
           <nav className="-mb-px flex space-x-8">
             <button
               type="button"
-              onClick={() => setAbaAtiva('dados')}
+              onClick={() => setAbaAtiva('fornecedor')}
               className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
-                abaAtiva === 'dados'
+                abaAtiva === 'fornecedor'
                   ? 'border-green-500 text-green-600'
                   : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
               }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              Dados
+              Por Fornecedor
+            </button>
+            <button
+              type="button"
+              onClick={() => setAbaAtiva('centro-custo')}
+              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
+                abaAtiva === 'centro-custo'
+                  ? 'border-green-500 text-green-600'
+                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+              }`}
+            >
+              <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              Por Centro de Custo
             </button>
             <button
               type="button"
@@ -2395,7 +2577,8 @@ export const ContasPagas: React.FC = () => {
         </div>
       </div>
 
-      {abaAtiva === 'dados' && renderAbaDados()}
+      {abaAtiva === 'fornecedor' && renderAbaDados()}
+      {abaAtiva === 'centro-custo' && renderAbaCentroCusto()}
       {abaAtiva === 'analises' && renderAbaAnalises()}
       {abaAtiva === 'configuracoes' && renderAbaConfiguracoes()}
     </div>
