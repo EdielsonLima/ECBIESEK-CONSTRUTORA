@@ -1264,8 +1264,8 @@ def get_estatisticas_contas_pagas(
         query = f"""
             SELECT
                 COUNT(*) as quantidade_titulos,
-                COALESCE(SUM(CASE WHEN cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_liquido ELSE 0 END), 0) as valor_liquido_total,
-                COALESCE(SUM(CASE WHEN cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_baixa ELSE 0 END), 0) as valor_baixa_total,
+                COALESCE(SUM(CASE WHEN cp.id_tipo_baixa IS NULL OR cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_liquido ELSE 0 END), 0) as valor_liquido_total,
+                COALESCE(SUM(CASE WHEN cp.id_tipo_baixa IS NULL OR cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_baixa ELSE 0 END), 0) as valor_baixa_total,
                 COALESCE(SUM(cp.valor_acrescimo), 0) as valor_acrescimo_total,
                 COALESCE(SUM(cp.valor_desconto), 0) as valor_desconto_total
             FROM contas_pagas cp
@@ -1281,9 +1281,9 @@ def get_estatisticas_contas_pagas(
         where_clause_base = " AND ".join(conditions_base) if conditions_base else "1=1"
         query_periodo = f"""
             SELECT
-                COALESCE(SUM(CASE WHEN cp.data_pagamento >= CURRENT_DATE - INTERVAL '7 days' AND cp.data_pagamento < CURRENT_DATE AND cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_liquido ELSE 0 END), 0) as valor_7d,
-                COALESCE(SUM(CASE WHEN cp.data_pagamento >= CURRENT_DATE - INTERVAL '15 days' AND cp.data_pagamento < CURRENT_DATE AND cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_liquido ELSE 0 END), 0) as valor_15d,
-                COALESCE(SUM(CASE WHEN cp.data_pagamento >= CURRENT_DATE - INTERVAL '30 days' AND cp.data_pagamento < CURRENT_DATE AND cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_liquido ELSE 0 END), 0) as valor_30d
+                COALESCE(SUM(CASE WHEN cp.data_pagamento >= CURRENT_DATE - INTERVAL '7 days' AND cp.data_pagamento < CURRENT_DATE AND (cp.id_tipo_baixa IS NULL OR cp.id_tipo_baixa NOT IN (3, 5, 8, 12)) THEN cp.valor_liquido ELSE 0 END), 0) as valor_7d,
+                COALESCE(SUM(CASE WHEN cp.data_pagamento >= CURRENT_DATE - INTERVAL '15 days' AND cp.data_pagamento < CURRENT_DATE AND (cp.id_tipo_baixa IS NULL OR cp.id_tipo_baixa NOT IN (3, 5, 8, 12)) THEN cp.valor_liquido ELSE 0 END), 0) as valor_15d,
+                COALESCE(SUM(CASE WHEN cp.data_pagamento >= CURRENT_DATE - INTERVAL '30 days' AND cp.data_pagamento < CURRENT_DATE AND (cp.id_tipo_baixa IS NULL OR cp.id_tipo_baixa NOT IN (3, 5, 8, 12)) THEN cp.valor_liquido ELSE 0 END), 0) as valor_30d
             FROM contas_pagas cp
             LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE {where_clause_base}
@@ -1303,36 +1303,6 @@ def get_estatisticas_contas_pagas(
             'valor_30d': decimal_to_float(row_periodo['valor_30d']),
         }
 
-    finally:
-        cursor.close()
-        conn.close()
-
-@app.get("/api/debug/empresa-cr")
-def debug_empresa_cr(empresa: int = 3):
-    """Diagnóstico: mostra registros CR e mapeamento de empresa"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        # 1. Tabelas com 'empresa' no nome
-        cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_name LIKE '%empresa%' AND table_schema = 'public' ORDER BY table_name")
-        tabelas = [r['table_name'] for r in cursor.fetchall()]
-
-        # 2. id_interno_empresa dos registros CR
-        cursor.execute("SELECT DISTINCT cp.id_interno_empresa, cp.id_origem, COUNT(*) as qtd, SUM(cp.valor_liquido) as total FROM contas_pagas cp WHERE cp.id_origem = 'CR' GROUP BY cp.id_interno_empresa, cp.id_origem ORDER BY cp.id_interno_empresa")
-        cr_records = [dict(r) for r in cursor.fetchall()]
-
-        # 3. Subquery result - quais id_interno_empresa pertencem à empresa
-        cursor.execute("""SELECT DISTINCT cp2.id_interno_empresa FROM contas_pagas cp2
-            JOIN dim_centrocusto cc2 ON cp2.id_interno_centro_custo = cc2.id_interno_centrocusto
-            WHERE cc2.id_sienge_empresa = %s""", (empresa,))
-        mapped_ids = [r['id_interno_empresa'] for r in cursor.fetchall()]
-
-        return {
-            "tabelas_empresa": tabelas,
-            "cr_por_empresa_interna": cr_records,
-            "ids_internos_mapeados_para_empresa": mapped_ids,
-            "empresa_sienge": empresa
-        }
     finally:
         cursor.close()
         conn.close()
@@ -4979,7 +4949,7 @@ def build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', has_
         params.extend(exclusoes['centros_custo'])
     if exclusoes['tipos_documento'] and has_doc_column:
         placeholders = ','.join(['%s'] * len(exclusoes['tipos_documento']))
-        conditions.append(f"TRIM({table_alias}.id_documento) NOT IN ({placeholders})")
+        conditions.append(f"({table_alias}.id_documento IS NULL OR TRIM({table_alias}.id_documento) NOT IN ({placeholders}))")
         params.extend(exclusoes['tipos_documento'])
     if exclusoes.get('contas_correntes') and has_conta_corrente:
         placeholders = ','.join(['%s'] * len(exclusoes['contas_correntes']))
