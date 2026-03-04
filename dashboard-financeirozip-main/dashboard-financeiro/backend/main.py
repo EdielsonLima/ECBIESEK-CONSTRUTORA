@@ -1446,34 +1446,11 @@ def get_empresas_centros():
 
 @app.get("/api/ultima-atualizacao")
 def get_ultima_atualizacao():
-    """Retorna a data da última carga de dados a partir de fulldump_log."""
+    """Retorna a data da última carga de dados a partir de fulldump_log (dump_date)."""
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        # Descobre as colunas de data/timestamp da tabela
-        cursor.execute("""
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_name = 'fulldump_log'
-              AND data_type IN ('date', 'timestamp without time zone', 'timestamp with time zone')
-            ORDER BY ordinal_position
-        """)
-        date_cols = [r['column_name'] for r in cursor.fetchall()]
-
-        if not date_cols:
-            # Fallback: pega última linha por primeira coluna
-            cursor.execute("SELECT * FROM fulldump_log ORDER BY 1 DESC LIMIT 1")
-            row = cursor.fetchone()
-            if not row:
-                return {"data": None}
-            for val in row.values():
-                if hasattr(val, 'year'):
-                    return {"data": str(val)}
-            return {"data": None}
-
-        # Usa a última coluna de data (geralmente data_fim / updated_at)
-        col = date_cols[-1]
-        cursor.execute(f"SELECT MAX({col}) as ultima FROM fulldump_log")
+        cursor.execute("SELECT MAX(dump_date) as ultima FROM fulldump_log")
         row = cursor.fetchone()
         val = row['ultima'] if row else None
         return {"data": str(val) if val else None}
