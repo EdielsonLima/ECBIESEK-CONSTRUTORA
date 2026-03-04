@@ -1021,9 +1021,7 @@ def get_contas_pagas_filtradas(
         conditions = list(excl_conds)
         params = list(excl_params)
 
-        # Auto-excluir origens que estão na tabela de config mas sem contas_pagas habilitado
-        # Lógica: exclui se (incluir=False) OU (paginas não contém 'contas_pagas')
-        # Origens fora da tabela são permitidas por padrão (não configuradas = incluir)
+        # Auto-excluir origens sem contas_pagas habilitado + ler tipos_baixa da config
         try:
             cfg_conn = get_config_db_connection()
             cfg_cursor = cfg_conn.cursor()
@@ -1037,9 +1035,33 @@ def get_contas_pagas_filtradas(
                     oe_placeholders = ', '.join(['%s'] * len(origens_excluidas_cp))
                     conditions.append(f"TRIM(UPPER(cp.id_origem)) NOT IN ({oe_placeholders})")
                     params.extend(origens_excluidas_cp)
+
+                # Ler tipos_baixa habilitados para contas_pagas da config
+                cfg_cursor.execute(
+                    "SELECT id_tipo_baixa FROM config_tipos_baixa_exposicao_caixa WHERE incluir = 1 AND paginas LIKE %s",
+                    ('%contas_pagas%',)
+                )
+                tipos_baixa_config_filt = [r['id_tipo_baixa'] for r in cfg_cursor.fetchall()]
             finally:
                 cfg_cursor.close()
                 cfg_conn.close()
+        except Exception:
+            tipos_baixa_config_filt = []
+
+        # Aplicar filtro de tipo_baixa da config (se não veio parâmetro manual)
+        if tipos_baixa_config_filt and not tipo_baixa:
+            tb_placeholders = ', '.join(['%s'] * len(tipos_baixa_config_filt))
+            conditions.append(f"cp.id_tipo_baixa IN ({tb_placeholders})")
+            params.extend(tipos_baixa_config_filt)
+
+        # Excluir transferências inter-empresa (credores que são nomes de empresas do grupo)
+        try:
+            cursor.execute("SELECT DISTINCT TRIM(nome_empresa) as nome FROM dim_centrocusto WHERE nome_empresa IS NOT NULL")
+            empresa_names_filt = [r['nome'] for r in cursor.fetchall() if r['nome']]
+            if empresa_names_filt:
+                en_placeholders = ', '.join(['%s'] * len(empresa_names_filt))
+                conditions.append(f"TRIM(cp.credor) NOT IN ({en_placeholders})")
+                params.extend(empresa_names_filt)
         except Exception:
             pass
 
@@ -1060,7 +1082,6 @@ def get_contas_pagas_filtradas(
             params.append(f"%{credor}%")
 
         if id_documento:
-            # Suporta múltiplos documentos separados por vírgula
             docs = [doc.strip() for doc in id_documento.split(',')]
             doc_conditions = []
             for doc in docs:
@@ -1069,7 +1090,6 @@ def get_contas_pagas_filtradas(
             conditions.append(f"({' OR '.join(doc_conditions)})")
 
         if origem_dado:
-            # Suporta múltiplas origens separadas por vírgula
             origens = [origem.strip() for origem in origem_dado.split(',')]
             origem_conditions = []
             for origem in origens:
@@ -1078,7 +1098,6 @@ def get_contas_pagas_filtradas(
             conditions.append(f"({' OR '.join(origem_conditions)})")
 
         if tipo_baixa:
-            # Suporta múltiplos tipos separados por vírgula
             tipos = [int(t.strip()) for t in tipo_baixa.split(',')]
             tipo_placeholders = ', '.join(['%s'] * len(tipos))
             conditions.append(f"cp.id_tipo_baixa IN ({tipo_placeholders})")
@@ -1176,11 +1195,15 @@ def get_contas_pagas_por_fornecedor(
         ref_date = ref_row['ultima'] if ref_row else None
 
         exclusoes = get_exclusoes()
-        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp', has_conta_corrente=True)
+        # Apenas exclusões de CC (sem documento/conta corrente) — mesmos filtros do relatório Sienge
+        excl_conds, excl_params = build_exclusion_conditions(
+            exclusoes, cc_alias='cc', table_alias='cp',
+            has_join=False, has_doc_column=False, has_conta_corrente=False
+        )
         conditions = list(excl_conds)
         params = list(excl_params)
 
-        # Auto-excluir origens sem contas_pagas habilitado
+        # Excluir origem BC + ler tipos_baixa da config
         try:
             cfg_conn = get_config_db_connection()
             cfg_cursor = cfg_conn.cursor()
@@ -1194,11 +1217,24 @@ def get_contas_pagas_por_fornecedor(
                     oe_placeholders = ', '.join(['%s'] * len(origens_excluidas_cp))
                     conditions.append(f"TRIM(UPPER(cp.id_origem)) NOT IN ({oe_placeholders})")
                     params.extend(origens_excluidas_cp)
+
+                # Ler tipos_baixa habilitados para contas_pagas da config
+                cfg_cursor.execute(
+                    "SELECT id_tipo_baixa FROM config_tipos_baixa_exposicao_caixa WHERE incluir = 1 AND paginas LIKE %s",
+                    ('%contas_pagas%',)
+                )
+                tipos_baixa_config = [r['id_tipo_baixa'] for r in cfg_cursor.fetchall()]
             finally:
                 cfg_cursor.close()
                 cfg_conn.close()
         except Exception:
-            pass
+            tipos_baixa_config = []
+
+        # Aplicar filtro de tipo_baixa da config (se não veio parâmetro manual)
+        if tipos_baixa_config and not tipo_baixa:
+            tb_placeholders = ', '.join(['%s'] * len(tipos_baixa_config))
+            conditions.append(f"cp.id_tipo_baixa IN ({tb_placeholders})")
+            params.extend(tipos_baixa_config)
 
         if empresa is not None:
             conditions.append("""cp.id_interno_empresa IN (
@@ -1287,35 +1323,35 @@ def get_contas_pagas_por_fornecedor(
         if ref_date:
             query = f"""
                 SELECT
-                    COALESCE(cp.credor, 'SEM CREDOR') as credor,
+                    TRIM(COALESCE(cp.credor, 'SEM CREDOR')) as credor,
                     COUNT(DISTINCT CASE WHEN cp.data_pagamento >= %s AND cp.data_pagamento <= %s THEN cp.lancamento END) as titulos_7d,
-                    COALESCE(SUM(CASE WHEN cp.data_pagamento >= %s AND cp.data_pagamento <= %s AND (cp.id_tipo_baixa IS NULL OR cp.id_tipo_baixa NOT IN (3, 5, 8, 12)) THEN cp.valor_liquido ELSE 0 END), 0) as valor_7d,
+                    COALESCE(SUM(CASE WHEN cp.data_pagamento >= %s AND cp.data_pagamento <= %s THEN cp.valor_liquido ELSE 0 END), 0) as valor_7d,
                     COUNT(DISTINCT CASE WHEN cp.data_pagamento >= %s AND cp.data_pagamento <= %s THEN cp.lancamento END) as titulos_15d,
-                    COALESCE(SUM(CASE WHEN cp.data_pagamento >= %s AND cp.data_pagamento <= %s AND (cp.id_tipo_baixa IS NULL OR cp.id_tipo_baixa NOT IN (3, 5, 8, 12)) THEN cp.valor_liquido ELSE 0 END), 0) as valor_15d,
+                    COALESCE(SUM(CASE WHEN cp.data_pagamento >= %s AND cp.data_pagamento <= %s THEN cp.valor_liquido ELSE 0 END), 0) as valor_15d,
                     COUNT(DISTINCT CASE WHEN cp.data_pagamento >= %s AND cp.data_pagamento <= %s THEN cp.lancamento END) as titulos_30d,
-                    COALESCE(SUM(CASE WHEN cp.data_pagamento >= %s AND cp.data_pagamento <= %s AND (cp.id_tipo_baixa IS NULL OR cp.id_tipo_baixa NOT IN (3, 5, 8, 12)) THEN cp.valor_liquido ELSE 0 END), 0) as valor_30d,
+                    COALESCE(SUM(CASE WHEN cp.data_pagamento >= %s AND cp.data_pagamento <= %s THEN cp.valor_liquido ELSE 0 END), 0) as valor_30d,
                     COUNT(DISTINCT cp.lancamento) as titulos_total,
-                    COALESCE(SUM(CASE WHEN cp.id_tipo_baixa IS NULL OR cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_liquido ELSE 0 END), 0) as valor_total
+                    COALESCE(SUM(cp.valor_liquido), 0) as valor_total
                 FROM contas_pagas cp
                 LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE {where_clause}
-                GROUP BY cp.credor
+                GROUP BY TRIM(COALESCE(cp.credor, 'SEM CREDOR'))
                 ORDER BY valor_total DESC
             """
             all_params = query_params + params
         else:
             query = f"""
                 SELECT
-                    COALESCE(cp.credor, 'SEM CREDOR') as credor,
+                    TRIM(COALESCE(cp.credor, 'SEM CREDOR')) as credor,
                     0 as titulos_7d, 0 as valor_7d,
                     0 as titulos_15d, 0 as valor_15d,
                     0 as titulos_30d, 0 as valor_30d,
                     COUNT(DISTINCT cp.lancamento) as titulos_total,
-                    COALESCE(SUM(CASE WHEN cp.id_tipo_baixa IS NULL OR cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_liquido ELSE 0 END), 0) as valor_total
+                    COALESCE(SUM(cp.valor_liquido), 0) as valor_total
                 FROM contas_pagas cp
                 LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE {where_clause}
-                GROUP BY cp.credor
+                GROUP BY TRIM(COALESCE(cp.credor, 'SEM CREDOR'))
                 ORDER BY valor_total DESC
             """
             all_params = params
@@ -1370,9 +1406,7 @@ def get_estatisticas_contas_pagas(
         conditions = list(excl_conds)
         params = list(excl_params)
 
-        # Auto-excluir origens que estão na tabela de config mas sem contas_pagas habilitado
-        # Lógica: exclui se (incluir=False) OU (paginas não contém 'contas_pagas')
-        # Origens fora da tabela são permitidas por padrão (não configuradas = incluir)
+        # Auto-excluir origens sem contas_pagas habilitado + ler tipos_baixa da config
         try:
             cfg_conn = get_config_db_connection()
             cfg_cursor = cfg_conn.cursor()
@@ -1386,9 +1420,33 @@ def get_estatisticas_contas_pagas(
                     oe_placeholders = ', '.join(['%s'] * len(origens_excluidas_cp))
                     conditions.append(f"TRIM(UPPER(cp.id_origem)) NOT IN ({oe_placeholders})")
                     params.extend(origens_excluidas_cp)
+
+                # Ler tipos_baixa habilitados para contas_pagas da config
+                cfg_cursor.execute(
+                    "SELECT id_tipo_baixa FROM config_tipos_baixa_exposicao_caixa WHERE incluir = 1 AND paginas LIKE %s",
+                    ('%contas_pagas%',)
+                )
+                tipos_baixa_config_stat = [r['id_tipo_baixa'] for r in cfg_cursor.fetchall()]
             finally:
                 cfg_cursor.close()
                 cfg_conn.close()
+        except Exception:
+            tipos_baixa_config_stat = []
+
+        # Aplicar filtro de tipo_baixa da config (se não veio parâmetro manual)
+        if tipos_baixa_config_stat and not tipo_baixa:
+            tb_placeholders = ', '.join(['%s'] * len(tipos_baixa_config_stat))
+            conditions.append(f"cp.id_tipo_baixa IN ({tb_placeholders})")
+            params.extend(tipos_baixa_config_stat)
+
+        # Excluir transferências inter-empresa (credores que são nomes de empresas do grupo)
+        try:
+            cursor.execute("SELECT DISTINCT TRIM(nome_empresa) as nome FROM dim_centrocusto WHERE nome_empresa IS NOT NULL")
+            empresa_names_stat = [r['nome'] for r in cursor.fetchall() if r['nome']]
+            if empresa_names_stat:
+                en_placeholders = ', '.join(['%s'] * len(empresa_names_stat))
+                conditions.append(f"TRIM(cp.credor) NOT IN ({en_placeholders})")
+                params.extend(empresa_names_stat)
         except Exception:
             pass
 
@@ -1431,7 +1489,6 @@ def get_estatisticas_contas_pagas(
             params.extend(tipos)
 
         # Salvar condições-base ANTES de ano/mês/data (para cards de período)
-        # Power BI usa ALL(d_Calendario[Date]) nos cards de período = ignora filtro de data
         conditions_base = list(conditions)
         params_base = list(params)
 
@@ -1461,8 +1518,8 @@ def get_estatisticas_contas_pagas(
         query = f"""
             SELECT
                 COUNT(*) as quantidade_titulos,
-                COALESCE(SUM(CASE WHEN cp.id_tipo_baixa IS NULL OR cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_liquido ELSE 0 END), 0) as valor_liquido_total,
-                COALESCE(SUM(CASE WHEN cp.id_tipo_baixa IS NULL OR cp.id_tipo_baixa NOT IN (3, 5, 8, 12) THEN cp.valor_baixa ELSE 0 END), 0) as valor_baixa_total,
+                COALESCE(SUM(cp.valor_liquido), 0) as valor_liquido_total,
+                COALESCE(SUM(cp.valor_baixa), 0) as valor_baixa_total,
                 COALESCE(SUM(cp.valor_acrescimo), 0) as valor_acrescimo_total,
                 COALESCE(SUM(cp.valor_desconto), 0) as valor_desconto_total
             FROM contas_pagas cp
@@ -1473,14 +1530,13 @@ def get_estatisticas_contas_pagas(
         cursor.execute(query, params)
         row = cursor.fetchone()
 
-        # Query 2: Cards de período (ignora filtros de ano/mês/data, como Power BI ALL(Date))
-        # Usa CURRENT_DATE como hoje, range: [hoje-N, hoje) excluindo hoje
+        # Query 2: Cards de período (ignora filtros de ano/mês/data)
         where_clause_base = " AND ".join(conditions_base) if conditions_base else "1=1"
         query_periodo = f"""
             SELECT
-                COALESCE(SUM(CASE WHEN cp.data_pagamento >= CURRENT_DATE - INTERVAL '7 days' AND cp.data_pagamento < CURRENT_DATE AND (cp.id_tipo_baixa IS NULL OR cp.id_tipo_baixa NOT IN (3, 5, 8, 12)) THEN cp.valor_liquido ELSE 0 END), 0) as valor_7d,
-                COALESCE(SUM(CASE WHEN cp.data_pagamento >= CURRENT_DATE - INTERVAL '15 days' AND cp.data_pagamento < CURRENT_DATE AND (cp.id_tipo_baixa IS NULL OR cp.id_tipo_baixa NOT IN (3, 5, 8, 12)) THEN cp.valor_liquido ELSE 0 END), 0) as valor_15d,
-                COALESCE(SUM(CASE WHEN cp.data_pagamento >= CURRENT_DATE - INTERVAL '30 days' AND cp.data_pagamento < CURRENT_DATE AND (cp.id_tipo_baixa IS NULL OR cp.id_tipo_baixa NOT IN (3, 5, 8, 12)) THEN cp.valor_liquido ELSE 0 END), 0) as valor_30d
+                COALESCE(SUM(CASE WHEN cp.data_pagamento >= CURRENT_DATE - INTERVAL '7 days' AND cp.data_pagamento < CURRENT_DATE THEN cp.valor_liquido ELSE 0 END), 0) as valor_7d,
+                COALESCE(SUM(CASE WHEN cp.data_pagamento >= CURRENT_DATE - INTERVAL '15 days' AND cp.data_pagamento < CURRENT_DATE THEN cp.valor_liquido ELSE 0 END), 0) as valor_15d,
+                COALESCE(SUM(CASE WHEN cp.data_pagamento >= CURRENT_DATE - INTERVAL '30 days' AND cp.data_pagamento < CURRENT_DATE THEN cp.valor_liquido ELSE 0 END), 0) as valor_30d
             FROM contas_pagas cp
             LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE {where_clause_base}
