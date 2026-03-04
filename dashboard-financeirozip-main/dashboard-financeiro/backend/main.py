@@ -1195,10 +1195,9 @@ def get_contas_pagas_por_fornecedor(
         ref_date = ref_row['ultima'] if ref_row else None
 
         exclusoes = get_exclusoes()
-        # Apenas exclusões de CC (sem documento/conta corrente) — mesmos filtros do relatório Sienge
         excl_conds, excl_params = build_exclusion_conditions(
             exclusoes, cc_alias='cc', table_alias='cp',
-            has_join=False, has_doc_column=False, has_conta_corrente=False
+            has_conta_corrente=True
         )
         conditions = list(excl_conds)
         params = list(excl_params)
@@ -1421,7 +1420,7 @@ def get_contas_pagas_por_centro_custo(
         exclusoes = get_exclusoes()
         excl_conds, excl_params = build_exclusion_conditions(
             exclusoes, cc_alias='cc', table_alias='cp',
-            has_join=False, has_doc_column=False, has_conta_corrente=False
+            has_conta_corrente=True
         )
         conditions = list(excl_conds)
         params = list(excl_params)
@@ -1629,7 +1628,7 @@ def get_contas_pagas_por_origem(
         exclusoes = get_exclusoes()
         excl_conds, excl_params = build_exclusion_conditions(
             exclusoes, cc_alias='cc', table_alias='cp',
-            has_join=False, has_doc_column=False, has_conta_corrente=False
+            has_conta_corrente=True
         )
         conditions = list(excl_conds)
         params = list(excl_params)
