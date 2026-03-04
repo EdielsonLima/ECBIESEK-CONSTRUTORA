@@ -1236,6 +1236,17 @@ def get_contas_pagas_por_fornecedor(
             conditions.append(f"cp.id_tipo_baixa IN ({tb_placeholders})")
             params.extend(tipos_baixa_config)
 
+        # Excluir transferências inter-empresa (credores que são nomes de empresas do grupo)
+        try:
+            cursor.execute("SELECT DISTINCT TRIM(nome_empresa) as nome FROM dim_centrocusto WHERE nome_empresa IS NOT NULL")
+            empresa_names = [r['nome'] for r in cursor.fetchall() if r['nome']]
+            if empresa_names:
+                en_placeholders = ', '.join(['%s'] * len(empresa_names))
+                conditions.append(f"TRIM(cp.credor) NOT IN ({en_placeholders})")
+                params.extend(empresa_names)
+        except Exception:
+            pass
+
         if empresa is not None:
             conditions.append("""cp.id_interno_empresa IN (
                 SELECT DISTINCT cp2.id_interno_empresa FROM contas_pagas cp2
@@ -1445,6 +1456,17 @@ def get_contas_pagas_por_centro_custo(
             conditions.append(f"cp.id_tipo_baixa IN ({tb_placeholders})")
             params.extend(tipos_baixa_config)
 
+        # Excluir transferências inter-empresa (credores que são nomes de empresas do grupo)
+        try:
+            cursor.execute("SELECT DISTINCT TRIM(nome_empresa) as nome FROM dim_centrocusto WHERE nome_empresa IS NOT NULL")
+            empresa_names = [r['nome'] for r in cursor.fetchall() if r['nome']]
+            if empresa_names:
+                en_placeholders = ', '.join(['%s'] * len(empresa_names))
+                conditions.append(f"TRIM(cp.credor) NOT IN ({en_placeholders})")
+                params.extend(empresa_names)
+        except Exception:
+            pass
+
         if empresa is not None:
             conditions.append("""cp.id_interno_empresa IN (
                 SELECT DISTINCT cp2.id_interno_empresa FROM contas_pagas cp2
@@ -1641,6 +1663,17 @@ def get_contas_pagas_por_origem(
             tb_placeholders = ', '.join(['%s'] * len(tipos_baixa_config))
             conditions.append(f"cp.id_tipo_baixa IN ({tb_placeholders})")
             params.extend(tipos_baixa_config)
+
+        # Excluir transferências inter-empresa (credores que são nomes de empresas do grupo)
+        try:
+            cursor.execute("SELECT DISTINCT TRIM(nome_empresa) as nome FROM dim_centrocusto WHERE nome_empresa IS NOT NULL")
+            empresa_names = [r['nome'] for r in cursor.fetchall() if r['nome']]
+            if empresa_names:
+                en_placeholders = ', '.join(['%s'] * len(empresa_names))
+                conditions.append(f"TRIM(cp.credor) NOT IN ({en_placeholders})")
+                params.extend(empresa_names)
+        except Exception:
+            pass
 
         if empresa is not None:
             conditions.append("""cp.id_interno_empresa IN (
