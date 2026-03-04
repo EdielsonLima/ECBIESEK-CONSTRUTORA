@@ -32,7 +32,9 @@ const DIAS_PT = ['dom.', 'seg.', 'ter.', 'qua.', 'qui.', 'sex.', 'sáb.'];
 const MESES_PT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
 function formatarDataPt(dateStr: string): string {
-  const d = new Date(dateStr);
+  // Adiciona T12:00:00 para datas sem hora, evitando offset de timezone (UTC midnight → dia anterior no Brasil)
+  const safe = dateStr.includes('T') ? dateStr : dateStr + 'T12:00:00';
+  const d = new Date(safe);
   if (isNaN(d.getTime())) return dateStr;
   return `${DIAS_PT[d.getDay()]} ${d.getDate()} ${MESES_PT[d.getMonth()]} ${d.getFullYear()}`;
 }
