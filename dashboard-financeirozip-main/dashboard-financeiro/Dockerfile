@@ -1,20 +1,33 @@
 # ── Stage 1: Build do frontend ──────────────────────────────
 FROM node:20-alpine AS frontend-build
 WORKDIR /app/frontend
-COPY dashboard-financeirozip-main/dashboard-financeiro/frontend/package*.json ./
+COPY frontend/package*.json ./
 RUN npm ci
-COPY dashboard-financeirozip-main/dashboard-financeiro/frontend/ ./
+COPY frontend/ ./
 RUN npm run build
 
-# ── Stage 2: Backend Python ──────────────────────────────────
+# ── Stage 2: Backend Python + serve o frontend ──────────────
 FROM python:3.11-slim
 WORKDIR /app/backend
 
-COPY dashboard-financeirozip-main/dashboard-financeiro/backend/requirements.txt ./
+# Dependências Python
+COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY dashboard-financeirozip-main/dashboard-financeiro/backend/ ./
+# Código do backend
+COPY backend/ ./
+
+# Copiar SQLite locais como "defaults" (usados apenas na 1ª execução)
+RUN mkdir -p /app/backend/defaults
+RUN cp /app/backend/users.db /app/backend/defaults/users.db 2>/dev/null || true
+RUN cp /app/backend/ecbiesek_config.db /app/backend/defaults/ecbiesek_config.db 2>/dev/null || true
+
+# Frontend buildado
 COPY --from=frontend-build /app/frontend/dist /app/frontend/dist
 
+# Entrypoint
+COPY backend/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 EXPOSE 8000
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+ENTRYPOINT ["/entrypoint.sh"]
