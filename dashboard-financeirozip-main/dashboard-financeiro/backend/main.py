@@ -1142,7 +1142,7 @@ def get_contas_pagas_filtradas(
 
         query = f"""
             SELECT
-                cp.credor,
+                TRIM(REGEXP_REPLACE(COALESCE(cp.credor, 'SEM CREDOR'), '^[0-9][0-9.\-/]+ ', '')) as credor,
                 (cp.data_pagamento + INTERVAL '1 day')::date as data_pagamento,
                 cp.valor_liquido as valor_total,
                 cp.lancamento,
@@ -1323,35 +1323,35 @@ def get_contas_pagas_por_fornecedor(
         if ref_date:
             query = f"""
                 SELECT
-                    TRIM(COALESCE(cp.credor, 'SEM CREDOR')) as credor,
-                    COUNT(DISTINCT CASE WHEN cp.data_pagamento >= %s AND cp.data_pagamento <= %s THEN cp.lancamento END) as titulos_7d,
+                    TRIM(REGEXP_REPLACE(COALESCE(cp.credor, 'SEM CREDOR'), '^[0-9][0-9.\-/]+ ', '')) as credor,
+                    COUNT(DISTINCT CASE WHEN cp.data_pagamento >= %s AND cp.data_pagamento <= %s THEN SPLIT_PART(cp.lancamento, '/', 1) END) as titulos_7d,
                     COALESCE(SUM(CASE WHEN cp.data_pagamento >= %s AND cp.data_pagamento <= %s THEN cp.valor_liquido ELSE 0 END), 0) as valor_7d,
-                    COUNT(DISTINCT CASE WHEN cp.data_pagamento >= %s AND cp.data_pagamento <= %s THEN cp.lancamento END) as titulos_15d,
+                    COUNT(DISTINCT CASE WHEN cp.data_pagamento >= %s AND cp.data_pagamento <= %s THEN SPLIT_PART(cp.lancamento, '/', 1) END) as titulos_15d,
                     COALESCE(SUM(CASE WHEN cp.data_pagamento >= %s AND cp.data_pagamento <= %s THEN cp.valor_liquido ELSE 0 END), 0) as valor_15d,
-                    COUNT(DISTINCT CASE WHEN cp.data_pagamento >= %s AND cp.data_pagamento <= %s THEN cp.lancamento END) as titulos_30d,
+                    COUNT(DISTINCT CASE WHEN cp.data_pagamento >= %s AND cp.data_pagamento <= %s THEN SPLIT_PART(cp.lancamento, '/', 1) END) as titulos_30d,
                     COALESCE(SUM(CASE WHEN cp.data_pagamento >= %s AND cp.data_pagamento <= %s THEN cp.valor_liquido ELSE 0 END), 0) as valor_30d,
-                    COUNT(DISTINCT cp.lancamento) as titulos_total,
+                    COUNT(DISTINCT SPLIT_PART(cp.lancamento, '/', 1)) as titulos_total,
                     COALESCE(SUM(cp.valor_liquido), 0) as valor_total
                 FROM contas_pagas cp
                 LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE {where_clause}
-                GROUP BY TRIM(COALESCE(cp.credor, 'SEM CREDOR'))
+                GROUP BY TRIM(REGEXP_REPLACE(COALESCE(cp.credor, 'SEM CREDOR'), '^[0-9][0-9.\-/]+ ', ''))
                 ORDER BY valor_total DESC
             """
             all_params = query_params + params
         else:
             query = f"""
                 SELECT
-                    TRIM(COALESCE(cp.credor, 'SEM CREDOR')) as credor,
+                    TRIM(REGEXP_REPLACE(COALESCE(cp.credor, 'SEM CREDOR'), '^[0-9][0-9.\-/]+ ', '')) as credor,
                     0 as titulos_7d, 0 as valor_7d,
                     0 as titulos_15d, 0 as valor_15d,
                     0 as titulos_30d, 0 as valor_30d,
-                    COUNT(DISTINCT cp.lancamento) as titulos_total,
+                    COUNT(DISTINCT SPLIT_PART(cp.lancamento, '/', 1)) as titulos_total,
                     COALESCE(SUM(cp.valor_liquido), 0) as valor_total
                 FROM contas_pagas cp
                 LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE {where_clause}
-                GROUP BY TRIM(COALESCE(cp.credor, 'SEM CREDOR'))
+                GROUP BY TRIM(REGEXP_REPLACE(COALESCE(cp.credor, 'SEM CREDOR'), '^[0-9][0-9.\-/]+ ', ''))
                 ORDER BY valor_total DESC
             """
             all_params = params
@@ -1568,7 +1568,7 @@ def get_credores():
 
     try:
         cursor.execute("""
-            SELECT DISTINCT credor
+            SELECT DISTINCT TRIM(REGEXP_REPLACE(COALESCE(credor, 'SEM CREDOR'), '^[0-9][0-9.\-/]+ ', '')) as credor
             FROM contas_pagas
             WHERE credor IS NOT NULL
             ORDER BY credor
