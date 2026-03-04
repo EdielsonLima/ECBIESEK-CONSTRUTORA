@@ -113,6 +113,7 @@ export const ContasPagas: React.FC = () => {
   const [contas, setContas] = useState<ContaPagar[]>([]);
   const [dadosFornecedores, setDadosFornecedores] = useState<DadosPorFornecedor | null>(null);
   const [buscaFornecedor, setBuscaFornecedor] = useState('');
+  const [filtroPeriodo, setFiltroPeriodo] = useState<'todos' | '7d' | '15d' | '30d'>('todos');
   const [estatisticas, setEstatisticas] = useState<Estatisticas | null>(null);
   const [dadosPorMes, setDadosPorMes] = useState<DadosPorMes[]>([]);
   const [dadosPorEmpresa, setDadosPorEmpresa] = useState<DadosPorEmpresa[]>([]);
@@ -1058,9 +1059,16 @@ export const ContasPagas: React.FC = () => {
     if (filtroDataFim) filtrosAtivos.push(`Data Fim: ${filtroDataFim}`);
 
     const fornecedores = dadosFornecedores?.fornecedores || [];
+    const fornecedoresPorPeriodo = filtroPeriodo === 'todos'
+      ? fornecedores
+      : fornecedores.filter(f => {
+          if (filtroPeriodo === '7d') return f.valor_7d > 0;
+          if (filtroPeriodo === '15d') return f.valor_15d > 0;
+          return f.valor_30d > 0;
+        });
     const fornecedoresFiltrados = buscaFornecedor
-      ? fornecedores.filter(f => f.credor.toLowerCase().includes(buscaFornecedor.toLowerCase()))
-      : fornecedores;
+      ? fornecedoresPorPeriodo.filter(f => f.credor.toLowerCase().includes(buscaFornecedor.toLowerCase()))
+      : fornecedoresPorPeriodo;
 
     // Totais
     const totais = fornecedoresFiltrados.reduce((acc, f) => ({
@@ -1092,7 +1100,7 @@ export const ContasPagas: React.FC = () => {
               </h2>
               <p className="mt-1 text-sm text-gray-600">
                 Ref.: {refDateFormatted} &middot; {dadosFornecedores?.total_fornecedores || 0} fornecedor(es)
-                {buscaFornecedor && ` &middot; ${fornecedoresFiltrados.length} exibido(s)`}
+                {(buscaFornecedor || filtroPeriodo !== 'todos') && ` \u00b7 ${fornecedoresFiltrados.length} exibido(s)`}
               </p>
             </div>
             <div className="flex gap-2">
@@ -1151,8 +1159,8 @@ export const ContasPagas: React.FC = () => {
           {mostrarFiltros && renderFiltros()}
         </div>
 
-        {/* Busca dentro da tabela */}
-        <div className="mb-4">
+        {/* Busca + filtro de período */}
+        <div className="mb-4 flex flex-wrap items-center gap-4">
           <input
             type="text"
             value={buscaFornecedor}
@@ -1160,6 +1168,27 @@ export const ContasPagas: React.FC = () => {
             placeholder="Buscar fornecedor..."
             className="w-full max-w-md rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-green-500 focus:outline-none"
           />
+          <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+            {([
+              { key: 'todos' as const, label: 'Todos' },
+              { key: '7d' as const, label: '7 Dias' },
+              { key: '15d' as const, label: '15 Dias' },
+              { key: '30d' as const, label: '30 Dias' },
+            ]).map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setFiltroPeriodo(key)}
+                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                  filtroPeriodo === key
+                    ? 'bg-green-600 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                } ${key !== 'todos' ? 'border-l border-gray-300' : ''}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="overflow-hidden rounded-lg bg-white shadow">
