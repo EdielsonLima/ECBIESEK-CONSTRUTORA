@@ -31,12 +31,18 @@ interface DadosPorFaixaAtraso {
   ordem: number;
 }
 
-type AbaAtiva = 'dados' | 'analises';
+type AbaAtiva = 'credor' | 'empresa' | 'centro-custo' | 'analises';
 
 const COLORS = ['#EF4444', '#F97316', '#F59E0B', '#EAB308', '#84CC16', '#10B981', '#06B6D4', '#3B82F6', '#8B5CF6', '#EC4899'];
 
 export const ContasAtrasadas: React.FC = () => {
-  const [abaAtiva, setAbaAtiva] = useState<AbaAtiva>('dados');
+  const [abaAtiva, setAbaAtiva] = useState<AbaAtiva>('credor');
+  const [buscaCredor, setBuscaCredor] = useState('');
+  const [buscaEmpresa, setBuscaEmpresa] = useState('');
+  const [buscaCentroCusto, setBuscaCentroCusto] = useState('');
+  const [filtroFaixa, setFiltroFaixa] = useState<'todos' | '1-7' | '8-15' | '16-30' | '31-60' | '61-90' | '+90'>('todos');
+  const [filtroFaixaEmpresa, setFiltroFaixaEmpresa] = useState<'todos' | '1-7' | '8-15' | '16-30' | '31-60' | '61-90' | '+90'>('todos');
+  const [filtroFaixaCC, setFiltroFaixaCC] = useState<'todos' | '1-7' | '8-15' | '16-30' | '31-60' | '61-90' | '+90'>('todos');
   const [contas, setContas] = useState<ContaPagar[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +59,6 @@ export const ContasAtrasadas: React.FC = () => {
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [todasContas, setTodasContas] = useState<ContaPagar[]>([]);
   const [mesDropdownAberto, setMesDropdownAberto] = useState(false);
-  const [ordenacao, setOrdenacao] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'dias_atraso', direcao: 'desc' });
   const [tiposDocumento, setTiposDocumento] = useState<TipoDocumentoOption[]>([]);
   const [filtroTipoDocumento, setFiltroTipoDocumento] = useState<string[]>([]);
   const [tipoDocDropdownAberto, setTipoDocDropdownAberto] = useState(false);
@@ -78,63 +83,6 @@ export const ContasAtrasadas: React.FC = () => {
     return [anoAtual - 2, anoAtual - 1, anoAtual, anoAtual + 1];
   };
 
-  const ordenarContas = (contasParaOrdenar: ContaPagar[]) => {
-    return [...contasParaOrdenar].sort((a, b) => {
-      let valorA: any;
-      let valorB: any;
-
-      switch (ordenacao.campo) {
-        case 'credor':
-          valorA = (a.credor || '').toLowerCase();
-          valorB = (b.credor || '').toLowerCase();
-          break;
-        case 'data_vencimento':
-          valorA = (a.data_vencimento || '').split('T')[0];
-          valorB = (b.data_vencimento || '').split('T')[0];
-          break;
-        case 'dias_atraso':
-          valorA = calcularDiasAtraso(a.data_vencimento as any);
-          valorB = calcularDiasAtraso(b.data_vencimento as any);
-          break;
-        case 'valor_total':
-          valorA = a.valor_total || 0;
-          valorB = b.valor_total || 0;
-          break;
-        case 'numero_documento':
-          valorA = (a.numero_documento || '').toLowerCase();
-          valorB = (b.numero_documento || '').toLowerCase();
-          break;
-        case 'nome_empresa':
-          valorA = (a.nome_empresa || '').toLowerCase();
-          valorB = (b.nome_empresa || '').toLowerCase();
-          break;
-        default:
-          return 0;
-      }
-
-      if (valorA < valorB) return ordenacao.direcao === 'asc' ? -1 : 1;
-      if (valorA > valorB) return ordenacao.direcao === 'asc' ? 1 : -1;
-      return 0;
-    });
-  };
-
-  const toggleOrdenacao = (campo: string) => {
-    setOrdenacao(prev => ({
-      campo,
-      direcao: prev.campo === campo && prev.direcao === 'asc' ? 'desc' : 'asc'
-    }));
-  };
-
-  const renderSortIcon = (campo: string) => (
-    <span className="ml-1 inline-block">
-      {ordenacao.campo === campo ? (
-        ordenacao.direcao === 'asc' ? '▲' : '▼'
-      ) : (
-        <span className="text-gray-300">▼</span>
-      )}
-    </span>
-  );
-
   const formatCurrency = (value: number | undefined) => {
     if (!value) return 'R$ 0,00';
     return new Intl.NumberFormat('pt-BR', {
@@ -150,14 +98,6 @@ export const ContasAtrasadas: React.FC = () => {
       return `R$ ${(value / 1000).toFixed(0)}K`;
     }
     return formatCurrency(value);
-  };
-
-  const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return '-';
-    const parts = dateString.split('T')[0].split('-');
-    if (parts.length !== 3) return '-';
-    const [year, month, day] = parts;
-    return `${day}/${month}/${year}`;
   };
 
   const calcularTitulosUnicos = (listaContas: ContaPagar[]): number => {
@@ -607,97 +547,242 @@ export const ContasAtrasadas: React.FC = () => {
     );
   };
 
-  const renderAbaDados = () => (
-    <>
-      <div className="mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Contas Atrasadas</h2>
-            <p className="mt-1 text-sm text-gray-600">
-              {calcularTitulosUnicos(contas)} título(s) em atraso
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setMostrarFiltros(!mostrarFiltros)}
-            className="flex items-center rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
-          >
-            <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-            </svg>
-            {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
-          </button>
-        </div>
-        {mostrarFiltros && renderFiltros()}
-        {!mostrarFiltros && renderFiltrosTags()}
-      </div>
+  const agruparPorChave = (chave: 'credor' | 'nome_empresa' | 'nome_centrocusto') => {
+    const mapa = new Map<string, { valor_1_7: number; valor_8_15: number; valor_16_30: number; valor_31_60: number; valor_61_90: number; valor_90_mais: number; valor_total: number; quantidade: number; dias_max: number }>();
+    contas.forEach(c => {
+      const nome = (chave === 'credor' ? c.credor : chave === 'nome_empresa' ? c.nome_empresa : c.nome_centrocusto) || 'Sem Identificação';
+      const dias = calcularDiasAtraso(c.data_vencimento as any);
+      const valor = c.valor_total || 0;
+      const atual = mapa.get(nome) || { valor_1_7: 0, valor_8_15: 0, valor_16_30: 0, valor_31_60: 0, valor_61_90: 0, valor_90_mais: 0, valor_total: 0, quantidade: 0, dias_max: 0 };
+      atual.valor_total += valor;
+      atual.quantidade += 1;
+      atual.dias_max = Math.max(atual.dias_max, dias);
+      if (dias >= 1 && dias <= 7) atual.valor_1_7 += valor;
+      else if (dias >= 8 && dias <= 15) atual.valor_8_15 += valor;
+      else if (dias >= 16 && dias <= 30) atual.valor_16_30 += valor;
+      else if (dias >= 31 && dias <= 60) atual.valor_31_60 += valor;
+      else if (dias >= 61 && dias <= 90) atual.valor_61_90 += valor;
+      else if (dias > 90) atual.valor_90_mais += valor;
+      mapa.set(nome, atual);
+    });
+    return Array.from(mapa.entries())
+      .map(([nome, data]) => ({ nome, ...data }))
+      .sort((a, b) => b.valor_total - a.valor_total);
+  };
 
-      {contas.length === 0 ? (
-        <div className="rounded-lg bg-green-50 p-8 text-center">
-          <svg className="mx-auto h-12 w-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p className="mt-4 text-lg font-semibold text-green-800">Nenhuma conta em atraso!</p>
-          <p className="mt-1 text-sm text-green-600">Parabens! Todos os pagamentos estao em dia.</p>
+  const filtrarPorFaixa = (dados: ReturnType<typeof agruparPorChave>, faixa: string) => {
+    if (faixa === 'todos') return dados;
+    return dados.filter(d => {
+      if (faixa === '1-7') return d.valor_1_7 > 0;
+      if (faixa === '8-15') return d.valor_8_15 > 0;
+      if (faixa === '16-30') return d.valor_16_30 > 0;
+      if (faixa === '31-60') return d.valor_31_60 > 0;
+      if (faixa === '61-90') return d.valor_61_90 > 0;
+      if (faixa === '+90') return d.valor_90_mais > 0;
+      return true;
+    });
+  };
+
+  const exportarCSVAgrupado = (dados: ReturnType<typeof agruparPorChave>, nomeArquivo: string, colNome: string) => {
+    if (dados.length === 0) return;
+    const header = `#;${colNome};1-7d;8-15d;16-30d;31-60d;61-90d;+90d;Total;Qtd;Max Atraso`;
+    const rows = dados.map((d, i) =>
+      `${i + 1};${d.nome};${d.valor_1_7.toFixed(2).replace('.', ',')};${d.valor_8_15.toFixed(2).replace('.', ',')};${d.valor_16_30.toFixed(2).replace('.', ',')};${d.valor_31_60.toFixed(2).replace('.', ',')};${d.valor_61_90.toFixed(2).replace('.', ',')};${d.valor_90_mais.toFixed(2).replace('.', ',')};${d.valor_total.toFixed(2).replace('.', ',')};${d.quantidade};${d.dias_max}`
+    );
+    const csv = [header, ...rows].join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${nomeArquivo}_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const renderTabelaAgrupada = (
+    dados: ReturnType<typeof agruparPorChave>,
+    titulo: string,
+    subtitulo: string,
+    busca: string,
+    setBusca: (v: string) => void,
+    faixa: string,
+    setFaixa: (v: any) => void,
+    colNome: string,
+    nomeArquivo: string
+  ) => {
+    const dadosFiltrados = filtrarPorFaixa(
+      busca ? dados.filter(d => d.nome.toLowerCase().includes(busca.toLowerCase())) : dados,
+      faixa
+    );
+
+    const totais = dadosFiltrados.reduce((acc, d) => ({
+      valor_1_7: acc.valor_1_7 + d.valor_1_7,
+      valor_8_15: acc.valor_8_15 + d.valor_8_15,
+      valor_16_30: acc.valor_16_30 + d.valor_16_30,
+      valor_31_60: acc.valor_31_60 + d.valor_31_60,
+      valor_61_90: acc.valor_61_90 + d.valor_61_90,
+      valor_90_mais: acc.valor_90_mais + d.valor_90_mais,
+      valor_total: acc.valor_total + d.valor_total,
+      quantidade: acc.quantidade + d.quantidade,
+    }), { valor_1_7: 0, valor_8_15: 0, valor_16_30: 0, valor_31_60: 0, valor_61_90: 0, valor_90_mais: 0, valor_total: 0, quantidade: 0 });
+
+    return (
+      <>
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">{titulo}</h2>
+              <p className="mt-1 text-sm text-gray-600">
+                {dados.length} {subtitulo}
+                {(busca || faixa !== 'todos') && ` · ${dadosFiltrados.length} exibido(s)`}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setMostrarFiltros(!mostrarFiltros)}
+                className="flex items-center rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
+              >
+                <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+                {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
+              </button>
+              <button
+                type="button"
+                onClick={() => exportarCSVAgrupado(dadosFiltrados, nomeArquivo, colNome)}
+                disabled={dadosFiltrados.length === 0}
+                className="flex items-center rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Exportar CSV
+              </button>
+            </div>
+          </div>
+          {mostrarFiltros && renderFiltros()}
+          {!mostrarFiltros && renderFiltrosTags()}
         </div>
-      ) : (
-        <div className="overflow-hidden rounded-lg bg-white shadow">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-red-50">
-                <tr>
-                  <th onClick={() => toggleOrdenacao('credor')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-red-100">
-                    Credor{renderSortIcon('credor')}
-                  </th>
-                  <th onClick={() => toggleOrdenacao('data_vencimento')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-red-100">
-                    Vencimento{renderSortIcon('data_vencimento')}
-                  </th>
-                  <th onClick={() => toggleOrdenacao('dias_atraso')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-red-100">
-                    Dias Atraso{renderSortIcon('dias_atraso')}
-                  </th>
-                  <th onClick={() => toggleOrdenacao('valor_total')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-red-100">
-                    Valor{renderSortIcon('valor_total')}
-                  </th>
-                  <th onClick={() => toggleOrdenacao('numero_documento')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-red-100">
-                    Documento{renderSortIcon('numero_documento')}
-                  </th>
-                  <th onClick={() => toggleOrdenacao('nome_empresa')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-red-100">
-                    Empresa{renderSortIcon('nome_empresa')}
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
-                {ordenarContas(contas).slice(0, 100).map((conta, index) => {
-                  const diasAtraso = calcularDiasAtraso(conta.data_vencimento as any);
-                  return (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">{conta.credor || '-'}</td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{formatDate(conta.data_vencimento as any)}</td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm">
-                        <span className={`font-semibold ${diasAtraso > 30 ? 'text-red-700' : diasAtraso > 15 ? 'text-red-600' : 'text-orange-600'}`}>
-                          {diasAtraso} dias
-                        </span>
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-red-600">{formatCurrency(conta.valor_total)}</td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.numero_documento || '-'}</td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.nome_empresa || '-'}</td>
-                      <td className="whitespace-nowrap px-6 py-4">
-                        <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${diasAtraso > 30 ? 'bg-red-100 text-red-800' : 'bg-orange-100 text-orange-800'
-                          }`}>
-                          {diasAtraso > 30 ? 'Critico' : 'Em Atraso'}
+
+        <div className="mb-4 flex flex-wrap items-center gap-4">
+          <input
+            type="text"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder={`Buscar ${colNome.toLowerCase()}...`}
+            className="w-full max-w-md rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-red-500 focus:outline-none"
+          />
+          <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+            {([
+              { key: 'todos' as const, label: 'Todos' },
+              { key: '1-7' as const, label: '1-7d' },
+              { key: '8-15' as const, label: '8-15d' },
+              { key: '16-30' as const, label: '16-30d' },
+              { key: '31-60' as const, label: '31-60d' },
+              { key: '61-90' as const, label: '61-90d' },
+              { key: '+90' as const, label: '+90d' },
+            ]).map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setFaixa(key)}
+                className={`px-3 py-2 text-xs font-medium transition-colors ${
+                  faixa === key
+                    ? 'bg-red-600 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                } ${key !== 'todos' ? 'border-l border-gray-300' : ''}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {contas.length === 0 ? (
+          <div className="rounded-lg bg-green-50 p-8 text-center">
+            <svg className="mx-auto h-12 w-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="mt-4 text-lg font-semibold text-green-800">Nenhuma conta em atraso!</p>
+            <p className="mt-1 text-sm text-green-600">Parabens! Todos os pagamentos estao em dia.</p>
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-lg bg-white shadow">
+            <div className="overflow-x-auto max-h-[700px] overflow-y-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-red-700 sticky top-0 z-10">
+                  <tr>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 w-12">#</th>
+                    <th className="px-3 py-3 text-left text-xs font-bold text-white border border-red-600">{colNome}</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 bg-red-800">1-7d</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 bg-red-800">8-15d</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 bg-red-800">16-30d</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 bg-orange-700">31-60d</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 bg-orange-700">61-90d</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 bg-orange-700">+90d</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600">Total</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 w-16">Qtd</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 w-20">Max</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 bg-white">
+                  {dadosFiltrados.map((d, index) => (
+                    <tr key={d.nome} className={`hover:bg-red-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                      <td className="px-3 py-2 text-center text-xs text-gray-500 border-r border-gray-100">{index + 1}</td>
+                      <td className="px-3 py-2 text-sm font-medium text-gray-900 border-r border-gray-100 max-w-xs truncate" title={d.nome}>{d.nome}</td>
+                      <td className="px-3 py-2 text-right text-xs text-gray-700 border-r border-gray-100 font-mono">{d.valor_1_7 ? formatCurrency(d.valor_1_7) : '-'}</td>
+                      <td className="px-3 py-2 text-right text-xs text-gray-700 border-r border-gray-100 font-mono">{d.valor_8_15 ? formatCurrency(d.valor_8_15) : '-'}</td>
+                      <td className="px-3 py-2 text-right text-xs text-gray-700 border-r border-gray-100 font-mono">{d.valor_16_30 ? formatCurrency(d.valor_16_30) : '-'}</td>
+                      <td className="px-3 py-2 text-right text-xs text-orange-700 border-r border-gray-100 font-mono">{d.valor_31_60 ? formatCurrency(d.valor_31_60) : '-'}</td>
+                      <td className="px-3 py-2 text-right text-xs text-orange-700 border-r border-gray-100 font-mono">{d.valor_61_90 ? formatCurrency(d.valor_61_90) : '-'}</td>
+                      <td className="px-3 py-2 text-right text-xs text-red-700 border-r border-gray-100 font-mono font-semibold">{d.valor_90_mais ? formatCurrency(d.valor_90_mais) : '-'}</td>
+                      <td className="px-3 py-2 text-right text-sm font-semibold text-red-700 font-mono">{formatCurrency(d.valor_total)}</td>
+                      <td className="px-3 py-2 text-center text-xs text-gray-600 font-mono">{d.quantidade}</td>
+                      <td className="px-3 py-2 text-center text-xs font-mono">
+                        <span className={`font-semibold ${d.dias_max > 90 ? 'text-red-700' : d.dias_max > 30 ? 'text-orange-600' : 'text-yellow-600'}`}>
+                          {d.dias_max}d
                         </span>
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+                <tfoot className="bg-red-100 sticky bottom-0">
+                  <tr className="font-bold">
+                    <td className="px-3 py-3 text-sm text-gray-900 border-t-2 border-red-300" colSpan={2}>TOTAL GERAL</td>
+                    <td className="px-3 py-3 text-right text-xs text-gray-900 border-t-2 border-red-300 font-mono">{formatCurrency(totais.valor_1_7)}</td>
+                    <td className="px-3 py-3 text-right text-xs text-gray-900 border-t-2 border-red-300 font-mono">{formatCurrency(totais.valor_8_15)}</td>
+                    <td className="px-3 py-3 text-right text-xs text-gray-900 border-t-2 border-red-300 font-mono">{formatCurrency(totais.valor_16_30)}</td>
+                    <td className="px-3 py-3 text-right text-xs text-gray-900 border-t-2 border-red-300 font-mono">{formatCurrency(totais.valor_31_60)}</td>
+                    <td className="px-3 py-3 text-right text-xs text-gray-900 border-t-2 border-red-300 font-mono">{formatCurrency(totais.valor_61_90)}</td>
+                    <td className="px-3 py-3 text-right text-xs text-gray-900 border-t-2 border-red-300 font-mono">{formatCurrency(totais.valor_90_mais)}</td>
+                    <td className="px-3 py-3 text-right text-sm font-bold text-red-800 border-t-2 border-red-300 font-mono">{formatCurrency(totais.valor_total)}</td>
+                    <td className="px-3 py-3 text-center text-xs text-gray-900 border-t-2 border-red-300 font-mono">{totais.quantidade}</td>
+                    <td className="px-3 py-3 border-t-2 border-red-300"></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
-    </>
-  );
+        )}
+      </>
+    );
+  };
+
+  const renderAbaCredor = () => {
+    const dados = agruparPorChave('credor');
+    return renderTabelaAgrupada(dados, 'Atrasadas por Credor', 'credor(es)', buscaCredor, setBuscaCredor, filtroFaixa, setFiltroFaixa, 'Credor', 'atrasadas_por_credor');
+  };
+
+  const renderAbaEmpresa = () => {
+    const dados = agruparPorChave('nome_empresa');
+    return renderTabelaAgrupada(dados, 'Atrasadas por Empresa', 'empresa(s)', buscaEmpresa, setBuscaEmpresa, filtroFaixaEmpresa, setFiltroFaixaEmpresa, 'Empresa', 'atrasadas_por_empresa');
+  };
+
+  const renderAbaCentroCusto = () => {
+    const dados = agruparPorChave('nome_centrocusto');
+    return renderTabelaAgrupada(dados, 'Atrasadas por Centro de Custo', 'centro(s) de custo', buscaCentroCusto, setBuscaCentroCusto, filtroFaixaCC, setFiltroFaixaCC, 'Centro de Custo', 'atrasadas_por_centro_custo');
+  };
 
   const renderAbaAnalises = () => (
     <div className="space-y-8">
@@ -916,16 +1001,42 @@ export const ContasAtrasadas: React.FC = () => {
           <nav className="-mb-px flex space-x-8">
             <button
               type="button"
-              onClick={() => setAbaAtiva('dados')}
-              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'dados'
+              onClick={() => setAbaAtiva('credor')}
+              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'credor'
                   ? 'border-red-500 text-red-600'
                   : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
                 }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              Dados
+              Por Credor
+            </button>
+            <button
+              type="button"
+              onClick={() => setAbaAtiva('empresa')}
+              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'empresa'
+                  ? 'border-red-500 text-red-600'
+                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                }`}
+            >
+              <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              Por Empresa
+            </button>
+            <button
+              type="button"
+              onClick={() => setAbaAtiva('centro-custo')}
+              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'centro-custo'
+                  ? 'border-red-500 text-red-600'
+                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                }`}
+            >
+              <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              Por Centro de Custo
             </button>
             <button
               type="button"
@@ -944,7 +1055,9 @@ export const ContasAtrasadas: React.FC = () => {
         </div>
       </div>
 
-      {abaAtiva === 'dados' && renderAbaDados()}
+      {abaAtiva === 'credor' && renderAbaCredor()}
+      {abaAtiva === 'empresa' && renderAbaEmpresa()}
+      {abaAtiva === 'centro-custo' && renderAbaCentroCusto()}
       {abaAtiva === 'analises' && renderAbaAnalises()}
     </div>
   );
