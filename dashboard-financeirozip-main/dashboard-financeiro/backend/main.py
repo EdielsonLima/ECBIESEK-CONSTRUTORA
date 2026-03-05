@@ -3719,7 +3719,7 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
         cap_where_extra = (" AND " + " AND ".join(excl_conds_cap)) if excl_conds_cap else ""
         cp_where_extra = (" AND " + " AND ".join(excl_conds_cp)) if excl_conds_cp else ""
 
-        # Se tiver documentos excluídos adicionais no KPI, aplica também
+        # Se tiver documentos excluídos adicionais no KPI (além dos da config global), aplica também
         if documentos_excluidos:
             docs = [f"'{d.strip()}'" for d in documentos_excluidos.split(',') if d.strip()]
             if docs:
@@ -3729,27 +3729,9 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
                 filtro_previsao = ""
                 filtro_previsao_pagas = ""
         else:
+            # Tipos de previsão já são excluídos via config global (build_exclusion_conditions)
             filtro_previsao = ""
             filtro_previsao_pagas = ""
-
-        # Por padrão, exclui TODOS os documentos de previsão automaticamente
-        # Busca da tabela ecaddocumento tipos que contenham "previs" no nome
-        if not filtro_previsao:
-            try:
-                cursor.execute("""
-                    SELECT TRIM(id_documento) as id_doc FROM ecaddocumento
-                    WHERE LOWER(TRIM(nome_documento)) LIKE '%previs%'
-                """)
-                previsao_rows = cursor.fetchall()
-                if previsao_rows:
-                    previsao_ids = [f"'{r['id_doc']}'" for r in previsao_rows]
-                    filtro_previsao = f" AND TRIM(cap.id_documento) NOT IN ({', '.join(previsao_ids)})"
-                    filtro_previsao_pagas = f" AND TRIM(cp.id_documento) NOT IN ({', '.join(previsao_ids)})"
-            except Exception as e:
-                print(f"Aviso: não foi possível buscar tipos de previsão: {e}")
-                # Fallback: exclui PPC, PRV, PRC
-                filtro_previsao = " AND TRIM(cap.id_documento) NOT IN ('PPC', 'PRV', 'PRC')"
-                filtro_previsao_pagas = " AND TRIM(cp.id_documento) NOT IN ('PPC', 'PRV', 'PRC')"
 
         if calculo_automatico == 'titulos_vencidos_qtd':
             cursor.execute(f"""
@@ -5552,6 +5534,20 @@ def init_configuracoes_tables():
                 created_at {ts}
             )
         """)
+        # Insere tipos de previsão como excluídos por padrão (não representam contas reais)
+        tipos_previsao = [
+            ('PCT', 'PREVISÃO FINANCEIRA DE CONTR. DE MED.'),
+            ('PPC', 'PREVISÃO FINANCEIRA DE PEDIDOS DE COMPRA'),
+            ('PRC', 'PREVISÃO DE COMISSÃO'),
+            ('PRDI', 'PREVISÃO DE DISTRATO'),
+            ('PRV', 'PREVISÃO DE PAGAMENTO/RECEBIMENTO'),
+        ]
+        for id_doc, nome_doc in tipos_previsao:
+            cursor.execute(
+                "INSERT INTO config_tipos_documento_excluidos (id_documento, nome_documento) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                (id_doc, nome_doc)
+            )
+
         cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS config_contas_correntes_excluidas (
                 id {serial} PRIMARY KEY,
