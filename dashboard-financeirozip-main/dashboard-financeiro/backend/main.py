@@ -3720,17 +3720,18 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
         cp_where_extra = (" AND " + " AND ".join(excl_conds_cp)) if excl_conds_cp else ""
 
         # Se tiver documentos excluídos adicionais no KPI, aplica também
+        # Por padrão, exclui documentos de previsão (PPC, PRV, PRC) que não representam contas reais
         if documentos_excluidos:
             docs = [f"'{d.strip()}'" for d in documentos_excluidos.split(',') if d.strip()]
             if docs:
                 filtro_previsao = f" AND TRIM(cap.id_documento) NOT IN ({', '.join(docs)})"
                 filtro_previsao_pagas = f" AND TRIM(cp.id_documento) NOT IN ({', '.join(docs)})"
             else:
-                filtro_previsao = ""
-                filtro_previsao_pagas = ""
+                filtro_previsao = " AND TRIM(cap.id_documento) NOT IN ('PPC', 'PRV', 'PRC')"
+                filtro_previsao_pagas = " AND TRIM(cp.id_documento) NOT IN ('PPC', 'PRV', 'PRC')"
         else:
-            filtro_previsao = ""
-            filtro_previsao_pagas = ""
+            filtro_previsao = " AND TRIM(cap.id_documento) NOT IN ('PPC', 'PRV', 'PRC')"
+            filtro_previsao_pagas = " AND TRIM(cp.id_documento) NOT IN ('PPC', 'PRV', 'PRC')"
 
         if calculo_automatico == 'titulos_vencidos_qtd':
             cursor.execute(f"""

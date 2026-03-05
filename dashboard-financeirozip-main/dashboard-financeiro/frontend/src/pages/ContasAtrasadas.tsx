@@ -145,7 +145,7 @@ export const ContasAtrasadas: React.FC = () => {
   const carregarDados = async () => {
     try {
       setLoading(true);
-      const data = await apiService.getContas('em_atraso', 500);
+      const data = await apiService.getContas('em_atraso', 10000);
       setTodasContas(data);
     } catch (err) {
       setError('Erro ao carregar contas atrasadas');
