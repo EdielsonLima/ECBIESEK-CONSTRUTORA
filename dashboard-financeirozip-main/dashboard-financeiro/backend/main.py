@@ -281,15 +281,26 @@ _CONFIG_USE_POSTGRES = bool(CONFIG_DB_URL)
 
 def get_config_db_connection():
     """Retorna conexão com o banco de configurações gravável.
-    - Se CONFIG_DB_URL estiver definido: usa PostgreSQL dedicado (crie no EasyPanel)
-    - Caso contrário: usa SQLite local (monte /backend como volume persistente no EasyPanel)
+    - Se CONFIG_DB_URL estiver definido: usa PostgreSQL dedicado
+    - Caso contrário: usa SQLite local
+    IMPORTANTE: Não faz fallback silencioso para SQLite quando PostgreSQL está configurado.
     """
     if CONFIG_DB_URL:
         try:
             conn = psycopg2.connect(CONFIG_DB_URL, cursor_factory=RealDictCursor)
             return conn
-        except Exception:
-            pass  # Fallback para SQLite se PostgreSQL falhar
+        except Exception as e:
+            print(f"[ERRO CONFIG DB] Falha ao conectar PostgreSQL ({CONFIG_DB_URL[:30]}...): {e}")
+            # Tenta novamente uma vez antes de desistir
+            try:
+                import time
+                time.sleep(0.5)
+                conn = psycopg2.connect(CONFIG_DB_URL, cursor_factory=RealDictCursor)
+                print("[CONFIG DB] Reconectou com sucesso na segunda tentativa")
+                return conn
+            except Exception as e2:
+                print(f"[ERRO CONFIG DB] Segunda tentativa falhou: {e2}")
+                print("[CONFIG DB] Usando SQLite como fallback temporário")
     return _SqliteConn(CONFIG_SQLITE_PATH)
 
 def decimal_to_float(obj):
@@ -5665,11 +5676,36 @@ def build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', has_
 
 @app.get("/api/debug/exclusoes")
 def debug_exclusoes():
-    """Endpoint de debug para verificar exclusões ativas"""
+    """Endpoint de debug para verificar exclusões ativas e qual banco de config está sendo usado"""
     exclusoes = get_exclusoes()
+    # Testa conexão config e identifica o tipo
+    config_db_type = "desconhecido"
+    config_db_ok = False
+    try:
+        conn = get_config_db_connection()
+        if hasattr(conn, '_conn'):  # SQLite wrapper
+            config_db_type = f"SQLite ({CONFIG_SQLITE_PATH})"
+        else:
+            config_db_type = f"PostgreSQL"
+        # Testa uma query simples
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) as cnt FROM config_tipos_documento_excluidos")
+        row = cursor.fetchone()
+        config_db_ok = True
+        total_in_table = row['cnt'] if row else 0
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        config_db_type += f" (ERRO: {e})"
+        total_in_table = -1
+
     return {
         "config_db_url_set": bool(CONFIG_DB_URL),
+        "config_db_url_preview": (CONFIG_DB_URL[:40] + "...") if CONFIG_DB_URL else None,
         "config_use_postgres": _CONFIG_USE_POSTGRES,
+        "config_db_type_actual": config_db_type,
+        "config_db_ok": config_db_ok,
+        "total_tipos_doc_na_tabela": total_in_table,
         "exclusoes": exclusoes,
         "total_tipos_documento": len(exclusoes['tipos_documento']),
         "total_empresas": len(exclusoes['empresas']),
@@ -5730,7 +5766,8 @@ def toggle_empresa_exclusao(data: dict):
         conn.commit()
         return {"success": True}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        print(f"[ERRO] toggle_empresa_exclusao: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro ao salvar configuração: {str(e)}")
     finally:
         cursor.close()
         conn.close()
@@ -5753,7 +5790,8 @@ def toggle_centro_custo_exclusao(data: dict):
         conn.commit()
         return {"success": True}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        print(f"[ERRO] toggle_centro_custo_exclusao: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro ao salvar configuração: {str(e)}")
     finally:
         cursor.close()
         conn.close()
@@ -5776,7 +5814,8 @@ def toggle_tipo_documento_exclusao(data: dict):
         conn.commit()
         return {"success": True}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        print(f"[ERRO] toggle_tipo_documento_exclusao: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro ao salvar configuração: {str(e)}")
     finally:
         cursor.close()
         conn.close()
