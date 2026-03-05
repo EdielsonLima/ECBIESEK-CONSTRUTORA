@@ -3735,7 +3735,7 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
 
         if calculo_automatico == 'titulos_vencidos_qtd':
             cursor.execute(f"""
-                SELECT COUNT(*) as valor FROM contas_a_pagar cap
+                SELECT COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as valor FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE cap.data_vencimento < %s{cap_where_extra}{filtro_previsao}
             """, [hoje] + excl_params_cap)
@@ -3753,7 +3753,7 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
 
         elif calculo_automatico == 'titulos_a_vencer_qtd':
             cursor.execute(f"""
-                SELECT COUNT(*) as valor FROM contas_a_pagar cap
+                SELECT COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as valor FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE cap.data_vencimento >= %s{cap_where_extra}{filtro_previsao}
             """, [hoje] + excl_params_cap)
@@ -3793,7 +3793,7 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
 
         elif calculo_automatico == 'titulos_vencidos_2025_qtd':
             cursor.execute(f"""
-                SELECT COUNT(*) as valor FROM contas_a_pagar cap
+                SELECT COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as valor FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE cap.data_vencimento < %s
                 AND EXTRACT(YEAR FROM cap.data_vencimento) = 2025
@@ -3815,7 +3815,7 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
 
         elif calculo_automatico == 'contas_a_pagar_hoje_qtd':
             cursor.execute(f"""
-                SELECT COUNT(*) as valor FROM contas_a_pagar cap
+                SELECT COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as valor FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE cap.data_vencimento = %s{cap_where_extra}{filtro_previsao}
             """, [hoje] + excl_params_cap)
@@ -3833,7 +3833,7 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
 
         elif calculo_automatico == 'contas_a_pagar_7dias_qtd':
             cursor.execute(f"""
-                SELECT COUNT(*) as valor FROM contas_a_pagar cap
+                SELECT COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as valor FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE cap.data_vencimento BETWEEN %s AND %s{cap_where_extra}{filtro_previsao}
             """, [hoje, hoje + timedelta(days=7)] + excl_params_cap)
@@ -3851,7 +3851,7 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
 
         elif calculo_automatico == 'contas_a_pagar_mes_qtd':
             cursor.execute(f"""
-                SELECT COUNT(*) as valor FROM contas_a_pagar cap
+                SELECT COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as valor FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE EXTRACT(MONTH FROM cap.data_vencimento) = EXTRACT(MONTH FROM CURRENT_DATE)
                 AND EXTRACT(YEAR FROM cap.data_vencimento) = EXTRACT(YEAR FROM CURRENT_DATE)
