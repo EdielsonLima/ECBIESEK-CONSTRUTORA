@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { apiService } from '../services/api';
 import { ContaPagar, EmpresaOption, CentroCustoOption, TipoDocumentoOption } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
-import { SearchableSelect } from '../components/SearchableSelect';
+import { SearchableMultiSelect } from '../components/SearchableMultiSelect';
 
 interface Estatisticas {
   quantidade_titulos: number;
@@ -52,16 +52,14 @@ export const ContasAtrasadas: React.FC = () => {
   const [dadosPorFaixaAtraso, setDadosPorFaixaAtraso] = useState<DadosPorFaixaAtraso[]>([]);
   const [empresas, setEmpresas] = useState<EmpresaOption[]>([]);
   const [centrosCusto, setCentrosCusto] = useState<CentroCustoOption[]>([]);
-  const [filtroEmpresa, setFiltroEmpresa] = useState<number | null>(null);
-  const [filtroCentroCusto, setFiltroCentroCusto] = useState<number | null>(null);
-  const [filtroAno, setFiltroAno] = useState<number | null>(null);
-  const [filtroMes, setFiltroMes] = useState<number[]>([]);
+  const [filtroEmpresa, setFiltroEmpresa] = useState<(number | string)[]>([]);
+  const [filtroCentroCusto, setFiltroCentroCusto] = useState<(number | string)[]>([]);
+  const [filtroAno, setFiltroAno] = useState<(number | string)[]>([]);
+  const [filtroMes, setFiltroMes] = useState<(number | string)[]>([]);
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [todasContas, setTodasContas] = useState<ContaPagar[]>([]);
-  const [mesDropdownAberto, setMesDropdownAberto] = useState(false);
   const [tiposDocumento, setTiposDocumento] = useState<TipoDocumentoOption[]>([]);
-  const [filtroTipoDocumento, setFiltroTipoDocumento] = useState<string[]>([]);
-  const [tipoDocDropdownAberto, setTipoDocDropdownAberto] = useState(false);
+  const [filtroTipoDocumento, setFiltroTipoDocumento] = useState<(number | string)[]>([]);
 
   const meses = [
     { valor: 1, nome: 'Janeiro' },
@@ -159,25 +157,25 @@ export const ContasAtrasadas: React.FC = () => {
 
   const aplicarFiltrosLocais = (
     dados: ContaPagar[],
-    empresa: number | null,
-    cc: number | null,
-    ano: number | null,
-    mesesSelecionados: number[],
-    tiposDocSelecionados: string[]
+    empresasSel: (number | string)[],
+    ccSel: (number | string)[],
+    anosSel: (number | string)[],
+    mesesSelecionados: (number | string)[],
+    tiposDocSelecionados: (number | string)[]
   ) => {
     let contasFiltradas = [...dados];
 
-    if (empresa) {
-      contasFiltradas = contasFiltradas.filter(c => c.id_interno_empresa === empresa);
+    if (empresasSel.length > 0) {
+      contasFiltradas = contasFiltradas.filter(c => c.id_interno_empresa && empresasSel.includes(c.id_interno_empresa));
     }
-    if (cc) {
-      contasFiltradas = contasFiltradas.filter(c => c.id_interno_centro_custo === cc);
+    if (ccSel.length > 0) {
+      contasFiltradas = contasFiltradas.filter(c => c.id_interno_centro_custo && ccSel.includes(c.id_interno_centro_custo));
     }
-    if (ano) {
+    if (anosSel.length > 0) {
       contasFiltradas = contasFiltradas.filter(c => {
         if (!c.data_vencimento) return false;
         const anoVenc = parseInt(c.data_vencimento.split('T')[0].split('-')[0]);
-        return anoVenc === ano;
+        return anosSel.includes(anoVenc);
       });
     }
     if (mesesSelecionados.length > 0) {
@@ -281,9 +279,9 @@ export const ContasAtrasadas: React.FC = () => {
   }, []);
 
   const limparFiltros = () => {
-    setFiltroEmpresa(null);
-    setFiltroCentroCusto(null);
-    setFiltroAno(null);
+    setFiltroEmpresa([]);
+    setFiltroCentroCusto([]);
+    setFiltroAno([]);
     setFiltroMes([]);
     setFiltroTipoDocumento([]);
   };
@@ -307,156 +305,52 @@ export const ContasAtrasadas: React.FC = () => {
     );
   }
 
+  const anosOptions = anosDisponiveis().map(a => ({ id: a, nome: String(a) }));
+  const mesesOptions = meses.map(m => ({ id: m.valor, nome: m.nome }));
+
   const renderFiltros = () => (
     <div className="mb-6 rounded-lg bg-gray-50 p-4 shadow">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <SearchableSelect
+        <SearchableMultiSelect
           options={empresas}
-          value={filtroEmpresa ?? undefined}
-          onChange={(value) => setFiltroEmpresa(value as number | null)}
+          value={filtroEmpresa}
+          onChange={setFiltroEmpresa}
           label="Empresa"
-          placeholder="Selecione uma empresa..."
+          placeholder="Selecione empresas..."
           emptyText="Todas"
         />
-        <SearchableSelect
+        <SearchableMultiSelect
           options={centrosCusto}
-          value={filtroCentroCusto ?? undefined}
-          onChange={(value) => setFiltroCentroCusto(value as number | null)}
+          value={filtroCentroCusto}
+          onChange={setFiltroCentroCusto}
           label="Centro de Custo"
-          placeholder="Selecione um centro de custo..."
+          placeholder="Selecione centros de custo..."
           emptyText="Todos"
         />
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">Ano</label>
-          <select
-            value={filtroAno ?? ''}
-            onChange={(e) => setFiltroAno(e.target.value ? Number(e.target.value) : null)}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-red-500 focus:outline-none"
-          >
-            <option value="">Todos</option>
-            {anosDisponiveis().map((ano) => (
-              <option key={ano} value={ano}>{ano}</option>
-            ))}
-          </select>
-        </div>
-        <div className="relative">
-          <label className="mb-2 block text-sm font-medium text-gray-700">Mes</label>
-          <button
-            type="button"
-            onClick={() => setMesDropdownAberto(!mesDropdownAberto)}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-red-500 focus:outline-none"
-          >
-            <span className={filtroMes.length > 0 ? 'text-gray-900' : 'text-gray-500'}>
-              {filtroMes.length === 0 ? 'Todos' : filtroMes.length === 12 ? 'Todos' : `${filtroMes.length} selecionado(s)`}
-            </span>
-            <svg
-              className={`absolute right-3 top-9 h-5 w-5 transition-transform ${mesDropdownAberto ? 'rotate-180' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          {mesDropdownAberto && (
-            <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg">
-              <div className="border-b border-gray-200 p-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFiltroMes(meses.map(m => m.valor))}
-                  className="text-xs text-red-600 hover:underline"
-                >
-                  Todos
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFiltroMes([])}
-                  className="text-xs text-gray-500 hover:underline"
-                >
-                  Limpar
-                </button>
-              </div>
-              <div className="max-h-48 overflow-y-auto p-2">
-                {meses.map((mes) => (
-                  <label key={mes.valor} className="flex cursor-pointer items-center gap-2 py-1 hover:bg-gray-50 rounded px-1">
-                    <input
-                      type="checkbox"
-                      checked={filtroMes.includes(mes.valor)}
-                      onChange={() => {
-                        if (filtroMes.includes(mes.valor)) {
-                          setFiltroMes(filtroMes.filter(m => m !== mes.valor));
-                        } else {
-                          setFiltroMes([...filtroMes, mes.valor]);
-                        }
-                      }}
-                      className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
-                    />
-                    <span className="text-sm text-gray-700">{mes.nome}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="relative">
-          <label className="mb-2 block text-sm font-medium text-gray-700">Tipo Documento</label>
-          <button
-            type="button"
-            onClick={() => setTipoDocDropdownAberto(!tipoDocDropdownAberto)}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-red-500 focus:outline-none"
-          >
-            <span className={filtroTipoDocumento.length > 0 ? 'text-gray-900' : 'text-gray-500'}>
-              {filtroTipoDocumento.length === 0 ? 'Todos' : filtroTipoDocumento.length === tiposDocumento.length ? 'Todos' : `${filtroTipoDocumento.length} selecionado(s)`}
-            </span>
-            <svg
-              className={`absolute right-3 top-9 h-5 w-5 transition-transform ${tipoDocDropdownAberto ? 'rotate-180' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          {tipoDocDropdownAberto && (
-            <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg">
-              <div className="border-b border-gray-200 p-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFiltroTipoDocumento(tiposDocumento.map(t => t.id))}
-                  className="text-xs text-red-600 hover:underline"
-                >
-                  Todos
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFiltroTipoDocumento([])}
-                  className="text-xs text-gray-500 hover:underline"
-                >
-                  Limpar
-                </button>
-              </div>
-              <div className="max-h-48 overflow-y-auto p-2">
-                {tiposDocumento.map((tipo) => (
-                  <label key={tipo.id} className="flex cursor-pointer items-center gap-2 py-1 hover:bg-gray-50 rounded px-1">
-                    <input
-                      type="checkbox"
-                      checked={filtroTipoDocumento.includes(tipo.id)}
-                      onChange={() => {
-                        if (filtroTipoDocumento.includes(tipo.id)) {
-                          setFiltroTipoDocumento(filtroTipoDocumento.filter(t => t !== tipo.id));
-                        } else {
-                          setFiltroTipoDocumento([...filtroTipoDocumento, tipo.id]);
-                        }
-                      }}
-                      className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
-                    />
-                    <span className="text-sm text-gray-700">{tipo.id} - {tipo.nome}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        <SearchableMultiSelect
+          options={anosOptions}
+          value={filtroAno}
+          onChange={setFiltroAno}
+          label="Ano"
+          placeholder="Selecione anos..."
+          emptyText="Todos"
+        />
+        <SearchableMultiSelect
+          options={mesesOptions}
+          value={filtroMes}
+          onChange={setFiltroMes}
+          label="Mes"
+          placeholder="Selecione meses..."
+          emptyText="Todos"
+        />
+        <SearchableMultiSelect
+          options={tiposDocumento}
+          value={filtroTipoDocumento}
+          onChange={setFiltroTipoDocumento}
+          label="Tipo Documento"
+          placeholder="Selecione tipos..."
+          emptyText="Todos"
+        />
       </div>
       <div className="mt-4 flex gap-3">
         <button
@@ -470,33 +364,21 @@ export const ContasAtrasadas: React.FC = () => {
     </div>
   );
 
-  const getEmpresaNome = (id: number | null) => {
-    if (!id) return null;
-    const emp = empresas.find(e => e.id === id);
-    return emp ? emp.nome : null;
-  };
-
-  const getCentroCustoNome = (id: number | null) => {
-    if (!id) return null;
-    const cc = centrosCusto.find(c => c.id === id);
-    return cc ? cc.nome : null;
-  };
-
   const renderFiltrosTags = () => {
     const tags: { label: string; value: string; onRemove: () => void }[] = [];
 
-    const empresaNome = getEmpresaNome(filtroEmpresa);
-    if (empresaNome) {
-      tags.push({ label: 'Empresa', value: empresaNome, onRemove: () => setFiltroEmpresa(null) });
+    if (filtroEmpresa.length > 0) {
+      const nomes = filtroEmpresa.map(id => empresas.find(e => e.id === id)?.nome || String(id)).join(', ');
+      tags.push({ label: 'Empresa', value: filtroEmpresa.length > 2 ? `${filtroEmpresa.length} selecionada(s)` : nomes, onRemove: () => setFiltroEmpresa([]) });
     }
 
-    const ccNome = getCentroCustoNome(filtroCentroCusto);
-    if (ccNome) {
-      tags.push({ label: 'Centro de Custo', value: ccNome, onRemove: () => setFiltroCentroCusto(null) });
+    if (filtroCentroCusto.length > 0) {
+      const nomes = filtroCentroCusto.map(id => centrosCusto.find(c => c.id === id)?.nome || String(id)).join(', ');
+      tags.push({ label: 'Centro de Custo', value: filtroCentroCusto.length > 2 ? `${filtroCentroCusto.length} selecionado(s)` : nomes, onRemove: () => setFiltroCentroCusto([]) });
     }
 
-    if (filtroAno) {
-      tags.push({ label: 'Ano', value: String(filtroAno), onRemove: () => setFiltroAno(null) });
+    if (filtroAno.length > 0) {
+      tags.push({ label: 'Ano', value: filtroAno.join(', '), onRemove: () => setFiltroAno([]) });
     }
 
     if (filtroMes.length > 0 && filtroMes.length < 12) {
