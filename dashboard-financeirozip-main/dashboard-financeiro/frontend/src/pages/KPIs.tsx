@@ -44,6 +44,8 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
   const [salvandoSnapshot, setSalvandoSnapshot] = useState(false);
   const [snapshotMensagem, setSnapshotMensagem] = useState<string | null>(null);
   const [filtroCategoria, setFiltroCategoria] = useState<string>('');
+  const [salvandoKPI, setSalvandoKPI] = useState(false);
+  const [mensagemKPI, setMensagemKPI] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
   
   const [formData, setFormData] = useState<KPICreate>({
     descricao: '',
@@ -136,22 +138,33 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSalvandoKPI(true);
+    setMensagemKPI(null);
     try {
       const dataToSend = {
         ...formData,
-        documentos_excluidos: formData.calculo_automatico 
-          ? (selectedDocumentos.length > 0 ? selectedDocumentos.join(',') : '') 
-          : ''
+        meta: formData.meta || undefined,
+        calculo_automatico: formData.calculo_automatico || undefined,
+        documentos_excluidos: formData.calculo_automatico
+          ? (selectedDocumentos.length > 0 ? selectedDocumentos.join(',') : '')
+          : undefined
       };
       if (editingKPI) {
         await apiService.updateKPI(editingKPI.id, dataToSend);
+        setMensagemKPI({ tipo: 'sucesso', texto: 'KPI atualizado com sucesso!' });
       } else {
         await apiService.createKPI(dataToSend);
+        setMensagemKPI({ tipo: 'sucesso', texto: 'KPI cadastrado com sucesso!' });
       }
       resetForm();
       loadData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar KPI:', error);
+      const detalhe = error?.response?.data?.detail || error?.message || 'Erro desconhecido ao salvar KPI.';
+      setMensagemKPI({ tipo: 'erro', texto: `Erro ao salvar: ${detalhe}` });
+    } finally {
+      setSalvandoKPI(false);
+      setTimeout(() => setMensagemKPI(null), 6000);
     }
   };
 
@@ -441,6 +454,12 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
                 )}
               </div>
 
+              {mensagemKPI && (
+                <div className={`rounded-lg px-4 py-3 ${mensagemKPI.tipo === 'erro' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                  {mensagemKPI.texto}
+                </div>
+              )}
+
               {showForm && (
                 <div className="rounded-lg bg-white p-6 shadow">
                   <h3 className="mb-4 text-lg font-medium">
@@ -596,9 +615,10 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
                       </button>
                       <button
                         type="submit"
-                        className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                        disabled={salvandoKPI}
+                        className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
                       >
-                        {editingKPI ? 'Salvar' : 'Cadastrar'}
+                        {salvandoKPI ? 'Salvando...' : editingKPI ? 'Salvar' : 'Cadastrar'}
                       </button>
                     </div>
                   </form>
