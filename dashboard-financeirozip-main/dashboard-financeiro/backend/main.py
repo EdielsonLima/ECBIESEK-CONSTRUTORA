@@ -5629,13 +5629,17 @@ def get_exclusoes():
             tipos_doc = [r['id_documento'] for r in cursor.fetchall()]
             cursor.execute("SELECT id_conta_corrente FROM config_contas_correntes_excluidas")
             contas_correntes = [r['id_conta_corrente'] for r in cursor.fetchall()]
-            return {'empresas': empresas, 'centros_custo': centros, 'tipos_documento': tipos_doc, 'contas_correntes': contas_correntes}
-        except:
+            result = {'empresas': empresas, 'centros_custo': centros, 'tipos_documento': tipos_doc, 'contas_correntes': contas_correntes}
+            print(f"[get_exclusoes] tipos_documento excluidos: {tipos_doc}")
+            return result
+        except Exception as e:
+            print(f"[get_exclusoes] ERRO ao ler config: {e}")
             return {'empresas': [], 'centros_custo': [], 'tipos_documento': [], 'contas_correntes': []}
         finally:
             cursor.close()
             conn.close()
-    except:
+    except Exception as e:
+        print(f"[get_exclusoes] ERRO ao conectar config DB: {e}")
         return {'empresas': [], 'centros_custo': [], 'tipos_documento': [], 'contas_correntes': []}
 
 def build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', has_join=True, has_cc_column=True, has_doc_column=True, has_conta_corrente=False):
@@ -5658,6 +5662,20 @@ def build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', has_
         conditions.append(f"{table_alias}.id_conta_corrente NOT IN ({placeholders})")
         params.extend(exclusoes['contas_correntes'])
     return conditions, params
+
+@app.get("/api/debug/exclusoes")
+def debug_exclusoes():
+    """Endpoint de debug para verificar exclusões ativas"""
+    exclusoes = get_exclusoes()
+    return {
+        "config_db_url_set": bool(CONFIG_DB_URL),
+        "config_use_postgres": _CONFIG_USE_POSTGRES,
+        "exclusoes": exclusoes,
+        "total_tipos_documento": len(exclusoes['tipos_documento']),
+        "total_empresas": len(exclusoes['empresas']),
+        "total_centros_custo": len(exclusoes['centros_custo']),
+        "total_contas_correntes": len(exclusoes['contas_correntes']),
+    }
 
 @app.get("/api/configuracoes")
 def get_configuracoes():
