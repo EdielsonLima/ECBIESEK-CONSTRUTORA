@@ -5634,47 +5634,116 @@ def init_configuracoes_tables():
 
 def _ensure_config_tables_in_postgres():
     """Garante que as tabelas de config existam no PostgreSQL (não no SQLite).
-    Chamado no startup do FastAPI quando o PostgreSQL já está disponível."""
+    Cria as tabelas diretamente via psycopg2, sem depender de get_config_db_connection."""
     if not CONFIG_DB_URL:
+        print("[STARTUP] CONFIG_DB_URL não definido, usando SQLite.")
         return
     max_retries = 5
     for attempt in range(max_retries):
         try:
             conn = psycopg2.connect(CONFIG_DB_URL, cursor_factory=RealDictCursor)
             cursor = conn.cursor()
-            # Verifica se a tabela principal existe
+
+            # Cria TODAS as tabelas de config diretamente no PostgreSQL
             cursor.execute("""
-                SELECT EXISTS (
-                    SELECT FROM information_schema.tables
-                    WHERE table_name = 'config_tipos_documento_excluidos'
+                CREATE TABLE IF NOT EXISTS config_empresas_excluidas (
+                    id SERIAL PRIMARY KEY,
+                    id_sienge_empresa INTEGER NOT NULL UNIQUE,
+                    nome_empresa VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-            exists = cursor.fetchone()['exists']
-            if not exists:
-                print(f"[STARTUP] Tabelas de config não encontradas no PostgreSQL. Criando...")
-                cursor.close()
-                conn.close()
-                # Força criação usando PostgreSQL diretamente
-                init_configuracoes_tables()
-                print(f"[STARTUP] Tabelas de config criadas com sucesso no PostgreSQL!")
-            else:
-                print(f"[STARTUP] Tabelas de config já existem no PostgreSQL. OK.")
-                # Garante que os tipos de previsão padrão existem
-                tipos_previsao = [
-                    ('PCT', 'PREVISÃO FINANCEIRA DE CONTR. DE MED.'),
-                    ('PPC', 'PREVISÃO FINANCEIRA DE PEDIDOS DE COMPRA'),
-                    ('PRC', 'PREVISÃO DE COMISSÃO'),
-                    ('PRDI', 'PREVISÃO DE DISTRATO'),
-                    ('PRV', 'PREVISÃO DE PAGAMENTO/RECEBIMENTO'),
-                ]
-                for id_doc, nome_doc in tipos_previsao:
-                    cursor.execute(
-                        "INSERT INTO config_tipos_documento_excluidos (id_documento, nome_documento) VALUES (%s, %s) ON CONFLICT DO NOTHING",
-                        (id_doc, nome_doc)
-                    )
-                conn.commit()
-                cursor.close()
-                conn.close()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS config_centros_custo_excluidos (
+                    id SERIAL PRIMARY KEY,
+                    id_interno_centrocusto INTEGER NOT NULL UNIQUE,
+                    nome_centrocusto VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS config_tipos_documento_excluidos (
+                    id SERIAL PRIMARY KEY,
+                    id_documento VARCHAR(50) NOT NULL UNIQUE,
+                    nome_documento VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS config_contas_correntes_excluidas (
+                    id SERIAL PRIMARY KEY,
+                    id_conta_corrente VARCHAR(100) NOT NULL UNIQUE,
+                    nome_conta_corrente VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS config_snapshot_horario (
+                    id SERIAL PRIMARY KEY,
+                    horario VARCHAR(5) NOT NULL DEFAULT '07:00',
+                    ativo BOOLEAN NOT NULL DEFAULT true,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("SELECT COUNT(*) as cnt FROM config_snapshot_horario")
+            row = cursor.fetchone()
+            if row and int(row['cnt']) == 0:
+                cursor.execute("INSERT INTO config_snapshot_horario (horario, ativo) VALUES ('07:00', true)")
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS config_origens_exposicao_caixa (
+                    id SERIAL PRIMARY KEY,
+                    id_origem_titulo INTEGER NOT NULL UNIQUE,
+                    sigla VARCHAR(10) NOT NULL,
+                    descricao VARCHAR(255),
+                    incluir BOOLEAN NOT NULL DEFAULT true,
+                    paginas TEXT NOT NULL DEFAULT 'exposicao_caixa',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS config_tipos_baixa_exposicao_caixa (
+                    id SERIAL PRIMARY KEY,
+                    id_tipo_baixa INTEGER NOT NULL UNIQUE,
+                    nome_tipo_baixa VARCHAR(255),
+                    flag_sistema_uso VARCHAR(5),
+                    incluir BOOLEAN NOT NULL DEFAULT true,
+                    paginas TEXT NOT NULL DEFAULT 'exposicao_caixa',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS snapshots_cards_pagar (
+                    id SERIAL PRIMARY KEY,
+                    data_snapshot DATE NOT NULL,
+                    faixa VARCHAR(20) NOT NULL,
+                    data_inicio DATE,
+                    data_fim DATE,
+                    valor_total NUMERIC(15,2) NOT NULL DEFAULT 0,
+                    quantidade_titulos INTEGER NOT NULL DEFAULT 0,
+                    quantidade_credores INTEGER NOT NULL DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(data_snapshot, faixa)
+                )
+            """)
+
+            # Insere tipos de previsão como excluídos por padrão
+            tipos_previsao = [
+                ('PCT', 'PREVISÃO FINANCEIRA DE CONTR. DE MED.'),
+                ('PPC', 'PREVISÃO FINANCEIRA DE PEDIDOS DE COMPRA'),
+                ('PRC', 'PREVISÃO DE COMISSÃO'),
+                ('PRDI', 'PREVISÃO DE DISTRATO'),
+                ('PRV', 'PREVISÃO DE PAGAMENTO/RECEBIMENTO'),
+            ]
+            for id_doc, nome_doc in tipos_previsao:
+                cursor.execute(
+                    "INSERT INTO config_tipos_documento_excluidos (id_documento, nome_documento) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                    (id_doc, nome_doc)
+                )
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+            print(f"[STARTUP] Tabelas de config criadas/verificadas no PostgreSQL com sucesso!")
             return
         except Exception as e:
             print(f"[STARTUP] Tentativa {attempt + 1}/{max_retries} falhou: {e}")
