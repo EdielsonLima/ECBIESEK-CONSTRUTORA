@@ -84,6 +84,14 @@ except Exception as e:
 
 app = FastAPI(title="Dashboard Financeiro - Construtora")
 
+@app.on_event("startup")
+async def startup_event():
+    """Garante que tabelas de config existam no PostgreSQL ao iniciar."""
+    try:
+        _ensure_config_tables_in_postgres()
+    except Exception as e:
+        print(f"[STARTUP] Erro ao garantir tabelas de config: {e}")
+
 # Configuração de segurança JWT
 JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'fallback-secret-key-change-in-production')
 JWT_ALGORITHM = "HS256"
@@ -5624,7 +5632,62 @@ def init_configuracoes_tables():
         cursor.close()
         conn.close()
 
-init_configuracoes_tables()
+def _ensure_config_tables_in_postgres():
+    """Garante que as tabelas de config existam no PostgreSQL (não no SQLite).
+    Chamado no startup do FastAPI quando o PostgreSQL já está disponível."""
+    if not CONFIG_DB_URL:
+        return
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            conn = psycopg2.connect(CONFIG_DB_URL, cursor_factory=RealDictCursor)
+            cursor = conn.cursor()
+            # Verifica se a tabela principal existe
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables
+                    WHERE table_name = 'config_tipos_documento_excluidos'
+                )
+            """)
+            exists = cursor.fetchone()['exists']
+            if not exists:
+                print(f"[STARTUP] Tabelas de config não encontradas no PostgreSQL. Criando...")
+                cursor.close()
+                conn.close()
+                # Força criação usando PostgreSQL diretamente
+                init_configuracoes_tables()
+                print(f"[STARTUP] Tabelas de config criadas com sucesso no PostgreSQL!")
+            else:
+                print(f"[STARTUP] Tabelas de config já existem no PostgreSQL. OK.")
+                # Garante que os tipos de previsão padrão existem
+                tipos_previsao = [
+                    ('PCT', 'PREVISÃO FINANCEIRA DE CONTR. DE MED.'),
+                    ('PPC', 'PREVISÃO FINANCEIRA DE PEDIDOS DE COMPRA'),
+                    ('PRC', 'PREVISÃO DE COMISSÃO'),
+                    ('PRDI', 'PREVISÃO DE DISTRATO'),
+                    ('PRV', 'PREVISÃO DE PAGAMENTO/RECEBIMENTO'),
+                ]
+                for id_doc, nome_doc in tipos_previsao:
+                    cursor.execute(
+                        "INSERT INTO config_tipos_documento_excluidos (id_documento, nome_documento) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                        (id_doc, nome_doc)
+                    )
+                conn.commit()
+                cursor.close()
+                conn.close()
+            return
+        except Exception as e:
+            print(f"[STARTUP] Tentativa {attempt + 1}/{max_retries} falhou: {e}")
+            if attempt < max_retries - 1:
+                import time
+                time.sleep(2)
+    print("[STARTUP] AVISO: Não foi possível criar tabelas de config no PostgreSQL após todas as tentativas!")
+
+# Tenta criar na inicialização do módulo (pode falhar se PG não estiver pronto)
+try:
+    init_configuracoes_tables()
+except Exception as e:
+    print(f"[INIT] Erro ao criar tabelas de config (será tentado novamente no startup): {e}")
 
 def get_exclusoes():
     """Retorna listas de IDs excluídos nas configurações. Retorna listas vazias em caso de erro."""
