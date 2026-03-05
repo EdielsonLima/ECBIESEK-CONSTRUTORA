@@ -778,9 +778,14 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                        cc.nome_empresa, cc.nome_centrocusto,
                        cc.id_sienge_empresa,
                        TRIM(cap.id_documento) as id_documento,
-                       TRIM(cap.id_origem) as id_origem
+                       TRIM(cap.id_origem) as id_origem,
+                       cap.numero_parcela,
+                       cap.data_cadastro,
+                       t.descricao_observacao
                 FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+                LEFT JOIN ecpgtitulo t ON t.id_pg_titulo = CAST(SPLIT_PART(cap.lancamento, '/', 1) AS INTEGER)
+                    AND t.id_credor = cap.id_credor
                 WHERE cap.data_vencimento >= %s{excl_where}
                 ORDER BY cap.data_vencimento ASC
                 LIMIT %s
@@ -796,9 +801,14 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                        cc.nome_empresa, cc.nome_centrocusto,
                        cc.id_sienge_empresa,
                        TRIM(cap.id_documento) as id_documento,
-                       TRIM(cap.id_origem) as id_origem
+                       TRIM(cap.id_origem) as id_origem,
+                       cap.numero_parcela,
+                       cap.data_cadastro,
+                       t.descricao_observacao
                 FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+                LEFT JOIN ecpgtitulo t ON t.id_pg_titulo = CAST(SPLIT_PART(cap.lancamento, '/', 1) AS INTEGER)
+                    AND t.id_credor = cap.id_credor
                 WHERE cap.data_vencimento < %s{excl_where}
                 ORDER BY cap.data_vencimento ASC
                 LIMIT %s
@@ -811,9 +821,14 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                 SELECT cap.credor, cap.data_vencimento, cap.valor_total,
                        cap.lancamento, cap.numero_documento, cap.id_plano_financeiro,
                        cap.id_interno_empresa, cap.id_interno_centro_custo,
-                       cc.nome_empresa, cc.nome_centrocusto
+                       cc.nome_empresa, cc.nome_centrocusto,
+                       cap.numero_parcela,
+                       cap.data_cadastro,
+                       t.descricao_observacao
                 FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+                LEFT JOIN ecpgtitulo t ON t.id_pg_titulo = CAST(SPLIT_PART(cap.lancamento, '/', 1) AS INTEGER)
+                    AND t.id_credor = cap.id_credor
                 WHERE 1=1{excl_where}
                 ORDER BY cap.data_vencimento DESC
                 LIMIT %s
