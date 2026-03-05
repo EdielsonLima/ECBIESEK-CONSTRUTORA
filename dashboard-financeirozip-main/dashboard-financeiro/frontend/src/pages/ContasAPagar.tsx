@@ -1343,11 +1343,14 @@ export const ContasAPagar: React.FC = () => {
                                   <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                       <tr>
-                                        <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vencimento</th>
-                                        <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Título</th>
-                                        <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Centro de Custo</th>
-                                        <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vencimento</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Título</th>
+                                        <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Parcela</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nº Doc.</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Centro de Custo</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Observação</th>
+                                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
@@ -1356,13 +1359,16 @@ export const ContasAPagar: React.FC = () => {
                                         const corDias = dias < 0 ? 'text-red-600' : dias === 0 ? 'text-orange-600' : 'text-green-600';
                                         return (
                                           <tr key={j} className="hover:bg-blue-50/50">
-                                            <td className="whitespace-nowrap px-6 py-2 text-sm text-gray-500">{formatDate(conta.data_vencimento as any)}</td>
-                                            <td className="whitespace-nowrap px-6 py-2 text-sm font-medium text-gray-900">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
-                                            <td className={`whitespace-nowrap px-6 py-2 text-sm font-semibold ${corDias}`}>
+                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{formatDate(conta.data_vencimento as any)}</td>
+                                            <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-gray-900">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
+                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500 text-center">{conta.numero_parcela || '-'}</td>
+                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.numero_documento || '-'}</td>
+                                            <td className={`whitespace-nowrap px-4 py-2 text-sm font-semibold ${corDias}`}>
                                               {dias < 0 ? `${Math.abs(dias)}d atraso` : dias === 0 ? 'Hoje' : `${dias}d`}
                                             </td>
-                                            <td className="whitespace-nowrap px-6 py-2 text-sm text-gray-500">{(conta as any).nome_centrocusto || '-'}</td>
-                                            <td className="whitespace-nowrap px-6 py-2 text-sm text-blue-600 font-semibold text-right">{formatCurrency(conta.valor_total || 0)}</td>
+                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{(conta as any).nome_centrocusto || '-'}</td>
+                                            <td className="px-4 py-2 text-xs text-gray-600 max-w-xs truncate" title={conta.descricao_observacao || ''}>{conta.descricao_observacao || '-'}</td>
+                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-blue-600 font-semibold text-right">{formatCurrency(conta.valor_total || 0)}</td>
                                           </tr>
                                         );
                                       })}

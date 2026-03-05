@@ -20,6 +20,9 @@ export interface ContaPagar {
   nome_centrocusto?: string;
   id_documento?: string;
   id_origem?: string;
+  numero_parcela?: number;
+  data_cadastro?: string;
+  descricao_observacao?: string;
 }
 
 export interface EmpresaOption {
