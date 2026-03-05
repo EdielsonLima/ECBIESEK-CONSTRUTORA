@@ -3836,7 +3836,7 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
                 SELECT COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as valor FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE cap.data_vencimento BETWEEN %s AND %s{cap_where_extra}{filtro_previsao}
-            """, [hoje, hoje + timedelta(days=7)] + excl_params_cap)
+            """, [hoje + timedelta(days=1), hoje + timedelta(days=7)] + excl_params_cap)
             result = cursor.fetchone()
             valor = result['valor'] if result else 0
 
@@ -3845,7 +3845,7 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
                 SELECT COALESCE(SUM(cap.valor_total), 0) as valor FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE cap.data_vencimento BETWEEN %s AND %s{cap_where_extra}{filtro_previsao}
-            """, [hoje, hoje + timedelta(days=7)] + excl_params_cap)
+            """, [hoje + timedelta(days=1), hoje + timedelta(days=7)] + excl_params_cap)
             result = cursor.fetchone()
             valor = decimal_to_float(result['valor']) if result else 0
 
