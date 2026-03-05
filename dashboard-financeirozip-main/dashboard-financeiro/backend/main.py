@@ -3700,179 +3700,200 @@ def registrar_valor_kpi(kpi_id: int, dados: KPIHistoricoCreate):
 
 def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optional[str] = None) -> dict:
     """Calcula valor de KPI automático baseado no identificador
-    
+
     Args:
         calculo_automatico: Identificador do cálculo a ser realizado
         documentos_excluidos: String com tipos de documento separados por vírgula para excluir
     """
     conn = get_db_connection()
     cursor = conn.cursor()
-    
+
     try:
         hoje = datetime.now().date()
         valor = None
-        
-        # Se não tiver documentos específicos, usa padrão (PPC, PRV, PRC)
+
+        # Aplica exclusões configuradas (mesmas usadas nas páginas de Atrasadas, A Pagar, etc.)
+        exclusoes = get_exclusoes()
+        excl_conds_cap, excl_params_cap = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap')
+        excl_conds_cp, excl_params_cp = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp', has_conta_corrente=True)
+        cap_where_extra = (" AND " + " AND ".join(excl_conds_cap)) if excl_conds_cap else ""
+        cp_where_extra = (" AND " + " AND ".join(excl_conds_cp)) if excl_conds_cp else ""
+
+        # Se tiver documentos excluídos adicionais no KPI, aplica também
         if documentos_excluidos:
             docs = [f"'{d.strip()}'" for d in documentos_excluidos.split(',') if d.strip()]
             if docs:
-                filtro_previsao = f"AND TRIM(id_documento) NOT IN ({', '.join(docs)})"
-                filtro_previsao_pagas = f"AND TRIM(id_documento) NOT IN ({', '.join(docs)})"
+                filtro_previsao = f" AND TRIM(cap.id_documento) NOT IN ({', '.join(docs)})"
+                filtro_previsao_pagas = f" AND TRIM(cp.id_documento) NOT IN ({', '.join(docs)})"
             else:
                 filtro_previsao = ""
                 filtro_previsao_pagas = ""
         else:
-            # Padrão: excluir PPC, PRV, PRC
-            filtro_previsao = "AND TRIM(id_documento) NOT IN ('PPC', 'PRV', 'PRC')"
-            filtro_previsao_pagas = "AND TRIM(id_documento) NOT IN ('PPC', 'PRV', 'PRC')"
-        
+            filtro_previsao = ""
+            filtro_previsao_pagas = ""
+
         if calculo_automatico == 'titulos_vencidos_qtd':
             cursor.execute(f"""
-                SELECT COUNT(*) as valor FROM contas_a_pagar 
-                WHERE data_vencimento < %s {filtro_previsao}
-            """, (hoje,))
+                SELECT COUNT(*) as valor FROM contas_a_pagar cap
+                LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE cap.data_vencimento < %s{cap_where_extra}{filtro_previsao}
+            """, [hoje] + excl_params_cap)
             result = cursor.fetchone()
             valor = result['valor'] if result else 0
-            
+
         elif calculo_automatico == 'titulos_vencidos_valor':
             cursor.execute(f"""
-                SELECT COALESCE(SUM(valor_total), 0) as valor FROM contas_a_pagar 
-                WHERE data_vencimento < %s {filtro_previsao}
-            """, (hoje,))
+                SELECT COALESCE(SUM(cap.valor_total), 0) as valor FROM contas_a_pagar cap
+                LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE cap.data_vencimento < %s{cap_where_extra}{filtro_previsao}
+            """, [hoje] + excl_params_cap)
             result = cursor.fetchone()
             valor = decimal_to_float(result['valor']) if result else 0
-            
+
         elif calculo_automatico == 'titulos_a_vencer_qtd':
             cursor.execute(f"""
-                SELECT COUNT(*) as valor FROM contas_a_pagar 
-                WHERE data_vencimento >= %s {filtro_previsao}
-            """, (hoje,))
+                SELECT COUNT(*) as valor FROM contas_a_pagar cap
+                LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE cap.data_vencimento >= %s{cap_where_extra}{filtro_previsao}
+            """, [hoje] + excl_params_cap)
             result = cursor.fetchone()
             valor = result['valor'] if result else 0
-            
+
         elif calculo_automatico == 'titulos_a_vencer_valor':
             cursor.execute(f"""
-                SELECT COALESCE(SUM(valor_total), 0) as valor FROM contas_a_pagar 
-                WHERE data_vencimento >= %s {filtro_previsao}
-            """, (hoje,))
+                SELECT COALESCE(SUM(cap.valor_total), 0) as valor FROM contas_a_pagar cap
+                LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE cap.data_vencimento >= %s{cap_where_extra}{filtro_previsao}
+            """, [hoje] + excl_params_cap)
             result = cursor.fetchone()
             valor = decimal_to_float(result['valor']) if result else 0
-            
+
         elif calculo_automatico == 'titulos_pagos_mes_qtd':
             cursor.execute(f"""
-                SELECT COUNT(*) as valor FROM contas_pagas 
-                WHERE EXTRACT(MONTH FROM data_pagamento) = EXTRACT(MONTH FROM CURRENT_DATE)
-                AND EXTRACT(YEAR FROM data_pagamento) = EXTRACT(YEAR FROM CURRENT_DATE)
-                {filtro_previsao_pagas}
-            """)
+                SELECT COUNT(*) as valor FROM contas_pagas cp
+                LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE EXTRACT(MONTH FROM cp.data_pagamento) = EXTRACT(MONTH FROM CURRENT_DATE)
+                AND EXTRACT(YEAR FROM cp.data_pagamento) = EXTRACT(YEAR FROM CURRENT_DATE)
+                {cp_where_extra}{filtro_previsao_pagas}
+            """, excl_params_cp)
             result = cursor.fetchone()
             valor = result['valor'] if result else 0
-            
+
         elif calculo_automatico == 'titulos_pagos_mes_valor':
             cursor.execute(f"""
-                SELECT COALESCE(SUM(valor_liquido), 0) as valor FROM contas_pagas 
-                WHERE EXTRACT(MONTH FROM data_pagamento) = EXTRACT(MONTH FROM CURRENT_DATE)
-                AND EXTRACT(YEAR FROM data_pagamento) = EXTRACT(YEAR FROM CURRENT_DATE)
-                {filtro_previsao_pagas}
-            """)
+                SELECT COALESCE(SUM(cp.valor_liquido), 0) as valor FROM contas_pagas cp
+                LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE EXTRACT(MONTH FROM cp.data_pagamento) = EXTRACT(MONTH FROM CURRENT_DATE)
+                AND EXTRACT(YEAR FROM cp.data_pagamento) = EXTRACT(YEAR FROM CURRENT_DATE)
+                {cp_where_extra}{filtro_previsao_pagas}
+            """, excl_params_cp)
             result = cursor.fetchone()
             valor = decimal_to_float(result['valor']) if result else 0
-            
+
         elif calculo_automatico == 'titulos_vencidos_2025_qtd':
             cursor.execute(f"""
-                SELECT COUNT(*) as valor FROM contas_a_pagar 
-                WHERE data_vencimento < %s
-                AND EXTRACT(YEAR FROM data_vencimento) = 2025
-                {filtro_previsao}
-            """, (hoje,))
+                SELECT COUNT(*) as valor FROM contas_a_pagar cap
+                LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE cap.data_vencimento < %s
+                AND EXTRACT(YEAR FROM cap.data_vencimento) = 2025
+                {cap_where_extra}{filtro_previsao}
+            """, [hoje] + excl_params_cap)
             result = cursor.fetchone()
             valor = result['valor'] if result else 0
-            
+
         elif calculo_automatico == 'titulos_vencidos_2025_valor':
             cursor.execute(f"""
-                SELECT COALESCE(SUM(valor_total), 0) as valor FROM contas_a_pagar 
-                WHERE data_vencimento < %s
-                AND EXTRACT(YEAR FROM data_vencimento) = 2025
-                {filtro_previsao}
-            """, (hoje,))
+                SELECT COALESCE(SUM(cap.valor_total), 0) as valor FROM contas_a_pagar cap
+                LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE cap.data_vencimento < %s
+                AND EXTRACT(YEAR FROM cap.data_vencimento) = 2025
+                {cap_where_extra}{filtro_previsao}
+            """, [hoje] + excl_params_cap)
             result = cursor.fetchone()
             valor = decimal_to_float(result['valor']) if result else 0
-        
+
         elif calculo_automatico == 'contas_a_pagar_hoje_qtd':
             cursor.execute(f"""
-                SELECT COUNT(*) as valor FROM contas_a_pagar 
-                WHERE data_vencimento = %s {filtro_previsao}
-            """, (hoje,))
+                SELECT COUNT(*) as valor FROM contas_a_pagar cap
+                LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE cap.data_vencimento = %s{cap_where_extra}{filtro_previsao}
+            """, [hoje] + excl_params_cap)
             result = cursor.fetchone()
             valor = result['valor'] if result else 0
-            
+
         elif calculo_automatico == 'contas_a_pagar_hoje_valor':
             cursor.execute(f"""
-                SELECT COALESCE(SUM(valor_total), 0) as valor FROM contas_a_pagar 
-                WHERE data_vencimento = %s {filtro_previsao}
-            """, (hoje,))
+                SELECT COALESCE(SUM(cap.valor_total), 0) as valor FROM contas_a_pagar cap
+                LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE cap.data_vencimento = %s{cap_where_extra}{filtro_previsao}
+            """, [hoje] + excl_params_cap)
             result = cursor.fetchone()
             valor = decimal_to_float(result['valor']) if result else 0
-            
+
         elif calculo_automatico == 'contas_a_pagar_7dias_qtd':
             cursor.execute(f"""
-                SELECT COUNT(*) as valor FROM contas_a_pagar 
-                WHERE data_vencimento BETWEEN %s AND %s {filtro_previsao}
-            """, (hoje, hoje + timedelta(days=7)))
+                SELECT COUNT(*) as valor FROM contas_a_pagar cap
+                LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE cap.data_vencimento BETWEEN %s AND %s{cap_where_extra}{filtro_previsao}
+            """, [hoje, hoje + timedelta(days=7)] + excl_params_cap)
             result = cursor.fetchone()
             valor = result['valor'] if result else 0
-            
+
         elif calculo_automatico == 'contas_a_pagar_7dias_valor':
             cursor.execute(f"""
-                SELECT COALESCE(SUM(valor_total), 0) as valor FROM contas_a_pagar 
-                WHERE data_vencimento BETWEEN %s AND %s {filtro_previsao}
-            """, (hoje, hoje + timedelta(days=7)))
+                SELECT COALESCE(SUM(cap.valor_total), 0) as valor FROM contas_a_pagar cap
+                LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE cap.data_vencimento BETWEEN %s AND %s{cap_where_extra}{filtro_previsao}
+            """, [hoje, hoje + timedelta(days=7)] + excl_params_cap)
             result = cursor.fetchone()
             valor = decimal_to_float(result['valor']) if result else 0
-            
+
         elif calculo_automatico == 'contas_a_pagar_mes_qtd':
             cursor.execute(f"""
-                SELECT COUNT(*) as valor FROM contas_a_pagar 
-                WHERE EXTRACT(MONTH FROM data_vencimento) = EXTRACT(MONTH FROM CURRENT_DATE)
-                AND EXTRACT(YEAR FROM data_vencimento) = EXTRACT(YEAR FROM CURRENT_DATE)
-                {filtro_previsao}
-            """)
+                SELECT COUNT(*) as valor FROM contas_a_pagar cap
+                LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE EXTRACT(MONTH FROM cap.data_vencimento) = EXTRACT(MONTH FROM CURRENT_DATE)
+                AND EXTRACT(YEAR FROM cap.data_vencimento) = EXTRACT(YEAR FROM CURRENT_DATE)
+                {cap_where_extra}{filtro_previsao}
+            """, excl_params_cap)
             result = cursor.fetchone()
             valor = result['valor'] if result else 0
-            
+
         elif calculo_automatico == 'contas_a_pagar_mes_valor':
             cursor.execute(f"""
-                SELECT COALESCE(SUM(valor_total), 0) as valor FROM contas_a_pagar 
-                WHERE EXTRACT(MONTH FROM data_vencimento) = EXTRACT(MONTH FROM CURRENT_DATE)
-                AND EXTRACT(YEAR FROM data_vencimento) = EXTRACT(YEAR FROM CURRENT_DATE)
-                {filtro_previsao}
-            """)
+                SELECT COALESCE(SUM(cap.valor_total), 0) as valor FROM contas_a_pagar cap
+                LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE EXTRACT(MONTH FROM cap.data_vencimento) = EXTRACT(MONTH FROM CURRENT_DATE)
+                AND EXTRACT(YEAR FROM cap.data_vencimento) = EXTRACT(YEAR FROM CURRENT_DATE)
+                {cap_where_extra}{filtro_previsao}
+            """, excl_params_cap)
             result = cursor.fetchone()
             valor = decimal_to_float(result['valor']) if result else 0
-            
+
         elif calculo_automatico == 'ticket_medio_pagamentos_mes':
             cursor.execute(f"""
-                SELECT COALESCE(AVG(valor_liquido), 0) as valor FROM contas_pagas 
-                WHERE EXTRACT(MONTH FROM data_pagamento) = EXTRACT(MONTH FROM CURRENT_DATE)
-                AND EXTRACT(YEAR FROM data_pagamento) = EXTRACT(YEAR FROM CURRENT_DATE)
-                {filtro_previsao_pagas}
-            """)
+                SELECT COALESCE(AVG(cp.valor_liquido), 0) as valor FROM contas_pagas cp
+                LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE EXTRACT(MONTH FROM cp.data_pagamento) = EXTRACT(MONTH FROM CURRENT_DATE)
+                AND EXTRACT(YEAR FROM cp.data_pagamento) = EXTRACT(YEAR FROM CURRENT_DATE)
+                {cp_where_extra}{filtro_previsao_pagas}
+            """, excl_params_cp)
             result = cursor.fetchone()
             valor = round(decimal_to_float(result['valor']), 2) if result else 0
-            
+
         elif calculo_automatico == 'percentual_inadimplencia':
             cursor.execute(f"""
-                SELECT 
-                    CASE WHEN total_aberto > 0 
-                        THEN (total_vencido::numeric / total_aberto::numeric) * 100 
-                        ELSE 0 
+                SELECT
+                    CASE WHEN total_aberto > 0
+                        THEN (total_vencido::numeric / total_aberto::numeric) * 100
+                        ELSE 0
                     END as valor
                 FROM (
-                    SELECT 
-                        (SELECT COALESCE(SUM(valor_total), 0) FROM contas_a_pagar WHERE data_vencimento < CURRENT_DATE {filtro_previsao}) as total_vencido,
-                        (SELECT COALESCE(SUM(valor_total), 0) FROM contas_a_pagar WHERE 1=1 {filtro_previsao}) as total_aberto
+                    SELECT
+                        (SELECT COALESCE(SUM(cap.valor_total), 0) FROM contas_a_pagar cap LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto WHERE cap.data_vencimento < CURRENT_DATE{cap_where_extra}{filtro_previsao}) as total_vencido,
+                        (SELECT COALESCE(SUM(cap.valor_total), 0) FROM contas_a_pagar cap LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto WHERE 1=1{cap_where_extra}{filtro_previsao}) as total_aberto
                 ) subq
-            """)
+            """, excl_params_cap + excl_params_cap)
             result = cursor.fetchone()
             valor = round(decimal_to_float(result['valor']), 2) if result else 0
         
