@@ -3720,18 +3720,36 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
         cp_where_extra = (" AND " + " AND ".join(excl_conds_cp)) if excl_conds_cp else ""
 
         # Se tiver documentos excluídos adicionais no KPI, aplica também
-        # Por padrão, exclui documentos de previsão (PPC, PRV, PRC) que não representam contas reais
         if documentos_excluidos:
             docs = [f"'{d.strip()}'" for d in documentos_excluidos.split(',') if d.strip()]
             if docs:
                 filtro_previsao = f" AND TRIM(cap.id_documento) NOT IN ({', '.join(docs)})"
                 filtro_previsao_pagas = f" AND TRIM(cp.id_documento) NOT IN ({', '.join(docs)})"
             else:
+                filtro_previsao = ""
+                filtro_previsao_pagas = ""
+        else:
+            filtro_previsao = ""
+            filtro_previsao_pagas = ""
+
+        # Por padrão, exclui TODOS os documentos de previsão automaticamente
+        # Busca da tabela ecaddocumento tipos que contenham "previs" no nome
+        if not filtro_previsao:
+            try:
+                cursor.execute("""
+                    SELECT TRIM(id_documento) as id_doc FROM ecaddocumento
+                    WHERE LOWER(TRIM(nome_documento)) LIKE '%previs%'
+                """)
+                previsao_rows = cursor.fetchall()
+                if previsao_rows:
+                    previsao_ids = [f"'{r['id_doc']}'" for r in previsao_rows]
+                    filtro_previsao = f" AND TRIM(cap.id_documento) NOT IN ({', '.join(previsao_ids)})"
+                    filtro_previsao_pagas = f" AND TRIM(cp.id_documento) NOT IN ({', '.join(previsao_ids)})"
+            except Exception as e:
+                print(f"Aviso: não foi possível buscar tipos de previsão: {e}")
+                # Fallback: exclui PPC, PRV, PRC
                 filtro_previsao = " AND TRIM(cap.id_documento) NOT IN ('PPC', 'PRV', 'PRC')"
                 filtro_previsao_pagas = " AND TRIM(cp.id_documento) NOT IN ('PPC', 'PRV', 'PRC')"
-        else:
-            filtro_previsao = " AND TRIM(cap.id_documento) NOT IN ('PPC', 'PRV', 'PRC')"
-            filtro_previsao_pagas = " AND TRIM(cp.id_documento) NOT IN ('PPC', 'PRV', 'PRC')"
 
         if calculo_automatico == 'titulos_vencidos_qtd':
             cursor.execute(f"""
