@@ -145,6 +145,7 @@ export const ContasAReceber: React.FC = () => {
   const [clientes, setClientes] = useState<{ id: string; nome: string }[]>([]);
   const [filtroCliente, setFiltroCliente] = useState<string | null>(null);
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [linhaExpandida, setLinhaExpandida] = useState<number | null>(null);
 
   const ordenarContas = (contasParaOrdenar: ContaReceber[]) => {
     return [...contasParaOrdenar].sort((a, b) => {
@@ -756,43 +757,122 @@ export const ContasAReceber: React.FC = () => {
               <tbody className="divide-y divide-gray-200 bg-white">
                 {ordenarContas(contas).slice(0, 100).map((conta, index) => {
                   const dias = calcularDiasAteVencimento(conta.data_vencimento);
+                  const tituloBase = conta.lancamento ? conta.lancamento.split('/')[0] : '';
+                  const isExpanded = linhaExpandida === index;
                   return (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
-                        {conta.cliente || '-'}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                        {formatDate(conta.data_vencimento)}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm">
-                        <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                          dias < 0 ? 'bg-red-100 text-red-800' :
-                          dias === 0 ? 'bg-yellow-100 text-yellow-800' :
-                          dias <= 7 ? 'bg-orange-100 text-orange-800' :
-                          'bg-green-100 text-green-800'
-                        }`}>
-                          {dias === 0 ? 'Hoje' : dias < 0 ? `${Math.abs(dias)}d atrasado` : `${dias}d`}
-                        </span>
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                        {formatCurrency(conta.valor_total)}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                        {conta.titulo || conta.lancamento || '-'}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                        {conta.numero_parcela || '-'}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                        {conta.numero_documento || conta.id_documento || '-'}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                        {conta.nome_empresa || '-'}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                        {conta.tipo_condicao || '-'}
-                      </td>
-                    </tr>
+                    <React.Fragment key={index}>
+                      <tr
+                        className="hover:bg-gray-50 cursor-pointer"
+                        onClick={() => setLinhaExpandida(isExpanded ? null : index)}
+                      >
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-gray-400 text-xs transition-transform ${isExpanded ? 'rotate-90' : ''}`}>&#9654;</span>
+                            {conta.cliente || '-'}
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                          {formatDate(conta.data_vencimento)}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm">
+                          <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                            dias < 0 ? 'bg-red-100 text-red-800' :
+                            dias === 0 ? 'bg-yellow-100 text-yellow-800' :
+                            dias <= 7 ? 'bg-orange-100 text-orange-800' :
+                            'bg-green-100 text-green-800'
+                          }`}>
+                            {dias === 0 ? 'Hoje' : dias < 0 ? `${Math.abs(dias)}d atrasado` : `${dias}d`}
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
+                          {formatCurrency(conta.valor_total)}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                          {conta.titulo || conta.lancamento || '-'}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                          {conta.numero_parcela || '-'}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                          {conta.numero_documento || conta.id_documento || '-'}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                          {conta.nome_empresa || '-'}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                          {conta.tipo_condicao || '-'}
+                        </td>
+                      </tr>
+                      {isExpanded && tituloBase && (() => {
+                        const parcelas = todasContas
+                          .filter(c => c.lancamento && c.lancamento.split('/')[0] === tituloBase && c.lancamento !== conta.lancamento)
+                          .sort((a, b) => {
+                            const pa = parseInt(a.numero_parcela || '0');
+                            const pb = parseInt(b.numero_parcela || '0');
+                            return pa - pb;
+                          });
+                        const totalParcelas = todasContas.filter(c => c.lancamento && c.lancamento.split('/')[0] === tituloBase).length;
+                        const valorTotalTitulo = todasContas
+                          .filter(c => c.lancamento && c.lancamento.split('/')[0] === tituloBase)
+                          .reduce((acc, c) => acc + (c.valor_total || 0), 0);
+                        return (
+                          <tr>
+                            <td colSpan={9} className="p-0">
+                              <div className="bg-green-50 border-t border-b border-green-200 px-8 py-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                    Titulo {tituloBase} — {totalParcelas} parcela(s) — Total: {formatCurrency(valorTotalTitulo)}
+                                  </p>
+                                  <span className="text-xs text-gray-400">{conta.tipo_condicao || '-'} | {conta.nome_empresa || '-'}</span>
+                                </div>
+                                {parcelas.length > 0 ? (
+                                  <div className="max-h-60 overflow-y-auto">
+                                    <table className="w-full text-sm">
+                                      <thead>
+                                        <tr className="text-xs text-gray-400 uppercase">
+                                          <th className="text-left py-1 pr-3">Parcela</th>
+                                          <th className="text-left py-1 pr-3">Vencimento</th>
+                                          <th className="text-left py-1 pr-3">Dias</th>
+                                          <th className="text-right py-1 pr-3">Valor</th>
+                                          <th className="text-left py-1 pr-3">Documento</th>
+                                          <th className="text-left py-1">Tipo Condicao</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {parcelas.map((p, pi) => {
+                                          const diasP = calcularDiasAteVencimento(p.data_vencimento);
+                                          return (
+                                            <tr key={pi} className="border-t border-green-100 hover:bg-green-100">
+                                              <td className="py-1.5 pr-3 text-gray-700 font-mono">{p.numero_parcela || '-'}</td>
+                                              <td className="py-1.5 pr-3 text-gray-500">{formatDate(p.data_vencimento)}</td>
+                                              <td className="py-1.5 pr-3">
+                                                <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
+                                                  diasP < 0 ? 'bg-red-100 text-red-800' :
+                                                  diasP === 0 ? 'bg-yellow-100 text-yellow-800' :
+                                                  diasP <= 7 ? 'bg-orange-100 text-orange-800' :
+                                                  'bg-green-100 text-green-800'
+                                                }`}>
+                                                  {diasP === 0 ? 'Hoje' : diasP < 0 ? `${Math.abs(diasP)}d atrasado` : `${diasP}d`}
+                                                </span>
+                                              </td>
+                                              <td className="py-1.5 pr-3 text-right font-semibold text-green-700">{formatCurrency(p.valor_total)}</td>
+                                              <td className="py-1.5 pr-3 text-gray-500 font-mono text-xs">{p.numero_documento || p.id_documento || '-'}</td>
+                                              <td className="py-1.5 text-gray-500">{p.tipo_condicao || '-'}</td>
+                                            </tr>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-gray-400 italic">Esta e a unica parcela deste titulo.</p>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })()}
+                    </React.Fragment>
                   );
                 })}
               </tbody>
