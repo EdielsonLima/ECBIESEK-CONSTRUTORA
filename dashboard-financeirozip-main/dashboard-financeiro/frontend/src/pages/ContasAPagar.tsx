@@ -481,12 +481,13 @@ export const ContasAPagar: React.FC = () => {
     const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor);
     setContas(contasFiltradas);
 
-    // Card "Total a Pagar" usa TODAS as contas (vencidas + a vencer), igual ao PBI
+    // Card "Total a Pagar" usa TODAS as contas (vencidas + a vencer), mas com filtros locais aplicados
+    const completasFiltradas = aplicarFiltrosLocais(todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor);
     const stats: Estatisticas = {
-      quantidade_titulos: calcularTitulosUnicos(todasContasCompletas),
-      valor_total: todasContasCompletas.reduce((acc, c) => acc + (c.valor_total || 0), 0),
-      valor_medio: todasContasCompletas.length > 0
-        ? todasContasCompletas.reduce((acc, c) => acc + (c.valor_total || 0), 0) / todasContasCompletas.length
+      quantidade_titulos: calcularTitulosUnicos(completasFiltradas),
+      valor_total: completasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0),
+      valor_medio: completasFiltradas.length > 0
+        ? completasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0) / completasFiltradas.length
         : 0,
     };
     setEstatisticas(stats);
@@ -997,7 +998,8 @@ export const ContasAPagar: React.FC = () => {
         const contas7dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 7; });
         const contas15dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 15; });
         const contas30dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 30; });
-        const credoresTotal = new Set(todasContasCompletas.map(c => c.credor)).size;
+        const completasFiltradas = aplicarFiltrosLocais(todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor);
+        const credoresTotal = new Set(completasFiltradas.map(c => c.credor)).size;
         const credoresHoje = new Set(contasHoje.map(c => c.credor)).size;
         const credores7dias = new Set(contas7dias.map(c => c.credor)).size;
         const credores15dias = new Set(contas15dias.map(c => c.credor)).size;
