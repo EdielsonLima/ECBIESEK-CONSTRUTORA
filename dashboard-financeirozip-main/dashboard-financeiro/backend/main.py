@@ -84,6 +84,38 @@ except Exception as e:
 
 app = FastAPI(title="Dashboard Financeiro - Construtora")
 
+def _criar_view_contas_a_pagar():
+    """Cria view deduplicada no banco PRINCIPAL. Se falhar, cria view simples como fallback."""
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                CREATE OR REPLACE VIEW vw_contas_a_pagar AS
+                SELECT DISTINCT ON (lancamento, numero_parcela, id_interno_centro_custo) *
+                FROM contas_a_pagar
+                ORDER BY lancamento, numero_parcela, id_interno_centro_custo, valor_total DESC
+            """)
+            conn.commit()
+            print("[VIEW] vw_contas_a_pagar criada com deduplicação!")
+        except Exception as e1:
+            conn.rollback()
+            print(f"[VIEW] Falha ao criar view com DISTINCT ON: {e1}")
+            try:
+                cursor.execute("CREATE OR REPLACE VIEW vw_contas_a_pagar AS SELECT * FROM contas_a_pagar")
+                conn.commit()
+                print("[VIEW] vw_contas_a_pagar criada como fallback (sem dedup)")
+            except Exception as e2:
+                conn.rollback()
+                print(f"[VIEW] Falha total ao criar view: {e2}")
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(f"[VIEW] Erro de conexão ao banco principal: {e}")
+
+# Cria a view ANTES de qualquer thread ou startup event
+_criar_view_contas_a_pagar()
+
 @app.on_event("startup")
 async def startup_event():
     """Garante que tabelas de config existam no PostgreSQL ao iniciar."""
@@ -92,22 +124,8 @@ async def startup_event():
     except Exception as e:
         print(f"[STARTUP] Erro ao garantir tabelas de config: {e}")
 
-    # Cria view deduplicada no banco PRINCIPAL (onde contas_a_pagar vive)
-    try:
-        conn = psycopg2.connect(**DB_CONFIG)
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE OR REPLACE VIEW vw_contas_a_pagar AS
-            SELECT DISTINCT ON (lancamento, numero_parcela, id_interno_centro_custo) *
-            FROM contas_a_pagar
-            ORDER BY lancamento, numero_parcela, id_interno_centro_custo, valor_total DESC
-        """)
-        conn.commit()
-        cursor.close()
-        conn.close()
-        print("[STARTUP] View vw_contas_a_pagar criada/atualizada com sucesso!")
-    except Exception as e:
-        print(f"[STARTUP] Erro ao criar view vw_contas_a_pagar: {e}")
+    # Recria a view (caso o startup rode depois de um redeploy)
+    _criar_view_contas_a_pagar()
 
 # Configuração de segurança JWT
 JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'fallback-secret-key-change-in-production')
