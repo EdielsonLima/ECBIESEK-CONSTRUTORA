@@ -149,6 +149,7 @@ export const ContasRecebidas: React.FC = () => {
   const [linhaExpandida, setLinhaExpandida] = useState<number | null>(null);
   const [clienteExpandido, setClienteExpandido] = useState<string | null>(null);
   const [subAbaCliente, setSubAbaCliente] = useState<'tabela' | 'grafico'>('tabela');
+  const [ordInterna, setOrdInterna] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'data_recebimento', direcao: 'desc' });
 
   const calcularDiasDesdeRecebimento = (dataRecebimento: string | undefined) => {
     if (!dataRecebimento) return 999;
@@ -218,6 +219,80 @@ export const ContasRecebidas: React.FC = () => {
       )}
     </span>
   );
+
+  const toggleOrdInterna = (campo: string) => {
+    setOrdInterna(prev => ({
+      campo,
+      direcao: prev.campo === campo && prev.direcao === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  const renderSortIconInterna = (campo: string) => (
+    <span className="ml-1 inline-block">
+      {ordInterna.campo === campo ? (
+        ordInterna.direcao === 'asc' ? '▲' : '▼'
+      ) : (
+        <span className="text-gray-300">▼</span>
+      )}
+    </span>
+  );
+
+  const ordenarContasInternas = (contasInt: ContaReceber[]) => {
+    return [...contasInt].sort((a, b) => {
+      let vA: any, vB: any;
+      switch (ordInterna.campo) {
+        case 'data_recebimento':
+          vA = (a.data_recebimento || '').split('T')[0];
+          vB = (b.data_recebimento || '').split('T')[0];
+          break;
+        case 'titulo':
+          vA = String(a.titulo || (a as any).lancamento || '');
+          vB = String(b.titulo || (b as any).lancamento || '');
+          break;
+        case 'parcela':
+          vA = parseInt(a.numero_parcela || '0');
+          vB = parseInt(b.numero_parcela || '0');
+          break;
+        case 'documento':
+          vA = (a.id_documento || '').toLowerCase();
+          vB = (b.id_documento || '').toLowerCase();
+          break;
+        case 'tipo_condicao':
+          vA = ((a as any).tipo_condicao || '').toLowerCase();
+          vB = ((b as any).tipo_condicao || '').toLowerCase();
+          break;
+        case 'centro_custo':
+          vA = (a.nome_centrocusto || '').toLowerCase();
+          vB = (b.nome_centrocusto || '').toLowerCase();
+          break;
+        case 'valor':
+          vA = a.valor_total || 0;
+          vB = b.valor_total || 0;
+          break;
+        default: return 0;
+      }
+      if (vA < vB) return ordInterna.direcao === 'asc' ? -1 : 1;
+      if (vA > vB) return ordInterna.direcao === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
+  const corTipoCondicao = (tc: string | undefined): string => {
+    if (!tc) return 'bg-gray-100 text-gray-600';
+    switch (tc.trim().toUpperCase()) {
+      case 'PM': return 'bg-blue-100 text-blue-700 border border-blue-200';
+      case 'PS': return 'bg-purple-100 text-purple-700 border border-purple-200';
+      case 'CO': return 'bg-green-100 text-green-700 border border-green-200';
+      case 'CR': return 'bg-teal-100 text-teal-700 border border-teal-200';
+      case 'AT': return 'bg-yellow-100 text-yellow-700 border border-yellow-200';
+      case 'FI': return 'bg-orange-100 text-orange-700 border border-orange-200';
+      case 'RE': return 'bg-red-100 text-red-700 border border-red-200';
+      case 'PB': return 'bg-pink-100 text-pink-700 border border-pink-200';
+      case 'PE': return 'bg-indigo-100 text-indigo-700 border border-indigo-200';
+      case 'PI': return 'bg-cyan-100 text-cyan-700 border border-cyan-200';
+      default: return 'bg-gray-100 text-gray-600 border border-gray-200';
+    }
+  };
 
   const meses = [
     { valor: 1, nome: 'Janeiro' },
@@ -874,7 +949,13 @@ export const ContasRecebidas: React.FC = () => {
                             </span>
                           ) : '-'}
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{(conta as any).tipo_condicao || '-'}</td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm">
+                          {(conta as any).tipo_condicao ? (
+                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${corTipoCondicao((conta as any).tipo_condicao)}`}>
+                              {(conta as any).tipo_condicao}
+                            </span>
+                          ) : '-'}
+                        </td>
                       </tr>
                       {isExpanded && tituloBase && (() => {
                         const parcelas = todasContas
@@ -924,7 +1005,13 @@ export const ContasRecebidas: React.FC = () => {
                                             <td className="py-1.5 pr-3 text-right font-semibold text-green-700">{formatCurrency(p.valor_total)}</td>
                                             <td className="py-1.5 pr-3 text-gray-500 font-mono text-xs">{p.id_documento || '-'}</td>
                                             <td className="py-1.5 pr-3 text-gray-500">{p.nome_centrocusto || '-'}</td>
-                                            <td className="py-1.5 text-gray-500">{(p as any).tipo_condicao || '-'}</td>
+                                            <td className="py-1.5">
+                                              {(p as any).tipo_condicao ? (
+                                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${corTipoCondicao((p as any).tipo_condicao)}`}>
+                                                  {(p as any).tipo_condicao}
+                                                </span>
+                                              ) : '-'}
+                                            </td>
                                           </tr>
                                         ))}
                                       </tbody>
@@ -1114,23 +1201,29 @@ export const ContasRecebidas: React.FC = () => {
                                   <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                       <tr>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data Recebimento</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Titulo</th>
-                                        <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Parcela</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Documento</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo Condicao</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Centro Custo</th>
-                                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                                        <th onClick={() => toggleOrdInterna('data_recebimento')} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Data Recebimento{renderSortIconInterna('data_recebimento')}</th>
+                                        <th onClick={() => toggleOrdInterna('titulo')} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Titulo{renderSortIconInterna('titulo')}</th>
+                                        <th onClick={() => toggleOrdInterna('parcela')} className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Parcela{renderSortIconInterna('parcela')}</th>
+                                        <th onClick={() => toggleOrdInterna('documento')} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Documento{renderSortIconInterna('documento')}</th>
+                                        <th onClick={() => toggleOrdInterna('tipo_condicao')} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Tipo Condicao{renderSortIconInterna('tipo_condicao')}</th>
+                                        <th onClick={() => toggleOrdInterna('centro_custo')} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Centro Custo{renderSortIconInterna('centro_custo')}</th>
+                                        <th onClick={() => toggleOrdInterna('valor')} className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Valor{renderSortIconInterna('valor')}</th>
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
-                                      {contas.filter(conta => (conta.cliente || 'Sem Cliente') === c.cliente).map((conta, j) => (
+                                      {ordenarContasInternas(contas.filter(conta => (conta.cliente || 'Sem Cliente') === c.cliente)).map((conta, j) => (
                                         <tr key={j} className="hover:bg-green-50/50">
                                           <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{formatDate(conta.data_recebimento)}</td>
                                           <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-gray-900">{String(conta.titulo || (conta as any).lancamento || '-').split('/')[0]}</td>
                                           <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500 text-center">{conta.numero_parcela || '-'}</td>
                                           <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.id_documento || '-'}</td>
-                                          <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{(conta as any).tipo_condicao || '-'}</td>
+                                          <td className="whitespace-nowrap px-4 py-2 text-sm">
+                                            {(conta as any).tipo_condicao ? (
+                                              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${corTipoCondicao((conta as any).tipo_condicao)}`}>
+                                                {(conta as any).tipo_condicao}
+                                              </span>
+                                            ) : '-'}
+                                          </td>
                                           <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.nome_centrocusto || '-'}</td>
                                           <td className="whitespace-nowrap px-4 py-2 text-sm text-green-600 font-semibold text-right">{formatCurrency(conta.valor_total || 0)}</td>
                                         </tr>
