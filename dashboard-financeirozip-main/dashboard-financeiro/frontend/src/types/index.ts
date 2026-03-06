@@ -210,6 +210,17 @@ export interface ContaReceber {
   tipo_condicao?: string;
 }
 
+export interface ProgressTitulo {
+  titulo: string;
+  total_parcelas: number;
+  parcelas_recebidas: number;
+  valor_contrato: number;
+  valor_recebido: number;
+  percentual: number;
+  tipo_condicao: string;
+  tipo_condicao_desc: string;
+}
+
 export interface MetricasReceber {
   total_recebido: number;
   total_a_receber: number;

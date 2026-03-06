@@ -148,8 +148,10 @@ export const ContasRecebidas: React.FC = () => {
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [linhaExpandida, setLinhaExpandida] = useState<number | null>(null);
   const [clienteExpandido, setClienteExpandido] = useState<string | null>(null);
-  const [subAbaCliente, setSubAbaCliente] = useState<'tabela' | 'grafico'>('tabela');
+  const [subAbaCliente, setSubAbaCliente] = useState<'tabela' | 'grafico' | 'progresso'>('tabela');
   const [ordInterna, setOrdInterna] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'data_recebimento', direcao: 'desc' });
+  const [progressData, setProgressData] = useState<Record<string, any[]>>({});
+  const [loadingProgress, setLoadingProgress] = useState<Record<string, boolean>>({});
 
   const calcularDiasDesdeRecebimento = (dataRecebimento: string | undefined) => {
     if (!dataRecebimento) return 999;
@@ -416,6 +418,30 @@ export const ContasRecebidas: React.FC = () => {
   useEffect(() => {
     carregarTotais();
   }, [carregarTotais]);
+
+  const carregarProgressCliente = async (cliente: string) => {
+    if (progressData[cliente]) return;
+    setLoadingProgress(prev => ({ ...prev, [cliente]: true }));
+    try {
+      const data = await apiService.getProgressTitulosCliente({
+        cliente,
+        empresa: filtroEmpresa ?? undefined,
+        ano: filtroAno ? String(filtroAno) : undefined,
+        mes: filtroMes.length > 0 ? filtroMes.join(',') : undefined,
+        tipo_baixa: filtroTipoBaixa.length > 0 ? filtroTipoBaixa.join(',') : undefined,
+      });
+      setProgressData(prev => ({ ...prev, [cliente]: data }));
+    } catch (err) {
+      console.error('Erro ao carregar progress titulos:', err);
+    } finally {
+      setLoadingProgress(prev => ({ ...prev, [cliente]: false }));
+    }
+  };
+
+  // Limpar cache de progresso quando filtros mudam
+  useEffect(() => {
+    setProgressData({});
+  }, [filtroEmpresa, filtroAno, filtroMes, filtroTipoBaixa]);
 
   const aplicarFiltrosLocais = (
     dados: ContaReceber[],
@@ -1159,10 +1185,19 @@ export const ContasRecebidas: React.FC = () => {
                 >
                   Grafico
                 </button>
+                <button
+                  onClick={() => {
+                    setSubAbaCliente('progresso');
+                    if (clienteExpandido) carregarProgressCliente(clienteExpandido);
+                  }}
+                  className={`rounded-t-lg px-4 py-2 text-sm font-medium ${subAbaCliente === 'progresso' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  Progresso por Titulo
+                </button>
               </div>
             </div>
 
-            {subAbaCliente === 'tabela' && (
+            {(subAbaCliente === 'tabela' || subAbaCliente === 'progresso') && (
               <div className="overflow-hidden rounded-lg bg-white shadow">
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
@@ -1180,7 +1215,11 @@ export const ContasRecebidas: React.FC = () => {
                       {clientesExibidos.map((c, index) => (
                         <React.Fragment key={index}>
                           <tr
-                            onClick={() => setClienteExpandido(clienteExpandido === c.cliente ? null : c.cliente)}
+                            onClick={() => {
+                              const next = clienteExpandido === c.cliente ? null : c.cliente;
+                              setClienteExpandido(next);
+                              if (next && subAbaCliente === 'progresso') carregarProgressCliente(next);
+                            }}
                             className={`cursor-pointer hover:bg-gray-50 transition-colors ${clienteExpandido === c.cliente ? 'bg-green-50/50' : c.acumulado <= 80 ? 'bg-green-50/30' : c.acumulado <= 95 ? 'bg-yellow-50/30' : ''}`}
                           >
                             <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-400 font-mono">
@@ -1207,7 +1246,7 @@ export const ContasRecebidas: React.FC = () => {
                               </span>
                             </td>
                           </tr>
-                          {clienteExpandido === c.cliente && (
+                          {clienteExpandido === c.cliente && subAbaCliente === 'tabela' && (
                             <tr className="bg-gray-50">
                               <td colSpan={6} className="px-8 py-4">
                                 <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-inner">
@@ -1244,6 +1283,90 @@ export const ContasRecebidas: React.FC = () => {
                                     </tbody>
                                   </table>
                                 </div>
+                              </td>
+                            </tr>
+                          )}
+                          {clienteExpandido === c.cliente && subAbaCliente === 'progresso' && (
+                            <tr className="bg-gray-50">
+                              <td colSpan={6} className="px-8 py-4">
+                                {loadingProgress[c.cliente] ? (
+                                  <div className="flex items-center gap-2 text-sm text-gray-500 py-4">
+                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-green-600 border-r-transparent" />
+                                    Carregando progresso...
+                                  </div>
+                                ) : !progressData[c.cliente] || progressData[c.cliente].length === 0 ? (
+                                  <p className="text-sm text-gray-400 italic py-2">
+                                    Nenhum titulo encontrado em contas a receber para este cliente.
+                                  </p>
+                                ) : (
+                                  <div className="space-y-3">
+                                    <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-3">
+                                      Progresso de Recebimento por Titulo
+                                    </p>
+                                    {progressData[c.cliente].map((t: any) => {
+                                      const pct = t.percentual;
+                                      const barColor = pct >= 100 ? 'bg-green-500' : pct >= 50 ? 'bg-blue-500' : pct > 0 ? 'bg-yellow-400' : 'bg-gray-300';
+                                      return (
+                                        <div key={t.titulo} className="rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                                          <div className="flex items-center justify-between mb-1.5">
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-sm font-bold text-gray-800">Titulo {t.titulo}</span>
+                                              <span title={t.tipo_condicao_desc} className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold cursor-help ${corTipoCondicao(t.tipo_condicao)}`}>
+                                                {t.tipo_condicao}
+                                              </span>
+                                            </div>
+                                            <div className="flex items-center gap-4 text-right">
+                                              <span className="text-xs text-gray-500">{t.parcelas_recebidas}/{t.total_parcelas} parcelas</span>
+                                              <span className={`text-sm font-bold ${pct >= 100 ? 'text-green-600' : pct >= 50 ? 'text-blue-600' : 'text-yellow-600'}`}>
+                                                {pct.toFixed(1)}%
+                                              </span>
+                                            </div>
+                                          </div>
+                                          <div className="h-2.5 w-full rounded-full bg-gray-100 overflow-hidden">
+                                            <div className={`h-2.5 rounded-full transition-all duration-500 ${barColor}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+                                          </div>
+                                          <div className="mt-1.5 flex justify-between text-xs text-gray-400">
+                                            <span>Recebido: {formatCurrency(t.valor_recebido)}</span>
+                                            <span>Contrato: {formatCurrency(t.valor_contrato)}</span>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                    {(() => {
+                                      const titulos = progressData[c.cliente] || [];
+                                      const totalTitulos = titulos.length;
+                                      const titulosCompletos = titulos.filter((t: any) => t.percentual >= 100).length;
+                                      const totalParcelas = titulos.reduce((a: number, t: any) => a + t.total_parcelas, 0);
+                                      const parcelasRecebidas = titulos.reduce((a: number, t: any) => a + t.parcelas_recebidas, 0);
+                                      const valorContrato = titulos.reduce((a: number, t: any) => a + t.valor_contrato, 0);
+                                      const valorRecebido = titulos.reduce((a: number, t: any) => a + t.valor_recebido, 0);
+                                      const pctGeral = totalParcelas > 0 ? (parcelasRecebidas / totalParcelas * 100) : 0;
+                                      return (
+                                        <div className="mt-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 flex flex-wrap gap-6 text-sm">
+                                          <div>
+                                            <span className="text-gray-500 text-xs">Titulos</span>
+                                            <div className="font-bold text-gray-800">{titulosCompletos}/{totalTitulos} completos</div>
+                                          </div>
+                                          <div>
+                                            <span className="text-gray-500 text-xs">Parcelas</span>
+                                            <div className="font-bold text-gray-800">
+                                              {parcelasRecebidas}/{totalParcelas}
+                                              <span className="ml-1 text-green-600">({pctGeral.toFixed(1)}%)</span>
+                                            </div>
+                                          </div>
+                                          <div>
+                                            <span className="text-gray-500 text-xs">Valor Recebido</span>
+                                            <div className="font-bold text-green-600">{formatCurrency(valorRecebido)}</div>
+                                          </div>
+                                          <div>
+                                            <span className="text-gray-500 text-xs">Valor Total Contrato</span>
+                                            <div className="font-bold text-gray-700">{formatCurrency(valorContrato)}</div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
+                                  </div>
+                                )}
                               </td>
                             </tr>
                           )}
