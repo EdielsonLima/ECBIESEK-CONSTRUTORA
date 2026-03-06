@@ -6553,6 +6553,12 @@ def _auto_snapshot_loop():
                 hoje_startup = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d')
                 print(f"Auto-snapshot: Snapshot de {hoje_startup} nao encontrado. Salvando ao iniciar...")
                 _calcular_e_salvar_snapshot_auto()
+                # Também salva snapshot dos KPIs automáticos
+                try:
+                    criar_snapshot_diario()
+                    print("Auto-snapshot: Snapshot de KPIs de startup salvo com sucesso.")
+                except Exception as e:
+                    print(f"Auto-snapshot: Erro ao salvar snapshot de KPIs no startup: {e}")
                 snapshot_salvo_hoje = hoje_startup
                 print("Auto-snapshot: Snapshot de startup salvo com sucesso.")
     except Exception as e:
@@ -6586,6 +6592,12 @@ def _auto_snapshot_loop():
             if minutos_agora >= minutos_alvo:
                 if not _snapshot_already_exists_today():
                     _calcular_e_salvar_snapshot_auto()
+                    # Também salva snapshot dos KPIs automáticos
+                    try:
+                        criar_snapshot_diario()
+                        print("Auto-snapshot: Snapshot de KPIs salvo com sucesso.")
+                    except Exception as e:
+                        print(f"Auto-snapshot: Erro ao salvar snapshot de KPIs: {e}")
                 snapshot_salvo_hoje = hoje_str
 
             time.sleep(300)
