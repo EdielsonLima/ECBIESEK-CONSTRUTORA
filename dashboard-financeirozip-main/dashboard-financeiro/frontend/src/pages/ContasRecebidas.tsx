@@ -277,6 +277,23 @@ export const ContasRecebidas: React.FC = () => {
     });
   };
 
+  const descTipoCondicao = (tc: string | undefined): string => {
+    if (!tc) return '';
+    switch (tc.trim().toUpperCase()) {
+      case 'PM': return 'Parcelas Mensais';
+      case 'PS': return 'Parcelas Semestrais';
+      case 'CO': return 'Contrato';
+      case 'CR': return 'Crédito';
+      case 'AT': return 'Ato';
+      case 'FI': return 'Financiamento';
+      case 'RE': return 'Resíduo';
+      case 'PB': return 'Parcelas Balão';
+      case 'PE': return 'Parcelas Especiais';
+      case 'PI': return 'Parcelas Intermediárias';
+      default: return tc.trim();
+    }
+  };
+
   const corTipoCondicao = (tc: string | undefined): string => {
     if (!tc) return 'bg-gray-100 text-gray-600';
     switch (tc.trim().toUpperCase()) {
@@ -951,7 +968,7 @@ export const ContasRecebidas: React.FC = () => {
                         </td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm">
                           {(conta as any).tipo_condicao ? (
-                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${corTipoCondicao((conta as any).tipo_condicao)}`}>
+                            <span title={descTipoCondicao((conta as any).tipo_condicao)} className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold cursor-help ${corTipoCondicao((conta as any).tipo_condicao)}`}>
                               {(conta as any).tipo_condicao}
                             </span>
                           ) : '-'}
@@ -1007,7 +1024,7 @@ export const ContasRecebidas: React.FC = () => {
                                             <td className="py-1.5 pr-3 text-gray-500">{p.nome_centrocusto || '-'}</td>
                                             <td className="py-1.5">
                                               {(p as any).tipo_condicao ? (
-                                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${corTipoCondicao((p as any).tipo_condicao)}`}>
+                                                <span title={descTipoCondicao((p as any).tipo_condicao)} className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold cursor-help ${corTipoCondicao((p as any).tipo_condicao)}`}>
                                                   {(p as any).tipo_condicao}
                                                 </span>
                                               ) : '-'}
@@ -1219,7 +1236,7 @@ export const ContasRecebidas: React.FC = () => {
                                           <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.id_documento || '-'}</td>
                                           <td className="whitespace-nowrap px-4 py-2 text-sm">
                                             {(conta as any).tipo_condicao ? (
-                                              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${corTipoCondicao((conta as any).tipo_condicao)}`}>
+                                              <span title={descTipoCondicao((conta as any).tipo_condicao)} className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold cursor-help ${corTipoCondicao((conta as any).tipo_condicao)}`}>
                                                 {(conta as any).tipo_condicao}
                                               </span>
                                             ) : '-'}
