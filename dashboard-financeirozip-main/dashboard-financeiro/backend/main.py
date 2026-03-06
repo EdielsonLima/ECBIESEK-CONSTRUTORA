@@ -84,38 +84,6 @@ except Exception as e:
 
 app = FastAPI(title="Dashboard Financeiro - Construtora")
 
-def _criar_view_contas_a_pagar():
-    """Cria view deduplicada no banco PRINCIPAL. Se falhar, cria view simples como fallback."""
-    try:
-        conn = psycopg2.connect(**DB_CONFIG)
-        cursor = conn.cursor()
-        try:
-            cursor.execute("""
-                CREATE OR REPLACE VIEW vw_contas_a_pagar AS
-                SELECT DISTINCT ON (lancamento, numero_parcela, id_interno_centro_custo) *
-                FROM contas_a_pagar
-                ORDER BY lancamento, numero_parcela, id_interno_centro_custo, valor_total DESC
-            """)
-            conn.commit()
-            print("[VIEW] vw_contas_a_pagar criada com deduplicação!")
-        except Exception as e1:
-            conn.rollback()
-            print(f"[VIEW] Falha ao criar view com DISTINCT ON: {e1}")
-            try:
-                cursor.execute("CREATE OR REPLACE VIEW vw_contas_a_pagar AS SELECT * FROM contas_a_pagar")
-                conn.commit()
-                print("[VIEW] vw_contas_a_pagar criada como fallback (sem dedup)")
-            except Exception as e2:
-                conn.rollback()
-                print(f"[VIEW] Falha total ao criar view: {e2}")
-        cursor.close()
-        conn.close()
-    except Exception as e:
-        print(f"[VIEW] Erro de conexão ao banco principal: {e}")
-
-# Cria a view ANTES de qualquer thread ou startup event
-_criar_view_contas_a_pagar()
-
 @app.on_event("startup")
 async def startup_event():
     """Garante que tabelas de config existam no PostgreSQL ao iniciar."""
@@ -123,9 +91,6 @@ async def startup_event():
         _ensure_config_tables_in_postgres()
     except Exception as e:
         print(f"[STARTUP] Erro ao garantir tabelas de config: {e}")
-
-    # Recria a view (caso o startup rode depois de um redeploy)
-    _criar_view_contas_a_pagar()
 
 # Configuração de segurança JWT
 JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'fallback-secret-key-change-in-production')
@@ -690,7 +655,7 @@ async def chat_ia(req: ChatRequest, current_user: dict = Depends(get_current_use
         cursor.execute("SELECT COALESCE(SUM(valor_liquido), 0) as total FROM contas_pagas")
         total_pago = decimal_to_float(cursor.fetchone()['total'])
         
-        cursor.execute("SELECT COALESCE(SUM(valor_total), 0) as total FROM vw_contas_a_pagar WHERE data_vencimento >= CURRENT_DATE")
+        cursor.execute("SELECT COALESCE(SUM(valor_total), 0) as total FROM contas_a_pagar WHERE data_vencimento >= CURRENT_DATE")
         total_a_pagar = decimal_to_float(cursor.fetchone()['total'])
 
         cursor.close()
@@ -768,7 +733,7 @@ def get_metricas():
             SELECT
                 COALESCE(SUM(cap.valor_total), 0) as total,
                 COUNT(*) as quantidade
-            FROM vw_contas_a_pagar cap
+            FROM contas_a_pagar cap
             LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE cap.data_vencimento >= %s{cap_where_extra}
         """, [hoje] + excl_params_cap)
@@ -778,7 +743,7 @@ def get_metricas():
             SELECT
                 COALESCE(SUM(cap.valor_total), 0) as total,
                 COUNT(*) as quantidade
-            FROM vw_contas_a_pagar cap
+            FROM contas_a_pagar cap
             LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE cap.data_vencimento < %s{cap_where_extra}
         """, [hoje] + excl_params_cap)
@@ -836,7 +801,7 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                        cap.numero_parcela,
                        cap.data_cadastro,
                        t.descricao_observacao
-                FROM vw_contas_a_pagar cap
+                FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 LEFT JOIN ecpgtitulo t ON t.id_pg_titulo = CAST(SPLIT_PART(cap.lancamento, '/', 1) AS INTEGER)
                     AND t.id_credor = cap.id_credor
@@ -859,7 +824,7 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                        cap.numero_parcela,
                        cap.data_cadastro,
                        t.descricao_observacao
-                FROM vw_contas_a_pagar cap
+                FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 LEFT JOIN ecpgtitulo t ON t.id_pg_titulo = CAST(SPLIT_PART(cap.lancamento, '/', 1) AS INTEGER)
                     AND t.id_credor = cap.id_credor
@@ -879,7 +844,7 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                        cap.numero_parcela,
                        cap.data_cadastro,
                        t.descricao_observacao
-                FROM vw_contas_a_pagar cap
+                FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 LEFT JOIN ecpgtitulo t ON t.id_pg_titulo = CAST(SPLIT_PART(cap.lancamento, '/', 1) AS INTEGER)
                     AND t.id_credor = cap.id_credor
@@ -916,7 +881,7 @@ def get_contas_ano(ano: int = None):
                    cc.id_sienge_empresa,
                    TRIM(cap.id_documento) as id_documento,
                    TRIM(cap.id_origem) as id_origem
-            FROM vw_contas_a_pagar cap
+            FROM contas_a_pagar cap
             LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE cap.data_vencimento >= %s
               AND EXTRACT(YEAR FROM cap.data_vencimento) = %s{excl_where}
@@ -955,7 +920,7 @@ def get_grafico_mensal():
             ),
             a_pagar_mes AS (
                 SELECT TO_CHAR(cap.data_vencimento, 'YYYY-MM') as mes, SUM(cap.valor_total) as valor
-                FROM vw_contas_a_pagar cap
+                FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE cap.data_vencimento >= %s
                   AND cap.data_vencimento >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '6 months'){cap_extra}
@@ -963,7 +928,7 @@ def get_grafico_mensal():
             ),
             em_atraso_mes AS (
                 SELECT TO_CHAR(cap.data_vencimento, 'YYYY-MM') as mes, SUM(cap.valor_total) as valor
-                FROM vw_contas_a_pagar cap
+                FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE cap.data_vencimento < %s
                   AND cap.data_vencimento >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '6 months'){cap_extra}
@@ -1013,7 +978,7 @@ def get_grafico_categoria():
                 COALESCE(cap.id_plano_financeiro, 'Sem Categoria') as categoria,
                 SUM(cap.valor_total) as valor,
                 COUNT(*) as quantidade
-            FROM vw_contas_a_pagar cap
+            FROM contas_a_pagar cap
             LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE 1=1{excl_where}
             GROUP BY cap.id_plano_financeiro
@@ -1051,7 +1016,7 @@ def get_proximos_vencimentos(dias: int = 30):
         cursor.execute(f"""
             SELECT cap.credor, cap.data_vencimento, cap.valor_total,
                    cap.lancamento, cap.numero_documento, cap.id_plano_financeiro
-            FROM vw_contas_a_pagar cap
+            FROM contas_a_pagar cap
             LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE cap.data_vencimento BETWEEN CURRENT_DATE AND CURRENT_DATE + %s{excl_where}
             ORDER BY cap.data_vencimento ASC
@@ -3789,7 +3754,7 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
 
         if calculo_automatico == 'titulos_vencidos_qtd':
             cursor.execute(f"""
-                SELECT COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as valor FROM vw_contas_a_pagar cap
+                SELECT COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as valor FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE cap.data_vencimento < %s{cap_where_extra}{filtro_previsao}
             """, [hoje] + excl_params_cap)
@@ -3798,7 +3763,7 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
 
         elif calculo_automatico == 'titulos_vencidos_valor':
             cursor.execute(f"""
-                SELECT COALESCE(SUM(cap.valor_total), 0) as valor FROM vw_contas_a_pagar cap
+                SELECT COALESCE(SUM(cap.valor_total), 0) as valor FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE cap.data_vencimento < %s{cap_where_extra}{filtro_previsao}
             """, [hoje] + excl_params_cap)
@@ -3807,7 +3772,7 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
 
         elif calculo_automatico == 'titulos_a_vencer_qtd':
             cursor.execute(f"""
-                SELECT COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as valor FROM vw_contas_a_pagar cap
+                SELECT COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as valor FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE cap.data_vencimento >= %s{cap_where_extra}{filtro_previsao}
             """, [hoje] + excl_params_cap)
@@ -3816,7 +3781,7 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
 
         elif calculo_automatico == 'titulos_a_vencer_valor':
             cursor.execute(f"""
-                SELECT COALESCE(SUM(cap.valor_total), 0) as valor FROM vw_contas_a_pagar cap
+                SELECT COALESCE(SUM(cap.valor_total), 0) as valor FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE cap.data_vencimento >= %s{cap_where_extra}{filtro_previsao}
             """, [hoje] + excl_params_cap)
@@ -3847,7 +3812,7 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
 
         elif calculo_automatico == 'titulos_vencidos_2025_qtd':
             cursor.execute(f"""
-                SELECT COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as valor FROM vw_contas_a_pagar cap
+                SELECT COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as valor FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE cap.data_vencimento < %s
                 AND EXTRACT(YEAR FROM cap.data_vencimento) = 2025
@@ -3858,7 +3823,7 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
 
         elif calculo_automatico == 'titulos_vencidos_2025_valor':
             cursor.execute(f"""
-                SELECT COALESCE(SUM(cap.valor_total), 0) as valor FROM vw_contas_a_pagar cap
+                SELECT COALESCE(SUM(cap.valor_total), 0) as valor FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE cap.data_vencimento < %s
                 AND EXTRACT(YEAR FROM cap.data_vencimento) = 2025
@@ -3869,7 +3834,7 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
 
         elif calculo_automatico == 'contas_a_pagar_hoje_qtd':
             cursor.execute(f"""
-                SELECT COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as valor FROM vw_contas_a_pagar cap
+                SELECT COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as valor FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE cap.data_vencimento = %s{cap_where_extra}{filtro_previsao}
             """, [hoje] + excl_params_cap)
@@ -3878,7 +3843,7 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
 
         elif calculo_automatico == 'contas_a_pagar_hoje_valor':
             cursor.execute(f"""
-                SELECT COALESCE(SUM(cap.valor_total), 0) as valor FROM vw_contas_a_pagar cap
+                SELECT COALESCE(SUM(cap.valor_total), 0) as valor FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE cap.data_vencimento = %s{cap_where_extra}{filtro_previsao}
             """, [hoje] + excl_params_cap)
@@ -3887,7 +3852,7 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
 
         elif calculo_automatico == 'contas_a_pagar_7dias_qtd':
             cursor.execute(f"""
-                SELECT COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as valor FROM vw_contas_a_pagar cap
+                SELECT COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as valor FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE cap.data_vencimento BETWEEN %s AND %s{cap_where_extra}{filtro_previsao}
             """, [hoje + timedelta(days=1), hoje + timedelta(days=7)] + excl_params_cap)
@@ -3896,7 +3861,7 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
 
         elif calculo_automatico == 'contas_a_pagar_7dias_valor':
             cursor.execute(f"""
-                SELECT COALESCE(SUM(cap.valor_total), 0) as valor FROM vw_contas_a_pagar cap
+                SELECT COALESCE(SUM(cap.valor_total), 0) as valor FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE cap.data_vencimento BETWEEN %s AND %s{cap_where_extra}{filtro_previsao}
             """, [hoje + timedelta(days=1), hoje + timedelta(days=7)] + excl_params_cap)
@@ -3905,7 +3870,7 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
 
         elif calculo_automatico == 'contas_a_pagar_mes_qtd':
             cursor.execute(f"""
-                SELECT COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as valor FROM vw_contas_a_pagar cap
+                SELECT COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as valor FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE EXTRACT(MONTH FROM cap.data_vencimento) = EXTRACT(MONTH FROM CURRENT_DATE)
                 AND EXTRACT(YEAR FROM cap.data_vencimento) = EXTRACT(YEAR FROM CURRENT_DATE)
@@ -3916,7 +3881,7 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
 
         elif calculo_automatico == 'contas_a_pagar_mes_valor':
             cursor.execute(f"""
-                SELECT COALESCE(SUM(cap.valor_total), 0) as valor FROM vw_contas_a_pagar cap
+                SELECT COALESCE(SUM(cap.valor_total), 0) as valor FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE EXTRACT(MONTH FROM cap.data_vencimento) = EXTRACT(MONTH FROM CURRENT_DATE)
                 AND EXTRACT(YEAR FROM cap.data_vencimento) = EXTRACT(YEAR FROM CURRENT_DATE)
@@ -3945,8 +3910,8 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
                     END as valor
                 FROM (
                     SELECT
-                        (SELECT COALESCE(SUM(cap.valor_total), 0) FROM vw_contas_a_pagar cap LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto WHERE cap.data_vencimento < CURRENT_DATE{cap_where_extra}{filtro_previsao}) as total_vencido,
-                        (SELECT COALESCE(SUM(cap.valor_total), 0) FROM vw_contas_a_pagar cap LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto WHERE 1=1{cap_where_extra}{filtro_previsao}) as total_aberto
+                        (SELECT COALESCE(SUM(cap.valor_total), 0) FROM contas_a_pagar cap LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto WHERE cap.data_vencimento < CURRENT_DATE{cap_where_extra}{filtro_previsao}) as total_vencido,
+                        (SELECT COALESCE(SUM(cap.valor_total), 0) FROM contas_a_pagar cap LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto WHERE 1=1{cap_where_extra}{filtro_previsao}) as total_aberto
                 ) subq
             """, excl_params_cap + excl_params_cap)
             result = cursor.fetchone()
@@ -5846,6 +5811,13 @@ def build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', has_
             f"WHERE SPLIT_PART(cpg.lancamento, '/', 1) = SPLIT_PART({table_alias}.lancamento, '/', 1) "
             f"AND CAST(NULLIF(SPLIT_PART(cpg.lancamento, '/', 2), '') AS INTEGER) = {table_alias}.numero_parcela)"
         )
+        # Deduplicação: mantém apenas 1 registro por lancamento+parcela+centro_custo
+        conditions.append(
+            f"{table_alias}.id = (SELECT MAX(t.id) FROM contas_a_pagar t "
+            f"WHERE t.lancamento = {table_alias}.lancamento "
+            f"AND t.numero_parcela = {table_alias}.numero_parcela "
+            f"AND t.id_interno_centro_custo = {table_alias}.id_interno_centro_custo)"
+        )
     return conditions, params
 
 @app.get("/api/debug/tipos-previsao")
@@ -5894,7 +5866,7 @@ def debug_empresa_detalhe(empresa: str = "LAGOA"):
                    COUNT(*) as qtd,
                    COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as titulos_unicos,
                    COUNT(DISTINCT cap.credor) as credores
-            FROM vw_contas_a_pagar cap
+            FROM contas_a_pagar cap
             LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE UPPER(cc.nome_empresa) LIKE %s{excl_where_com}
         """, ['%' + empresa.upper() + '%'] + excl_params_com)
@@ -5906,7 +5878,7 @@ def debug_empresa_detalhe(empresa: str = "LAGOA"):
                    COUNT(*) as qtd,
                    COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as titulos_unicos,
                    COUNT(DISTINCT cap.credor) as credores
-            FROM vw_contas_a_pagar cap
+            FROM contas_a_pagar cap
             LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE UPPER(cc.nome_empresa) LIKE %s{excl_where_sem}
         """, ['%' + empresa.upper() + '%'] + excl_params_sem)
@@ -5925,7 +5897,7 @@ def debug_empresa_detalhe(empresa: str = "LAGOA"):
                    (SELECT cpg.lancamento FROM contas_pagas cpg
                     WHERE cpg.lancamento = cap.lancamento
                     LIMIT 1) as lancamento_exato_encontrado
-            FROM vw_contas_a_pagar cap
+            FROM contas_a_pagar cap
             LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE UPPER(cc.nome_empresa) LIKE %s{excl_where_com}
             ORDER BY cap.valor_total DESC
@@ -5938,7 +5910,7 @@ def debug_empresa_detalhe(empresa: str = "LAGOA"):
             SELECT cap.lancamento, cap.numero_parcela, cap.valor_total, cap.credor,
                    cap.data_vencimento, TRIM(cap.id_documento) as id_documento,
                    cc.nome_centrocusto
-            FROM vw_contas_a_pagar cap
+            FROM contas_a_pagar cap
             LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE UPPER(cc.nome_empresa) LIKE %s{excl_where_sem}
               AND NOT EXISTS (
@@ -5959,7 +5931,7 @@ def debug_empresa_detalhe(empresa: str = "LAGOA"):
             SELECT cap.lancamento, cap.numero_parcela, cap.valor_total, cap.credor,
                    SPLIT_PART(cap.lancamento, '/', 2) as parcela_str,
                    cap.data_vencimento
-            FROM vw_contas_a_pagar cap
+            FROM contas_a_pagar cap
             LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE UPPER(cc.nome_empresa) LIKE %s{excl_where_sem}
               AND EXISTS (SELECT 1 FROM contas_pagas cpg WHERE cpg.lancamento = cap.lancamento)
@@ -5995,7 +5967,7 @@ def debug_empresa_detalhe(empresa: str = "LAGOA"):
             SELECT TRIM(cap.id_documento) as tipo_doc, COUNT(*) as qtd,
                    COALESCE(SUM(cap.valor_total), 0) as valor,
                    COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as titulos
-            FROM vw_contas_a_pagar cap
+            FROM contas_a_pagar cap
             LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE UPPER(cc.nome_empresa) LIKE %s{excl_where_com}
             GROUP BY TRIM(cap.id_documento)
@@ -6010,7 +5982,7 @@ def debug_empresa_detalhe(empresa: str = "LAGOA"):
                    COUNT(*) as parcelas,
                    COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as titulos,
                    COUNT(DISTINCT cap.credor) as credores
-            FROM vw_contas_a_pagar cap
+            FROM contas_a_pagar cap
             LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE UPPER(cc.nome_empresa) LIKE %s{excl_where_com}
             GROUP BY cc.nome_centrocusto
@@ -6063,7 +6035,7 @@ def debug_diferenca_pbi():
         # Total atual do dashboard (com NOT EXISTS por lancamento exato)
         cursor.execute(f"""
             SELECT COALESCE(SUM(cap.valor_total), 0) as total, COUNT(*) as qtd
-            FROM vw_contas_a_pagar cap
+            FROM contas_a_pagar cap
             LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE 1=1{excl_where}
         """, excl_params)
@@ -6074,7 +6046,7 @@ def debug_diferenca_pbi():
         excl_where_sem = (" AND " + " AND ".join(excl_conds_sem)) if excl_conds_sem else ""
         cursor.execute(f"""
             SELECT COALESCE(SUM(cap.valor_total), 0) as total, COUNT(*) as qtd
-            FROM vw_contas_a_pagar cap
+            FROM contas_a_pagar cap
             LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE 1=1{excl_where_sem}
         """, excl_params_sem)
@@ -6085,7 +6057,7 @@ def debug_diferenca_pbi():
             SELECT cap.lancamento, cap.numero_parcela, cap.valor_total, cap.credor,
                    cap.data_vencimento, TRIM(cap.id_documento) as id_documento,
                    TRIM(cap.id_origem) as id_origem
-            FROM vw_contas_a_pagar cap
+            FROM contas_a_pagar cap
             LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE NOT EXISTS (SELECT 1 FROM contas_pagas cpg WHERE cpg.lancamento = cap.lancamento)
               AND EXISTS (SELECT 1 FROM contas_pagas cpg WHERE SPLIT_PART(cpg.lancamento, '/', 1) = SPLIT_PART(cap.lancamento, '/', 1))
@@ -6098,7 +6070,7 @@ def debug_diferenca_pbi():
         # Soma dos parciais
         cursor.execute(f"""
             SELECT COALESCE(SUM(cap.valor_total), 0) as total, COUNT(*) as qtd
-            FROM vw_contas_a_pagar cap
+            FROM contas_a_pagar cap
             LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE NOT EXISTS (SELECT 1 FROM contas_pagas cpg WHERE cpg.lancamento = cap.lancamento)
               AND EXISTS (SELECT 1 FROM contas_pagas cpg WHERE SPLIT_PART(cpg.lancamento, '/', 1) = SPLIT_PART(cap.lancamento, '/', 1))
@@ -6762,7 +6734,7 @@ def _calcular_e_salvar_snapshot_auto():
         cursor = conn.cursor()
         query = f"""
             SELECT cap.credor, cap.data_vencimento, cap.valor_total
-            FROM vw_contas_a_pagar cap
+            FROM contas_a_pagar cap
             LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE cap.data_vencimento >= %s{excl_where}
             ORDER BY cap.data_vencimento ASC
