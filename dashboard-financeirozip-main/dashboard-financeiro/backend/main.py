@@ -5805,7 +5805,11 @@ def build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', has_
         conditions.append(f"{table_alias}.id_conta_corrente NOT IN ({placeholders})")
         params.extend(exclusoes['contas_correntes'])
     if exclude_paid:
-        conditions.append(f"NOT EXISTS (SELECT 1 FROM contas_pagas cpg WHERE cpg.lancamento = {table_alias}.lancamento)")
+        conditions.append(
+            f"NOT EXISTS (SELECT 1 FROM contas_pagas cpg "
+            f"WHERE SPLIT_PART(cpg.lancamento, '/', 1) = SPLIT_PART({table_alias}.lancamento, '/', 1) "
+            f"AND CAST(NULLIF(SPLIT_PART(cpg.lancamento, '/', 2), '') AS INTEGER) = {table_alias}.numero_parcela)"
+        )
     return conditions, params
 
 @app.get("/api/debug/diferenca-pbi")
