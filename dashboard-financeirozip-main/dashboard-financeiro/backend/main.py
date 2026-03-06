@@ -5812,6 +5812,127 @@ def build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', has_
         )
     return conditions, params
 
+@app.get("/api/debug/empresa-detalhe")
+def debug_empresa_detalhe(empresa: str = "LAGOA"):
+    """Analisa títulos de uma empresa específica para identificar diferenças com PBI"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        exclusoes = get_exclusoes()
+        excl_conds_com, excl_params_com = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', exclude_paid=True)
+        excl_where_com = (" AND " + " AND ".join(excl_conds_com)) if excl_conds_com else ""
+
+        excl_conds_sem, excl_params_sem = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', exclude_paid=False)
+        excl_where_sem = (" AND " + " AND ".join(excl_conds_sem)) if excl_conds_sem else ""
+
+        # Total COM filtro pagas (o que o dashboard mostra)
+        cursor.execute(f"""
+            SELECT COALESCE(SUM(cap.valor_total), 0) as total,
+                   COUNT(*) as qtd,
+                   COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as titulos_unicos,
+                   COUNT(DISTINCT cap.credor) as credores
+            FROM contas_a_pagar cap
+            LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE UPPER(cc.nome_empresa) LIKE %s{excl_where_com}
+        """, ['%' + empresa.upper() + '%'] + excl_params_com)
+        com_filtro = cursor.fetchone()
+
+        # Total SEM filtro pagas
+        cursor.execute(f"""
+            SELECT COALESCE(SUM(cap.valor_total), 0) as total,
+                   COUNT(*) as qtd,
+                   COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as titulos_unicos,
+                   COUNT(DISTINCT cap.credor) as credores
+            FROM contas_a_pagar cap
+            LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE UPPER(cc.nome_empresa) LIKE %s{excl_where_sem}
+        """, ['%' + empresa.upper() + '%'] + excl_params_sem)
+        sem_filtro = cursor.fetchone()
+
+        # Títulos desta empresa que existem em contas_pagas mas NÃO estão sendo filtrados
+        # (match por lancamento exato funciona, mas match por titulo+parcela não)
+        cursor.execute(f"""
+            SELECT cap.lancamento, cap.numero_parcela, cap.valor_total, cap.credor,
+                   cap.data_vencimento, TRIM(cap.id_documento) as id_documento,
+                   TRIM(cap.id_origem) as id_origem,
+                   cc.nome_centrocusto,
+                   (SELECT cpg.lancamento FROM contas_pagas cpg
+                    WHERE SPLIT_PART(cpg.lancamento, '/', 1) = SPLIT_PART(cap.lancamento, '/', 1)
+                    LIMIT 1) as lancamento_pago_encontrado,
+                   (SELECT cpg.lancamento FROM contas_pagas cpg
+                    WHERE cpg.lancamento = cap.lancamento
+                    LIMIT 1) as lancamento_exato_encontrado
+            FROM contas_a_pagar cap
+            LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE UPPER(cc.nome_empresa) LIKE %s{excl_where_com}
+            ORDER BY cap.valor_total DESC
+            LIMIT 200
+        """, ['%' + empresa.upper() + '%'] + excl_params_com)
+        titulos_dashboard = [dict(r) for r in cursor.fetchall()]
+
+        # Verificar títulos que passam pelo filtro COM pagas mas tem titulo base em contas_pagas
+        cursor.execute(f"""
+            SELECT cap.lancamento, cap.numero_parcela, cap.valor_total, cap.credor,
+                   cap.data_vencimento, TRIM(cap.id_documento) as id_documento,
+                   cc.nome_centrocusto
+            FROM contas_a_pagar cap
+            LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE UPPER(cc.nome_empresa) LIKE %s{excl_where_sem}
+              AND NOT EXISTS (
+                  SELECT 1 FROM contas_pagas cpg
+                  WHERE SPLIT_PART(cpg.lancamento, '/', 1) = SPLIT_PART(cap.lancamento, '/', 1)
+                  AND CAST(NULLIF(SPLIT_PART(cpg.lancamento, '/', 2), '') AS INTEGER) = cap.numero_parcela
+              )
+              AND EXISTS (
+                  SELECT 1 FROM contas_pagas cpg
+                  WHERE cpg.lancamento = cap.lancamento
+              )
+            ORDER BY cap.valor_total DESC
+        """, ['%' + empresa.upper() + '%'] + excl_params_sem)
+        nao_filtrados = [dict(r) for r in cursor.fetchall()]
+
+        # Checar se o CAST está falhando para algum registro
+        cursor.execute(f"""
+            SELECT cap.lancamento, cap.numero_parcela, cap.valor_total, cap.credor,
+                   SPLIT_PART(cap.lancamento, '/', 2) as parcela_str,
+                   cap.data_vencimento
+            FROM contas_a_pagar cap
+            LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE UPPER(cc.nome_empresa) LIKE %s{excl_where_sem}
+              AND EXISTS (SELECT 1 FROM contas_pagas cpg WHERE cpg.lancamento = cap.lancamento)
+            ORDER BY cap.valor_total DESC
+        """, ['%' + empresa.upper() + '%'] + excl_params_sem)
+        com_lancamento_exato_em_pagas = [dict(r) for r in cursor.fetchall()]
+
+        return {
+            "empresa_filtro": empresa,
+            "com_filtro_pagas": {
+                "valor": float(com_filtro['total']), "parcelas": com_filtro['qtd'],
+                "titulos_unicos": com_filtro['titulos_unicos'], "credores": com_filtro['credores']
+            },
+            "sem_filtro_pagas": {
+                "valor": float(sem_filtro['total']), "parcelas": sem_filtro['qtd'],
+                "titulos_unicos": sem_filtro['titulos_unicos'], "credores": sem_filtro['credores']
+            },
+            "diferenca": float(sem_filtro['total']) - float(com_filtro['total']),
+            "titulos_com_lancamento_exato_em_pagas": {
+                "descricao": "Títulos que tem lancamento EXATO em contas_pagas (deviam ser excluidos pelo NOT EXISTS)",
+                "quantidade": len(com_lancamento_exato_em_pagas),
+                "valor": sum(float(r['valor_total']) for r in com_lancamento_exato_em_pagas),
+                "amostra": com_lancamento_exato_em_pagas[:30]
+            },
+            "titulos_nao_filtrados_corretamente": {
+                "descricao": "Títulos onde lancamento exato bate em pagas mas NOT EXISTS por titulo+parcela NAO exclui",
+                "quantidade": len(nao_filtrados),
+                "valor": sum(float(r['valor_total']) for r in nao_filtrados),
+                "dados": nao_filtrados
+            },
+            "amostra_titulos_no_dashboard": titulos_dashboard[:30]
+        }
+    finally:
+        cursor.close()
+        conn.close()
+
 @app.get("/api/debug/diferenca-pbi")
 def debug_diferenca_pbi():
     """Endpoint de debug para investigar diferença entre dashboard e Power BI no Total a Pagar"""
