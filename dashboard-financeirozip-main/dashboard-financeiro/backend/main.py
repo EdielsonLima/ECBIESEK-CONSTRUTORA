@@ -4451,7 +4451,20 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
                        cc.id_sienge_empresa as id_interno_empresa, car.id_interno_centro_custo,
                        cc.nome_empresa, cc.nome_centrocusto,
                        TRIM(car.id_documento) as id_documento,
-                       car.lancamento as titulo, car.numero_parcela
+                       car.lancamento as titulo, car.numero_parcela,
+                       CASE TRIM(car.id_origem)
+                           WHEN 'AT' THEN 'Ato'
+                           WHEN 'PM' THEN 'Parcelas Mensais'
+                           WHEN 'PS' THEN 'Parcelas Semestrais'
+                           WHEN 'FI' THEN 'Financiamento'
+                           WHEN 'RE' THEN 'Resíduo'
+                           WHEN 'PB' THEN 'Parcelas Balão'
+                           WHEN 'PE' THEN 'Parcelas Especiais'
+                           WHEN 'PI' THEN 'Parcelas Intermediárias'
+                           WHEN 'CO' THEN 'Contrato'
+                           WHEN 'CR' THEN 'Crédito'
+                           ELSE TRIM(car.id_origem)
+                       END as tipo_condicao
                 FROM contas_a_receber car
                 LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE car.data_vencimento >= %s{excl_where}
@@ -4468,10 +4481,23 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
                        cc.id_sienge_empresa as id_interno_empresa, car.id_interno_centro_custo,
                        cc.nome_empresa, cc.nome_centrocusto,
                        TRIM(car.id_documento) as id_documento,
-                       car.lancamento as titulo, car.numero_parcela
+                       car.lancamento as titulo, car.numero_parcela,
+                       CASE TRIM(car.id_origem)
+                           WHEN 'AT' THEN 'Ato'
+                           WHEN 'PM' THEN 'Parcelas Mensais'
+                           WHEN 'PS' THEN 'Parcelas Semestrais'
+                           WHEN 'FI' THEN 'Financiamento'
+                           WHEN 'RE' THEN 'Resíduo'
+                           WHEN 'PB' THEN 'Parcelas Balão'
+                           WHEN 'PE' THEN 'Parcelas Especiais'
+                           WHEN 'PI' THEN 'Parcelas Intermediárias'
+                           WHEN 'CO' THEN 'Contrato'
+                           WHEN 'CR' THEN 'Crédito'
+                           ELSE TRIM(car.id_origem)
+                       END as tipo_condicao
                 FROM contas_a_receber car
                 LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
-                LEFT JOIN contas_recebidas cr ON car.lancamento = cr.titulo::TEXT 
+                LEFT JOIN contas_recebidas cr ON car.lancamento = cr.titulo::TEXT
                     AND car.numero_parcela::TEXT = cr.parcela::TEXT
                 WHERE car.data_vencimento < %s
                   AND cr.titulo IS NULL{excl_where}
@@ -4487,7 +4513,21 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
                        car.lancamento, car.numero_documento, car.id_plano_financeiro,
                        cc.id_sienge_empresa as id_interno_empresa, car.id_interno_centro_custo,
                        cc.nome_empresa, cc.nome_centrocusto,
-                       TRIM(car.id_documento) as id_documento
+                       TRIM(car.id_documento) as id_documento,
+                       car.lancamento as titulo, car.numero_parcela,
+                       CASE TRIM(car.id_origem)
+                           WHEN 'AT' THEN 'Ato'
+                           WHEN 'PM' THEN 'Parcelas Mensais'
+                           WHEN 'PS' THEN 'Parcelas Semestrais'
+                           WHEN 'FI' THEN 'Financiamento'
+                           WHEN 'RE' THEN 'Resíduo'
+                           WHEN 'PB' THEN 'Parcelas Balão'
+                           WHEN 'PE' THEN 'Parcelas Especiais'
+                           WHEN 'PI' THEN 'Parcelas Intermediárias'
+                           WHEN 'CO' THEN 'Contrato'
+                           WHEN 'CR' THEN 'Crédito'
+                           ELSE TRIM(car.id_origem)
+                       END as tipo_condicao
                 FROM contas_a_receber car
                 LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE 1=1{excl_where}
