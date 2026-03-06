@@ -85,6 +85,10 @@ export const ContasAReceber: React.FC = () => {
           valorA = (a.nome_empresa || '').toLowerCase();
           valorB = (b.nome_empresa || '').toLowerCase();
           break;
+        case 'tipo_condicao':
+          valorA = (a.tipo_condicao || '').toLowerCase();
+          valorB = (b.tipo_condicao || '').toLowerCase();
+          break;
         default:
           return 0;
       }
@@ -569,28 +573,97 @@ export const ContasAReceber: React.FC = () => {
 
       {renderFiltros()}
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-lg bg-white p-6 shadow">
-          <p className="text-sm text-gray-500">Total a Receber</p>
-          <p className="text-2xl font-bold text-green-600">{formatCurrency(estatisticas?.valor_total)}</p>
-          <p className="text-xs text-gray-400">{estatisticas?.quantidade_titulos} titulos</p>
-        </div>
-        <div className="rounded-lg bg-white p-6 shadow">
-          <p className="text-sm text-gray-500">Vence Hoje</p>
-          <p className="text-2xl font-bold text-yellow-600">{formatCurrency(estatisticas?.valor_vence_hoje)}</p>
-          <p className="text-xs text-gray-400">{estatisticas?.quantidade_vence_hoje} titulos</p>
-        </div>
-        <div className="rounded-lg bg-white p-6 shadow">
-          <p className="text-sm text-gray-500">Valor Medio</p>
-          <p className="text-2xl font-bold text-gray-700">{formatCurrency(estatisticas?.valor_medio)}</p>
-          <p className="text-xs text-gray-400">por titulo</p>
-        </div>
-        <div className="rounded-lg bg-white p-6 shadow">
-          <p className="text-sm text-gray-500">Em Atraso</p>
-          <p className="text-2xl font-bold text-red-600">{formatCurrency(estatisticas?.valor_atrasados)}</p>
-          <p className="text-xs text-gray-400">{estatisticas?.quantidade_atrasados} titulos</p>
-        </div>
-      </div>
+      {(() => {
+        const contasHoje = contas.filter(c => calcularDiasAteVencimento(c.data_vencimento) === 0);
+        const contas7dias = contas.filter(c => { const d = calcularDiasAteVencimento(c.data_vencimento); return d >= 1 && d <= 7; });
+        const contas15dias = contas.filter(c => { const d = calcularDiasAteVencimento(c.data_vencimento); return d >= 1 && d <= 15; });
+        const contas30dias = contas.filter(c => { const d = calcularDiasAteVencimento(c.data_vencimento); return d >= 1 && d <= 30; });
+
+        const valorHoje = contasHoje.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+        const valor7dias = contas7dias.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+        const valor15dias = contas15dias.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+        const valor30dias = contas30dias.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+
+        const clientesTotal = new Set(contas.map(c => c.cliente)).size;
+        const clientesHoje = new Set(contasHoje.map(c => c.cliente)).size;
+        const clientes7dias = new Set(contas7dias.map(c => c.cliente)).size;
+        const clientes15dias = new Set(contas15dias.map(c => c.cliente)).size;
+        const clientes30dias = new Set(contas30dias.map(c => c.cliente)).size;
+
+        const totalTitulos = estatisticas?.quantidade_titulos || 0;
+        const pct = (v: number, total: number) =>
+          total > 0 ? (v / total * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%' : '0%';
+
+        const formatarDataCurta = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+        const amanha = new Date(hoje); amanha.setDate(amanha.getDate() + 1);
+        const fim7 = new Date(hoje); fim7.setDate(fim7.getDate() + 7);
+        const fim15 = new Date(hoje); fim15.setDate(fim15.getDate() + 15);
+        const fim30 = new Date(hoje); fim30.setDate(fim30.getDate() + 30);
+
+        return (
+          <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            <div className="rounded-lg bg-gradient-to-br from-green-600 to-green-700 p-5 text-white shadow-lg">
+              <div className="mb-1 text-xs font-medium opacity-90">Total a Receber</div>
+              <div className="text-xl font-bold">{formatCurrency(estatisticas?.valor_total)}</div>
+              <div className="mt-1 text-xs opacity-75">
+                {totalTitulos.toLocaleString('pt-BR')} titulos | {clientesTotal} clientes
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-gradient-to-br from-yellow-500 to-yellow-600 p-5 text-white shadow-lg">
+              <div className="mb-1 text-xs font-medium opacity-90">Vencendo Hoje</div>
+              <div className="text-xl font-bold">{formatCurrency(valorHoje)}</div>
+              <div className="mt-1 text-xs opacity-75">
+                {contasHoje.length} titulo(s)
+                <span className="ml-1 font-semibold opacity-90">({pct(contasHoje.length, totalTitulos)})</span>
+                {' | '}
+                {clientesHoje} clientes
+                <span className="ml-1 font-semibold opacity-90">({pct(clientesHoje, clientesTotal)})</span>
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 p-5 text-white shadow-lg">
+              <div className="mb-1 text-xs font-medium opacity-90">Proximos 7 dias</div>
+              <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(amanha)} ate {formatarDataCurta(fim7)}</div>
+              <div className="text-xl font-bold">{formatCurrency(valor7dias)}</div>
+              <div className="mt-1 text-xs opacity-75">
+                {contas7dias.length} titulo(s)
+                <span className="ml-1 font-semibold opacity-90">({pct(contas7dias.length, totalTitulos)})</span>
+                {' | '}
+                {clientes7dias} clientes
+                <span className="ml-1 font-semibold opacity-90">({pct(clientes7dias, clientesTotal)})</span>
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 p-5 text-white shadow-lg">
+              <div className="mb-1 text-xs font-medium opacity-90">Proximos 15 dias</div>
+              <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(amanha)} ate {formatarDataCurta(fim15)}</div>
+              <div className="text-xl font-bold">{formatCurrency(valor15dias)}</div>
+              <div className="mt-1 text-xs opacity-75">
+                {contas15dias.length} titulo(s)
+                <span className="ml-1 font-semibold opacity-90">({pct(contas15dias.length, totalTitulos)})</span>
+                {' | '}
+                {clientes15dias} clientes
+                <span className="ml-1 font-semibold opacity-90">({pct(clientes15dias, clientesTotal)})</span>
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-gradient-to-br from-cyan-600 to-cyan-700 p-5 text-white shadow-lg">
+              <div className="mb-1 text-xs font-medium opacity-90">Proximos 30 dias</div>
+              <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(amanha)} ate {formatarDataCurta(fim30)}</div>
+              <div className="text-xl font-bold">{formatCurrency(valor30dias)}</div>
+              <div className="mt-1 text-xs opacity-75">
+                {contas30dias.length} titulo(s)
+                <span className="ml-1 font-semibold opacity-90">({pct(contas30dias.length, totalTitulos)})</span>
+                {' | '}
+                {clientes30dias} clientes
+                <span className="ml-1 font-semibold opacity-90">({pct(clientes30dias, clientesTotal)})</span>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
@@ -660,11 +733,17 @@ export const ContasAReceber: React.FC = () => {
                   >
                     Documento {renderSortIcon('numero_documento')}
                   </th>
-                  <th 
-                    onClick={() => toggleOrdenacao('nome_empresa')} 
+                  <th
+                    onClick={() => toggleOrdenacao('nome_empresa')}
                     className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
                   >
                     Empresa {renderSortIcon('nome_empresa')}
+                  </th>
+                  <th
+                    onClick={() => toggleOrdenacao('tipo_condicao')}
+                    className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
+                  >
+                    Tipo Condicao {renderSortIcon('tipo_condicao')}
                   </th>
                 </tr>
               </thead>
@@ -703,6 +782,9 @@ export const ContasAReceber: React.FC = () => {
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                         {conta.nome_empresa || '-'}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                        {conta.tipo_condicao || '-'}
                       </td>
                     </tr>
                   );

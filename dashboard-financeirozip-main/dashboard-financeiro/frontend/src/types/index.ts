@@ -207,6 +207,7 @@ export interface ContaReceber {
   titulo?: string;
   numero_parcela?: string;
   id_tipo_baixa?: number;
+  tipo_condicao?: string;
 }
 
 export interface MetricasReceber {
