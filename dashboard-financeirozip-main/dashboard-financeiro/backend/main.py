@@ -5823,13 +5823,6 @@ def build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', has_
             f"WHERE SPLIT_PART(cpg.lancamento, '/', 1) = SPLIT_PART({table_alias}.lancamento, '/', 1) "
             f"AND CAST(NULLIF(SPLIT_PART(cpg.lancamento, '/', 2), '') AS INTEGER) = {table_alias}.numero_parcela)"
         )
-        # Deduplicação: mantém apenas 1 registro por lancamento+parcela+centro_custo usando ctid
-        conditions.append(
-            f"{table_alias}.ctid = (SELECT MIN(t.ctid) FROM contas_a_pagar t "
-            f"WHERE t.lancamento = {table_alias}.lancamento "
-            f"AND t.numero_parcela = {table_alias}.numero_parcela "
-            f"AND t.id_interno_centro_custo = {table_alias}.id_interno_centro_custo)"
-        )
     return conditions, params
 
 @app.get("/api/debug/tipos-previsao")
