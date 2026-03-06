@@ -183,6 +183,10 @@ export const ContasRecebidas: React.FC = () => {
           valorA = (a.nome_centrocusto || '').toLowerCase();
           valorB = (b.nome_centrocusto || '').toLowerCase();
           break;
+        case 'tipo_condicao':
+          valorA = ((a as any).tipo_condicao || '').toLowerCase();
+          valorB = ((b as any).tipo_condicao || '').toLowerCase();
+          break;
         default:
           return 0;
       }
@@ -805,6 +809,9 @@ export const ContasRecebidas: React.FC = () => {
                   <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
                     Centro de Custo {renderSortIcon('nome_centrocusto')}
                   </th>
+                  <th onClick={() => toggleOrdenacao('tipo_condicao')} className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                    Tipo Condicao {renderSortIcon('tipo_condicao')}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
@@ -836,6 +843,7 @@ export const ContasRecebidas: React.FC = () => {
                             </span>
                           ) : '-'}
                         </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{(conta as any).tipo_condicao || '-'}</td>
                       </tr>
                       {isExpanded && tituloBase && (() => {
                         const parcelas = todasContas
@@ -856,7 +864,7 @@ export const ContasRecebidas: React.FC = () => {
                         const valorTotalTitulo = todasParcelas.reduce((acc, c) => acc + (c.valor_total || 0), 0);
                         return (
                           <tr>
-                            <td colSpan={8} className="p-0">
+                            <td colSpan={9} className="p-0">
                               <div className="bg-green-50 border-t border-b border-green-200 px-8 py-3">
                                 <div className="flex items-center justify-between mb-2">
                                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -873,7 +881,8 @@ export const ContasRecebidas: React.FC = () => {
                                           <th className="text-left py-1 pr-3">Data Recebimento</th>
                                           <th className="text-right py-1 pr-3">Valor</th>
                                           <th className="text-left py-1 pr-3">Documento</th>
-                                          <th className="text-left py-1">Centro Custo</th>
+                                          <th className="text-left py-1 pr-3">Centro Custo</th>
+                                          <th className="text-left py-1">Tipo Condicao</th>
                                         </tr>
                                       </thead>
                                       <tbody>
@@ -883,7 +892,8 @@ export const ContasRecebidas: React.FC = () => {
                                             <td className="py-1.5 pr-3 text-gray-500">{formatDate(p.data_recebimento)}</td>
                                             <td className="py-1.5 pr-3 text-right font-semibold text-green-700">{formatCurrency(p.valor_total)}</td>
                                             <td className="py-1.5 pr-3 text-gray-500 font-mono text-xs">{p.id_documento || '-'}</td>
-                                            <td className="py-1.5 text-gray-500">{p.nome_centrocusto || '-'}</td>
+                                            <td className="py-1.5 pr-3 text-gray-500">{p.nome_centrocusto || '-'}</td>
+                                            <td className="py-1.5 text-gray-500">{(p as any).tipo_condicao || '-'}</td>
                                           </tr>
                                         ))}
                                       </tbody>
@@ -1079,6 +1089,7 @@ export const ContasRecebidas: React.FC = () => {
                                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Documento</th>
                                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empresa</th>
                                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Centro Custo</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo Condicao</th>
                                         <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
                                       </tr>
                                     </thead>
@@ -1091,6 +1102,7 @@ export const ContasRecebidas: React.FC = () => {
                                           <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.id_documento || '-'}</td>
                                           <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.nome_empresa || '-'}</td>
                                           <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.nome_centrocusto || '-'}</td>
+                                          <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{(conta as any).tipo_condicao || '-'}</td>
                                           <td className="whitespace-nowrap px-4 py-2 text-sm text-green-600 font-semibold text-right">{formatCurrency(conta.valor_total || 0)}</td>
                                         </tr>
                                       ))}
