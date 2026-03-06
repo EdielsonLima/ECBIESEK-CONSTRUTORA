@@ -5808,6 +5808,77 @@ def build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', has_
         conditions.append(f"NOT EXISTS (SELECT 1 FROM contas_pagas cpg WHERE cpg.lancamento = {table_alias}.lancamento)")
     return conditions, params
 
+@app.get("/api/debug/diferenca-pbi")
+def debug_diferenca_pbi():
+    """Endpoint de debug para investigar diferença entre dashboard e Power BI no Total a Pagar"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', exclude_paid=True)
+        excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
+
+        # Total atual do dashboard (com NOT EXISTS por lancamento exato)
+        cursor.execute(f"""
+            SELECT COALESCE(SUM(cap.valor_total), 0) as total, COUNT(*) as qtd
+            FROM contas_a_pagar cap
+            LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE 1=1{excl_where}
+        """, excl_params)
+        dashboard_total = cursor.fetchone()
+
+        # Total SEM o filtro NOT EXISTS (para comparação)
+        excl_conds_sem, excl_params_sem = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', exclude_paid=False)
+        excl_where_sem = (" AND " + " AND ".join(excl_conds_sem)) if excl_conds_sem else ""
+        cursor.execute(f"""
+            SELECT COALESCE(SUM(cap.valor_total), 0) as total, COUNT(*) as qtd
+            FROM contas_a_pagar cap
+            LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE 1=1{excl_where_sem}
+        """, excl_params_sem)
+        sem_filtro = cursor.fetchone()
+
+        # Títulos que NÃO batem por lancamento exato mas batem por titulo base (SPLIT_PART)
+        cursor.execute(f"""
+            SELECT cap.lancamento, cap.numero_parcela, cap.valor_total, cap.credor,
+                   cap.data_vencimento, TRIM(cap.id_documento) as id_documento,
+                   TRIM(cap.id_origem) as id_origem
+            FROM contas_a_pagar cap
+            LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE NOT EXISTS (SELECT 1 FROM contas_pagas cpg WHERE cpg.lancamento = cap.lancamento)
+              AND EXISTS (SELECT 1 FROM contas_pagas cpg WHERE SPLIT_PART(cpg.lancamento, '/', 1) = SPLIT_PART(cap.lancamento, '/', 1))
+              {excl_where_sem.replace('1=1 AND ', '') if excl_where_sem else ''}
+            ORDER BY cap.valor_total DESC
+            LIMIT 50
+        """, excl_params_sem)
+        parciais = [dict(r) for r in cursor.fetchall()]
+
+        # Soma dos parciais
+        cursor.execute(f"""
+            SELECT COALESCE(SUM(cap.valor_total), 0) as total, COUNT(*) as qtd
+            FROM contas_a_pagar cap
+            LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE NOT EXISTS (SELECT 1 FROM contas_pagas cpg WHERE cpg.lancamento = cap.lancamento)
+              AND EXISTS (SELECT 1 FROM contas_pagas cpg WHERE SPLIT_PART(cpg.lancamento, '/', 1) = SPLIT_PART(cap.lancamento, '/', 1))
+              {excl_where_sem.replace('1=1 AND ', '') if excl_where_sem else ''}
+        """, excl_params_sem)
+        parciais_total = cursor.fetchone()
+
+        return {
+            "dashboard_total_com_filtro": {"valor": float(dashboard_total['total']), "qtd": dashboard_total['qtd']},
+            "total_sem_filtro_pagas": {"valor": float(sem_filtro['total']), "qtd": sem_filtro['qtd']},
+            "diferenca_filtro": float(sem_filtro['total']) - float(dashboard_total['total']),
+            "titulos_parcialmente_pagos": {
+                "descricao": "Títulos onde lancamento exato não bate mas titulo base (antes do /) existe em contas_pagas",
+                "valor_total": float(parciais_total['total']),
+                "quantidade": parciais_total['qtd'],
+                "amostra": parciais[:20]
+            }
+        }
+    finally:
+        cursor.close()
+        conn.close()
+
 @app.get("/api/debug/exclusoes")
 def debug_exclusoes():
     """Endpoint de debug para verificar exclusões ativas e qual banco de config está sendo usado"""
