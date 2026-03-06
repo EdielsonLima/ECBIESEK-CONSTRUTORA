@@ -92,6 +92,23 @@ async def startup_event():
     except Exception as e:
         print(f"[STARTUP] Erro ao garantir tabelas de config: {e}")
 
+    # Cria view deduplicada no banco PRINCIPAL (onde contas_a_pagar vive)
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE OR REPLACE VIEW vw_contas_a_pagar AS
+            SELECT DISTINCT ON (lancamento, numero_parcela, id_interno_centro_custo) *
+            FROM contas_a_pagar
+            ORDER BY lancamento, numero_parcela, id_interno_centro_custo, valor_total DESC
+        """)
+        conn.commit()
+        cursor.close()
+        conn.close()
+        print("[STARTUP] View vw_contas_a_pagar criada/atualizada com sucesso!")
+    except Exception as e:
+        print(f"[STARTUP] Erro ao criar view vw_contas_a_pagar: {e}")
+
 # Configuração de segurança JWT
 JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'fallback-secret-key-change-in-production')
 JWT_ALGORITHM = "HS256"
@@ -5724,14 +5741,6 @@ def _ensure_config_tables_in_postgres():
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(data_snapshot, faixa)
                 )
-            """)
-
-            # Cria view deduplicada de contas_a_pagar (remove registros duplicados por lancamento+parcela+centro_custo)
-            cursor.execute("""
-                CREATE OR REPLACE VIEW vw_contas_a_pagar AS
-                SELECT DISTINCT ON (lancamento, numero_parcela, id_interno_centro_custo) *
-                FROM contas_a_pagar
-                ORDER BY lancamento, numero_parcela, id_interno_centro_custo, valor_total DESC
             """)
 
             # Insere tipos de previsão como excluídos por padrão
