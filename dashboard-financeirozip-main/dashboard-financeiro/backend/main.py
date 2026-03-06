@@ -5968,6 +5968,21 @@ def debug_empresa_detalhe(empresa: str = "LAGOA"):
         """, ['%' + empresa.upper() + '%'] + excl_params_com)
         docs_info = [dict(r) for r in cursor.fetchall()]
 
+        # Breakdown por centro de custo (para comparar com PBI)
+        cursor.execute(f"""
+            SELECT cc.nome_centrocusto,
+                   COALESCE(SUM(cap.valor_total), 0) as valor,
+                   COUNT(*) as parcelas,
+                   COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as titulos,
+                   COUNT(DISTINCT cap.credor) as credores
+            FROM contas_a_pagar cap
+            LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE UPPER(cc.nome_empresa) LIKE %s{excl_where_com}
+            GROUP BY cc.nome_centrocusto
+            ORDER BY valor DESC
+        """, ['%' + empresa.upper() + '%'] + excl_params_com)
+        por_cc = [dict(r) for r in cursor.fetchall()]
+
         return {
             "empresa_filtro": empresa,
             "com_filtro_pagas": {
@@ -5993,7 +6008,8 @@ def debug_empresa_detalhe(empresa: str = "LAGOA"):
             },
             "amostra_titulos_no_dashboard": titulos_dashboard[:30],
             "duplicatas": duplicatas_info,
-            "por_id_documento": docs_info
+            "por_id_documento": docs_info,
+            "por_centro_custo": por_cc
         }
     finally:
         cursor.close()
