@@ -117,7 +117,7 @@ interface DadosPorVencimento {
   ordem: number;
 }
 
-type AbaAtiva = 'dados' | 'analises';
+type AbaAtiva = 'dados' | 'analises' | 'por-cliente';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1'];
 
@@ -146,6 +146,8 @@ export const ContasAReceber: React.FC = () => {
   const [filtroCliente, setFiltroCliente] = useState<string | null>(null);
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [linhaExpandida, setLinhaExpandida] = useState<number | null>(null);
+  const [clienteExpandido, setClienteExpandido] = useState<string | null>(null);
+  const [subAbaCliente, setSubAbaCliente] = useState<'tabela' | 'grafico'>('tabela');
 
   const ordenarContas = (contasParaOrdenar: ContaReceber[]) => {
     return [...contasParaOrdenar].sort((a, b) => {
@@ -694,6 +696,16 @@ export const ContasAReceber: React.FC = () => {
           >
             Analises
           </button>
+          <button
+            onClick={() => setAbaAtiva('por-cliente')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              abaAtiva === 'por-cliente'
+                ? 'border-green-500 text-green-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Por Cliente
+          </button>
         </nav>
       </div>
 
@@ -926,6 +938,228 @@ export const ContasAReceber: React.FC = () => {
           </div>
         </div>
       )}
+
+      {abaAtiva === 'por-cliente' && (() => {
+        const clienteMap = new Map<string, { valor: number; quantidade: number }>();
+        contas.forEach(c => {
+          const cliente = c.cliente || 'Sem Cliente';
+          const atual = clienteMap.get(cliente) || { valor: 0, quantidade: 0 };
+          clienteMap.set(cliente, {
+            valor: atual.valor + (c.valor_total || 0),
+            quantidade: atual.quantidade + 1,
+          });
+        });
+        const clientesPorValor = Array.from(clienteMap.entries())
+          .map(([cliente, data]) => ({ cliente, ...data }))
+          .sort((a, b) => b.valor - a.valor);
+
+        const totalGeral = clientesPorValor.reduce((acc, c) => acc + c.valor, 0);
+        let acumuladoVal = 0;
+        const clientesComPareto = clientesPorValor.map((c, i) => {
+          const percentual = totalGeral > 0 ? (c.valor / totalGeral) * 100 : 0;
+          acumuladoVal += percentual;
+          return { ...c, rank: i + 1, percentual, acumulado: acumuladoVal };
+        });
+
+        const clientesExibidos = [...clientesComPareto].sort((a, b) => {
+          const dir = ordenacao.direcao === 'asc' ? 1 : -1;
+          switch (ordenacao.campo) {
+            case 'cliente': return a.cliente.localeCompare(b.cliente) * dir;
+            case 'quantidade': return (a.quantidade - b.quantidade) * dir;
+            case 'valor': return (a.valor - b.valor) * dir;
+            case 'percentual': return (a.percentual - b.percentual) * dir;
+            case 'acumulado': return (a.acumulado - b.acumulado) * dir;
+            case 'rank': return (a.rank - b.rank) * dir;
+            default: return (a.rank - b.rank) * dir;
+          }
+        });
+
+        return (
+          <>
+            <div className="mb-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Contas a Receber por Cliente</h2>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {clientesComPareto.length} cliente(s) | Total: {formatCurrency(totalGeral)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMostrarFiltros(!mostrarFiltros)}
+                  className="flex items-center rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"
+                >
+                  <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                  </svg>
+                  {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
+                </button>
+              </div>
+
+              <div className="mt-4 flex gap-2 border-b border-gray-200 pb-2">
+                <button
+                  onClick={() => setSubAbaCliente('tabela')}
+                  className={`rounded-t-lg px-4 py-2 text-sm font-medium ${subAbaCliente === 'tabela' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  Tabela
+                </button>
+                <button
+                  onClick={() => setSubAbaCliente('grafico')}
+                  className={`rounded-t-lg px-4 py-2 text-sm font-medium ${subAbaCliente === 'grafico' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  Grafico
+                </button>
+              </div>
+
+              {mostrarFiltros && renderFiltros()}
+            </div>
+
+            {subAbaCliente === 'tabela' && (
+              <div className="overflow-hidden rounded-lg bg-white shadow">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-green-50">
+                      <tr>
+                        <th onClick={() => toggleOrdenacao('rank')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-12 cursor-pointer hover:bg-green-100">#{renderSortIcon('rank')}</th>
+                        <th onClick={() => toggleOrdenacao('cliente')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Cliente{renderSortIcon('cliente')}</th>
+                        <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Qtd Titulos{renderSortIcon('quantidade')}</th>
+                        <th onClick={() => toggleOrdenacao('valor')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Valor{renderSortIcon('valor')}</th>
+                        <th onClick={() => toggleOrdenacao('percentual')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">% do Total{renderSortIcon('percentual')}</th>
+                        <th onClick={() => toggleOrdenacao('acumulado')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">% Acumulado{renderSortIcon('acumulado')}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 bg-white">
+                      {clientesExibidos.map((c, index) => (
+                        <React.Fragment key={index}>
+                          <tr
+                            onClick={() => setClienteExpandido(clienteExpandido === c.cliente ? null : c.cliente)}
+                            className={`cursor-pointer hover:bg-gray-50 transition-colors ${clienteExpandido === c.cliente ? 'bg-green-50/50' : c.acumulado <= 80 ? 'bg-green-50/30' : c.acumulado <= 95 ? 'bg-yellow-50/30' : ''}`}
+                          >
+                            <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-400 font-mono">
+                              <span className={`inline-block transition-transform mr-2 text-[10px] ${clienteExpandido === c.cliente ? 'rotate-90' : ''}`}>&#9654;</span>
+                              {c.rank}
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm font-medium text-gray-900">{c.cliente}</td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500 text-center">{c.quantidade}</td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-green-600 text-right">{formatCurrency(c.valor)}</td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-700 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <div className="w-20 bg-gray-200 rounded-full h-2">
+                                  <div className="bg-green-500 h-2 rounded-full" style={{ width: `${Math.min(c.percentual * 2, 100)}%` }}></div>
+                                </div>
+                                <span className="w-14 text-right">{c.percentual.toFixed(2)}%</span>
+                              </div>
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-right">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${c.acumulado <= 80 ? 'bg-green-100 text-green-700' :
+                                c.acumulado <= 95 ? 'bg-yellow-100 text-yellow-700' :
+                                  'bg-red-100 text-red-700'
+                                }`}>
+                                {c.acumulado.toFixed(2)}%
+                              </span>
+                            </td>
+                          </tr>
+                          {clienteExpandido === c.cliente && (
+                            <tr className="bg-gray-50">
+                              <td colSpan={6} className="px-8 py-4">
+                                <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-inner">
+                                  <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                      <tr>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vencimento</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Titulo</th>
+                                        <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Parcela</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">N Doc.</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dias</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empresa</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo Condicao</th>
+                                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                      {contas.filter(conta => (conta.cliente || 'Sem Cliente') === c.cliente).map((conta, j) => {
+                                        const dias = calcularDiasAteVencimento(conta.data_vencimento);
+                                        const corDias = dias < 0 ? 'text-red-600' : dias === 0 ? 'text-orange-600' : 'text-green-600';
+                                        return (
+                                          <tr key={j} className="hover:bg-green-50/50">
+                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{formatDate(conta.data_vencimento)}</td>
+                                            <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-gray-900">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
+                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500 text-center">{conta.numero_parcela || '-'}</td>
+                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.numero_documento || conta.id_documento || '-'}</td>
+                                            <td className={`whitespace-nowrap px-4 py-2 text-sm font-semibold ${corDias}`}>
+                                              {dias < 0 ? `${Math.abs(dias)}d atraso` : dias === 0 ? 'Hoje' : `${dias}d`}
+                                            </td>
+                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.nome_empresa || '-'}</td>
+                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.tipo_condicao || '-'}</td>
+                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-green-600 font-semibold text-right">{formatCurrency(conta.valor_total || 0)}</td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-gray-100">
+                      <tr className="font-bold">
+                        <td className="px-4 py-3 text-sm"></td>
+                        <td className="px-6 py-3 text-sm text-gray-900">TOTAL</td>
+                        <td className="px-6 py-3 text-sm text-gray-900 text-center">{contas.length}</td>
+                        <td className="px-6 py-3 text-sm text-green-700 text-right">{formatCurrency(totalGeral)}</td>
+                        <td className="px-6 py-3 text-sm text-gray-900 text-right">100,00%</td>
+                        <td className="px-6 py-3 text-sm"></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {subAbaCliente === 'grafico' && (
+              <div className="mb-6 rounded-lg bg-white p-6 shadow">
+                <p className="mb-4 text-sm text-gray-500">Distribuicao de valores a receber por cliente</p>
+                <div style={{ height: Math.max(300, clientesExibidos.length * 45) }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={clientesExibidos}
+                      layout="vertical"
+                      margin={{ top: 5, right: 30, left: 150, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" tickFormatter={(value) => formatCurrencyShort(value)} tick={{ fontSize: 11 }} />
+                      <YAxis dataKey="cliente" type="category" width={140} tick={{ fontSize: 11 }} />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="rounded-lg border bg-white p-3 shadow-lg">
+                                <p className="font-semibold text-gray-900">{data.cliente}</p>
+                                <p className="text-sm text-green-600">{formatCurrency(data.valor)}</p>
+                                <p className="text-xs text-gray-500">{data.quantidade} titulo(s) | {data.percentual.toFixed(2)}%</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Bar dataKey="valor" fill="#10B981" radius={[0, 4, 4, 0]}>
+                        {clientesExibidos.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.acumulado <= 80 ? '#10B981' : entry.acumulado <= 95 ? '#F59E0B' : '#EF4444'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 };
