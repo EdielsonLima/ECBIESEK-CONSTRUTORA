@@ -920,20 +920,17 @@ export const ContasRecebidas: React.FC = () => {
                   <th onClick={() => toggleOrdenacao('data_recebimento')} className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
                     Data Recebimento {renderSortIcon('data_recebimento')}
                   </th>
-                  <th onClick={() => toggleOrdenacao('valor_total')} className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
-                    Valor {renderSortIcon('valor_total')}
-                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Titulo</th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Parcela</th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Documento</th>
-                  <th onClick={() => toggleOrdenacao('nome_empresa')} className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
-                    Empresa {renderSortIcon('nome_empresa')}
+                  <th onClick={() => toggleOrdenacao('tipo_condicao')} className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                    Tipo Condicao {renderSortIcon('tipo_condicao')}
                   </th>
                   <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
                     Centro de Custo {renderSortIcon('nome_centrocusto')}
                   </th>
-                  <th onClick={() => toggleOrdenacao('tipo_condicao')} className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
-                    Tipo Condicao {renderSortIcon('tipo_condicao')}
+                  <th onClick={() => toggleOrdenacao('valor_total')} className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                    Valor {renderSortIcon('valor_total')}
                   </th>
                 </tr>
               </thead>
@@ -954,18 +951,9 @@ export const ContasRecebidas: React.FC = () => {
                           </div>
                         </td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{formatDate(conta.data_recebimento)}</td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-green-600">{formatCurrency(conta.valor_total)}</td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.titulo || (conta as any).lancamento || '-'}</td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.numero_parcela || '-'}</td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.id_documento || '-'}</td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.nome_empresa || '-'}</td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                          {conta.nome_centrocusto ? (
-                            <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 border border-blue-100">
-                              {conta.nome_centrocusto}
-                            </span>
-                          ) : '-'}
-                        </td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm">
                           {(conta as any).tipo_condicao ? (
                             <span title={descTipoCondicao((conta as any).tipo_condicao)} className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold cursor-help ${corTipoCondicao((conta as any).tipo_condicao)}`}>
@@ -973,6 +961,14 @@ export const ContasRecebidas: React.FC = () => {
                             </span>
                           ) : '-'}
                         </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                          {conta.nome_centrocusto ? (
+                            <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 border border-blue-100">
+                              {conta.nome_centrocusto}
+                            </span>
+                          ) : '-'}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-green-600">{formatCurrency(conta.valor_total)}</td>
                       </tr>
                       {isExpanded && tituloBase && (() => {
                         const parcelas = todasContas
