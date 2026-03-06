@@ -5904,6 +5904,42 @@ def debug_empresa_detalhe(empresa: str = "LAGOA"):
         """, ['%' + empresa.upper() + '%'] + excl_params_sem)
         com_lancamento_exato_em_pagas = [dict(r) for r in cursor.fetchall()]
 
+        # Duplicatas: mesmo lancamento aparecendo mais de uma vez
+        cursor.execute(f"""
+            SELECT cap.lancamento, cap.numero_parcela, COUNT(*) as vezes,
+                   SUM(cap.valor_total) as soma_valores,
+                   ARRAY_AGG(cap.valor_total ORDER BY cap.valor_total DESC) as valores,
+                   ARRAY_AGG(DISTINCT cc.nome_centrocusto) as centros_custo,
+                   MAX(cap.credor) as credor
+            FROM contas_a_pagar cap
+            LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE UPPER(cc.nome_empresa) LIKE %s{excl_where_com}
+            GROUP BY cap.lancamento, cap.numero_parcela
+            HAVING COUNT(*) > 1
+            ORDER BY SUM(cap.valor_total) DESC
+        """, ['%' + empresa.upper() + '%'] + excl_params_com)
+        duplicatas = [dict(r) for r in cursor.fetchall()]
+        duplicatas_valor = sum(float(r['soma_valores']) - float(r['valores'][0]) for r in duplicatas) if duplicatas else 0
+        duplicatas_info = {
+            "descricao": "Lancamentos duplicados (mesmo lancamento+parcela aparece mais de 1 vez)",
+            "quantidade": len(duplicatas),
+            "valor_excedente": duplicatas_valor,
+            "dados": duplicatas[:30]
+        }
+
+        # Breakdown por tipo de documento
+        cursor.execute(f"""
+            SELECT TRIM(cap.id_documento) as tipo_doc, COUNT(*) as qtd,
+                   COALESCE(SUM(cap.valor_total), 0) as valor,
+                   COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as titulos
+            FROM contas_a_pagar cap
+            LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE UPPER(cc.nome_empresa) LIKE %s{excl_where_com}
+            GROUP BY TRIM(cap.id_documento)
+            ORDER BY valor DESC
+        """, ['%' + empresa.upper() + '%'] + excl_params_com)
+        docs_info = [dict(r) for r in cursor.fetchall()]
+
         return {
             "empresa_filtro": empresa,
             "com_filtro_pagas": {
@@ -5927,7 +5963,9 @@ def debug_empresa_detalhe(empresa: str = "LAGOA"):
                 "valor": sum(float(r['valor_total']) for r in nao_filtrados),
                 "dados": nao_filtrados
             },
-            "amostra_titulos_no_dashboard": titulos_dashboard[:30]
+            "amostra_titulos_no_dashboard": titulos_dashboard[:30],
+            "duplicatas": duplicatas_info,
+            "por_id_documento": docs_info
         }
     finally:
         cursor.close()
