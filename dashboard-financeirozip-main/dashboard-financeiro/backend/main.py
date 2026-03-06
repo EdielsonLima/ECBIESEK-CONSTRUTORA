@@ -5287,6 +5287,141 @@ def get_titulos_cliente(cliente: str):
         cursor.close()
         conn.close()
 
+@app.get("/api/progress-titulos-cliente")
+def get_progress_titulos_cliente(
+    cliente: str,
+    empresa: Optional[int] = None,
+    ano: Optional[str] = None,
+    mes: Optional[str] = None,
+    tipo_baixa: Optional[str] = None,
+):
+    """Retorna progresso de recebimento por título de um cliente (parcelas recebidas vs total)"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        exclusoes = get_exclusoes()
+
+        # Condições para contas_a_receber (total de parcelas do contrato - sem filtro de data)
+        car_conditions = ["car.cliente = %s"]
+        car_params = [cliente]
+        if exclusoes['empresas']:
+            ph = ','.join(['%s'] * len(exclusoes['empresas']))
+            car_conditions.append(f"cc.id_sienge_empresa NOT IN ({ph})")
+            car_params.extend(exclusoes['empresas'])
+        if exclusoes['centros_custo']:
+            ph = ','.join(['%s'] * len(exclusoes['centros_custo']))
+            car_conditions.append(f"car.id_interno_centro_custo NOT IN ({ph})")
+            car_params.extend(exclusoes['centros_custo'])
+        if empresa is not None:
+            car_conditions.append("cc.id_sienge_empresa = %s")
+            car_params.append(empresa)
+        where_car = " AND ".join(car_conditions)
+
+        # Condições para contas_recebidas (parcelas já recebidas - com filtros de período)
+        cr_conditions = ["cr.cliente = %s"]
+        cr_params = [cliente]
+        if exclusoes['empresas']:
+            ph = ','.join(['%s'] * len(exclusoes['empresas']))
+            cr_conditions.append(f"(cc2.id_sienge_empresa IS NULL OR cc2.id_sienge_empresa NOT IN ({ph}))")
+            cr_params.extend(exclusoes['empresas'])
+        if empresa is not None:
+            cr_conditions.append("cc2.id_sienge_empresa = %s")
+            cr_params.append(empresa)
+        if ano:
+            anos = [int(a.strip()) for a in ano.split(',')]
+            ph = ', '.join(['%s'] * len(anos))
+            cr_conditions.append(f"EXTRACT(YEAR FROM cr.data_recebimento) IN ({ph})")
+            cr_params.extend(anos)
+        if mes:
+            meses = [int(m.strip()) for m in mes.split(',')]
+            ph = ', '.join(['%s'] * len(meses))
+            cr_conditions.append(f"EXTRACT(MONTH FROM cr.data_recebimento) IN ({ph})")
+            cr_params.extend(meses)
+        if tipo_baixa:
+            tb_ids = [int(t.strip()) for t in tipo_baixa.split(',') if t.strip()]
+            if tb_ids:
+                ph = ', '.join(['%s'] * len(tb_ids))
+                cr_conditions.append(f"cr.id_tipo_baixa IN ({ph})")
+                cr_params.extend(tb_ids)
+        where_cr = " AND ".join(cr_conditions)
+
+        query = f"""
+            WITH totais_contrato AS (
+                SELECT
+                    SPLIT_PART(car.lancamento, '/', 1) AS titulo,
+                    COUNT(*) AS total_parcelas,
+                    COALESCE(SUM(car.valor_total), 0) AS valor_contrato,
+                    TRIM(MAX(car.id_origem)) AS tipo_condicao_code
+                FROM contas_a_receber car
+                LEFT JOIN dim_centrocusto cc
+                    ON car.id_interno_centro_custo = cc.id_interno_centrocusto
+                WHERE {where_car}
+                GROUP BY SPLIT_PART(car.lancamento, '/', 1)
+            ),
+            totais_recebidos AS (
+                SELECT
+                    cr.titulo::TEXT AS titulo,
+                    COUNT(*) AS parcelas_recebidas,
+                    COALESCE(SUM(cr.valor_liquido), 0) AS valor_recebido
+                FROM contas_recebidas cr
+                LEFT JOIN dim_centrocusto cc2
+                    ON cr.id_interno_centro_custo = cc2.id_interno_centrocusto
+                WHERE {where_cr}
+                GROUP BY cr.titulo::TEXT
+            )
+            SELECT
+                tc.titulo,
+                tc.total_parcelas,
+                COALESCE(tr.parcelas_recebidas, 0) AS parcelas_recebidas,
+                tc.valor_contrato,
+                COALESCE(tr.valor_recebido, 0) AS valor_recebido,
+                tc.tipo_condicao_code,
+                CASE TRIM(tc.tipo_condicao_code)
+                    WHEN 'AT' THEN 'Ato'
+                    WHEN 'PM' THEN 'Parcelas Mensais'
+                    WHEN 'PS' THEN 'Parcelas Semestrais'
+                    WHEN 'FI' THEN 'Financiamento'
+                    WHEN 'RE' THEN 'Resíduo'
+                    WHEN 'PB' THEN 'Parcelas Balão'
+                    WHEN 'PE' THEN 'Parcelas Especiais'
+                    WHEN 'PI' THEN 'Parcelas Intermediárias'
+                    WHEN 'CO' THEN 'Contrato'
+                    WHEN 'CR' THEN 'Crédito'
+                    ELSE TRIM(tc.tipo_condicao_code)
+                END AS tipo_condicao_desc
+            FROM totais_contrato tc
+            LEFT JOIN totais_recebidos tr ON tc.titulo = tr.titulo
+            ORDER BY tc.titulo
+        """
+
+        all_params = car_params + cr_params
+        cursor.execute(query, all_params)
+        rows = cursor.fetchall()
+
+        return [
+            {
+                "titulo": row["titulo"],
+                "total_parcelas": int(row["total_parcelas"]),
+                "parcelas_recebidas": int(row["parcelas_recebidas"]),
+                "valor_contrato": float(row["valor_contrato"]),
+                "valor_recebido": float(row["valor_recebido"]),
+                "percentual": round(
+                    int(row["parcelas_recebidas"]) / int(row["total_parcelas"]) * 100, 1
+                ) if int(row["total_parcelas"]) > 0 else 0,
+                "tipo_condicao": row["tipo_condicao_code"] or "-",
+                "tipo_condicao_desc": row["tipo_condicao_desc"] or "-",
+            }
+            for row in rows
+        ]
+
+    except Exception as e:
+        print(f"Erro ao buscar progress titulos: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
 @app.get("/api/metricas-receber")
 def get_metricas_receber():
     """Retorna métricas gerais de contas a receber para o dashboard"""

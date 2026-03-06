@@ -770,6 +770,24 @@ export const apiService = {
     return response.data;
   },
 
+  // Progresso de recebimento por título de um cliente
+  getProgressTitulosCliente: async (filtros: {
+    cliente: string;
+    empresa?: number;
+    ano?: string;
+    mes?: string;
+    tipo_baixa?: string;
+  }): Promise<any[]> => {
+    const params = new URLSearchParams();
+    params.append('cliente', filtros.cliente);
+    if (filtros.empresa) params.append('empresa', filtros.empresa.toString());
+    if (filtros.ano) params.append('ano', filtros.ano);
+    if (filtros.mes) params.append('mes', filtros.mes);
+    if (filtros.tipo_baixa) params.append('tipo_baixa', filtros.tipo_baixa);
+    const response = await api.get<any[]>(`/progress-titulos-cliente?${params.toString()}`);
+    return response.data;
+  },
+
   // Estatísticas contas a receber
   getEstatisticasContasReceber: async (filtros: {
     empresa?: number;
