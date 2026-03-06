@@ -4651,7 +4651,7 @@ def get_contas_recebidas_filtradas(
                 TRIM(cr.id_documento) as id_documento,
                 cr.parcela as numero_parcela,
                 cr.id_tipo_baixa,
-                CASE TRIM(car.id_origem)
+                CASE TRIM(cr.id_origem)
                     WHEN 'AT' THEN 'Ato'
                     WHEN 'PM' THEN 'Parcelas Mensais'
                     WHEN 'PS' THEN 'Parcelas Semestrais'
@@ -4662,12 +4662,10 @@ def get_contas_recebidas_filtradas(
                     WHEN 'PI' THEN 'Parcelas Intermediárias'
                     WHEN 'CO' THEN 'Contrato'
                     WHEN 'CR' THEN 'Crédito'
-                    ELSE TRIM(car.id_origem)
+                    ELSE TRIM(cr.id_origem)
                 END as tipo_condicao
             FROM contas_recebidas cr
             LEFT JOIN dim_centrocusto cc ON cr.id_interno_centro_custo = cc.id_interno_centrocusto
-            LEFT JOIN contas_a_receber car ON cr.titulo::TEXT = car.lancamento
-                AND cr.parcela::TEXT = car.numero_parcela::TEXT
             WHERE {where_clause}
             ORDER BY cr.data_recebimento DESC, cr.cliente, cr.valor_liquido
             LIMIT %s
