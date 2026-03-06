@@ -142,6 +142,7 @@ export const ContasAPagar: React.FC = () => {
   const [filtroMes, setFiltroMes] = useState<number[]>([]);
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [todasContas, setTodasContas] = useState<ContaPagar[]>([]);
+  const [todasContasCompletas, setTodasContasCompletas] = useState<ContaPagar[]>([]);
   const [mesDropdownAberto, setMesDropdownAberto] = useState(false);
   const [ordenacao, setOrdenacao] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'data_vencimento', direcao: 'asc' });
   const [tiposDocumento, setTiposDocumento] = useState<TipoDocumentoOption[]>([]);
@@ -392,6 +393,8 @@ export const ContasAPagar: React.FC = () => {
       setLoading(true);
       const data = await apiService.getContas('a_pagar', 10000);
 
+      setTodasContasCompletas(data);
+
       const contasNaoVencidas = data.filter(c => {
         const dias = calcularDiasAteVencimento(c.data_vencimento as any);
         return dias >= 0;
@@ -478,11 +481,12 @@ export const ContasAPagar: React.FC = () => {
     const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor);
     setContas(contasFiltradas);
 
+    // Card "Total a Pagar" usa TODAS as contas (vencidas + a vencer), igual ao PBI
     const stats: Estatisticas = {
-      quantidade_titulos: calcularTitulosUnicos(contasFiltradas),
-      valor_total: contasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0),
-      valor_medio: contasFiltradas.length > 0
-        ? contasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0) / contasFiltradas.length
+      quantidade_titulos: calcularTitulosUnicos(todasContasCompletas),
+      valor_total: todasContasCompletas.reduce((acc, c) => acc + (c.valor_total || 0), 0),
+      valor_medio: todasContasCompletas.length > 0
+        ? todasContasCompletas.reduce((acc, c) => acc + (c.valor_total || 0), 0) / todasContasCompletas.length
         : 0,
     };
     setEstatisticas(stats);
@@ -546,7 +550,7 @@ export const ContasAPagar: React.FC = () => {
       .filter(d => d.quantidade > 0)
       .sort((a, b) => a.ordem - b.ordem);
     setDadosPorVencimento(vencimentoArray);
-  }, [todasContas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor]);
+  }, [todasContas, todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor]);
 
   useEffect(() => {
     carregarDados();
@@ -993,7 +997,7 @@ export const ContasAPagar: React.FC = () => {
         const contas7dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 7; });
         const contas15dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 15; });
         const contas30dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 30; });
-        const credoresTotal = new Set(contas.map(c => c.credor)).size;
+        const credoresTotal = new Set(todasContasCompletas.map(c => c.credor)).size;
         const credoresHoje = new Set(contasHoje.map(c => c.credor)).size;
         const credores7dias = new Set(contas7dias.map(c => c.credor)).size;
         const credores15dias = new Set(contas15dias.map(c => c.credor)).size;

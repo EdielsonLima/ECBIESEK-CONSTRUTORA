@@ -805,11 +805,11 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 LEFT JOIN ecpgtitulo t ON t.id_pg_titulo = CAST(SPLIT_PART(cap.lancamento, '/', 1) AS INTEGER)
                     AND t.id_credor = cap.id_credor
-                WHERE cap.data_vencimento >= %s{excl_where}
+                WHERE 1=1{excl_where}
                 ORDER BY cap.data_vencimento ASC
                 LIMIT %s
             """
-            cursor.execute(query, [hoje] + excl_params + [limite])
+            cursor.execute(query, excl_params + [limite])
         elif status == "em_atraso":
             excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap')
             excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
