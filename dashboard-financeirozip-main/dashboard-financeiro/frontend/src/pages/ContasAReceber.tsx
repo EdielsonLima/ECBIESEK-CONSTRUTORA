@@ -54,6 +54,7 @@ export const ContasAReceber: React.FC = () => {
   const [tipoDocDropdownAberto, setTipoDocDropdownAberto] = useState(false);
   const [clientes, setClientes] = useState<{ id: string; nome: string }[]>([]);
   const [filtroCliente, setFiltroCliente] = useState<string | null>(null);
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
 
   const ordenarContas = (contasParaOrdenar: ContaReceber[]) => {
     return [...contasParaOrdenar].sort((a, b) => {
@@ -571,8 +572,6 @@ export const ContasAReceber: React.FC = () => {
         <h1 className="text-3xl font-bold text-gray-900">Contas a Receber</h1>
       </div>
 
-      {renderFiltros()}
-
       {(() => {
         const contasHoje = contas.filter(c => calcularDiasAteVencimento(c.data_vencimento) === 0);
         const contas7dias = contas.filter(c => { const d = calcularDiasAteVencimento(c.data_vencimento); return d >= 1 && d <= 7; });
@@ -664,6 +663,23 @@ export const ContasAReceber: React.FC = () => {
           </div>
         );
       })()}
+
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-600">
+          {contas.length} titulo(s) pendente(s)
+        </p>
+        <button
+          type="button"
+          onClick={() => setMostrarFiltros(!mostrarFiltros)}
+          className="flex items-center rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"
+        >
+          <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
+        </button>
+      </div>
+      {mostrarFiltros && renderFiltros()}
 
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
