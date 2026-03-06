@@ -87,6 +87,18 @@ app = FastAPI(title="Dashboard Financeiro - Construtora")
 @app.on_event("startup")
 async def startup_event():
     """Garante que tabelas de config existam no PostgreSQL ao iniciar."""
+    # Remove VIEW antiga que pode ter ficado no banco
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+        cursor.execute("DROP VIEW IF EXISTS vw_contas_a_pagar")
+        conn.commit()
+        cursor.close()
+        conn.close()
+        print("[STARTUP] View vw_contas_a_pagar removida (se existia)")
+    except Exception as e:
+        print(f"[STARTUP] Erro ao remover view antiga: {e}")
+
     try:
         _ensure_config_tables_in_postgres()
     except Exception as e:
@@ -5811,9 +5823,9 @@ def build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', has_
             f"WHERE SPLIT_PART(cpg.lancamento, '/', 1) = SPLIT_PART({table_alias}.lancamento, '/', 1) "
             f"AND CAST(NULLIF(SPLIT_PART(cpg.lancamento, '/', 2), '') AS INTEGER) = {table_alias}.numero_parcela)"
         )
-        # Deduplicação: mantém apenas 1 registro por lancamento+parcela+centro_custo
+        # Deduplicação: mantém apenas 1 registro por lancamento+parcela+centro_custo usando ctid
         conditions.append(
-            f"{table_alias}.id = (SELECT MAX(t.id) FROM contas_a_pagar t "
+            f"{table_alias}.ctid = (SELECT MIN(t.ctid) FROM contas_a_pagar t "
             f"WHERE t.lancamento = {table_alias}.lancamento "
             f"AND t.numero_parcela = {table_alias}.numero_parcela "
             f"AND t.id_interno_centro_custo = {table_alias}.id_interno_centro_custo)"
