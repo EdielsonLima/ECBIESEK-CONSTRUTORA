@@ -714,7 +714,7 @@ def get_metricas():
         exclusoes = get_exclusoes()
 
         excl_conds_cp, excl_params_cp = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp', has_conta_corrente=True)
-        excl_conds_cap, excl_params_cap = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap')
+        excl_conds_cap, excl_params_cap = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', exclude_paid=True)
 
         cp_where = (" AND " + " AND ".join(excl_conds_cp)) if excl_conds_cp else ""
         cap_where_extra = (" AND " + " AND ".join(excl_conds_cap)) if excl_conds_cap else ""
@@ -788,7 +788,7 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
             """
             cursor.execute(query, excl_params + [limite])
         elif status == "a_pagar":
-            excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap')
+            excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', exclude_paid=True)
             excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
             query = f"""
                 SELECT cap.credor, cap.data_vencimento, cap.valor_total,
@@ -811,7 +811,7 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
             """
             cursor.execute(query, excl_params + [limite])
         elif status == "em_atraso":
-            excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap')
+            excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', exclude_paid=True)
             excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
             query = f"""
                 SELECT cap.credor, cap.data_vencimento, cap.valor_total,
@@ -834,7 +834,7 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
             """
             cursor.execute(query, [hoje] + excl_params + [limite])
         else:
-            excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap')
+            excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', exclude_paid=True)
             excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
             query = f"""
                 SELECT cap.credor, cap.data_vencimento, cap.valor_total,
@@ -871,7 +871,7 @@ def get_contas_ano(ano: int = None):
             ano = datetime.now().year
         hoje = datetime.now().date()
         exclusoes = get_exclusoes()
-        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap')
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', exclude_paid=True)
         excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
         query = f"""
             SELECT cap.credor, cap.data_vencimento, cap.valor_total,
@@ -905,7 +905,7 @@ def get_grafico_mensal():
         exclusoes = get_exclusoes()
 
         excl_conds_cp, excl_params_cp = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp', has_conta_corrente=True)
-        excl_conds_cap, excl_params_cap = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap')
+        excl_conds_cap, excl_params_cap = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', exclude_paid=True)
 
         cp_extra = (" AND " + " AND ".join(excl_conds_cp)) if excl_conds_cp else ""
         cap_extra = (" AND " + " AND ".join(excl_conds_cap)) if excl_conds_cap else ""
@@ -970,7 +970,7 @@ def get_grafico_categoria():
 
     try:
         exclusoes = get_exclusoes()
-        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap')
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', exclude_paid=True)
         excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
 
         cursor.execute(f"""
@@ -1010,7 +1010,7 @@ def get_proximos_vencimentos(dias: int = 30):
 
     try:
         exclusoes = get_exclusoes()
-        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap')
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', exclude_paid=True)
         excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
 
         cursor.execute(f"""
@@ -3733,7 +3733,7 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
 
         # Aplica exclusões configuradas (mesmas usadas nas páginas de Atrasadas, A Pagar, etc.)
         exclusoes = get_exclusoes()
-        excl_conds_cap, excl_params_cap = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap')
+        excl_conds_cap, excl_params_cap = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', exclude_paid=True)
         excl_conds_cp, excl_params_cp = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp', has_conta_corrente=True)
         cap_where_extra = (" AND " + " AND ".join(excl_conds_cap)) if excl_conds_cap else ""
         cp_where_extra = (" AND " + " AND ".join(excl_conds_cp)) if excl_conds_cp else ""
@@ -5785,7 +5785,7 @@ def get_exclusoes():
         print(f"[get_exclusoes] ERRO ao conectar config DB: {e}")
         return {'empresas': [], 'centros_custo': [], 'tipos_documento': [], 'contas_correntes': []}
 
-def build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', has_join=True, has_cc_column=True, has_doc_column=True, has_conta_corrente=False):
+def build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', has_join=True, has_cc_column=True, has_doc_column=True, has_conta_corrente=False, exclude_paid=False):
     conditions = []
     params = []
     if exclusoes['empresas'] and has_join:
@@ -5804,6 +5804,8 @@ def build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', has_
         placeholders = ','.join(['%s'] * len(exclusoes['contas_correntes']))
         conditions.append(f"{table_alias}.id_conta_corrente NOT IN ({placeholders})")
         params.extend(exclusoes['contas_correntes'])
+    if exclude_paid:
+        conditions.append(f"NOT EXISTS (SELECT 1 FROM contas_pagas cpg WHERE cpg.lancamento = {table_alias}.lancamento)")
     return conditions, params
 
 @app.get("/api/debug/exclusoes")
@@ -6440,7 +6442,7 @@ def _calcular_e_salvar_snapshot_auto():
 
         exclusoes = get_exclusoes()
 
-        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap')
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', exclude_paid=True)
         excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
 
         conn = psycopg2.connect(**DB_CONFIG, cursor_factory=RealDictCursor)
