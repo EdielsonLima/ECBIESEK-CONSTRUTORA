@@ -4,6 +4,84 @@ import { ContaReceber, EmpresaOption, TipoDocumentoOption, CentroCustoOption } f
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { SearchableSelect } from '../components/SearchableSelect';
 
+interface MultiSelectDropdownProps {
+  label: string;
+  items: { id: string | number; nome: string }[];
+  selected: (string | number)[];
+  setSelected: (val: any[]) => void;
+  isOpen: boolean;
+  setIsOpen: (val: boolean) => void;
+  searchable?: boolean;
+}
+
+const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ label, items, selected, setSelected, isOpen, setIsOpen, searchable = false }) => {
+  const [busca, setBusca] = useState('');
+  const itensFiltrados = searchable && busca
+    ? items.filter(i => i.nome.toLowerCase().includes(busca.toLowerCase()))
+    : items;
+
+  return (
+    <div className="relative">
+      <label className="mb-2 block text-sm font-medium text-gray-700">{label}</label>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-green-500 focus:outline-none"
+      >
+        <span className={selected.length > 0 ? 'text-gray-900' : 'text-gray-500'}>
+          {selected.length === 0 ? 'Todos' : selected.length === items.length ? 'Todos' : `${selected.length} selecionado(s)`}
+        </span>
+        <svg
+          className={`absolute right-3 top-9 h-5 w-5 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {isOpen && (
+        <div className="absolute z-20 mt-1 w-full min-w-[250px] rounded-lg border border-gray-300 bg-white shadow-lg">
+          <div className="border-b border-gray-200 p-2 flex gap-2">
+            <button type="button" onClick={() => setSelected(items.map(i => i.id))} className="text-xs text-green-600 hover:underline">Todos</button>
+            <button type="button" onClick={() => setSelected([])} className="text-xs text-gray-500 hover:underline">Limpar</button>
+          </div>
+          {searchable && (
+            <div className="border-b border-gray-200 p-2">
+              <input
+                type="text"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar..."
+                className="w-full rounded border border-gray-200 px-2 py-1 text-sm focus:border-green-400 focus:outline-none"
+              />
+            </div>
+          )}
+          <div className="max-h-48 overflow-y-auto p-2">
+            {itensFiltrados.map((item) => (
+              <label key={item.id} className="flex cursor-pointer items-center gap-2 py-1 hover:bg-gray-50 rounded px-1">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(item.id)}
+                  onChange={() => {
+                    if (selected.includes(item.id)) {
+                      setSelected(selected.filter((s: any) => s !== item.id));
+                    } else {
+                      setSelected([...selected, item.id]);
+                    }
+                  }}
+                  className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                />
+                <span className="text-sm text-gray-700">{item.nome}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface Estatisticas {
   quantidade_titulos: number;
   valor_total: number;
@@ -25,7 +103,7 @@ interface TipoBaixaItem {
   descricao: string;
 }
 
-type AbaAtiva = 'dados' | 'analises';
+type AbaAtiva = 'dados' | 'analises' | 'por-cliente';
 
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1'];
 
@@ -63,6 +141,21 @@ export const ContasRecebidas: React.FC = () => {
 
   // UI
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [linhaExpandida, setLinhaExpandida] = useState<number | null>(null);
+  const [clienteExpandido, setClienteExpandido] = useState<string | null>(null);
+  const [subAbaCliente, setSubAbaCliente] = useState<'tabela' | 'grafico'>('tabela');
+
+  const calcularDiasDesdeRecebimento = (dataRecebimento: string | undefined) => {
+    if (!dataRecebimento) return 999;
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const [ano, mes, dia] = dataRecebimento.split('T')[0].split('-').map(Number);
+    const recebimento = new Date(ano, mes - 1, dia);
+    recebimento.setHours(0, 0, 0, 0);
+    const diffTime = hoje.getTime() - recebimento.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
 
   const ordenarContas = (contasParaOrdenar: ContaReceber[]) => {
     return [...contasParaOrdenar].sort((a, b) => {
@@ -199,7 +292,6 @@ export const ContasRecebidas: React.FC = () => {
     }
   };
 
-  // Busca totais reais do servidor (sem LIMIT) com todos os filtros ativos
   const carregarTotais = useCallback(async () => {
     setLoadingTotal(true);
     try {
@@ -265,6 +357,9 @@ export const ContasRecebidas: React.FC = () => {
       contasFiltradas = contasFiltradas.filter(c =>
         c.id_tipo_baixa !== undefined && tiposBaixaSelecionados.includes(c.id_tipo_baixa)
       );
+    }
+    if (centroCusto) {
+      contasFiltradas = contasFiltradas.filter(c => c.id_interno_centro_custo === centroCusto);
     }
 
     return contasFiltradas;
@@ -429,47 +524,15 @@ export const ContasRecebidas: React.FC = () => {
             ))}
           </select>
         </div>
-        <div className="relative">
-          <label className="mb-2 block text-sm font-medium text-gray-700">Mes</label>
-          <button
-            type="button"
-            onClick={() => setMesDropdownAberto(!mesDropdownAberto)}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-green-500 focus:outline-none"
-          >
-            <span className={filtroMes.length > 0 ? 'text-gray-900' : 'text-gray-500'}>
-              {filtroMes.length === 0 ? 'Todos' : filtroMes.length === 12 ? 'Todos' : `${filtroMes.length} selecionado(s)`}
-            </span>
-            <svg
-              className={`absolute right-3 top-9 h-5 w-5 transition-transform ${mesDropdownAberto ? 'rotate-180' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          {mesDropdownAberto && (
-            <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg">
-              <div className="border-b border-gray-200 p-2 flex gap-2">
-                <button type="button" onClick={() => setFiltroMes(meses.map(m => m.valor))} className="text-xs text-green-600 hover:underline">Todos</button>
-                <button type="button" onClick={() => setFiltroMes([])} className="text-xs text-gray-500 hover:underline">Limpar</button>
-              </div>
-              <div className="max-h-48 overflow-y-auto p-2">
-                {meses.map((mes) => (
-                  <label key={mes.valor} className="flex cursor-pointer items-center gap-2 py-1 hover:bg-gray-50 rounded px-1">
-                    <input
-                      type="checkbox"
-                      checked={filtroMes.includes(mes.valor)}
-                      onChange={() => setFiltroMes(prev => prev.includes(mes.valor) ? prev.filter(m => m !== mes.valor) : [...prev, mes.valor])}
-                      className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                    />
-                    <span className="text-sm text-gray-700">{mes.nome}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        <MultiSelectDropdown
+          label="Mes"
+          items={meses.map(m => ({ id: m.valor, nome: m.nome }))}
+          selected={filtroMes}
+          setSelected={setFiltroMes}
+          isOpen={mesDropdownAberto}
+          setIsOpen={setMesDropdownAberto}
+          searchable={false}
+        />
         <div>
           <SearchableSelect
             label="Cliente"
@@ -479,90 +542,24 @@ export const ContasRecebidas: React.FC = () => {
             placeholder="Selecione um cliente..."
           />
         </div>
-        <div className="relative">
-          <label className="mb-2 block text-sm font-medium text-gray-700">Tipo Documento</label>
-          <button
-            type="button"
-            onClick={() => setTipoDocDropdownAberto(!tipoDocDropdownAberto)}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-green-500 focus:outline-none"
-          >
-            <span className={filtroTipoDocumento.length > 0 ? 'text-gray-900' : 'text-gray-500'}>
-              {filtroTipoDocumento.length === 0 ? 'Todos' : `${filtroTipoDocumento.length} selecionado(s)`}
-            </span>
-            <svg
-              className={`absolute right-3 top-9 h-5 w-5 transition-transform ${tipoDocDropdownAberto ? 'rotate-180' : ''}`}
-              fill="none" stroke="currentColor" viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          {tipoDocDropdownAberto && (
-            <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg">
-              <div className="border-b border-gray-200 p-2 flex gap-2">
-                <button type="button" onClick={() => setFiltroTipoDocumento(tiposDocumento.map(t => t.id))} className="text-xs text-green-600 hover:underline">Todos</button>
-                <button type="button" onClick={() => setFiltroTipoDocumento([])} className="text-xs text-gray-500 hover:underline">Limpar</button>
-              </div>
-              <div className="max-h-48 overflow-y-auto p-2">
-                {tiposDocumento.map((tipo) => (
-                  <label key={tipo.id} className="flex cursor-pointer items-center gap-2 py-1 hover:bg-gray-50 rounded px-1">
-                    <input
-                      type="checkbox"
-                      checked={filtroTipoDocumento.includes(tipo.id)}
-                      onChange={() => setFiltroTipoDocumento(prev => prev.includes(tipo.id) ? prev.filter(t => t !== tipo.id) : [...prev, tipo.id])}
-                      className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                    />
-                    <span className="text-sm text-gray-700">{tipo.id} - {tipo.nome}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Filtro Tipo de Baixa */}
-        <div className="relative">
-          <label className="mb-2 block text-sm font-medium text-gray-700">Tipo de Baixa</label>
-          <button
-            type="button"
-            onClick={() => setTipoBaixaDropdownAberto(!tipoBaixaDropdownAberto)}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-green-500 focus:outline-none"
-          >
-            <span className={filtroTipoBaixa.length > 0 ? 'text-gray-900' : 'text-gray-500'}>
-              {filtroTipoBaixa.length === 0 ? 'Todos' : `${filtroTipoBaixa.length} selecionado(s)`}
-            </span>
-            <svg
-              className={`absolute right-3 top-9 h-5 w-5 transition-transform ${tipoBaixaDropdownAberto ? 'rotate-180' : ''}`}
-              fill="none" stroke="currentColor" viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          {tipoBaixaDropdownAberto && (
-            <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg">
-              <div className="border-b border-gray-200 p-2 flex gap-2">
-                <button type="button" onClick={() => setFiltroTipoBaixa([])} className="text-xs text-green-600 hover:underline">Todos</button>
-                <button type="button" onClick={() => setFiltroTipoBaixa(tiposBaixa.map(t => t.id))} className="text-xs text-gray-500 hover:underline">Selecionar todos</button>
-              </div>
-              <div className="max-h-48 overflow-y-auto p-2">
-                {tiposBaixa.map((tipo) => {
-                  const flagColors: Record<string, string> = { P: 'bg-red-100 text-red-700', R: 'bg-green-100 text-green-700', A: 'bg-yellow-100 text-yellow-700', S: 'bg-blue-100 text-blue-700' };
-                  return (
-                    <label key={tipo.id} className="flex cursor-pointer items-center gap-2 py-1.5 hover:bg-gray-50 rounded px-1">
-                      <input
-                        type="checkbox"
-                        checked={filtroTipoBaixa.includes(tipo.id)}
-                        onChange={() => setFiltroTipoBaixa(prev => prev.includes(tipo.id) ? prev.filter(t => t !== tipo.id) : [...prev, tipo.id])}
-                        className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                      />
-                      <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${flagColors[tipo.flag] || 'bg-gray-100 text-gray-700'}`}>{tipo.flag}</span>
-                      <span className="text-sm text-gray-700 truncate">{tipo.nome}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
+        <MultiSelectDropdown
+          label="Tipo Documento"
+          items={tiposDocumento.map(t => ({ id: t.id, nome: `${t.id} - ${t.nome}` }))}
+          selected={filtroTipoDocumento}
+          setSelected={setFiltroTipoDocumento}
+          isOpen={tipoDocDropdownAberto}
+          setIsOpen={setTipoDocDropdownAberto}
+          searchable={true}
+        />
+        <MultiSelectDropdown
+          label="Tipo de Baixa"
+          items={tiposBaixa.map(t => ({ id: t.id, nome: `${t.flag} - ${t.nome}` }))}
+          selected={filtroTipoBaixa}
+          setSelected={setFiltroTipoBaixa}
+          isOpen={tipoBaixaDropdownAberto}
+          setIsOpen={setTipoBaixaDropdownAberto}
+          searchable={true}
+        />
       </div>
       <div className="mt-4 flex gap-3">
         <button
@@ -575,11 +572,6 @@ export const ContasRecebidas: React.FC = () => {
       </div>
     </div>
   );
-
-  // Usa o total do servidor (preciso) para os cards de estatísticas
-  const totalReal = totalServidor?.total ?? estatisticas?.valor_total ?? 0;
-  const quantidadeReal = totalServidor?.quantidade ?? estatisticas?.quantidade_titulos ?? 0;
-  const valorMedioReal = quantidadeReal > 0 ? totalReal / quantidadeReal : 0;
 
   // Filtros ativos para badge no botão
   const filtrosAtivos: string[] = [];
@@ -601,203 +593,325 @@ export const ContasRecebidas: React.FC = () => {
   }
 
   return (
-    <div>
-      {/* Cards coloridos no topo */}
-      <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-lg bg-gradient-to-br from-green-500 to-green-600 p-5 text-white shadow-lg">
-          <div className="mb-1 text-xs font-medium opacity-90">Total Recebido</div>
-          <div className="text-2xl font-bold">
-            {loadingTotal ? <span className="text-base opacity-75">calculando...</span> : formatCurrency(totalReal)}
+    <div className="space-y-6">
+      {/* Cards de período no topo */}
+      {(() => {
+        const contasHoje = contas.filter(c => calcularDiasDesdeRecebimento(c.data_recebimento) === 0);
+        const contas7dias = contas.filter(c => { const d = calcularDiasDesdeRecebimento(c.data_recebimento); return d >= 0 && d <= 7; });
+        const contas15dias = contas.filter(c => { const d = calcularDiasDesdeRecebimento(c.data_recebimento); return d >= 0 && d <= 15; });
+        const contas30dias = contas.filter(c => { const d = calcularDiasDesdeRecebimento(c.data_recebimento); return d >= 0 && d <= 30; });
+
+        const valorHoje = contasHoje.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+        const valor7dias = contas7dias.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+        const valor15dias = contas15dias.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+        const valor30dias = contas30dias.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+
+        const clientesTotal = new Set(contas.map(c => c.cliente)).size;
+        const clientesHoje = new Set(contasHoje.map(c => c.cliente)).size;
+        const clientes7dias = new Set(contas7dias.map(c => c.cliente)).size;
+        const clientes15dias = new Set(contas15dias.map(c => c.cliente)).size;
+        const clientes30dias = new Set(contas30dias.map(c => c.cliente)).size;
+
+        const totalTitulos = estatisticas?.quantidade_titulos || 0;
+        const pct = (v: number, total: number) =>
+          total > 0 ? (v / total * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%' : '0%';
+
+        const formatarDataCurta = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+        const ini7 = new Date(hoje); ini7.setDate(ini7.getDate() - 7);
+        const ini15 = new Date(hoje); ini15.setDate(ini15.getDate() - 15);
+        const ini30 = new Date(hoje); ini30.setDate(ini30.getDate() - 30);
+
+        return (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            <div className="rounded-lg bg-gradient-to-br from-green-600 to-green-700 p-5 text-white shadow-lg">
+              <div className="mb-1 text-xs font-medium opacity-90">Total Recebido</div>
+              <div className="text-xl font-bold">
+                {loadingTotal ? <span className="text-base opacity-75">calculando...</span> : formatCurrency(totalServidor?.total ?? estatisticas?.valor_total)}
+              </div>
+              <div className="mt-1 text-xs opacity-75">
+                {!loadingTotal && `${(totalServidor?.quantidade ?? totalTitulos).toLocaleString('pt-BR')} titulos | ${clientesTotal} clientes`}
+                {!loadingTotal && todasContas.length >= 2000 && (
+                  <span className="ml-1 opacity-90">(lista limitada a 2000)</span>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-gradient-to-br from-yellow-500 to-yellow-600 p-5 text-white shadow-lg">
+              <div className="mb-1 text-xs font-medium opacity-90">Recebido Hoje</div>
+              <div className="text-xl font-bold">{formatCurrency(valorHoje)}</div>
+              <div className="mt-1 text-xs opacity-75">
+                {contasHoje.length} titulo(s)
+                <span className="ml-1 font-semibold opacity-90">({pct(contasHoje.length, totalTitulos)})</span>
+                {' | '}
+                {clientesHoje} clientes
+                <span className="ml-1 font-semibold opacity-90">({pct(clientesHoje, clientesTotal)})</span>
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 p-5 text-white shadow-lg">
+              <div className="mb-1 text-xs font-medium opacity-90">Ultimos 7 dias</div>
+              <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(ini7)} ate {formatarDataCurta(hoje)}</div>
+              <div className="text-xl font-bold">{formatCurrency(valor7dias)}</div>
+              <div className="mt-1 text-xs opacity-75">
+                {contas7dias.length} titulo(s)
+                <span className="ml-1 font-semibold opacity-90">({pct(contas7dias.length, totalTitulos)})</span>
+                {' | '}
+                {clientes7dias} clientes
+                <span className="ml-1 font-semibold opacity-90">({pct(clientes7dias, clientesTotal)})</span>
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 p-5 text-white shadow-lg">
+              <div className="mb-1 text-xs font-medium opacity-90">Ultimos 15 dias</div>
+              <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(ini15)} ate {formatarDataCurta(hoje)}</div>
+              <div className="text-xl font-bold">{formatCurrency(valor15dias)}</div>
+              <div className="mt-1 text-xs opacity-75">
+                {contas15dias.length} titulo(s)
+                <span className="ml-1 font-semibold opacity-90">({pct(contas15dias.length, totalTitulos)})</span>
+                {' | '}
+                {clientes15dias} clientes
+                <span className="ml-1 font-semibold opacity-90">({pct(clientes15dias, clientesTotal)})</span>
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-gradient-to-br from-cyan-600 to-cyan-700 p-5 text-white shadow-lg">
+              <div className="mb-1 text-xs font-medium opacity-90">Ultimos 30 dias</div>
+              <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(ini30)} ate {formatarDataCurta(hoje)}</div>
+              <div className="text-xl font-bold">{formatCurrency(valor30dias)}</div>
+              <div className="mt-1 text-xs opacity-75">
+                {contas30dias.length} titulo(s)
+                <span className="ml-1 font-semibold opacity-90">({pct(contas30dias.length, totalTitulos)})</span>
+                {' | '}
+                {clientes30dias} clientes
+                <span className="ml-1 font-semibold opacity-90">({pct(clientes30dias, clientesTotal)})</span>
+              </div>
+            </div>
           </div>
-          <div className="mt-1 text-xs opacity-75">
-            {!loadingTotal && `${quantidadeReal.toLocaleString('pt-BR')} titulos`}
-            {!loadingTotal && todasContas.length >= 2000 && (
-              <span className="ml-1 opacity-90">(lista limitada a 2000)</span>
+        );
+      })()}
+
+      {/* Botão filtros + badges */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-600">
+          {contas.length} conta(s) recebida(s)
+          {todasContas.length >= 2000 && (
+            <span className="ml-2 text-amber-600">(lista limitada a 2000)</span>
+          )}
+        </p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={exportarCSV}
+            disabled={contas.length === 0}
+            className="flex items-center rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
+          >
+            <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Exportar CSV
+          </button>
+          <button
+            type="button"
+            onClick={() => setMostrarFiltros(!mostrarFiltros)}
+            className="flex items-center rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"
+          >
+            <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
+            {filtrosAtivos.length > 0 && (
+              <span className="ml-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-bold text-green-600">
+                {filtrosAtivos.length}
+              </span>
             )}
-          </div>
-        </div>
-
-        <div className="rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 p-5 text-white shadow-lg">
-          <div className="mb-1 text-xs font-medium opacity-90">Quantidade</div>
-          <div className="text-2xl font-bold">
-            {loadingTotal ? <span className="text-base opacity-75">calculando...</span> : quantidadeReal.toLocaleString('pt-BR')}
-          </div>
-          <div className="mt-1 text-xs opacity-75">titulos recebidos</div>
-        </div>
-
-        <div className="rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 p-5 text-white shadow-lg">
-          <div className="mb-1 text-xs font-medium opacity-90">Valor Medio</div>
-          <div className="text-2xl font-bold">
-            {loadingTotal ? <span className="text-base opacity-75">calculando...</span> : formatCurrency(valorMedioReal)}
-          </div>
-          <div className="mt-1 text-xs opacity-75">por titulo</div>
-        </div>
-
-        <div className="rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 p-5 text-white shadow-lg">
-          <div className="mb-1 text-xs font-medium opacity-90">Concentracao Pareto</div>
-          <div className="text-2xl font-bold">
-            {paretoResumo ? `${paretoResumo.count} / ${paretoResumo.total}` : '-'}
-          </div>
-          <div className="mt-1 text-xs opacity-75">clientes representam 80% do valor</div>
+          </button>
         </div>
       </div>
+
+      {!mostrarFiltros && filtrosAtivos.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {filtrosAtivos.map((filtro, index) => (
+            <span key={index} className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800">
+              {filtro}
+            </span>
+          ))}
+          <button type="button" onClick={limparFiltros} className="text-sm text-gray-500 hover:text-gray-700 underline">
+            Limpar todos
+          </button>
+        </div>
+      )}
+
+      {mostrarFiltros && renderFiltros()}
 
       {/* Tabs */}
-      <div className="mb-6">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setAbaAtiva('dados')}
-              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
-                abaAtiva === 'dados'
-                  ? 'border-green-500 text-green-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-              }`}
-            >
-              <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-              </svg>
-              Dados
-            </button>
-            <button
-              onClick={() => setAbaAtiva('analises')}
-              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
-                abaAtiva === 'analises'
-                  ? 'border-green-500 text-green-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-              }`}
-            >
-              <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              Analises
-            </button>
-          </nav>
-        </div>
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setAbaAtiva('dados')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              abaAtiva === 'dados'
+                ? 'border-green-500 text-green-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Dados
+          </button>
+          <button
+            onClick={() => setAbaAtiva('analises')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              abaAtiva === 'analises'
+                ? 'border-green-500 text-green-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Analises
+          </button>
+          <button
+            onClick={() => setAbaAtiva('por-cliente')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              abaAtiva === 'por-cliente'
+                ? 'border-green-500 text-green-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Por Cliente
+          </button>
+        </nav>
       </div>
 
+      {/* Aba Dados */}
       {abaAtiva === 'dados' && (
-        <div>
-          <div className="mb-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Contas Recebidas</h2>
-                <p className="mt-1 text-sm text-gray-600">
-                  {contas.length} conta(s) exibida(s)
-                  {todasContas.length >= 2000 && (
-                    <span className="ml-2 text-amber-600">(lista limitada a 2000)</span>
-                  )}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={exportarCSV}
-                  disabled={contas.length === 0}
-                  className="flex items-center rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
-                >
-                  <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Exportar CSV
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMostrarFiltros(!mostrarFiltros)}
-                  className="flex items-center rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-                >
-                  <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                  </svg>
-                  {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
-                  {filtrosAtivos.length > 0 && (
-                    <span className="ml-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-bold text-blue-600">
-                      {filtrosAtivos.length}
-                    </span>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {!mostrarFiltros && filtrosAtivos.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {filtrosAtivos.map((filtro, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800"
-                  >
-                    {filtro}
-                  </span>
-                ))}
-                <button
-                  type="button"
-                  onClick={limparFiltros}
-                  className="text-sm text-gray-500 hover:text-gray-700 underline"
-                >
-                  Limpar todos
-                </button>
-              </div>
+        <div className="overflow-hidden rounded-lg bg-white shadow">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-green-50">
+                <tr>
+                  <th onClick={() => toggleOrdenacao('cliente')} className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                    Cliente {renderSortIcon('cliente')}
+                  </th>
+                  <th onClick={() => toggleOrdenacao('data_recebimento')} className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                    Data Recebimento {renderSortIcon('data_recebimento')}
+                  </th>
+                  <th onClick={() => toggleOrdenacao('valor_total')} className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                    Valor {renderSortIcon('valor_total')}
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Titulo</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Parcela</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Documento</th>
+                  <th onClick={() => toggleOrdenacao('nome_empresa')} className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                    Empresa {renderSortIcon('nome_empresa')}
+                  </th>
+                  <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                    Centro de Custo {renderSortIcon('nome_centrocusto')}
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {ordenarContas(contas).slice(0, 500).map((conta, index) => {
+                  const tituloBase = (conta.titulo || (conta as any).lancamento || '').split('/')[0];
+                  const isExpanded = linhaExpandida === index;
+                  return (
+                    <React.Fragment key={index}>
+                      <tr
+                        className="hover:bg-gray-50 cursor-pointer"
+                        onClick={() => setLinhaExpandida(isExpanded ? null : index)}
+                      >
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-gray-400 text-xs transition-transform ${isExpanded ? 'rotate-90' : ''}`}>&#9654;</span>
+                            {conta.cliente || '-'}
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{formatDate(conta.data_recebimento)}</td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-green-600">{formatCurrency(conta.valor_total)}</td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.titulo || (conta as any).lancamento || '-'}</td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.numero_parcela || '-'}</td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.id_documento || '-'}</td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.nome_empresa || '-'}</td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                          {conta.nome_centrocusto ? (
+                            <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 border border-blue-100">
+                              {conta.nome_centrocusto}
+                            </span>
+                          ) : '-'}
+                        </td>
+                      </tr>
+                      {isExpanded && tituloBase && (() => {
+                        const parcelas = todasContas
+                          .filter(c => {
+                            const t = c.titulo || (c as any).lancamento || '';
+                            return t.split('/')[0] === tituloBase && t !== (conta.titulo || (conta as any).lancamento);
+                          })
+                          .sort((a, b) => {
+                            const pa = parseInt(a.numero_parcela || '0');
+                            const pb = parseInt(b.numero_parcela || '0');
+                            return pa - pb;
+                          });
+                        const todasParcelas = todasContas.filter(c => {
+                          const t = c.titulo || (c as any).lancamento || '';
+                          return t.split('/')[0] === tituloBase;
+                        });
+                        const totalParcelas = todasParcelas.length;
+                        const valorTotalTitulo = todasParcelas.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+                        return (
+                          <tr>
+                            <td colSpan={8} className="p-0">
+                              <div className="bg-green-50 border-t border-b border-green-200 px-8 py-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                    Titulo {tituloBase} — {totalParcelas} parcela(s) — Total: {formatCurrency(valorTotalTitulo)}
+                                  </p>
+                                  <span className="text-xs text-gray-400">{conta.nome_empresa || '-'}</span>
+                                </div>
+                                {parcelas.length > 0 ? (
+                                  <div className="max-h-60 overflow-y-auto">
+                                    <table className="w-full text-sm">
+                                      <thead>
+                                        <tr className="text-xs text-gray-400 uppercase">
+                                          <th className="text-left py-1 pr-3">Parcela</th>
+                                          <th className="text-left py-1 pr-3">Data Recebimento</th>
+                                          <th className="text-right py-1 pr-3">Valor</th>
+                                          <th className="text-left py-1 pr-3">Documento</th>
+                                          <th className="text-left py-1">Centro Custo</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {parcelas.map((p, pi) => (
+                                          <tr key={pi} className="border-t border-green-100 hover:bg-green-100">
+                                            <td className="py-1.5 pr-3 text-gray-700 font-mono">{p.numero_parcela || '-'}</td>
+                                            <td className="py-1.5 pr-3 text-gray-500">{formatDate(p.data_recebimento)}</td>
+                                            <td className="py-1.5 pr-3 text-right font-semibold text-green-700">{formatCurrency(p.valor_total)}</td>
+                                            <td className="py-1.5 pr-3 text-gray-500 font-mono text-xs">{p.id_documento || '-'}</td>
+                                            <td className="py-1.5 text-gray-500">{p.nome_centrocusto || '-'}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-gray-400 italic">Esta e a unica parcela deste titulo.</p>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })()}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+            {contas.length > 500 && (
+              <p className="mt-4 text-center text-sm text-gray-500 py-4">
+                Mostrando 500 de {contas.length} registros na lista
+              </p>
             )}
-
-            {mostrarFiltros && renderFiltros()}
-          </div>
-
-          <div className="overflow-hidden rounded-lg bg-white shadow">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-green-50">
-                  <tr>
-                    <th onClick={() => toggleOrdenacao('cliente')} className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
-                      Cliente {renderSortIcon('cliente')}
-                    </th>
-                    <th onClick={() => toggleOrdenacao('data_recebimento')} className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
-                      Data Recebimento {renderSortIcon('data_recebimento')}
-                    </th>
-                    <th onClick={() => toggleOrdenacao('valor_total')} className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
-                      Valor {renderSortIcon('valor_total')}
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Titulo</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Parcela</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Documento</th>
-                    <th onClick={() => toggleOrdenacao('nome_empresa')} className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
-                      Empresa {renderSortIcon('nome_empresa')}
-                    </th>
-                    <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
-                      Centro de Custo {renderSortIcon('nome_centrocusto')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
-                  {ordenarContas(contas).slice(0, 500).map((conta, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{conta.cliente || '-'}</td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{formatDate(conta.data_recebimento)}</td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-green-600">{formatCurrency(conta.valor_total)}</td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.titulo || (conta as any).lancamento || '-'}</td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.numero_parcela || '-'}</td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.id_documento || '-'}</td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.nome_empresa || '-'}</td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                        {conta.nome_centrocusto ? (
-                          <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 border border-blue-100">
-                            {conta.nome_centrocusto}
-                          </span>
-                        ) : '-'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {contas.length > 500 && (
-                <p className="mt-4 text-center text-sm text-gray-500 py-4">
-                  Mostrando 500 de {contas.length} registros na lista
-                </p>
-              )}
-            </div>
           </div>
         </div>
       )}
 
+      {/* Aba Analises */}
       {abaAtiva === 'analises' && (
         <div className="space-y-6">
           <div className="rounded-lg bg-white p-6 shadow">
@@ -836,12 +950,215 @@ export const ContasRecebidas: React.FC = () => {
                 <strong> 80%</strong> do valor total recebido.
               </p>
               <p className="mt-2 text-sm text-green-600">
-                Isso equivale a <strong>{((paretoResumo.count / paretoResumo.total) * 100).toFixed(1)}%</strong> dos clientes.
+                Isso equivale a <strong>{paretoResumo.total > 0 ? ((paretoResumo.count / paretoResumo.total) * 100).toFixed(1) : '0'}%</strong> dos clientes.
               </p>
             </div>
           )}
         </div>
       )}
+
+      {/* Aba Por Cliente */}
+      {abaAtiva === 'por-cliente' && (() => {
+        const clienteMap = new Map<string, { valor: number; quantidade: number }>();
+        contas.forEach(c => {
+          const cliente = c.cliente || 'Sem Cliente';
+          const atual = clienteMap.get(cliente) || { valor: 0, quantidade: 0 };
+          clienteMap.set(cliente, {
+            valor: atual.valor + (c.valor_total || 0),
+            quantidade: atual.quantidade + 1,
+          });
+        });
+        const clientesPorValor = Array.from(clienteMap.entries())
+          .map(([cliente, data]) => ({ cliente, ...data }))
+          .sort((a, b) => b.valor - a.valor);
+
+        const totalGeral = clientesPorValor.reduce((acc, c) => acc + c.valor, 0);
+        let acumuladoVal = 0;
+        const clientesComPareto = clientesPorValor.map((c, i) => {
+          const percentual = totalGeral > 0 ? (c.valor / totalGeral) * 100 : 0;
+          acumuladoVal += percentual;
+          return { ...c, rank: i + 1, percentual, acumulado: acumuladoVal };
+        });
+
+        const clientesExibidos = [...clientesComPareto].sort((a, b) => {
+          const dir = ordenacao.direcao === 'asc' ? 1 : -1;
+          switch (ordenacao.campo) {
+            case 'cliente': return a.cliente.localeCompare(b.cliente) * dir;
+            case 'quantidade': return (a.quantidade - b.quantidade) * dir;
+            case 'valor': return (a.valor - b.valor) * dir;
+            case 'percentual': return (a.percentual - b.percentual) * dir;
+            case 'acumulado': return (a.acumulado - b.acumulado) * dir;
+            case 'rank': return (a.rank - b.rank) * dir;
+            default: return (a.rank - b.rank) * dir;
+          }
+        });
+
+        return (
+          <>
+            <div className="mb-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Contas Recebidas por Cliente</h2>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {clientesComPareto.length} cliente(s) | Total: {formatCurrency(totalGeral)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 flex gap-2 border-b border-gray-200 pb-2">
+                <button
+                  onClick={() => setSubAbaCliente('tabela')}
+                  className={`rounded-t-lg px-4 py-2 text-sm font-medium ${subAbaCliente === 'tabela' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  Tabela
+                </button>
+                <button
+                  onClick={() => setSubAbaCliente('grafico')}
+                  className={`rounded-t-lg px-4 py-2 text-sm font-medium ${subAbaCliente === 'grafico' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  Grafico
+                </button>
+              </div>
+            </div>
+
+            {subAbaCliente === 'tabela' && (
+              <div className="overflow-hidden rounded-lg bg-white shadow">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-green-50">
+                      <tr>
+                        <th onClick={() => toggleOrdenacao('rank')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-12 cursor-pointer hover:bg-green-100">#{renderSortIcon('rank')}</th>
+                        <th onClick={() => toggleOrdenacao('cliente')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Cliente{renderSortIcon('cliente')}</th>
+                        <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Qtd Titulos{renderSortIcon('quantidade')}</th>
+                        <th onClick={() => toggleOrdenacao('valor')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Valor{renderSortIcon('valor')}</th>
+                        <th onClick={() => toggleOrdenacao('percentual')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">% do Total{renderSortIcon('percentual')}</th>
+                        <th onClick={() => toggleOrdenacao('acumulado')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">% Acumulado{renderSortIcon('acumulado')}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 bg-white">
+                      {clientesExibidos.map((c, index) => (
+                        <React.Fragment key={index}>
+                          <tr
+                            onClick={() => setClienteExpandido(clienteExpandido === c.cliente ? null : c.cliente)}
+                            className={`cursor-pointer hover:bg-gray-50 transition-colors ${clienteExpandido === c.cliente ? 'bg-green-50/50' : c.acumulado <= 80 ? 'bg-green-50/30' : c.acumulado <= 95 ? 'bg-yellow-50/30' : ''}`}
+                          >
+                            <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-400 font-mono">
+                              <span className={`inline-block transition-transform mr-2 text-[10px] ${clienteExpandido === c.cliente ? 'rotate-90' : ''}`}>&#9654;</span>
+                              {c.rank}
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm font-medium text-gray-900">{c.cliente}</td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500 text-center">{c.quantidade}</td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-green-600 text-right">{formatCurrency(c.valor)}</td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-700 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <div className="w-20 bg-gray-200 rounded-full h-2">
+                                  <div className="bg-green-500 h-2 rounded-full" style={{ width: `${Math.min(c.percentual * 2, 100)}%` }}></div>
+                                </div>
+                                <span className="w-14 text-right">{c.percentual.toFixed(2)}%</span>
+                              </div>
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-right">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${c.acumulado <= 80 ? 'bg-green-100 text-green-700' :
+                                c.acumulado <= 95 ? 'bg-yellow-100 text-yellow-700' :
+                                  'bg-red-100 text-red-700'
+                                }`}>
+                                {c.acumulado.toFixed(2)}%
+                              </span>
+                            </td>
+                          </tr>
+                          {clienteExpandido === c.cliente && (
+                            <tr className="bg-gray-50">
+                              <td colSpan={6} className="px-8 py-4">
+                                <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-inner">
+                                  <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                      <tr>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data Recebimento</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Titulo</th>
+                                        <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Parcela</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Documento</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empresa</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Centro Custo</th>
+                                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                      {contas.filter(conta => (conta.cliente || 'Sem Cliente') === c.cliente).map((conta, j) => (
+                                        <tr key={j} className="hover:bg-green-50/50">
+                                          <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{formatDate(conta.data_recebimento)}</td>
+                                          <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-gray-900">{(conta.titulo || (conta as any).lancamento || '-').split('/')[0]}</td>
+                                          <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500 text-center">{conta.numero_parcela || '-'}</td>
+                                          <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.id_documento || '-'}</td>
+                                          <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.nome_empresa || '-'}</td>
+                                          <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.nome_centrocusto || '-'}</td>
+                                          <td className="whitespace-nowrap px-4 py-2 text-sm text-green-600 font-semibold text-right">{formatCurrency(conta.valor_total || 0)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-gray-100">
+                      <tr className="font-bold">
+                        <td className="px-4 py-3 text-sm"></td>
+                        <td className="px-6 py-3 text-sm text-gray-900">TOTAL</td>
+                        <td className="px-6 py-3 text-sm text-gray-900 text-center">{contas.length}</td>
+                        <td className="px-6 py-3 text-sm text-green-700 text-right">{formatCurrency(totalGeral)}</td>
+                        <td className="px-6 py-3 text-sm text-gray-900 text-right">100,00%</td>
+                        <td className="px-6 py-3 text-sm"></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {subAbaCliente === 'grafico' && (
+              <div className="mb-6 rounded-lg bg-white p-6 shadow">
+                <p className="mb-4 text-sm text-gray-500">Distribuicao de valores recebidos por cliente</p>
+                <div style={{ height: Math.max(300, clientesExibidos.length * 45) }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={clientesExibidos}
+                      layout="vertical"
+                      margin={{ top: 5, right: 30, left: 150, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" tickFormatter={(value) => formatCurrencyShort(value)} tick={{ fontSize: 11 }} />
+                      <YAxis dataKey="cliente" type="category" width={140} tick={{ fontSize: 11 }} />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="rounded-lg border bg-white p-3 shadow-lg">
+                                <p className="font-semibold text-gray-900">{data.cliente}</p>
+                                <p className="text-sm text-green-600">{formatCurrency(data.valor)}</p>
+                                <p className="text-xs text-gray-500">{data.quantidade} titulo(s) | {data.percentual.toFixed(2)}%</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Bar dataKey="valor" fill="#10B981" radius={[0, 4, 4, 0]}>
+                        {clientesExibidos.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.acumulado <= 80 ? '#10B981' : entry.acumulado <= 95 ? '#F59E0B' : '#EF4444'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 };
