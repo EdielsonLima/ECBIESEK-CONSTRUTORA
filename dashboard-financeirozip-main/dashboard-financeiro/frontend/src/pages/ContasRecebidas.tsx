@@ -809,7 +809,7 @@ export const ContasRecebidas: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
                 {ordenarContas(contas).slice(0, 500).map((conta, index) => {
-                  const tituloBase = (conta.titulo || (conta as any).lancamento || '').split('/')[0];
+                  const tituloBase = String(conta.titulo || (conta as any).lancamento || '').split('/')[0];
                   const isExpanded = linhaExpandida === index;
                   return (
                     <React.Fragment key={index}>
@@ -840,8 +840,8 @@ export const ContasRecebidas: React.FC = () => {
                       {isExpanded && tituloBase && (() => {
                         const parcelas = todasContas
                           .filter(c => {
-                            const t = c.titulo || (c as any).lancamento || '';
-                            return t.split('/')[0] === tituloBase && t !== (conta.titulo || (conta as any).lancamento);
+                            const t = String(c.titulo || (c as any).lancamento || '');
+                            return t.split('/')[0] === tituloBase && t !== String(conta.titulo || (conta as any).lancamento);
                           })
                           .sort((a, b) => {
                             const pa = parseInt(a.numero_parcela || '0');
@@ -849,7 +849,7 @@ export const ContasRecebidas: React.FC = () => {
                             return pa - pb;
                           });
                         const todasParcelas = todasContas.filter(c => {
-                          const t = c.titulo || (c as any).lancamento || '';
+                          const t = String(c.titulo || (c as any).lancamento || '');
                           return t.split('/')[0] === tituloBase;
                         });
                         const totalParcelas = todasParcelas.length;
@@ -1086,7 +1086,7 @@ export const ContasRecebidas: React.FC = () => {
                                       {contas.filter(conta => (conta.cliente || 'Sem Cliente') === c.cliente).map((conta, j) => (
                                         <tr key={j} className="hover:bg-green-50/50">
                                           <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{formatDate(conta.data_recebimento)}</td>
-                                          <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-gray-900">{(conta.titulo || (conta as any).lancamento || '-').split('/')[0]}</td>
+                                          <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-gray-900">{String(conta.titulo || (conta as any).lancamento || '-').split('/')[0]}</td>
                                           <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500 text-center">{conta.numero_parcela || '-'}</td>
                                           <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.id_documento || '-'}</td>
                                           <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.nome_empresa || '-'}</td>
