@@ -5733,6 +5733,7 @@ def _ensure_config_tables_in_postgres():
                 ('PRC', 'PREVISÃO DE COMISSÃO'),
                 ('PRDI', 'PREVISÃO DE DISTRATO'),
                 ('PRV', 'PREVISÃO DE PAGAMENTO/RECEBIMENTO'),
+                ('EPCT', 'ESTIMATIVA DE PREVISÃO DE CONTRATO'),
             ]
             for id_doc, nome_doc in tipos_previsao:
                 cursor.execute(
@@ -5811,6 +5812,33 @@ def build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', has_
             f"AND CAST(NULLIF(SPLIT_PART(cpg.lancamento, '/', 2), '') AS INTEGER) = {table_alias}.numero_parcela)"
         )
     return conditions, params
+
+@app.get("/api/debug/tipos-previsao")
+def debug_tipos_previsao():
+    """Lista todos tipos de documento que podem ser previsão"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT TRIM(id_documento) as id, TRIM(nome_documento) as nome
+            FROM ecaddocumento
+            WHERE LOWER(nome_documento) LIKE '%previs%'
+               OR LOWER(nome_documento) LIKE '%estim%'
+               OR TRIM(id_documento) LIKE 'P%'
+               OR TRIM(id_documento) LIKE 'EP%'
+            ORDER BY id_documento
+        """)
+        tipos = [dict(r) for r in cursor.fetchall()]
+
+        # Também mostra quais estão excluídos
+        exclusoes = get_exclusoes()
+        return {
+            "tipos_possiveis_previsao": tipos,
+            "atualmente_excluidos": exclusoes['tipos_documento']
+        }
+    finally:
+        cursor.close()
+        conn.close()
 
 @app.get("/api/debug/empresa-detalhe")
 def debug_empresa_detalhe(empresa: str = "LAGOA"):
