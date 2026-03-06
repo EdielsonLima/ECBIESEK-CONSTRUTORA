@@ -135,6 +135,11 @@ export const ContasRecebidas: React.FC = () => {
   const [filtroTipoBaixa, setFiltroTipoBaixa] = useState<number[]>([]);
   const [tipoBaixaDropdownAberto, setTipoBaixaDropdownAberto] = useState(false);
 
+  // Tipo de Condição
+  const [tiposCondicao, setTiposCondicao] = useState<{ id: string; nome: string }[]>([]);
+  const [filtroTipoCondicao, setFiltroTipoCondicao] = useState<string[]>([]);
+  const [tipoCondicaoDropdownAberto, setTipoCondicaoDropdownAberto] = useState(false);
+
   // Total real do servidor (sem LIMIT)
   const [totalServidor, setTotalServidor] = useState<{ total: number; quantidade: number } | null>(null);
   const [loadingTotal, setLoadingTotal] = useState(false);
@@ -329,6 +334,7 @@ export const ContasRecebidas: React.FC = () => {
     cliente: string | null,
     centroCusto: number | null,
     tiposBaixaSelecionados: number[],
+    tiposCondicaoSelecionados: string[],
   ) => {
     let contasFiltradas = [...dados];
 
@@ -365,6 +371,11 @@ export const ContasRecebidas: React.FC = () => {
     if (centroCusto) {
       contasFiltradas = contasFiltradas.filter(c => c.id_interno_centro_custo === centroCusto);
     }
+    if (tiposCondicaoSelecionados.length > 0) {
+      contasFiltradas = contasFiltradas.filter(c =>
+        (c as any).tipo_condicao && tiposCondicaoSelecionados.includes((c as any).tipo_condicao)
+      );
+    }
 
     return contasFiltradas;
   };
@@ -384,9 +395,18 @@ export const ContasRecebidas: React.FC = () => {
       .map(nome => ({ id: nome, nome }));
     setClientes(clientesUnicos);
 
+    // Extrair tipos de condição únicos
+    const tcSet = new Set<string>();
+    todasContas.forEach(c => {
+      const tc = (c as any).tipo_condicao;
+      if (tc && tc.trim()) tcSet.add(tc.trim());
+    });
+    const tcArray = Array.from(tcSet).sort().map(tc => ({ id: tc, nome: tc }));
+    setTiposCondicao(tcArray);
+
     const contasFiltradas = aplicarFiltrosLocais(
       todasContas, filtroEmpresa, filtroAno, filtroMes, filtroTipoDocumento,
-      filtroCliente, filtroCentroCusto, filtroTipoBaixa
+      filtroCliente, filtroCentroCusto, filtroTipoBaixa, filtroTipoCondicao
     );
     setContas(contasFiltradas);
 
@@ -430,7 +450,7 @@ export const ContasRecebidas: React.FC = () => {
     });
 
     setDadosPorCliente(clienteArray.slice(0, 20));
-  }, [todasContas, filtroEmpresa, filtroAno, filtroMes, filtroTipoDocumento, filtroCliente, filtroCentroCusto, filtroTipoBaixa]);
+  }, [todasContas, filtroEmpresa, filtroAno, filtroMes, filtroTipoDocumento, filtroCliente, filtroCentroCusto, filtroTipoBaixa, filtroTipoCondicao]);
 
   useEffect(() => {
     if (filtroCentroCusto !== null && centrosCusto.length > 0) {
@@ -453,6 +473,7 @@ export const ContasRecebidas: React.FC = () => {
     setFiltroCliente(null);
     setFiltroCentroCusto(null);
     setFiltroTipoBaixa([]);
+    setFiltroTipoCondicao([]);
   };
 
   const exportarCSV = () => {
@@ -564,6 +585,15 @@ export const ContasRecebidas: React.FC = () => {
           setIsOpen={setTipoBaixaDropdownAberto}
           searchable={true}
         />
+        <MultiSelectDropdown
+          label="Tipo Condicao"
+          items={tiposCondicao}
+          selected={filtroTipoCondicao}
+          setSelected={setFiltroTipoCondicao}
+          isOpen={tipoCondicaoDropdownAberto}
+          setIsOpen={setTipoCondicaoDropdownAberto}
+          searchable={true}
+        />
       </div>
       <div className="mt-4 flex gap-3">
         <button
@@ -590,6 +620,7 @@ export const ContasRecebidas: React.FC = () => {
   if (filtroCliente) filtrosAtivos.push(`Cliente: ${filtroCliente}`);
   if (filtroTipoDocumento.length > 0) filtrosAtivos.push(`Docs: ${filtroTipoDocumento.length} selecionado(s)`);
   if (filtroTipoBaixa.length > 0) filtrosAtivos.push(`Tipos Baixa: ${filtroTipoBaixa.length} selecionado(s)`);
+  if (filtroTipoCondicao.length > 0) filtrosAtivos.push(`Tipo Cond.: ${filtroTipoCondicao.join(', ')}`);
   if (filtroAno) filtrosAtivos.push(`Ano: ${filtroAno}`);
   if (filtroMes.length > 0) {
     const mesesNomes = filtroMes.map(m => meses.find(mes => mes.valor === m)?.nome).filter(Boolean);
