@@ -4,6 +4,96 @@ import { ContaReceber, EmpresaOption, CentroCustoOption, TipoDocumentoOption } f
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { SearchableSelect } from '../components/SearchableSelect';
 
+interface MultiSelectDropdownProps {
+  label: string;
+  items: { id: string | number; nome: string }[];
+  selected: (string | number)[];
+  setSelected: (val: any[]) => void;
+  isOpen: boolean;
+  setIsOpen: (val: boolean) => void;
+  searchable?: boolean;
+}
+
+const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ label, items, selected, setSelected, isOpen, setIsOpen, searchable = false }) => {
+  const [busca, setBusca] = useState('');
+  const itensFiltrados = searchable && busca
+    ? items.filter(i => i.nome.toLowerCase().includes(busca.toLowerCase()))
+    : items;
+
+  return (
+    <div className="relative">
+      <label className="mb-2 block text-sm font-medium text-gray-700">{label}</label>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-green-500 focus:outline-none"
+      >
+        <span className={selected.length > 0 ? 'text-gray-900' : 'text-gray-500'}>
+          {selected.length === 0 ? 'Todos' : selected.length === items.length ? 'Todos' : `${selected.length} selecionado(s)`}
+        </span>
+        <svg
+          className={`absolute right-3 top-9 h-5 w-5 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {isOpen && (
+        <div className="absolute z-20 mt-1 w-full min-w-[250px] rounded-lg border border-gray-300 bg-white shadow-lg">
+          <div className="border-b border-gray-200 p-2 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setSelected(items.map(i => i.id))}
+              className="text-xs text-green-600 hover:underline"
+            >
+              Todos
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelected([])}
+              className="text-xs text-gray-500 hover:underline"
+            >
+              Limpar
+            </button>
+          </div>
+          {searchable && (
+            <div className="border-b border-gray-200 p-2">
+              <input
+                type="text"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar..."
+                className="w-full rounded border border-gray-200 px-2 py-1 text-sm focus:border-green-400 focus:outline-none"
+              />
+            </div>
+          )}
+          <div className="max-h-48 overflow-y-auto p-2">
+            {itensFiltrados.map((item) => (
+              <label key={item.id} className="flex cursor-pointer items-center gap-2 py-1 hover:bg-gray-50 rounded px-1">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(item.id)}
+                  onChange={() => {
+                    if (selected.includes(item.id)) {
+                      setSelected(selected.filter((s: any) => s !== item.id));
+                    } else {
+                      setSelected([...selected, item.id]);
+                    }
+                  }}
+                  className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                />
+                <span className="text-sm text-gray-700">{item.nome}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface Estatisticas {
   quantidade_titulos: number;
   valor_total: number;
@@ -426,65 +516,15 @@ export const ContasAReceber: React.FC = () => {
             ))}
           </select>
         </div>
-        <div className="relative">
-          <label className="mb-2 block text-sm font-medium text-gray-700">Mes</label>
-          <button
-            type="button"
-            onClick={() => setMesDropdownAberto(!mesDropdownAberto)}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-green-500 focus:outline-none"
-          >
-            <span className={filtroMes.length > 0 ? 'text-gray-900' : 'text-gray-500'}>
-              {filtroMes.length === 0 ? 'Todos' : filtroMes.length === 12 ? 'Todos' : `${filtroMes.length} selecionado(s)`}
-            </span>
-            <svg
-              className={`absolute right-3 top-9 h-5 w-5 transition-transform ${mesDropdownAberto ? 'rotate-180' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          {mesDropdownAberto && (
-            <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg">
-              <div className="border-b border-gray-200 p-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFiltroMes(meses.map(m => m.valor))}
-                  className="text-xs text-green-600 hover:underline"
-                >
-                  Todos
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFiltroMes([])}
-                  className="text-xs text-gray-500 hover:underline"
-                >
-                  Limpar
-                </button>
-              </div>
-              <div className="max-h-48 overflow-y-auto p-2">
-                {meses.map((mes) => (
-                  <label key={mes.valor} className="flex cursor-pointer items-center gap-2 py-1 hover:bg-gray-50 rounded px-1">
-                    <input
-                      type="checkbox"
-                      checked={filtroMes.includes(mes.valor)}
-                      onChange={() => {
-                        if (filtroMes.includes(mes.valor)) {
-                          setFiltroMes(filtroMes.filter(m => m !== mes.valor));
-                        } else {
-                          setFiltroMes([...filtroMes, mes.valor]);
-                        }
-                      }}
-                      className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                    />
-                    <span className="text-sm text-gray-700">{mes.nome}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        <MultiSelectDropdown
+          label="Mes"
+          items={meses.map(m => ({ id: m.valor, nome: m.nome }))}
+          selected={filtroMes}
+          setSelected={setFiltroMes}
+          isOpen={mesDropdownAberto}
+          setIsOpen={setMesDropdownAberto}
+          searchable={false}
+        />
         <div>
           <SearchableSelect
             label="Cliente"
@@ -494,65 +534,15 @@ export const ContasAReceber: React.FC = () => {
             placeholder="Selecione um cliente..."
           />
         </div>
-        <div className="relative">
-          <label className="mb-2 block text-sm font-medium text-gray-700">Tipo Documento</label>
-          <button
-            type="button"
-            onClick={() => setTipoDocDropdownAberto(!tipoDocDropdownAberto)}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-green-500 focus:outline-none"
-          >
-            <span className={filtroTipoDocumento.length > 0 ? 'text-gray-900' : 'text-gray-500'}>
-              {filtroTipoDocumento.length === 0 ? 'Todos' : filtroTipoDocumento.length === tiposDocumento.length ? 'Todos' : `${filtroTipoDocumento.length} selecionado(s)`}
-            </span>
-            <svg
-              className={`absolute right-3 top-9 h-5 w-5 transition-transform ${tipoDocDropdownAberto ? 'rotate-180' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          {tipoDocDropdownAberto && (
-            <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg">
-              <div className="border-b border-gray-200 p-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFiltroTipoDocumento(tiposDocumento.map(t => t.id))}
-                  className="text-xs text-green-600 hover:underline"
-                >
-                  Todos
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFiltroTipoDocumento([])}
-                  className="text-xs text-gray-500 hover:underline"
-                >
-                  Limpar
-                </button>
-              </div>
-              <div className="max-h-48 overflow-y-auto p-2">
-                {tiposDocumento.map((tipo) => (
-                  <label key={tipo.id} className="flex cursor-pointer items-center gap-2 py-1 hover:bg-gray-50 rounded px-1">
-                    <input
-                      type="checkbox"
-                      checked={filtroTipoDocumento.includes(tipo.id)}
-                      onChange={() => {
-                        if (filtroTipoDocumento.includes(tipo.id)) {
-                          setFiltroTipoDocumento(filtroTipoDocumento.filter(t => t !== tipo.id));
-                        } else {
-                          setFiltroTipoDocumento([...filtroTipoDocumento, tipo.id]);
-                        }
-                      }}
-                      className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                    />
-                    <span className="text-sm text-gray-700">{tipo.id} - {tipo.nome}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        <MultiSelectDropdown
+          label="Tipo Documento"
+          items={tiposDocumento.map(t => ({ id: t.id, nome: `${t.id} - ${t.nome}` }))}
+          selected={filtroTipoDocumento}
+          setSelected={setFiltroTipoDocumento}
+          isOpen={tipoDocDropdownAberto}
+          setIsOpen={setTipoDocDropdownAberto}
+          searchable={true}
+        />
       </div>
       <div className="mt-4 flex gap-3">
         <button
