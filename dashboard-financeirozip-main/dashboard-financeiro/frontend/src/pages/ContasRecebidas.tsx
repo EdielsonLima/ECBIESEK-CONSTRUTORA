@@ -103,7 +103,7 @@ interface TipoBaixaItem {
   descricao: string;
 }
 
-type AbaAtiva = 'dados' | 'analises' | 'por-cliente';
+type AbaAtiva = 'dados' | 'analises' | 'por-cliente' | 'por-unidade';
 
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1'];
 
@@ -152,6 +152,13 @@ export const ContasRecebidas: React.FC = () => {
   const [ordInterna, setOrdInterna] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'data_recebimento', direcao: 'desc' });
   const [progressData, setProgressData] = useState<Record<string, any[]>>({});
   const [loadingProgress, setLoadingProgress] = useState<Record<string, boolean>>({});
+
+  // Por Unidade
+  const [unidadeExpandida, setUnidadeExpandida] = useState<string | null>(null);
+  const [subAbaUnidade, setSubAbaUnidade] = useState<'tabela' | 'grafico'>('tabela');
+  const [ordInternaUnidade, setOrdInternaUnidade] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'data_recebimento', direcao: 'desc' });
+  const [filtroUnidades, setFiltroUnidades] = useState<string[]>([]);
+  const [unidadeDropdownAberto, setUnidadeDropdownAberto] = useState(false);
 
   const calcularDiasDesdeRecebimento = (dataRecebimento: string | undefined) => {
     if (!dataRecebimento) return 999;
@@ -592,6 +599,7 @@ export const ContasRecebidas: React.FC = () => {
     setFiltroCentroCusto(null);
     setFiltroTipoBaixa([]);
     setFiltroTipoCondicao([]);
+    setFiltroUnidades([]);
   };
 
   const exportarCSV = () => {
@@ -929,6 +937,16 @@ export const ContasRecebidas: React.FC = () => {
             }`}
           >
             Por Cliente
+          </button>
+          <button
+            onClick={() => setAbaAtiva('por-unidade')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              abaAtiva === 'por-unidade'
+                ? 'border-green-500 text-green-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Por Unidade
           </button>
         </nav>
       </div>
@@ -1418,6 +1436,295 @@ export const ContasRecebidas: React.FC = () => {
                       />
                       <Bar dataKey="valor" fill="#10B981" radius={[0, 4, 4, 0]}>
                         {clientesExibidos.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.acumulado <= 80 ? '#10B981' : entry.acumulado <= 95 ? '#F59E0B' : '#EF4444'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+          </>
+        );
+      })()}
+
+      {/* Aba Por Unidade */}
+      {abaAtiva === 'por-unidade' && (() => {
+        const unidadeMap = new Map<string, { valor: number; quantidade: number }>();
+        contas.forEach(c => {
+          const unidade = (c.numero_documento || c.id_documento || '').trim() || 'Sem Unidade';
+          const atual = unidadeMap.get(unidade) || { valor: 0, quantidade: 0 };
+          unidadeMap.set(unidade, {
+            valor: atual.valor + (c.valor_total || 0),
+            quantidade: atual.quantidade + 1,
+          });
+        });
+        const unidadesPorValor = Array.from(unidadeMap.entries())
+          .map(([unidade, data]) => ({ unidade, ...data }))
+          .sort((a, b) => b.valor - a.valor);
+
+        const totalGeral = unidadesPorValor.reduce((acc, u) => acc + u.valor, 0);
+        let acumuladoVal = 0;
+        const unidadesComPareto = unidadesPorValor.map((u, i) => {
+          const percentual = totalGeral > 0 ? (u.valor / totalGeral) * 100 : 0;
+          acumuladoVal += percentual;
+          return { ...u, rank: i + 1, percentual, acumulado: acumuladoVal };
+        });
+
+        const unidadesFiltradas = filtroUnidades.length > 0
+          ? unidadesComPareto.filter(u => filtroUnidades.includes(u.unidade))
+          : unidadesComPareto;
+
+        const unidadesExibidas = [...unidadesFiltradas].sort((a, b) => {
+          const dir = ordenacao.direcao === 'asc' ? 1 : -1;
+          switch (ordenacao.campo) {
+            case 'unidade': return a.unidade.localeCompare(b.unidade) * dir;
+            case 'quantidade': return (a.quantidade - b.quantidade) * dir;
+            case 'valor': return (a.valor - b.valor) * dir;
+            case 'percentual': return (a.percentual - b.percentual) * dir;
+            case 'acumulado': return (a.acumulado - b.acumulado) * dir;
+            case 'rank': return (a.rank - b.rank) * dir;
+            default: return (a.rank - b.rank) * dir;
+          }
+        });
+
+        const ordenarContasInternasUnidade = (contasInt: ContaReceber[]) => {
+          return [...contasInt].sort((a, b) => {
+            let vA: any, vB: any;
+            switch (ordInternaUnidade.campo) {
+              case 'cliente':
+                vA = (a.cliente || '').toLowerCase();
+                vB = (b.cliente || '').toLowerCase();
+                break;
+              case 'data_recebimento':
+                vA = (a.data_recebimento || '').split('T')[0];
+                vB = (b.data_recebimento || '').split('T')[0];
+                break;
+              case 'titulo':
+                vA = String(a.titulo || (a as any).lancamento || '');
+                vB = String(b.titulo || (b as any).lancamento || '');
+                break;
+              case 'parcela':
+                vA = parseInt(a.numero_parcela || '0');
+                vB = parseInt(b.numero_parcela || '0');
+                break;
+              case 'tipo_condicao':
+                vA = ((a as any).tipo_condicao || '').toLowerCase();
+                vB = ((b as any).tipo_condicao || '').toLowerCase();
+                break;
+              case 'centro_custo':
+                vA = (a.nome_centrocusto || '').toLowerCase();
+                vB = (b.nome_centrocusto || '').toLowerCase();
+                break;
+              case 'valor':
+                vA = a.valor_total || 0;
+                vB = b.valor_total || 0;
+                break;
+              default: return 0;
+            }
+            if (vA < vB) return ordInternaUnidade.direcao === 'asc' ? -1 : 1;
+            if (vA > vB) return ordInternaUnidade.direcao === 'asc' ? 1 : -1;
+            return 0;
+          });
+        };
+
+        const renderSortIconUnidade = (campo: string) => (
+          <span className="ml-1 inline-block">
+            {ordInternaUnidade.campo === campo ? (
+              ordInternaUnidade.direcao === 'asc' ? '▲' : '▼'
+            ) : (
+              <span className="text-gray-300">▼</span>
+            )}
+          </span>
+        );
+
+        const toggleOrdInternaUnidade = (campo: string) => {
+          setOrdInternaUnidade(prev => ({
+            campo,
+            direcao: prev.campo === campo && prev.direcao === 'asc' ? 'desc' : 'asc'
+          }));
+        };
+
+        const allUnidades = unidadesComPareto.map(u => ({ id: u.unidade, nome: u.unidade }));
+
+        return (
+          <>
+            <div className="mb-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Contas Recebidas por Unidade</h2>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {unidadesComPareto.length} unidade(s) | Total: {formatCurrency(totalGeral)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Filtro de Unidades */}
+              <div className="mt-3 max-w-sm">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Filtrar Unidades</label>
+                <MultiSelectDropdown
+                  label="Todos"
+                  items={allUnidades}
+                  selected={filtroUnidades}
+                  setSelected={setFiltroUnidades}
+                  isOpen={unidadeDropdownAberto}
+                  setIsOpen={setUnidadeDropdownAberto}
+                  searchable={true}
+                />
+              </div>
+
+              <div className="mt-4 flex gap-2 border-b border-gray-200 pb-2">
+                <button
+                  onClick={() => setSubAbaUnidade('tabela')}
+                  className={`rounded-t-lg px-4 py-2 text-sm font-medium ${subAbaUnidade === 'tabela' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  Tabela
+                </button>
+                <button
+                  onClick={() => setSubAbaUnidade('grafico')}
+                  className={`rounded-t-lg px-4 py-2 text-sm font-medium ${subAbaUnidade === 'grafico' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  Grafico
+                </button>
+              </div>
+            </div>
+
+            {subAbaUnidade === 'tabela' && (
+              <div className="overflow-hidden rounded-lg bg-white shadow">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-green-50">
+                      <tr>
+                        <th onClick={() => toggleOrdenacao('rank')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-12 cursor-pointer hover:bg-green-100">#{renderSortIcon('rank')}</th>
+                        <th onClick={() => toggleOrdenacao('unidade')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Unidade{renderSortIcon('unidade')}</th>
+                        <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Qtd Titulos{renderSortIcon('quantidade')}</th>
+                        <th onClick={() => toggleOrdenacao('valor')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Valor{renderSortIcon('valor')}</th>
+                        <th onClick={() => toggleOrdenacao('percentual')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">% do Total{renderSortIcon('percentual')}</th>
+                        <th onClick={() => toggleOrdenacao('acumulado')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">% Acumulado{renderSortIcon('acumulado')}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 bg-white">
+                      {unidadesExibidas.map((u, index) => (
+                        <React.Fragment key={index}>
+                          <tr
+                            onClick={() => setUnidadeExpandida(unidadeExpandida === u.unidade ? null : u.unidade)}
+                            className={`cursor-pointer transition-colors ${unidadeExpandida === u.unidade ? 'bg-green-100 border-l-4 border-green-600 shadow-sm' : `hover:bg-gray-50 ${u.acumulado <= 80 ? 'bg-green-50/30' : u.acumulado <= 95 ? 'bg-yellow-50/30' : ''}`}`}
+                          >
+                            <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-400 font-mono">
+                              <span className={`inline-block transition-transform mr-2 text-[10px] ${unidadeExpandida === u.unidade ? 'rotate-90' : ''}`}>&#9654;</span>
+                              {u.rank}
+                            </td>
+                            <td className={`whitespace-nowrap px-6 py-3 text-sm text-gray-900 ${unidadeExpandida === u.unidade ? 'font-bold text-green-800' : 'font-medium'}`}>{u.unidade}</td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500 text-center">{u.quantidade}</td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-green-600 text-right">{formatCurrency(u.valor)}</td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-700 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <div className="w-20 bg-gray-200 rounded-full h-2">
+                                  <div className="bg-green-500 h-2 rounded-full" style={{ width: `${Math.min(u.percentual * 2, 100)}%` }}></div>
+                                </div>
+                                <span className="w-14 text-right">{u.percentual.toFixed(2)}%</span>
+                              </div>
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-right">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${u.acumulado <= 80 ? 'bg-green-100 text-green-700' :
+                                u.acumulado <= 95 ? 'bg-yellow-100 text-yellow-700' :
+                                  'bg-red-100 text-red-700'
+                                }`}>
+                                {u.acumulado.toFixed(2)}%
+                              </span>
+                            </td>
+                          </tr>
+                          {unidadeExpandida === u.unidade && (
+                            <tr className="bg-green-50/40">
+                              <td colSpan={6} className="px-8 py-4 border-l-4 border-green-600">
+                                <div className="overflow-hidden rounded-lg border border-green-200 bg-white shadow-md">
+                                  <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                      <tr>
+                                        <th onClick={() => toggleOrdInternaUnidade('cliente')} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Cliente{renderSortIconUnidade('cliente')}</th>
+                                        <th onClick={() => toggleOrdInternaUnidade('data_recebimento')} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Data Recebimento{renderSortIconUnidade('data_recebimento')}</th>
+                                        <th onClick={() => toggleOrdInternaUnidade('titulo')} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Titulo{renderSortIconUnidade('titulo')}</th>
+                                        <th onClick={() => toggleOrdInternaUnidade('parcela')} className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Parcela{renderSortIconUnidade('parcela')}</th>
+                                        <th onClick={() => toggleOrdInternaUnidade('tipo_condicao')} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Tipo Condicao{renderSortIconUnidade('tipo_condicao')}</th>
+                                        <th onClick={() => toggleOrdInternaUnidade('centro_custo')} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Centro Custo{renderSortIconUnidade('centro_custo')}</th>
+                                        <th onClick={() => toggleOrdInternaUnidade('valor')} className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Valor{renderSortIconUnidade('valor')}</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                      {ordenarContasInternasUnidade(contas.filter(conta => {
+                                        const unidadeConta = (conta.numero_documento || conta.id_documento || '').trim() || 'Sem Unidade';
+                                        return unidadeConta === u.unidade;
+                                      })).map((conta, j) => (
+                                        <tr key={j} className="hover:bg-green-50/50">
+                                          <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-gray-900">{conta.cliente || '-'}</td>
+                                          <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{formatDate(conta.data_recebimento)}</td>
+                                          <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-gray-900">{String(conta.titulo || (conta as any).lancamento || '-').split('/')[0]}</td>
+                                          <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500 text-center">{conta.numero_parcela || '-'}</td>
+                                          <td className="whitespace-nowrap px-4 py-2 text-sm">
+                                            {(conta as any).tipo_condicao ? (
+                                              <span title={descTipoCondicao((conta as any).tipo_condicao)} className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold cursor-help ${corTipoCondicao((conta as any).tipo_condicao)}`}>
+                                                {(conta as any).tipo_condicao}
+                                              </span>
+                                            ) : '-'}
+                                          </td>
+                                          <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.nome_centrocusto || '-'}</td>
+                                          <td className="whitespace-nowrap px-4 py-2 text-sm text-green-600 font-semibold text-right">{formatCurrency(conta.valor_total || 0)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-gray-100">
+                      <tr className="font-bold">
+                        <td className="px-4 py-3 text-sm"></td>
+                        <td className="px-6 py-3 text-sm text-gray-900">TOTAL</td>
+                        <td className="px-6 py-3 text-sm text-gray-900 text-center">{contas.length}</td>
+                        <td className="px-6 py-3 text-sm text-green-700 text-right">{formatCurrency(totalGeral)}</td>
+                        <td className="px-6 py-3 text-sm text-gray-900 text-right">100,00%</td>
+                        <td className="px-6 py-3 text-sm"></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {subAbaUnidade === 'grafico' && (
+              <div className="mb-6 rounded-lg bg-white p-6 shadow">
+                <p className="mb-4 text-sm text-gray-500">Distribuicao de valores recebidos por unidade</p>
+                <div style={{ height: Math.max(300, unidadesExibidas.length * 45) }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={unidadesExibidas}
+                      layout="vertical"
+                      margin={{ top: 5, right: 30, left: 150, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" tickFormatter={(value) => formatCurrencyShort(value)} tick={{ fontSize: 11 }} />
+                      <YAxis dataKey="unidade" type="category" width={140} tick={{ fontSize: 11 }} />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="rounded-lg border bg-white p-3 shadow-lg">
+                                <p className="font-semibold text-gray-900">{data.unidade}</p>
+                                <p className="text-sm text-green-600">{formatCurrency(data.valor)}</p>
+                                <p className="text-xs text-gray-500">{data.quantidade} titulo(s) | {data.percentual.toFixed(2)}%</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Bar dataKey="valor" fill="#10B981" radius={[0, 4, 4, 0]}>
+                        {unidadesExibidas.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.acumulado <= 80 ? '#10B981' : entry.acumulado <= 95 ? '#F59E0B' : '#EF4444'} />
                         ))}
                       </Bar>
