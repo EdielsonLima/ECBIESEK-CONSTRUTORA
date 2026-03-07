@@ -5207,7 +5207,8 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                     SUM(cr.valor_baixa) + SUM(cr.valor_acrescimo) - SUM(cr.valor_desconto) as valor_baixa,
                     cr.id_interno_empresa,
                     cr.id_interno_centro_custo,
-                    COALESCE(titulo_info.id_indexador, 0) as id_indexador
+                    COALESCE(titulo_info.id_indexador, 0) as id_indexador,
+                    MAX(cr.parcela_total) as parcela_total
                 FROM contas_recebidas cr
                 {rec_joins}
                 WHERE {recebidas_filter}
@@ -5218,6 +5219,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 r.cliente,
                 r.titulo_num || '/' || r.parcela as titulo,
                 r.parcela,
+                r.parcela_total,
                 r.tipo_condicao,
                 r.data_vencimento,
                 r.valor_nominal,
@@ -5248,6 +5250,14 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 car.cliente,
                 car.lancamento as titulo,
                 car.numero_parcela as parcela,
+                COALESCE(
+                    (SELECT MAX(cr2.parcela_total) FROM contas_recebidas cr2
+                     WHERE cr2.cliente = car.cliente
+                     AND cr2.titulo::TEXT = SPLIT_PART(car.lancamento, '/', 1)),
+                    (SELECT COUNT(*) FROM contas_a_receber car2
+                     WHERE car2.cliente = car.cliente
+                     AND SPLIT_PART(car2.lancamento, '/', 1) = SPLIT_PART(car.lancamento, '/', 1))
+                ) as parcela_total,
                 CASE TRIM(car.tc)
                     WHEN 'AT' THEN 'Ato'
                     WHEN 'PM' THEN 'Parcelas Mensais'
@@ -5346,14 +5356,12 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
             else:
                 total_a_receber += valor_corrigido
 
-            # Extrair número do título (ex: "2394/1" -> "2394")
-            titulo_str = row['titulo'] or ''
-            titulo_num = titulo_str.split('/')[0] if '/' in titulo_str else titulo_str
+            parcela_total = row.get('parcela_total') or row['parcela']
 
             parcelas.append({
                 "titulo": row['titulo'],
                 "parcela": row['parcela'],
-                "titulo_num": titulo_num,
+                "parcela_display": f"{row['parcela']}/{parcela_total}",
                 "tipo_condicao": tipo_cond,
                 "data_vencimento": str(row['data_vencimento']) if row['data_vencimento'] else None,
                 "valor_nominal": valor_nominal,
@@ -5368,14 +5376,6 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 "status": row['status'],
                 "indice": row['indice'] or 'REAL',
             })
-
-        # Calcular total de parcelas por título e formatar parcela_display
-        from collections import Counter
-        titulo_count = Counter(p['titulo_num'] for p in parcelas)
-        for p in parcelas:
-            total_p = titulo_count[p['titulo_num']]
-            p['parcela_display'] = f"{p['parcela']}/{total_p}"
-            del p['titulo_num']
 
         totais = {
             "total_nominal": total_nominal,
