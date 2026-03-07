@@ -5310,6 +5310,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
         total_a_receber = 0
         total_atrasado = 0
         total_acrescimo = 0
+        total_saldo_atual = 0
 
         for row in rows:
             valor_nominal = float(row['valor_nominal'] or 0)
@@ -5325,6 +5326,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
             total_correcao += correcao_monetaria
             total_corrigido += valor_corrigido
             total_acrescimo += acrescimo
+            total_saldo_atual += saldo_atual
             if row['data_baixa']:
                 total_recebido += valor_baixa
             elif row['status'] == 'Atrasado':
@@ -5358,6 +5360,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
             "total_a_receber": total_a_receber,
             "total_atrasado": total_atrasado,
             "total_acrescimo": total_acrescimo,
+            "total_saldo_atual": total_saldo_atual,
             "quantidade_parcelas": len(parcelas),
         }
         
