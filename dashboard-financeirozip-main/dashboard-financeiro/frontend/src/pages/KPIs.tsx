@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { apiService } from '../services/api';
 import { KPI, KPICreate, KPIVariacaoDiaria, KPIHistoricoVariacaoResponse, CalculoDisponivel, TipoDocumento } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { criarPDFBase, adicionarTabela, finalizarPDF, gerarNomeArquivo, formatCurrencyPDF } from '../utils/pdfExport';
 
 type TabType = 'monitoramento' | 'cadastro' | 'historico';
 
@@ -286,6 +287,65 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
     return extractNumber(a.indice) - extractNumber(b.indice);
   });
 
+  const exportarPDF = () => {
+    const abaLabel = activeTab === 'monitoramento' ? 'Monitoramento' : 'Histórico';
+    const { doc, pageWidth, margin, dataGeracao } = criarPDFBase('KPIs', `Aba: ${abaLabel}`, 'portrait');
+    let y = 34;
+
+    if (activeTab === 'monitoramento') {
+      const dados = kpisOrdenados.map(k => {
+        const v = variacaoDiaria.find(vd => vd.id === k.id);
+        return [
+          k.indice || '-',
+          k.descricao,
+          k.categoria || '-',
+          v?.valor_hoje !== undefined ? formatCurrencyPDF(v.valor_hoje) : '-',
+          v?.variacao_percentual !== undefined ? `${v.variacao_percentual > 0 ? '+' : ''}${v.variacao_percentual.toFixed(1)}%` : '-',
+          v?.tendencia === 'subindo' ? '↑' : v?.tendencia === 'descendo' ? '↓' : '→',
+          k.meta !== undefined ? formatCurrencyPDF(k.meta) : '-',
+          v?.status_meta || '-',
+        ];
+      });
+      adicionarTabela(doc, {
+        head: [['Índice', 'Descrição', 'Categoria', 'Valor Atual', 'Variação', 'Tend.', 'Meta', 'Status']],
+        body: dados,
+        columnStyles: { 0: { cellWidth: 14 }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'center', cellWidth: 10 }, 6: { halign: 'right' } },
+        didParseCell: (data: any) => {
+          if (data.section === 'body' && data.column.index === 7) {
+            const status = data.cell.raw;
+            if (status === 'OK') { data.cell.styles.textColor = [22, 163, 74]; data.cell.styles.fontStyle = 'bold'; }
+            else if (status === 'Atenção') { data.cell.styles.textColor = [220, 38, 38]; data.cell.styles.fontStyle = 'bold'; }
+          }
+          if (data.section === 'body' && data.column.index === 5) {
+            const val = data.cell.raw;
+            if (val === '↑') data.cell.styles.textColor = [22, 163, 74];
+            else if (val === '↓') data.cell.styles.textColor = [220, 38, 38];
+          }
+        },
+      }, y, margin);
+    } else if (activeTab === 'historico' && historicoVariacao) {
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 41, 59);
+      doc.text(`KPI: ${historicoVariacao.kpi.descricao}`, margin, y);
+      y += 6;
+
+      adicionarTabela(doc, {
+        head: [['Data', 'Valor', 'Variação Abs.', 'Variação %', 'Tendência']],
+        body: historicoVariacao.historico.map(h => [
+          new Date(h.data + 'T00:00:00').toLocaleDateString('pt-BR'),
+          formatCurrencyPDF(h.valor),
+          h.variacao_absoluta !== undefined ? formatCurrencyPDF(h.variacao_absoluta) : '-',
+          h.variacao_percentual !== undefined ? `${h.variacao_percentual > 0 ? '+' : ''}${h.variacao_percentual.toFixed(1)}%` : '-',
+          h.tendencia === 'subindo' ? '↑' : h.tendencia === 'descendo' ? '↓' : '→',
+        ]),
+        columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'center' } },
+      }, y, margin);
+    }
+
+    finalizarPDF(doc, gerarNomeArquivo('kpis', abaLabel), dataGeracao);
+  };
+
   const tabs = [
     { id: 'monitoramento' as TabType, label: 'Monitoramento' },
     { id: 'cadastro' as TabType, label: 'Cadastro' },
@@ -312,6 +372,12 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
             ))}
           </nav>
         </div>
+        {(activeTab === 'monitoramento' || activeTab === 'historico') && (
+          <button onClick={exportarPDF} className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+            Exportar PDF
+          </button>
+        )}
       </div>
 
       {loading ? (

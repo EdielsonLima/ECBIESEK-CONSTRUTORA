@@ -3,6 +3,7 @@ import { apiService } from '../services/api';
 import { ContaPagar, EmpresaOption, CentroCustoOption, TipoDocumentoOption } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { SearchableMultiSelect } from '../components/SearchableMultiSelect';
+import { criarPDFBase, adicionarFiltrosAtivos, adicionarResumoCards, adicionarTabela, finalizarPDF, gerarNomeArquivo, formatCurrencyPDF } from '../utils/pdfExport';
 
 interface Estatisticas {
   quantidade_titulos: number;
@@ -465,6 +466,52 @@ export const ContasAtrasadas: React.FC = () => {
     });
   };
 
+  const exportarPDFAgrupado = (dados: ReturnType<typeof agruparPorChave>, colNome: string) => {
+    if (dados.length === 0) return;
+    const abaLabel = abaAtiva === 'credor' ? 'Por Credor' : abaAtiva === 'empresa' ? 'Por Empresa' : abaAtiva === 'centro-custo' ? 'Por Centro de Custo' : 'Análises';
+    const { doc, pageWidth, margin, dataGeracao } = criarPDFBase('Contas em Atraso', `Aba: ${abaLabel}`);
+    let y = 34;
+
+    // Filtros
+    const filtros = [];
+    if (filtroEmpresa.length > 0) filtros.push({ label: 'Empresa', valor: `${filtroEmpresa.length} selecionada(s)` });
+    if (filtroCentroCusto.length > 0) filtros.push({ label: 'Centro Custo', valor: `${filtroCentroCusto.length} selecionado(s)` });
+    if (filtroAno.length > 0) filtros.push({ label: 'Ano', valor: filtroAno.join(', ') });
+    y = adicionarFiltrosAtivos(doc, filtros, y, pageWidth, margin);
+
+    // Cards
+    const totalVal = dados.reduce((s, d) => s + d.valor_total, 0);
+    y = adicionarResumoCards(doc, [
+      { label: 'Total em Atraso', valor: totalVal, cor: [239, 68, 68] },
+      { label: 'Quantidade', valor: String(dados.reduce((s, d) => s + d.quantidade, 0)), cor: [249, 115, 22] },
+      { label: `${colNome}s`, valor: String(dados.length), cor: [139, 92, 246] },
+    ], y, pageWidth, margin);
+
+    adicionarTabela(doc, {
+      head: [[`#`, colNome, '1-7d', '8-15d', '16-30d', '31-60d', '61-90d', '+90d', 'Total', 'Qtd']],
+      body: dados.map((d, i) => [
+        String(i + 1), d.nome,
+        `R$ ${formatCurrencyPDF(d.valor_1_7)}`, `R$ ${formatCurrencyPDF(d.valor_8_15)}`,
+        `R$ ${formatCurrencyPDF(d.valor_16_30)}`, `R$ ${formatCurrencyPDF(d.valor_31_60)}`,
+        `R$ ${formatCurrencyPDF(d.valor_61_90)}`, `R$ ${formatCurrencyPDF(d.valor_90_mais)}`,
+        `R$ ${formatCurrencyPDF(d.valor_total)}`, String(d.quantidade),
+      ]),
+      foot: [['', 'TOTAL',
+        `R$ ${formatCurrencyPDF(dados.reduce((s, d) => s + d.valor_1_7, 0))}`,
+        `R$ ${formatCurrencyPDF(dados.reduce((s, d) => s + d.valor_8_15, 0))}`,
+        `R$ ${formatCurrencyPDF(dados.reduce((s, d) => s + d.valor_16_30, 0))}`,
+        `R$ ${formatCurrencyPDF(dados.reduce((s, d) => s + d.valor_31_60, 0))}`,
+        `R$ ${formatCurrencyPDF(dados.reduce((s, d) => s + d.valor_61_90, 0))}`,
+        `R$ ${formatCurrencyPDF(dados.reduce((s, d) => s + d.valor_90_mais, 0))}`,
+        `R$ ${formatCurrencyPDF(totalVal)}`,
+        String(dados.reduce((s, d) => s + d.quantidade, 0)),
+      ]],
+      columnStyles: { 0: { halign: 'center', cellWidth: 8 }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' }, 8: { halign: 'right' }, 9: { halign: 'center' } },
+    }, y, margin);
+
+    finalizarPDF(doc, gerarNomeArquivo('contas_atrasadas', abaLabel), dataGeracao);
+  };
+
   const exportarCSVAgrupado = (dados: ReturnType<typeof agruparPorChave>, nomeArquivo: string, colNome: string) => {
     if (dados.length === 0) return;
     const header = `#;${colNome};1-7d;8-15d;16-30d;31-60d;61-90d;+90d;Total;Qtd;Max Atraso`;
@@ -520,6 +567,17 @@ export const ContasAtrasadas: React.FC = () => {
               </p>
             </div>
             <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => exportarPDFAgrupado(dadosFiltrados, colNome)}
+                disabled={dadosFiltrados.length === 0}
+                className="flex items-center rounded-lg bg-red-700 px-4 py-2 text-white hover:bg-red-800 disabled:opacity-50"
+              >
+                <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                Exportar PDF
+              </button>
               <button
                 type="button"
                 onClick={() => setMostrarFiltros(!mostrarFiltros)}

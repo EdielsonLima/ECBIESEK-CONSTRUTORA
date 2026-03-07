@@ -3,6 +3,7 @@ import { apiService } from '../services/api';
 import { ContaPagar, EmpresaOption, CentroCustoOption, TipoDocumentoOption, OrigemDadoOption, TipoBaixaOption, ContaCorrenteOption, OrigemTituloOption } from '../types';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line, Legend } from 'recharts';
+import { criarPDFBase, adicionarFiltrosAtivos, adicionarResumoCards, adicionarTabela, finalizarPDF, gerarNomeArquivo, formatCurrencyPDF, formatDatePDF } from '../utils/pdfExport';
 
 interface Estatisticas {
   quantidade_titulos: number;
@@ -581,6 +582,187 @@ export const ContasPagas: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  const exportarPDF = () => {
+    const abaLabels: Record<AbaAtiva, string> = {
+      'fornecedor': 'Por Fornecedor',
+      'centro-custo': 'Por Centro de Custo',
+      'origem': 'Por Origem',
+      'analises': 'Análises',
+      'configuracoes': 'Configurações',
+    };
+    const abaLabel = abaLabels[abaAtiva];
+    const { doc, pageWidth, margin, y: startY, dataGeracao } = criarPDFBase('Contas Pagas', `Aba: ${abaLabel}`);
+
+    // Filtros ativos
+    const filtros: { label: string; valor: string }[] = [];
+    if (filtroEmpresa) {
+      const empresa = empresas.find(e => e.id === filtroEmpresa);
+      if (empresa) filtros.push({ label: 'Empresa', valor: empresa.nome });
+    }
+    if (filtroCentroCusto) {
+      const cc = centrosCusto.find(c => c.id === filtroCentroCusto);
+      if (cc) filtros.push({ label: 'Centro Custo', valor: cc.nome });
+    }
+    if (filtroCredor) filtros.push({ label: 'Credor', valor: filtroCredor });
+    if (filtroIdDocumento.length > 0) filtros.push({ label: 'Docs', valor: `${filtroIdDocumento.length} selecionado(s)` });
+    if (filtroOrigemDado.length > 0) filtros.push({ label: 'Origens', valor: `${filtroOrigemDado.length} selecionada(s)` });
+    if (filtroTipoBaixa.length > 0) filtros.push({ label: 'Tipos Baixa', valor: `${filtroTipoBaixa.length} selecionado(s)` });
+    if (filtroAno.length > 0) filtros.push({ label: 'Anos', valor: filtroAno.join(', ') });
+    if (filtroMes.length > 0) {
+      const mesesNomes = filtroMes.map(m => meses.find(mes => mes.valor === m)?.nome).filter(Boolean);
+      filtros.push({ label: 'Meses', valor: mesesNomes.join(', ') });
+    }
+    if (filtroDataInicio) filtros.push({ label: 'Data Início', valor: filtroDataInicio });
+    if (filtroDataFim) filtros.push({ label: 'Data Fim', valor: filtroDataFim });
+
+    let y = adicionarFiltrosAtivos(doc, filtros, startY, pageWidth, margin);
+
+    // Cards de resumo
+    if (estatisticas) {
+      const cards = [
+        { label: 'Líquido Total', valor: estatisticas.valor_liquido, cor: [34, 197, 94] as [number, number, number] },
+        { label: 'Últimos 7 dias', valor: estatisticas.valor_7d ?? 0, cor: [14, 165, 233] as [number, number, number] },
+        { label: 'Últimos 15 dias', valor: estatisticas.valor_15d ?? 0, cor: [59, 130, 246] as [number, number, number] },
+        { label: 'Últimos 30 dias', valor: estatisticas.valor_30d ?? 0, cor: [99, 102, 241] as [number, number, number] },
+        { label: 'Acréscimos', valor: estatisticas.valor_acrescimo, cor: [249, 115, 22] as [number, number, number] },
+        { label: 'Descontos', valor: estatisticas.valor_desconto, cor: [168, 85, 247] as [number, number, number] },
+      ];
+      y = adicionarResumoCards(doc, cards, y, pageWidth, margin);
+    }
+
+    if (abaAtiva === 'fornecedor') {
+      const fornecedores = dadosFornecedores?.fornecedores || [];
+      const fornecedoresPorPeriodo = filtroPeriodo === 'todos'
+        ? fornecedores
+        : fornecedores.filter(f => {
+            if (filtroPeriodo === '7d') return f.valor_7d > 0;
+            if (filtroPeriodo === '15d') return f.valor_15d > 0;
+            return f.valor_30d > 0;
+          });
+      const dados = buscaFornecedor
+        ? fornecedoresPorPeriodo.filter(f => f.credor.toLowerCase().includes(buscaFornecedor.toLowerCase()))
+        : fornecedoresPorPeriodo;
+
+      const totalGeral = dados.reduce((s, f) => s + f.valor_total, 0);
+      let acumulado = 0;
+      const body = dados.map((f, i) => {
+        const pct = totalGeral > 0 ? (f.valor_total / totalGeral) * 100 : 0;
+        acumulado += pct;
+        return [
+          (i + 1).toString(),
+          f.credor,
+          f.titulos_total.toString(),
+          formatCurrencyPDF(f.valor_total),
+          pct.toFixed(2) + '%',
+          acumulado.toFixed(2) + '%',
+        ];
+      });
+
+      y = adicionarTabela(doc, {
+        head: [['#', 'Fornecedor', 'Qtd', 'Valor Total', '%', '% Acumulado']],
+        body,
+        foot: [['', 'TOTAL', dados.reduce((s, f) => s + f.titulos_total, 0).toString(), formatCurrencyPDF(totalGeral), '100%', '']],
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 12 },
+          2: { halign: 'center', cellWidth: 15 },
+          3: { halign: 'right', cellWidth: 35 },
+          4: { halign: 'right', cellWidth: 20 },
+          5: { halign: 'right', cellWidth: 25 },
+        },
+      }, y, margin);
+    } else if (abaAtiva === 'centro-custo') {
+      const centros = dadosCentroCusto?.centros_custo || [];
+      const centrosPorPeriodo = filtroPeriodoCC === 'todos'
+        ? centros
+        : centros.filter(cc => {
+            if (filtroPeriodoCC === '7d') return cc.valor_7d > 0;
+            if (filtroPeriodoCC === '15d') return cc.valor_15d > 0;
+            return cc.valor_30d > 0;
+          });
+      const dados = buscaCentroCusto
+        ? centrosPorPeriodo.filter(cc => cc.nome_centrocusto.toLowerCase().includes(buscaCentroCusto.toLowerCase()))
+        : centrosPorPeriodo;
+
+      const totalGeral = dados.reduce((s, cc) => s + cc.valor_total, 0);
+      let acumulado = 0;
+      const body = dados.map((cc, i) => {
+        const pct = totalGeral > 0 ? (cc.valor_total / totalGeral) * 100 : 0;
+        acumulado += pct;
+        return [
+          (i + 1).toString(),
+          cc.nome_centrocusto,
+          formatCurrencyPDF(cc.valor_7d),
+          formatCurrencyPDF(cc.valor_15d),
+          formatCurrencyPDF(cc.valor_30d),
+          formatCurrencyPDF(cc.valor_total),
+          pct.toFixed(2) + '%',
+          acumulado.toFixed(2) + '%',
+        ];
+      });
+
+      y = adicionarTabela(doc, {
+        head: [['#', 'Centro de Custo', '7 Dias', '15 Dias', '30 Dias', 'Total', '%', '% Acumulado']],
+        body,
+        foot: [['', 'TOTAL', formatCurrencyPDF(dados.reduce((s, cc) => s + cc.valor_7d, 0)), formatCurrencyPDF(dados.reduce((s, cc) => s + cc.valor_15d, 0)), formatCurrencyPDF(dados.reduce((s, cc) => s + cc.valor_30d, 0)), formatCurrencyPDF(totalGeral), '100%', '']],
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 12 },
+          2: { halign: 'right', cellWidth: 25 },
+          3: { halign: 'right', cellWidth: 25 },
+          4: { halign: 'right', cellWidth: 25 },
+          5: { halign: 'right', cellWidth: 30 },
+          6: { halign: 'right', cellWidth: 18 },
+          7: { halign: 'right', cellWidth: 25 },
+        },
+      }, y, margin);
+    } else if (abaAtiva === 'origem') {
+      const origens = dadosOrigemTab?.origens || [];
+      const origensPorPeriodo = filtroPeriodoOrigem === 'todos'
+        ? origens
+        : origens.filter(o => {
+            if (filtroPeriodoOrigem === '7d') return o.valor_7d > 0;
+            if (filtroPeriodoOrigem === '15d') return o.valor_15d > 0;
+            return o.valor_30d > 0;
+          });
+      const dados = buscaOrigem
+        ? origensPorPeriodo.filter(o => o.origem.toLowerCase().includes(buscaOrigem.toLowerCase()))
+        : origensPorPeriodo;
+
+      const totalGeral = dados.reduce((s, o) => s + o.valor_total, 0);
+      let acumulado = 0;
+      const body = dados.map((o, i) => {
+        const pct = totalGeral > 0 ? (o.valor_total / totalGeral) * 100 : 0;
+        acumulado += pct;
+        return [
+          (i + 1).toString(),
+          o.origem,
+          formatCurrencyPDF(o.valor_7d),
+          formatCurrencyPDF(o.valor_15d),
+          formatCurrencyPDF(o.valor_30d),
+          formatCurrencyPDF(o.valor_total),
+          pct.toFixed(2) + '%',
+          acumulado.toFixed(2) + '%',
+        ];
+      });
+
+      y = adicionarTabela(doc, {
+        head: [['#', 'Origem', '7 Dias', '15 Dias', '30 Dias', 'Total', '%', '% Acumulado']],
+        body,
+        foot: [['', 'TOTAL', formatCurrencyPDF(dados.reduce((s, o) => s + o.valor_7d, 0)), formatCurrencyPDF(dados.reduce((s, o) => s + o.valor_15d, 0)), formatCurrencyPDF(dados.reduce((s, o) => s + o.valor_30d, 0)), formatCurrencyPDF(totalGeral), '100%', '']],
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 12 },
+          2: { halign: 'right', cellWidth: 25 },
+          3: { halign: 'right', cellWidth: 25 },
+          4: { halign: 'right', cellWidth: 25 },
+          5: { halign: 'right', cellWidth: 30 },
+          6: { halign: 'right', cellWidth: 18 },
+          7: { halign: 'right', cellWidth: 25 },
+        },
+      }, y, margin);
+    }
+
+    finalizarPDF(doc, gerarNomeArquivo('contas_pagas', abaLabel), dataGeracao);
+  };
+
   if (loading && contas.length === 0) {
     return (
       <div className="flex h-96 items-center justify-center">
@@ -1143,6 +1325,17 @@ export const ContasPagas: React.FC = () => {
               </p>
             </div>
             <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={exportarPDF}
+                disabled={fornecedores.length === 0}
+                className="flex items-center rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                Exportar PDF
+              </button>
               <button
                 type="button"
                 onClick={exportarCSV}
@@ -1788,6 +1981,17 @@ export const ContasPagas: React.FC = () => {
             <div className="flex gap-2">
               <button
                 type="button"
+                onClick={exportarPDF}
+                disabled={centros.length === 0}
+                className="flex items-center rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                Exportar PDF
+              </button>
+              <button
+                type="button"
                 onClick={exportarCSVCentroCusto}
                 disabled={centros.length === 0}
                 className="flex items-center rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
@@ -1934,6 +2138,17 @@ export const ContasPagas: React.FC = () => {
               </p>
             </div>
             <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={exportarPDF}
+                disabled={origens.length === 0}
+                className="flex items-center rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                Exportar PDF
+              </button>
               <button
                 type="button"
                 onClick={exportarCSVOrigem}

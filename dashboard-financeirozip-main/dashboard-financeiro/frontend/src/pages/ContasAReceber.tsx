@@ -3,6 +3,7 @@ import { apiService } from '../services/api';
 import { ContaReceber, EmpresaOption, CentroCustoOption, TipoDocumentoOption } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { SearchableSelect } from '../components/SearchableSelect';
+import { criarPDFBase, adicionarFiltrosAtivos, adicionarResumoCards, adicionarTabela, finalizarPDF, gerarNomeArquivo, formatCurrencyPDF, formatDatePDF } from '../utils/pdfExport';
 
 interface MultiSelectDropdownProps {
   label: string;
@@ -460,6 +461,198 @@ export const ContasAReceber: React.FC = () => {
     setFiltroUnidades([]);
   };
 
+  const exportarPDF = () => {
+    const abaLabels: Record<AbaAtiva, string> = {
+      'dados': 'Dados',
+      'analises': 'Analises',
+      'por-cliente': 'Por Cliente',
+      'por-unidade': 'Por Unidade',
+    };
+    const abaLabel = abaLabels[abaAtiva];
+    const { doc, pageWidth, margin, y: startY, dataGeracao } = criarPDFBase('Contas a Receber', `Aba: ${abaLabel}`);
+
+    const empresaNome = filtroEmpresa ? empresas.find(e => e.id === filtroEmpresa)?.nome || '' : 'Todos';
+    const ccNome = filtroCentroCusto ? centrosCusto.find(c => c.id === filtroCentroCusto)?.nome || '' : 'Todos';
+    const prazoLabels: Record<string, string> = { todos: 'Todos', hoje: 'Vence Hoje', '7dias': 'Proximos 7 dias', '15dias': 'Proximos 15 dias', '30dias': 'Proximos 30 dias' };
+    const mesesNomes = filtroMes.length > 0 ? filtroMes.map(m => meses.find(ms => ms.valor === m)?.nome || '').join(', ') : 'Todos';
+    const clienteNome = filtroCliente || 'Todos';
+    const tipoDocNomes = filtroTipoDocumento.length > 0 ? filtroTipoDocumento.join(', ') : 'Todos';
+
+    const filtrosAtivos = [
+      { label: 'Empresa', valor: empresaNome },
+      { label: 'Centro de Custo', valor: ccNome },
+      { label: 'Prazo', valor: prazoLabels[filtroPrazo] || 'Todos' },
+      { label: 'Ano', valor: filtroAno ? String(filtroAno) : 'Todos' },
+      { label: 'Mes', valor: mesesNomes },
+      { label: 'Cliente', valor: clienteNome },
+      { label: 'Tipo Documento', valor: tipoDocNomes },
+    ];
+
+    let y = adicionarFiltrosAtivos(doc, filtrosAtivos, startY, pageWidth, margin);
+
+    const contasHoje = contas.filter(c => calcularDiasAteVencimento(c.data_vencimento) === 0);
+    const contas7dias = contas.filter(c => { const d = calcularDiasAteVencimento(c.data_vencimento); return d >= 1 && d <= 7; });
+    const contas15dias = contas.filter(c => { const d = calcularDiasAteVencimento(c.data_vencimento); return d >= 1 && d <= 15; });
+    const contas30dias = contas.filter(c => { const d = calcularDiasAteVencimento(c.data_vencimento); return d >= 1 && d <= 30; });
+    const valorHoje = contasHoje.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+    const valor7dias = contas7dias.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+    const valor15dias = contas15dias.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+    const valor30dias = contas30dias.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+
+    const cards = [
+      { label: 'Total a Receber', valor: estatisticas?.valor_total || 0, cor: [22, 163, 74] as [number, number, number] },
+      { label: 'Vencendo Hoje', valor: valorHoje, cor: [234, 179, 8] as [number, number, number] },
+      { label: 'Proximos 7 dias', valor: valor7dias, cor: [20, 184, 166] as [number, number, number] },
+      { label: 'Proximos 15 dias', valor: valor15dias, cor: [16, 185, 129] as [number, number, number] },
+      { label: 'Proximos 30 dias', valor: valor30dias, cor: [8, 145, 178] as [number, number, number] },
+    ];
+    y = adicionarResumoCards(doc, cards, y, pageWidth, margin);
+
+    if (abaAtiva === 'dados') {
+      const contasOrdenadas = ordenarContas(contas);
+      const body = contasOrdenadas.map(c => {
+        const dias = calcularDiasAteVencimento(c.data_vencimento);
+        const diasStr = dias === 0 ? 'Hoje' : dias < 0 ? `${Math.abs(dias)}d atrasado` : `${dias}d`;
+        return [
+          c.cliente || '-',
+          formatDatePDF(c.data_vencimento),
+          diasStr,
+          `R$ ${formatCurrencyPDF(c.valor_total || 0)}`,
+          c.titulo || c.lancamento || '-',
+          c.numero_parcela || '-',
+          c.numero_documento || c.id_documento || '-',
+          c.nome_empresa || '-',
+          c.tipo_condicao || '-',
+        ];
+      });
+
+      const totalValor = contas.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+
+      adicionarTabela(doc, {
+        head: [['Cliente', 'Vencimento', 'Dias', 'Valor', 'Titulo', 'Parcela', 'Documento', 'Empresa', 'Tipo Condicao']],
+        body,
+        foot: [['TOTAL', '', '', `R$ ${formatCurrencyPDF(totalValor)}`, '', '', '', '', '']],
+        columnStyles: {
+          0: { cellWidth: 50 },
+          3: { halign: 'right' },
+          7: { cellWidth: 40 },
+        },
+      }, y, margin);
+    } else if (abaAtiva === 'por-cliente') {
+      const clienteMap = new Map<string, { valor: number; quantidade: number }>();
+      contas.forEach(c => {
+        const cliente = c.cliente || 'Sem Cliente';
+        const atual = clienteMap.get(cliente) || { valor: 0, quantidade: 0 };
+        clienteMap.set(cliente, { valor: atual.valor + (c.valor_total || 0), quantidade: atual.quantidade + 1 });
+      });
+      const clientesPorValor = Array.from(clienteMap.entries())
+        .map(([cliente, data]) => ({ cliente, ...data }))
+        .sort((a, b) => b.valor - a.valor);
+      const totalGeral = clientesPorValor.reduce((acc, c) => acc + c.valor, 0);
+      let acumuladoVal = 0;
+      const body = clientesPorValor.map((c, i) => {
+        const percentual = totalGeral > 0 ? (c.valor / totalGeral) * 100 : 0;
+        acumuladoVal += percentual;
+        return [
+          String(i + 1),
+          c.cliente,
+          String(c.quantidade),
+          `R$ ${formatCurrencyPDF(c.valor)}`,
+          `${percentual.toFixed(2)}%`,
+          `${acumuladoVal.toFixed(2)}%`,
+        ];
+      });
+
+      adicionarTabela(doc, {
+        head: [['#', 'Cliente', 'Qtd', 'Valor', '% Total', '% Acumulado']],
+        body,
+        foot: [['', 'TOTAL', String(contas.length), `R$ ${formatCurrencyPDF(totalGeral)}`, '100,00%', '']],
+        columnStyles: {
+          0: { cellWidth: 12, halign: 'center' },
+          2: { halign: 'center' },
+          3: { halign: 'right' },
+          4: { halign: 'right' },
+          5: { halign: 'right' },
+        },
+      }, y, margin);
+    } else if (abaAtiva === 'por-unidade') {
+      const unidadeMap = new Map<string, { valor: number; quantidade: number }>();
+      contas.forEach(c => {
+        const unidade = (c.numero_documento || c.id_documento || '').trim() || 'Sem Unidade';
+        const atual = unidadeMap.get(unidade) || { valor: 0, quantidade: 0 };
+        unidadeMap.set(unidade, { valor: atual.valor + (c.valor_total || 0), quantidade: atual.quantidade + 1 });
+      });
+      const unidadesPorValor = Array.from(unidadeMap.entries())
+        .map(([unidade, data]) => ({ unidade, ...data }))
+        .sort((a, b) => b.valor - a.valor);
+      const totalGeral = unidadesPorValor.reduce((acc, u) => acc + u.valor, 0);
+      let acumuladoVal = 0;
+      const body = unidadesPorValor.map((u, i) => {
+        const percentual = totalGeral > 0 ? (u.valor / totalGeral) * 100 : 0;
+        acumuladoVal += percentual;
+        return [
+          String(i + 1),
+          u.unidade,
+          String(u.quantidade),
+          `R$ ${formatCurrencyPDF(u.valor)}`,
+          `${percentual.toFixed(2)}%`,
+          `${acumuladoVal.toFixed(2)}%`,
+        ];
+      });
+
+      adicionarTabela(doc, {
+        head: [['#', 'Unidade', 'Qtd', 'Valor', '% Total', '% Acumulado']],
+        body,
+        foot: [['', 'TOTAL', String(contas.length), `R$ ${formatCurrencyPDF(totalGeral)}`, '100,00%', '']],
+        columnStyles: {
+          0: { cellWidth: 12, halign: 'center' },
+          2: { halign: 'center' },
+          3: { halign: 'right' },
+          4: { halign: 'right' },
+          5: { halign: 'right' },
+        },
+      }, y, margin);
+    } else if (abaAtiva === 'analises') {
+      // Tabela de distribuicao por vencimento
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 41, 59);
+      doc.text('Distribuicao por Vencimento', margin, y);
+      y += 5;
+
+      const bodyVencimento = dadosPorVencimento.map(d => [
+        d.faixa,
+        String(d.quantidade),
+        `R$ ${formatCurrencyPDF(d.valor)}`,
+      ]);
+      y = adicionarTabela(doc, {
+        head: [['Faixa', 'Quantidade', 'Valor']],
+        body: bodyVencimento,
+        columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' } },
+      }, y, margin);
+
+      y += 8;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 41, 59);
+      doc.text('Top 15 Clientes', margin, y);
+      y += 5;
+
+      const bodyClientes = dadosPorCliente.map(d => [
+        d.cliente,
+        String(d.quantidade),
+        `R$ ${formatCurrencyPDF(d.valor)}`,
+      ]);
+      adicionarTabela(doc, {
+        head: [['Cliente', 'Quantidade', 'Valor']],
+        body: bodyClientes,
+        columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' } },
+      }, y, margin);
+    }
+
+    finalizarPDF(doc, gerarNomeArquivo('contas_a_receber', abaLabel), dataGeracao);
+  };
+
   if (loading) {
     return (
       <div className="flex h-96 items-center justify-center">
@@ -668,16 +861,25 @@ export const ContasAReceber: React.FC = () => {
           {contas.length} titulo(s) pendente(s)
           {todasContas.length >= 2000 && <span className="ml-2 text-orange-500">(lista limitada a 2000)</span>}
         </p>
-        <button
-          type="button"
-          onClick={() => setMostrarFiltros(!mostrarFiltros)}
-          className="flex items-center rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"
-        >
-          <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-          </svg>
-          {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
-        </button>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={exportarPDF} disabled={contas.length === 0}
+            className="flex items-center rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50">
+            <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+            Exportar PDF
+          </button>
+          <button
+            type="button"
+            onClick={() => setMostrarFiltros(!mostrarFiltros)}
+            className="flex items-center rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"
+          >
+            <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
+          </button>
+        </div>
       </div>
       {mostrarFiltros && renderFiltros()}
 

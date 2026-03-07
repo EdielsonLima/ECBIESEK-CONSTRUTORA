@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { apiService } from '../services/api';
+import { criarPDFBase, adicionarResumoCards, adicionarTabela, finalizarPDF, gerarNomeArquivo, formatCurrencyPDF } from '../utils/pdfExport';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer,
@@ -313,6 +314,69 @@ export const ExposicaoCaixa: React.FC = () => {
     return { totalRecebido, totalPago, totalCusto, totalCustoSimples, totalCustoComposto, resultadoFinal, picoExposicao, picoExposicaoAjustada, mesesNegativos, mesZero: idxZero >= 0 ? idxZero + 1 : null };
   }, [linhas, calculado, tipoCusto]);
 
+  const exportarPDF = () => {
+    if (linhas.length === 0) return;
+    const { doc, pageWidth, margin, dataGeracao } = criarPDFBase('Exposição de Caixa', `Período: ${dataInicio} a ${dataFim} | Taxa: ${taxaMensal}% (${tipoCusto})`);
+    let y = 34;
+
+    const cc = centrosCusto.find(c => c.id === centroCustoId);
+    if (cc) {
+      y = 34;
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Centro de Custo: ${cc.nome}`, margin, y);
+      y += 6;
+    }
+
+    y = adicionarResumoCards(doc, [
+      { label: 'Total Recebido', valor: totais.totalRecebido, cor: [22, 163, 74] },
+      { label: 'Total Pago', valor: totais.totalPago, cor: [239, 68, 68] },
+      { label: 'Resultado', valor: totais.resultadoFinal, cor: totais.resultadoFinal >= 0 ? [59, 130, 246] : [239, 68, 68] },
+      { label: 'Custo Financeiro', valor: totais.totalCusto, cor: [139, 92, 246] },
+      { label: 'Pico Exposição', valor: Math.abs(totais.picoExposicao), cor: [249, 115, 22] },
+    ], y, pageWidth, margin);
+
+    const custoKey = tipoCusto === 'simples' ? 'custoMensalSimples' : 'custoMensalComposto';
+    adicionarTabela(doc, {
+      head: [['#', 'Período', 'Recebido', 'Pago', 'Resultado', 'Acumulado', 'Exposição Neg.', `Custo Fin. (${tipoCusto})`]],
+      body: linhas.map((l, i) => [
+        String(i + 1), l.periodo,
+        `R$ ${formatCurrencyPDF(l.recebido)}`, `R$ ${formatCurrencyPDF(l.pago)}`,
+        `R$ ${formatCurrencyPDF(calculado[i].resultadoMensal)}`,
+        `R$ ${formatCurrencyPDF(calculado[i].acumulado)}`,
+        calculado[i].exposicaoNegativa < 0 ? `R$ ${formatCurrencyPDF(Math.abs(calculado[i].exposicaoNegativa))}` : '-',
+        calculado[i][custoKey] > 0 ? `R$ ${formatCurrencyPDF(calculado[i][custoKey])}` : '-',
+      ]),
+      foot: [['', 'TOTAIS',
+        `R$ ${formatCurrencyPDF(totais.totalRecebido)}`, `R$ ${formatCurrencyPDF(totais.totalPago)}`,
+        `R$ ${formatCurrencyPDF(totais.resultadoFinal)}`, '', '',
+        `R$ ${formatCurrencyPDF(totais.totalCusto)}`,
+      ]],
+      columnStyles: { 0: { halign: 'center', cellWidth: 8 }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' } },
+      didParseCell: (data: any) => {
+        if (data.section === 'body') {
+          if (data.column.index === 4) {
+            const val = calculado[data.row.index]?.resultadoMensal;
+            if (val !== undefined && val < 0) data.cell.styles.textColor = [220, 38, 38];
+            else if (val !== undefined && val > 0) data.cell.styles.textColor = [22, 163, 74];
+          }
+          if (data.column.index === 5) {
+            const val = calculado[data.row.index]?.acumulado;
+            if (val !== undefined && val < 0) data.cell.styles.textColor = [220, 38, 38];
+            else if (val !== undefined && val > 0) data.cell.styles.textColor = [22, 163, 74];
+          }
+          if (data.column.index === 6) {
+            const raw = data.cell.raw;
+            if (raw !== '-') data.cell.styles.textColor = [249, 115, 22];
+          }
+        }
+      },
+    }, y, margin);
+
+    finalizarPDF(doc, gerarNomeArquivo('exposicao_caixa'), dataGeracao);
+  };
+
   // Dados acumulados para o gráfico
   const dadosGrafico = useMemo(() => {
     let pagAcum = 0, recAcum = 0;
@@ -442,6 +506,11 @@ export const ExposicaoCaixa: React.FC = () => {
             </div>
 
             <div className="mt-4 flex items-center gap-3">
+              <button onClick={exportarPDF} disabled={linhas.length === 0}
+                className="bg-red-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50 flex items-center gap-2 transition-colors">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                Exportar PDF
+              </button>
               <button onClick={carregarDados} disabled={loading}
                 className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 transition-colors">
                 {loading ? (

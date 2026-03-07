@@ -3,6 +3,7 @@ import { apiService } from '../services/api';
 import { ContaReceber, EmpresaOption, CentroCustoOption, TipoDocumentoOption } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { SearchableSelect } from '../components/SearchableSelect';
+import { criarPDFBase, adicionarFiltrosAtivos, adicionarResumoCards, adicionarTabela, finalizarPDF, gerarNomeArquivo, formatCurrencyPDF, formatDatePDF } from '../utils/pdfExport';
 
 interface MultiSelectDropdownProps {
   label: string;
@@ -408,6 +409,76 @@ export const ContasReceberAtrasadas: React.FC = () => {
   if (filtroTipoDocumento.length > 0) filtrosAtivos.push(`Tipo Doc: ${filtroTipoDocumento.length}`);
   if (filtroTipoCondicao.length > 0) filtrosAtivos.push(`TC: ${filtroTipoCondicao.length}`);
 
+  const exportarPDF = () => {
+    const abaLabel = abaAtiva === 'dados' ? 'Dados' : abaAtiva === 'analises' ? 'Análises' : abaAtiva === 'por-cliente' ? 'Por Cliente' : 'Por Unidade';
+    const { doc, pageWidth, margin, dataGeracao } = criarPDFBase('Contas a Receber - Atrasadas', `Aba: ${abaLabel}`);
+    let y = 34;
+
+    const filtros = filtrosAtivos.map(f => {
+      const [label, ...rest] = f.split(': ');
+      return { label, valor: rest.join(': ') };
+    });
+    y = adicionarFiltrosAtivos(doc, filtros, y, pageWidth, margin);
+
+    const totalVal = estatisticas?.valor_total ?? 0;
+    y = adicionarResumoCards(doc, [
+      { label: 'Total em Atraso', valor: totalVal, cor: [239, 68, 68] },
+      { label: 'Quantidade', valor: String(estatisticas?.quantidade_titulos ?? 0), cor: [249, 115, 22] },
+      { label: 'Ticket Médio', valor: estatisticas?.valor_medio ?? 0, cor: [139, 92, 246] },
+    ], y, pageWidth, margin);
+
+    if (abaAtiva === 'dados') {
+      const dados = ordenarContas(contas);
+      adicionarTabela(doc, {
+        head: [['Cliente', 'Vencimento', 'Dias Atraso', 'Centro Custo', 'Titulo', 'Parcela', 'Documento', 'TC', 'Valor']],
+        body: dados.map(c => [
+          c.cliente || '-', formatDatePDF(c.data_vencimento), String(calcularDiasAtraso(c.data_vencimento)),
+          c.nome_centrocusto || '-', String(c.titulo || '-'), String(c.numero_parcela || '-'),
+          c.numero_documento || c.id_documento || '-', (c as any).tipo_condicao || '-',
+          `R$ ${formatCurrencyPDF(c.valor_total || 0)}`,
+        ]),
+        foot: [['TOTAL', '', '', '', '', '', '', '', `R$ ${formatCurrencyPDF(dados.reduce((s, c) => s + (c.valor_total || 0), 0))}`]],
+        columnStyles: { 2: { halign: 'center' }, 8: { halign: 'right' } },
+      }, y, margin);
+    } else if (abaAtiva === 'por-cliente' || abaAtiva === 'por-unidade') {
+      const isUnidade = abaAtiva === 'por-unidade';
+      const totalGeral = contas.reduce((s, c) => s + (c.valor_total || 0), 0);
+      const agrupado = Object.entries(
+        contas.reduce((acc, c) => {
+          const chave = isUnidade ? ((c.numero_documento || c.id_documento || '').trim() || 'Sem Unidade') : (c.cliente || 'Sem Cliente');
+          if (!acc[chave]) acc[chave] = { valor: 0, qtd: 0 };
+          acc[chave].valor += c.valor_total || 0;
+          acc[chave].qtd++;
+          return acc;
+        }, {} as Record<string, { valor: number; qtd: number }>)
+      ).sort((a, b) => b[1].valor - a[1].valor);
+
+      let acum = 0;
+      const body = agrupado.map(([nome, d], i) => {
+        const pct = totalGeral > 0 ? (d.valor / totalGeral * 100) : 0;
+        acum += pct;
+        return [String(i + 1), nome, String(d.qtd), `R$ ${formatCurrencyPDF(d.valor)}`, `${pct.toFixed(2)}%`, `${acum.toFixed(2)}%`];
+      });
+
+      adicionarTabela(doc, {
+        head: [['#', isUnidade ? 'Unidade' : 'Cliente', 'Qtd', 'Valor', '% Total', '% Acumulado']],
+        body,
+        foot: [['', 'TOTAL', String(contas.length), `R$ ${formatCurrencyPDF(totalGeral)}`, '100%', '']],
+        columnStyles: { 0: { halign: 'center', cellWidth: 10 }, 2: { halign: 'center' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } },
+        didParseCell: (data: any) => {
+          if (data.section === 'body' && data.column.index === 5) {
+            const val = parseFloat(data.cell.raw);
+            if (val <= 80) { data.cell.styles.textColor = [22, 163, 74]; data.cell.styles.fontStyle = 'bold'; }
+            else if (val <= 95) { data.cell.styles.textColor = [202, 138, 4]; data.cell.styles.fontStyle = 'bold'; }
+            else { data.cell.styles.textColor = [220, 38, 38]; data.cell.styles.fontStyle = 'bold'; }
+          }
+        },
+      }, y, margin);
+    }
+
+    finalizarPDF(doc, gerarNomeArquivo('receber_atrasadas', abaLabel), dataGeracao);
+  };
+
   if (loading) {
     return (
       <div className="flex h-96 items-center justify-center">
@@ -438,13 +509,23 @@ export const ContasReceberAtrasadas: React.FC = () => {
             {contas.length >= 2000 && <span className="text-red-500 font-medium"> (lista limitada a 2000)</span>}
           </p>
         </div>
-        <button
-          onClick={() => setMostrarFiltros(!mostrarFiltros)}
-          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${mostrarFiltros ? 'bg-red-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'}`}
-        >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
-          {mostrarFiltros ? 'Ocultar Filtros' : 'Mostrar Filtros'}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={exportarPDF}
+            disabled={contas.length === 0}
+            className="flex items-center gap-2 rounded-lg bg-red-700 px-4 py-2 text-sm font-medium text-white hover:bg-red-800 disabled:opacity-50"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+            Exportar PDF
+          </button>
+          <button
+            onClick={() => setMostrarFiltros(!mostrarFiltros)}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${mostrarFiltros ? 'bg-red-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'}`}
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+            {mostrarFiltros ? 'Ocultar Filtros' : 'Mostrar Filtros'}
+          </button>
+        </div>
       </div>
 
       {/* Filtros ativos */}
