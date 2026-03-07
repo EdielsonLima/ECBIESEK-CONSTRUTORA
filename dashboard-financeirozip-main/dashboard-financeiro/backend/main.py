@@ -5206,7 +5206,8 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                     MAX(cr.data_recebimento) as data_baixa,
                     SUM(cr.valor_baixa) + SUM(cr.valor_acrescimo) - SUM(cr.valor_desconto) as valor_baixa,
                     cr.id_interno_empresa,
-                    cr.id_interno_centro_custo
+                    cr.id_interno_centro_custo,
+                    COALESCE(titulo_info.id_indexador, 0) as id_indexador
                 FROM contas_recebidas cr
                 {rec_joins}
                 WHERE {recebidas_filter}
@@ -5228,6 +5229,13 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 r.valor_baixa,
                 r.data_baixa - r.data_vencimento as dias_atraso,
                 'Recebido' as status,
+                CASE r.id_indexador
+                    WHEN 0 THEN 'REAL'
+                    WHEN 3 THEN 'INCC-M'
+                    WHEN 4 THEN 'IGPM'
+                    WHEN 5 THEN 'IPCA'
+                    ELSE 'ID ' || r.id_indexador::TEXT
+                END as indice,
                 cc.nome_empresa as empresa,
                 cc.nome_centrocusto as empreendimento,
                 'CT' as documento
@@ -5274,6 +5282,13 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                     WHEN car.data_vencimento < CURRENT_DATE THEN 'Atrasado'
                     ELSE 'A Receber'
                 END as status,
+                CASE COALESCE(car.id_indexador, 0)
+                    WHEN 0 THEN 'REAL'
+                    WHEN 3 THEN 'INCC-M'
+                    WHEN 4 THEN 'IGPM'
+                    WHEN 5 THEN 'IPCA'
+                    ELSE 'ID ' || COALESCE(car.id_indexador, 0)::TEXT
+                END as indice,
                 cc.nome_empresa as empresa,
                 cc.nome_centrocusto as empreendimento,
                 TRIM(car.id_documento) as documento
@@ -5346,6 +5361,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 "valor_baixa": valor_baixa,
                 "dias_atraso": row['dias_atraso'] or 0,
                 "status": row['status'],
+                "indice": row['indice'] or 'REAL',
             })
 
         totais = {

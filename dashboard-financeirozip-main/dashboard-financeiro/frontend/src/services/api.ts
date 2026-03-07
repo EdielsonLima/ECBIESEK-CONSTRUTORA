@@ -896,6 +896,7 @@ export const apiService = {
       valor_baixa: number;
       dias_atraso: number;
       status: string;
+      indice: string;
     }>;
     totais: {
       total_nominal: number;
