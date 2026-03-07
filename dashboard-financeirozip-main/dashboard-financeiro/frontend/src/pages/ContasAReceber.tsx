@@ -150,6 +150,9 @@ export const ContasAReceber: React.FC = () => {
   const [subAbaCliente, setSubAbaCliente] = useState<'tabela' | 'grafico'>('tabela');
   const [unidadeExpandida, setUnidadeExpandida] = useState<string | null>(null);
   const [subAbaUnidade, setSubAbaUnidade] = useState<'tabela' | 'grafico'>('tabela');
+  const [ordInternaUnidade, setOrdInternaUnidade] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'data_vencimento', direcao: 'asc' });
+  const [filtroUnidades, setFiltroUnidades] = useState<string[]>([]);
+  const [unidadeDropdownAberto, setUnidadeDropdownAberto] = useState(false);
 
   const ordenarContas = (contasParaOrdenar: ContaReceber[]) => {
     return [...contasParaOrdenar].sort((a, b) => {
@@ -454,6 +457,7 @@ export const ContasAReceber: React.FC = () => {
     setFiltroMes([]);
     setFiltroTipoDocumento([]);
     setFiltroCliente(null);
+    setFiltroUnidades([]);
   };
 
   if (loading) {
@@ -1196,7 +1200,11 @@ export const ContasAReceber: React.FC = () => {
           return { ...u, rank: i + 1, percentual, acumulado: acumuladoVal };
         });
 
-        const unidadesExibidas = [...unidadesComPareto].sort((a, b) => {
+        const unidadesFiltradas = filtroUnidades.length > 0
+          ? unidadesComPareto.filter(u => filtroUnidades.includes(u.unidade))
+          : unidadesComPareto;
+
+        const unidadesExibidas = [...unidadesFiltradas].sort((a, b) => {
           const dir = ordenacao.direcao === 'asc' ? 1 : -1;
           switch (ordenacao.campo) {
             case 'unidade': return a.unidade.localeCompare(b.unidade) * dir;
@@ -1219,19 +1227,23 @@ export const ContasAReceber: React.FC = () => {
                     {unidadesComPareto.length} unidade(s) | Total: {formatCurrency(totalGeral)}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setMostrarFiltros(!mostrarFiltros)}
-                  className="flex items-center rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"
-                >
-                  <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                  </svg>
-                  {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
-                </button>
               </div>
 
-              <div className="mt-4 flex gap-2 border-b border-gray-200 pb-2">
+              <div className="mt-4 mb-4">
+                <div className="w-64">
+                  <MultiSelectDropdown
+                    label="Filtrar Unidades"
+                    items={unidadesComPareto.map(u => ({ id: u.unidade, nome: u.unidade }))}
+                    selected={filtroUnidades}
+                    setSelected={setFiltroUnidades}
+                    isOpen={unidadeDropdownAberto}
+                    setIsOpen={setUnidadeDropdownAberto}
+                    searchable={true}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 border-b border-gray-200 pb-2">
                 <button
                   onClick={() => setSubAbaUnidade('tabela')}
                   className={`rounded-t-lg px-4 py-2 text-sm font-medium ${subAbaUnidade === 'tabela' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
@@ -1245,8 +1257,6 @@ export const ContasAReceber: React.FC = () => {
                   Grafico
                 </button>
               </div>
-
-              {mostrarFiltros && renderFiltros()}
             </div>
 
             {subAbaUnidade === 'tabela' && (
@@ -1301,18 +1311,33 @@ export const ContasAReceber: React.FC = () => {
                                   <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                       <tr>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vencimento</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Titulo</th>
-                                        <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Parcela</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dias</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empresa</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo Condicao</th>
-                                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => setOrdInternaUnidade(prev => ({ campo: 'cliente', direcao: prev.campo === 'cliente' && prev.direcao === 'asc' ? 'desc' : 'asc' }))}>Cliente {ordInternaUnidade.campo === 'cliente' ? (ordInternaUnidade.direcao === 'asc' ? '▲' : '▼') : <span className="text-gray-300">↕</span>}</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => setOrdInternaUnidade(prev => ({ campo: 'data_vencimento', direcao: prev.campo === 'data_vencimento' && prev.direcao === 'asc' ? 'desc' : 'asc' }))}>Vencimento {ordInternaUnidade.campo === 'data_vencimento' ? (ordInternaUnidade.direcao === 'asc' ? '▲' : '▼') : <span className="text-gray-300">↕</span>}</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => setOrdInternaUnidade(prev => ({ campo: 'titulo', direcao: prev.campo === 'titulo' && prev.direcao === 'asc' ? 'desc' : 'asc' }))}>Titulo {ordInternaUnidade.campo === 'titulo' ? (ordInternaUnidade.direcao === 'asc' ? '▲' : '▼') : <span className="text-gray-300">↕</span>}</th>
+                                        <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => setOrdInternaUnidade(prev => ({ campo: 'parcela', direcao: prev.campo === 'parcela' && prev.direcao === 'asc' ? 'desc' : 'asc' }))}>Parcela {ordInternaUnidade.campo === 'parcela' ? (ordInternaUnidade.direcao === 'asc' ? '▲' : '▼') : <span className="text-gray-300">↕</span>}</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => setOrdInternaUnidade(prev => ({ campo: 'dias', direcao: prev.campo === 'dias' && prev.direcao === 'asc' ? 'desc' : 'asc' }))}>Dias {ordInternaUnidade.campo === 'dias' ? (ordInternaUnidade.direcao === 'asc' ? '▲' : '▼') : <span className="text-gray-300">↕</span>}</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => setOrdInternaUnidade(prev => ({ campo: 'centrocusto', direcao: prev.campo === 'centrocusto' && prev.direcao === 'asc' ? 'desc' : 'asc' }))}>Centro de Custo {ordInternaUnidade.campo === 'centrocusto' ? (ordInternaUnidade.direcao === 'asc' ? '▲' : '▼') : <span className="text-gray-300">↕</span>}</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => setOrdInternaUnidade(prev => ({ campo: 'tipo_condicao', direcao: prev.campo === 'tipo_condicao' && prev.direcao === 'asc' ? 'desc' : 'asc' }))}>Tipo Condicao {ordInternaUnidade.campo === 'tipo_condicao' ? (ordInternaUnidade.direcao === 'asc' ? '▲' : '▼') : <span className="text-gray-300">↕</span>}</th>
+                                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => setOrdInternaUnidade(prev => ({ campo: 'valor', direcao: prev.campo === 'valor' && prev.direcao === 'asc' ? 'desc' : 'asc' }))}>Valor {ordInternaUnidade.campo === 'valor' ? (ordInternaUnidade.direcao === 'asc' ? '▲' : '▼') : <span className="text-gray-300">↕</span>}</th>
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
-                                      {contas.filter(conta => ((conta.numero_documento || conta.id_documento || '').trim() || 'Sem Unidade') === u.unidade).map((conta, j) => {
+                                      {contas.filter(conta => ((conta.numero_documento || conta.id_documento || '').trim() || 'Sem Unidade') === u.unidade)
+                                        .sort((a, b) => {
+                                          const dir = ordInternaUnidade.direcao === 'asc' ? 1 : -1;
+                                          switch (ordInternaUnidade.campo) {
+                                            case 'cliente': return (a.cliente || '').localeCompare(b.cliente || '') * dir;
+                                            case 'data_vencimento': return (a.data_vencimento || '').localeCompare(b.data_vencimento || '') * dir;
+                                            case 'titulo': return ((a.lancamento || '').split('/')[0]).localeCompare((b.lancamento || '').split('/')[0]) * dir;
+                                            case 'parcela': return ((a.numero_parcela || 0) as number - ((b.numero_parcela || 0) as number)) * dir;
+                                            case 'dias': return (calcularDiasAteVencimento(a.data_vencimento) - calcularDiasAteVencimento(b.data_vencimento)) * dir;
+                                            case 'centrocusto': return (a.nome_centrocusto || '').localeCompare(b.nome_centrocusto || '') * dir;
+                                            case 'tipo_condicao': return (a.tipo_condicao || '').localeCompare(b.tipo_condicao || '') * dir;
+                                            case 'valor': return ((a.valor_total || 0) - (b.valor_total || 0)) * dir;
+                                            default: return 0;
+                                          }
+                                        })
+                                        .map((conta, j) => {
                                         const dias = calcularDiasAteVencimento(conta.data_vencimento);
                                         const corDias = dias < 0 ? 'text-red-600' : dias === 0 ? 'text-orange-600' : 'text-green-600';
                                         return (
@@ -1324,7 +1349,7 @@ export const ContasAReceber: React.FC = () => {
                                             <td className={`whitespace-nowrap px-4 py-2 text-sm font-semibold ${corDias}`}>
                                               {dias < 0 ? `${Math.abs(dias)}d atraso` : dias === 0 ? 'Hoje' : `${dias}d`}
                                             </td>
-                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.nome_empresa || '-'}</td>
+                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.nome_centrocusto || '-'}</td>
                                             <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.tipo_condicao || '-'}</td>
                                             <td className="whitespace-nowrap px-4 py-2 text-sm text-green-600 font-semibold text-right">{formatCurrency(conta.valor_total || 0)}</td>
                                           </tr>
