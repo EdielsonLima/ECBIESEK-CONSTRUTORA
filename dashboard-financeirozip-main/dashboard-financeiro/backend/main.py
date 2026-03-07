@@ -5080,16 +5080,21 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
         if titulo:
             conditions.append("SPLIT_PART(car.lancamento, '/', 1) = %s")
             params_where.append(titulo)
-        
+
         where_clause = " AND ".join(conditions)
-        
-        params = [cliente] + params_where
+
+        # Params para CTE recebidas: cliente + opcional titulo
+        recebidas_params = [cliente]
+        recebidas_filter = "cliente = %s"
         if titulo:
-            params = [cliente, titulo] + params_where
-        
+            recebidas_filter += " AND titulo::TEXT = %s"
+            recebidas_params.append(titulo)
+
+        params = recebidas_params + params_where
+
         query = f"""
             WITH recebidas_agrupadas AS (
-                SELECT 
+                SELECT
                     cliente,
                     titulo::TEXT as titulo_num,
                     parcela,
@@ -5111,7 +5116,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                     SUM(valor_baixa) + SUM(valor_acrescimo) as valor_baixa,
                     id_interno_empresa
                 FROM contas_recebidas
-                WHERE cliente = %s
+                WHERE {recebidas_filter}
                 GROUP BY cliente, titulo, parcela, tc, data_vencimento, id_interno_empresa
             )
             SELECT 
@@ -5270,17 +5275,31 @@ def get_titulos_cliente(cliente: str):
 
     try:
         cursor.execute("""
-            SELECT DISTINCT 
-                SPLIT_PART(lancamento, '/', 1) as titulo_base,
-                COUNT(*) as total_parcelas,
-                SUM(valor_total) as valor_total
-            FROM contas_a_receber
-            WHERE cliente = %s
-            GROUP BY SPLIT_PART(lancamento, '/', 1)
+            SELECT titulo_base, SUM(total_parcelas) as total_parcelas, SUM(valor_total) as valor_total
+            FROM (
+                SELECT
+                    SPLIT_PART(lancamento, '/', 1) as titulo_base,
+                    COUNT(*) as total_parcelas,
+                    SUM(valor_total) as valor_total
+                FROM contas_a_receber
+                WHERE cliente = %s
+                GROUP BY SPLIT_PART(lancamento, '/', 1)
+
+                UNION ALL
+
+                SELECT
+                    titulo::TEXT as titulo_base,
+                    COUNT(DISTINCT parcela) as total_parcelas,
+                    SUM(valor_baixa) as valor_total
+                FROM contas_recebidas
+                WHERE cliente = %s
+                GROUP BY titulo
+            ) combined
+            GROUP BY titulo_base
             ORDER BY titulo_base
-        """, (cliente,))
+        """, (cliente, cliente))
         rows = cursor.fetchall()
-        
+
         return [{"id": row['titulo_base'], "nome": f"Título {row['titulo_base']} ({row['total_parcelas']} parcelas)", "valor_total": float(row['valor_total'] or 0)} for row in rows]
 
     finally:
