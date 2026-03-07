@@ -5346,9 +5346,14 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
             else:
                 total_a_receber += valor_corrigido
 
+            # Extrair número do título (ex: "2394/1" -> "2394")
+            titulo_str = row['titulo'] or ''
+            titulo_num = titulo_str.split('/')[0] if '/' in titulo_str else titulo_str
+
             parcelas.append({
                 "titulo": row['titulo'],
                 "parcela": row['parcela'],
+                "titulo_num": titulo_num,
                 "tipo_condicao": tipo_cond,
                 "data_vencimento": str(row['data_vencimento']) if row['data_vencimento'] else None,
                 "valor_nominal": valor_nominal,
@@ -5363,6 +5368,14 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 "status": row['status'],
                 "indice": row['indice'] or 'REAL',
             })
+
+        # Calcular total de parcelas por título e formatar parcela_display
+        from collections import Counter
+        titulo_count = Counter(p['titulo_num'] for p in parcelas)
+        for p in parcelas:
+            total_p = titulo_count[p['titulo_num']]
+            p['parcela_display'] = f"{p['parcela']}/{total_p}"
+            del p['titulo_num']
 
         totais = {
             "total_nominal": total_nominal,

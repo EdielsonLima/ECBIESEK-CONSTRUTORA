@@ -884,6 +884,7 @@ export const apiService = {
     parcelas: Array<{
       titulo: string;
       parcela: number;
+      parcela_display: string;
       tipo_condicao: string;
       data_vencimento: string | null;
       valor_nominal: number;
