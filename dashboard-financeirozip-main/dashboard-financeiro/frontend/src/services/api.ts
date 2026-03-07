@@ -906,6 +906,8 @@ export const apiService = {
       total_acrescimo: number;
       quantidade_parcelas: number;
     };
+    calculo_incc_manual: boolean;
+    titulos_incc_manual: string[];
   }> => {
     const params = new URLSearchParams();
     params.append('cliente', cliente);
@@ -924,6 +926,12 @@ export const apiService = {
   // Títulos de um cliente
   getTitulosCliente: async (cliente: string): Promise<Array<{ id: string; nome: string; valor_total: number }>> => {
     const response = await api.get(`/titulos-cliente?cliente=${encodeURIComponent(cliente)}`);
+    return response.data;
+  },
+
+  // Toggle cálculo INCC manual por título
+  toggleTituloInccManual: async (cliente: string, titulo: string, manual: boolean): Promise<{ success: boolean }> => {
+    const response = await api.post('/configuracoes/titulos-incc-manual', { cliente, titulo, manual });
     return response.data;
   },
 
