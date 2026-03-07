@@ -21,6 +21,7 @@ interface Parcela {
   valor_baixa: number;
   dias_atraso: number;
   status: string;
+  indice: string;
 }
 
 interface ExtratoData {
@@ -175,6 +176,7 @@ export const ExtratoCliente: React.FC = () => {
       const dir = ordenacao.direcao === 'asc' ? 1 : -1;
       switch (ordenacao.campo) {
         case 'titulo': return dir * String(a.titulo).localeCompare(String(b.titulo));
+        case 'parcela': return dir * ((a.parcela || 0) - (b.parcela || 0));
         case 'tipo_condicao': return dir * String(a.tipo_condicao || '').localeCompare(String(b.tipo_condicao || ''));
         case 'data_vencimento': return dir * String(a.data_vencimento || '').localeCompare(String(b.data_vencimento || ''));
         case 'valor_nominal': return dir * ((a.valor_nominal || 0) - (b.valor_nominal || 0));
@@ -187,6 +189,7 @@ export const ExtratoCliente: React.FC = () => {
         case 'data_baixa': return dir * String(a.data_baixa || '').localeCompare(String(b.data_baixa || ''));
         case 'valor_baixa': return dir * ((a.valor_baixa || 0) - (b.valor_baixa || 0));
         case 'status': return dir * String(a.status).localeCompare(String(b.status));
+        case 'indice': return dir * String(a.indice || '').localeCompare(String(b.indice || ''));
         default: return 0;
       }
     });
@@ -320,6 +323,8 @@ export const ExtratoCliente: React.FC = () => {
     const parcelasOrdenadas = ordenarParcelas(extrato.parcelas);
     const tableBody = parcelasOrdenadas.map(p => [
       p.titulo,
+      String(p.parcela),
+      p.indice || 'REAL',
       p.tipo_condicao || '-',
       formatDate(p.data_vencimento),
       `R$ ${formatCurrencyRaw(p.valor_nominal)}`,
@@ -336,10 +341,10 @@ export const ExtratoCliente: React.FC = () => {
 
     autoTable(doc, {
       startY: y,
-      head: [['Titulo/Parcela', 'Tipo Condição', 'Vencimento', 'Valor Original', 'Correção Monetária', 'Valor Corrigido', 'Saldo Atual', 'Acréscimo', 'Desconto', 'Dias', 'Data Baixa', 'Valor Baixa', 'Status']],
+      head: [['Titulo/Parcela', 'Par', 'Índice', 'Tipo Condição', 'Vencimento', 'Valor Original', 'Correção Monetária', 'Valor Corrigido', 'Saldo Atual', 'Acréscimo', 'Desconto', 'Dias', 'Data Baixa', 'Valor Baixa', 'Status']],
       body: tableBody,
       foot: [[
-        'TOTAIS', '', '',
+        'TOTAIS', '', '', '', '',
         `R$ ${formatCurrencyRaw(extrato.totais.total_nominal)}`,
         `R$ ${formatCurrencyRaw(extrato.totais.total_correcao || 0)}`,
         `R$ ${formatCurrencyRaw(extrato.totais.total_corrigido)}`,
@@ -356,16 +361,18 @@ export const ExtratoCliente: React.FC = () => {
       alternateRowStyles: { fillColor: [249, 250, 251] },
       columnStyles: {
         0: { cellWidth: 24 },
-        3: { halign: 'right' },
-        4: { halign: 'right' },
+        1: { cellWidth: 10, halign: 'center' },
+        2: { cellWidth: 14 },
         5: { halign: 'right' },
         6: { halign: 'right' },
-        7: { halign: 'center' },
-        9: { halign: 'right' },
-        10: { halign: 'center', cellWidth: 18 },
+        7: { halign: 'right' },
+        8: { halign: 'right' },
+        9: { halign: 'center' },
+        11: { halign: 'right' },
+        12: { halign: 'center', cellWidth: 18 },
       },
       didParseCell: (data: any) => {
-        if (data.section === 'body' && data.column.index === 10) {
+        if (data.section === 'body' && data.column.index === 14) {
           const status = data.cell.raw;
           if (status === 'Recebido') {
             data.cell.styles.textColor = [22, 163, 74];
@@ -378,26 +385,26 @@ export const ExtratoCliente: React.FC = () => {
             data.cell.styles.fontStyle = 'bold';
           }
         }
-        if (data.section === 'body' && data.column.index === 7) {
+        if (data.section === 'body' && data.column.index === 9) {
           const val = data.cell.raw;
           if (val !== '-') {
             data.cell.styles.textColor = [220, 38, 38];
             data.cell.styles.fontStyle = 'bold';
           }
         }
-        if (data.section === 'body' && data.column.index === 4) {
+        if (data.section === 'body' && data.column.index === 6) {
           const val = data.cell.raw;
           if (val !== '-') {
             data.cell.styles.textColor = [180, 120, 0]; // amber
           }
         }
-        if (data.section === 'body' && data.column.index === 6) {
+        if (data.section === 'body' && data.column.index === 8) {
           const val = data.cell.raw;
           if (val !== '-') {
             data.cell.styles.textColor = [234, 88, 12]; // orange
           }
         }
-        if (data.section === 'body' && data.column.index === 9) {
+        if (data.section === 'body' && data.column.index === 13) {
           const val = data.cell.raw;
           if (val !== '-') {
             data.cell.styles.textColor = [22, 163, 74]; // green
@@ -460,12 +467,14 @@ export const ExtratoCliente: React.FC = () => {
 
     // Tabela de Parcelas
     wsData.push(['HISTÓRICO DE PARCELAS']);
-    wsData.push(['Titulo/Parcela', 'Tipo Condição', 'Vencimento', 'Valor Original', 'Correção Monetária', 'Valor Corrigido', 'Saldo Atual', 'Acréscimo', 'Desconto', 'Dias', 'Data Baixa', 'Valor Baixa', 'Status']);
+    wsData.push(['Titulo/Parcela', 'Par', 'Índice', 'Tipo Condição', 'Vencimento', 'Valor Original', 'Correção Monetária', 'Valor Corrigido', 'Saldo Atual', 'Acréscimo', 'Desconto', 'Dias', 'Data Baixa', 'Valor Baixa', 'Status']);
 
     const parcelasOrdenadas = ordenarParcelas(extrato.parcelas);
     parcelasOrdenadas.forEach(p => {
       wsData.push([
         p.titulo,
+        p.parcela,
+        p.indice || 'REAL',
         p.tipo_condicao || '-',
         formatDate(p.data_vencimento),
         p.valor_nominal,
@@ -483,7 +492,7 @@ export const ExtratoCliente: React.FC = () => {
 
     // Totais
     wsData.push([
-      'TOTAIS', '', '',
+      'TOTAIS', '', '', '', '',
       extrato.totais.total_nominal,
       extrato.totais.total_correcao || 0,
       extrato.totais.total_corrigido,
@@ -499,6 +508,8 @@ export const ExtratoCliente: React.FC = () => {
     // Larguras das colunas
     ws['!cols'] = [
       { wch: 18 }, // Titulo/Parcela
+      { wch: 6 },  // Par
+      { wch: 10 }, // Índice
       { wch: 20 }, // Tipo Condição
       { wch: 14 }, // Vencimento
       { wch: 18 }, // Valor Original
@@ -819,6 +830,12 @@ export const ExtratoCliente: React.FC = () => {
                     <th onClick={() => toggleOrdenacao('titulo')} className="cursor-pointer px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
                       Titulo/Parcela {renderSortIcon('titulo')}
                     </th>
+                    <th onClick={() => toggleOrdenacao('parcela')} className="cursor-pointer px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                      Par {renderSortIcon('parcela')}
+                    </th>
+                    <th onClick={() => toggleOrdenacao('indice')} className="cursor-pointer px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                      Índice {renderSortIcon('indice')}
+                    </th>
                     <th onClick={() => toggleOrdenacao('tipo_condicao')} className="cursor-pointer px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
                       Tipo Condicao {renderSortIcon('tipo_condicao')}
                     </th>
@@ -866,6 +883,19 @@ export const ExtratoCliente: React.FC = () => {
                     }`}>
                       <td className="whitespace-nowrap px-3 py-3 text-sm font-medium text-gray-900">
                         {parcela.titulo}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-3 text-center text-sm text-gray-600">
+                        {parcela.parcela}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-3 text-sm">
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                          parcela.indice === 'INCC-M' ? 'bg-purple-100 text-purple-700' :
+                          parcela.indice === 'IGPM' ? 'bg-teal-100 text-teal-700' :
+                          parcela.indice === 'IPCA' ? 'bg-cyan-100 text-cyan-700' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          {parcela.indice || 'REAL'}
+                        </span>
                       </td>
                       <td className="whitespace-nowrap px-3 py-3 text-sm">
                         {parcela.tipo_condicao ? (
@@ -945,7 +975,7 @@ export const ExtratoCliente: React.FC = () => {
                 </tbody>
                 <tfoot className="bg-gray-100">
                   <tr className="font-bold">
-                    <td colSpan={3} className="px-3 py-3 text-sm text-gray-900">
+                    <td colSpan={5} className="px-3 py-3 text-sm text-gray-900">
                       TOTAIS
                     </td>
                     <td className="whitespace-nowrap px-3 py-3 text-right text-sm text-gray-900">
