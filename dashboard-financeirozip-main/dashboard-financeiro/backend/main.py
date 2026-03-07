@@ -5117,14 +5117,39 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                          LIMIT 1),
                         SUM(cr.valor_baixa)
                     ) as valor_nominal,
-                    SUM(cr.valor_baixa) as valor_corrigido,
+                    CASE
+                        WHEN idx_base.valor_indexador IS NOT NULL AND idx_base.valor_indexador > 0
+                        THEN ROUND(
+                            COALESCE(
+                                (SELECT car2.valor_vencimento FROM contas_a_receber car2
+                                 WHERE car2.cliente = cr.cliente
+                                 AND SPLIT_PART(car2.lancamento, '/', 1) = cr.titulo::TEXT
+                                 LIMIT 1),
+                                SUM(cr.valor_baixa)
+                            ) / idx_base.valor_indexador * idx_calc.valor_indexador, 2)
+                        ELSE SUM(cr.valor_baixa)
+                    END as valor_corrigido,
                     SUM(cr.valor_acrescimo) as acrescimo,
                     MAX(cr.data_recebimento) as data_baixa,
                     SUM(cr.valor_baixa) + SUM(cr.valor_acrescimo) as valor_baixa,
                     cr.id_interno_empresa
                 FROM contas_recebidas cr
+                LEFT JOIN LATERAL (
+                    SELECT car3.data_indexador, car3.id_indexador
+                    FROM contas_a_receber car3
+                    WHERE car3.cliente = cr.cliente
+                    AND SPLIT_PART(car3.lancamento, '/', 1) = cr.titulo::TEXT
+                    LIMIT 1
+                ) titulo_info ON TRUE
+                LEFT JOIN ecadindexhist idx_base
+                    ON idx_base.id_indexador = COALESCE(titulo_info.id_indexador, 3)
+                    AND idx_base.data_indexador = titulo_info.data_indexador
+                LEFT JOIN ecadindexhist idx_calc
+                    ON idx_calc.id_indexador = COALESCE(titulo_info.id_indexador, 3)
+                    AND idx_calc.data_indexador = cr.data_calculo
                 WHERE {recebidas_filter}
-                GROUP BY cr.cliente, cr.titulo, cr.parcela, cr.tc, cr.data_vencimento, cr.id_interno_empresa
+                GROUP BY cr.cliente, cr.titulo, cr.parcela, cr.tc, cr.data_vencimento,
+                         cr.id_interno_empresa, idx_base.valor_indexador, idx_calc.valor_indexador
             )
             SELECT
                 r.cliente,
