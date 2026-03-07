@@ -5085,9 +5085,9 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
 
         # Params para CTE recebidas: cliente + opcional titulo
         recebidas_params = [cliente]
-        recebidas_filter = "cliente = %s"
+        recebidas_filter = "cr.cliente = %s"
         if titulo:
-            recebidas_filter += " AND titulo::TEXT = %s"
+            recebidas_filter += " AND cr.titulo::TEXT = %s"
             recebidas_params.append(titulo)
 
         params = recebidas_params + params_where
@@ -5095,10 +5095,10 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
         query = f"""
             WITH recebidas_agrupadas AS (
                 SELECT
-                    cliente,
-                    titulo::TEXT as titulo_num,
-                    parcela,
-                    CASE tc
+                    cr.cliente,
+                    cr.titulo::TEXT as titulo_num,
+                    cr.parcela,
+                    CASE cr.tc
                         WHEN 'AT' THEN 'Ato'
                         WHEN 'PM' THEN 'Parcelas Mensais'
                         WHEN 'PS' THEN 'Parcelas Semestrais'
@@ -5107,18 +5107,24 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                         WHEN 'PB' THEN 'Parcelas Balão'
                         WHEN 'PE' THEN 'Parcelas Especiais'
                         WHEN 'PI' THEN 'Parcelas Intermediárias'
-                        ELSE tc
+                        ELSE cr.tc
                     END as tipo_condicao,
-                    data_vencimento,
-                    SUM(valor_baixa) as valor_nominal,
-                    SUM(valor_baixa) as valor_corrigido,
-                    SUM(valor_acrescimo) as acrescimo,
-                    MAX(data_recebimento) as data_baixa,
-                    SUM(valor_baixa) + SUM(valor_acrescimo) as valor_baixa,
-                    id_interno_empresa
-                FROM contas_recebidas
+                    cr.data_vencimento,
+                    COALESCE(
+                        (SELECT car2.valor_vencimento FROM contas_a_receber car2
+                         WHERE car2.cliente = cr.cliente
+                         AND SPLIT_PART(car2.lancamento, '/', 1) = cr.titulo::TEXT
+                         LIMIT 1),
+                        SUM(cr.valor_baixa)
+                    ) as valor_nominal,
+                    SUM(cr.valor_baixa) as valor_corrigido,
+                    SUM(cr.valor_acrescimo) as acrescimo,
+                    MAX(cr.data_recebimento) as data_baixa,
+                    SUM(cr.valor_baixa) + SUM(cr.valor_acrescimo) as valor_baixa,
+                    cr.id_interno_empresa
+                FROM contas_recebidas cr
                 WHERE {recebidas_filter}
-                GROUP BY cliente, titulo, parcela, tc, data_vencimento, id_interno_empresa
+                GROUP BY cr.cliente, cr.titulo, cr.parcela, cr.tc, cr.data_vencimento, cr.id_interno_empresa
             )
             SELECT
                 r.cliente,
