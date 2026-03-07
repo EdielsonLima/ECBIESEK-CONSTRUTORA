@@ -4452,7 +4452,7 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
                        cc.nome_empresa, cc.nome_centrocusto,
                        TRIM(car.id_documento) as id_documento,
                        car.lancamento as titulo, car.numero_parcela,
-                       CASE TRIM(car.id_origem)
+                       CASE TRIM(car.tc)
                            WHEN 'AT' THEN 'Ato'
                            WHEN 'PM' THEN 'Parcelas Mensais'
                            WHEN 'PS' THEN 'Parcelas Semestrais'
@@ -4463,7 +4463,7 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
                            WHEN 'PI' THEN 'Parcelas Intermediárias'
                            WHEN 'CO' THEN 'Contrato'
                            WHEN 'CR' THEN 'Crédito'
-                           ELSE TRIM(car.id_origem)
+                           ELSE TRIM(car.tc)
                        END as tipo_condicao
                 FROM contas_a_receber car
                 LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
@@ -4482,7 +4482,7 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
                        cc.nome_empresa, cc.nome_centrocusto,
                        TRIM(car.id_documento) as id_documento,
                        car.lancamento as titulo, car.numero_parcela,
-                       CASE TRIM(car.id_origem)
+                       CASE TRIM(car.tc)
                            WHEN 'AT' THEN 'Ato'
                            WHEN 'PM' THEN 'Parcelas Mensais'
                            WHEN 'PS' THEN 'Parcelas Semestrais'
@@ -4493,7 +4493,7 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
                            WHEN 'PI' THEN 'Parcelas Intermediárias'
                            WHEN 'CO' THEN 'Contrato'
                            WHEN 'CR' THEN 'Crédito'
-                           ELSE TRIM(car.id_origem)
+                           ELSE TRIM(car.tc)
                        END as tipo_condicao
                 FROM contas_a_receber car
                 LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
@@ -4515,7 +4515,7 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
                        cc.nome_empresa, cc.nome_centrocusto,
                        TRIM(car.id_documento) as id_documento,
                        car.lancamento as titulo, car.numero_parcela,
-                       CASE TRIM(car.id_origem)
+                       CASE TRIM(car.tc)
                            WHEN 'AT' THEN 'Ato'
                            WHEN 'PM' THEN 'Parcelas Mensais'
                            WHEN 'PS' THEN 'Parcelas Semestrais'
@@ -4526,7 +4526,7 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
                            WHEN 'PI' THEN 'Parcelas Intermediárias'
                            WHEN 'CO' THEN 'Contrato'
                            WHEN 'CR' THEN 'Crédito'
-                           ELSE TRIM(car.id_origem)
+                           ELSE TRIM(car.tc)
                        END as tipo_condicao
                 FROM contas_a_receber car
                 LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
@@ -5138,7 +5138,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 car.cliente,
                 car.lancamento as titulo,
                 car.numero_parcela as parcela,
-                CASE TRIM(car.id_origem)
+                CASE TRIM(car.tc)
                     WHEN 'AT' THEN 'Ato'
                     WHEN 'PM' THEN 'Parcelas Mensais'
                     WHEN 'PS' THEN 'Parcelas Semestrais'
@@ -5149,7 +5149,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                     WHEN 'PI' THEN 'Parcelas Intermediárias'
                     WHEN 'CO' THEN 'Contrato'
                     WHEN 'CR' THEN 'Crédito'
-                    ELSE TRIM(car.id_origem)
+                    ELSE TRIM(car.tc)
                 END as tipo_condicao,
                 car.data_vencimento,
                 car.valor_total as valor_original,
@@ -5352,7 +5352,7 @@ def get_progress_titulos_cliente(
                     SPLIT_PART(car.lancamento, '/', 1) AS titulo,
                     COUNT(*) AS total_parcelas,
                     COALESCE(SUM(car.valor_total), 0) AS valor_contrato,
-                    TRIM(MAX(car.id_origem)) AS tipo_condicao_code
+                    TRIM(MAX(car.tc)) AS tipo_condicao_code
                 FROM contas_a_receber car
                 LEFT JOIN dim_centrocusto cc
                     ON car.id_interno_centro_custo = cc.id_interno_centrocusto
