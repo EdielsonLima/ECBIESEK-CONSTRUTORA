@@ -5220,6 +5220,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 r.data_vencimento,
                 r.valor_nominal,
                 r.valor_corrigido,
+                0 as saldo_atual,
                 r.acrescimo,
                 r.desconto,
                 r.data_baixa,
@@ -5254,6 +5255,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 car.data_vencimento,
                 car.valor_vencimento as valor_nominal,
                 {ar_valor_corrigido}
+                COALESCE(car.valor_corrigido, car.valor_total) as saldo_atual,
                 car.valor_acrescimo as acrescimo,
                 0 as desconto,
                 NULL::date as data_baixa,
@@ -5303,6 +5305,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
         for row in rows:
             valor_nominal = float(row['valor_nominal'] or 0)
             valor_corrigido = float(row['valor_corrigido'] or 0)
+            saldo_atual = float(row['saldo_atual'] or 0)
             correcao_monetaria = round(valor_corrigido - valor_nominal, 2)
             valor_baixa = float(row['valor_baixa'] or 0)
             acrescimo = float(row['acrescimo'] or 0)
@@ -5328,6 +5331,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 "valor_nominal": valor_nominal,
                 "correcao_monetaria": correcao_monetaria,
                 "valor_corrigido": valor_corrigido,
+                "saldo_atual": saldo_atual,
                 "acrescimo": acrescimo,
                 "desconto": desconto,
                 "data_baixa": str(row['data_baixa']) if row['data_baixa'] else None,
