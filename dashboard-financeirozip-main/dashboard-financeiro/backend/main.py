@@ -5110,7 +5110,8 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                         ELSE tc
                     END as tipo_condicao,
                     data_vencimento,
-                    SUM(valor_baixa) as valor_original,
+                    SUM(valor_baixa) as valor_nominal,
+                    SUM(valor_baixa) as valor_corrigido,
                     SUM(valor_acrescimo) as acrescimo,
                     MAX(data_recebimento) as data_baixa,
                     SUM(valor_baixa) + SUM(valor_acrescimo) as valor_baixa,
@@ -5119,13 +5120,14 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 WHERE {recebidas_filter}
                 GROUP BY cliente, titulo, parcela, tc, data_vencimento, id_interno_empresa
             )
-            SELECT 
+            SELECT
                 r.cliente,
                 r.titulo_num || '/' || r.parcela as titulo,
                 r.parcela,
                 r.tipo_condicao,
                 r.data_vencimento,
-                r.valor_original,
+                r.valor_nominal,
+                r.valor_corrigido,
                 r.acrescimo,
                 r.data_baixa,
                 r.valor_baixa,
@@ -5136,10 +5138,10 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 'CT' as documento
             FROM recebidas_agrupadas r
             LEFT JOIN dim_centrocusto cc ON r.id_interno_empresa = cc.id_sienge_empresa
-            
+
             UNION ALL
-            
-            SELECT 
+
+            SELECT
                 car.cliente,
                 car.lancamento as titulo,
                 car.numero_parcela as parcela,
@@ -5157,15 +5159,16 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                     ELSE TRIM(car.tc)
                 END as tipo_condicao,
                 car.data_vencimento,
-                car.valor_total as valor_original,
+                car.valor_vencimento as valor_nominal,
+                COALESCE(car.valor_corrigido, car.valor_total) as valor_corrigido,
                 car.valor_acrescimo as acrescimo,
                 NULL::date as data_baixa,
                 0 as valor_baixa,
-                CASE 
+                CASE
                     WHEN car.data_vencimento < CURRENT_DATE THEN CURRENT_DATE - car.data_vencimento
                     ELSE 0
                 END as dias_atraso,
-                CASE 
+                CASE
                     WHEN car.data_vencimento < CURRENT_DATE THEN 'Atrasado'
                     ELSE 'A Receber'
                 END as status,
@@ -5175,7 +5178,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
             FROM contas_a_receber car
             LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE {where_clause}
-            
+
             ORDER BY data_vencimento ASC
         """
         
@@ -5194,43 +5197,53 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
         }
         
         parcelas = []
-        total_original = 0
+        total_nominal = 0
+        total_correcao = 0
+        total_corrigido = 0
         total_recebido = 0
         total_a_receber = 0
         total_atrasado = 0
-        
         total_acrescimo = 0
-        
+
         for row in rows:
-            valor_original = float(row['valor_original'] or 0)
+            valor_nominal = float(row['valor_nominal'] or 0)
+            valor_corrigido = float(row['valor_corrigido'] or 0)
+            correcao_monetaria = round(valor_corrigido - valor_nominal, 2)
             valor_baixa = float(row['valor_baixa'] or 0)
             acrescimo = float(row['acrescimo'] or 0)
             tipo_cond = row['tipo_condicao'] or '-'
-            
-            total_original += valor_original
+
+            total_nominal += valor_nominal
+            total_correcao += correcao_monetaria
+            total_corrigido += valor_corrigido
             total_acrescimo += acrescimo
             if row['data_baixa']:
                 total_recebido += valor_baixa
             elif row['status'] == 'Atrasado':
-                total_atrasado += valor_original
+                total_atrasado += valor_corrigido
             else:
-                total_a_receber += valor_original
-            
+                total_a_receber += valor_corrigido
+
             parcelas.append({
                 "titulo": row['titulo'],
                 "parcela": row['parcela'],
                 "tipo_condicao": tipo_cond,
                 "data_vencimento": str(row['data_vencimento']) if row['data_vencimento'] else None,
-                "valor_original": valor_original,
+                "valor_nominal": valor_nominal,
+                "correcao_monetaria": correcao_monetaria,
+                "valor_corrigido": valor_corrigido,
                 "acrescimo": acrescimo,
                 "data_baixa": str(row['data_baixa']) if row['data_baixa'] else None,
                 "valor_baixa": valor_baixa,
                 "dias_atraso": row['dias_atraso'] or 0,
                 "status": row['status'],
             })
-        
+
         totais = {
-            "total_original": total_original,
+            "total_nominal": total_nominal,
+            "total_correcao": round(total_correcao, 2),
+            "total_corrigido": total_corrigido,
+            "total_original": total_corrigido,
             "total_recebido": total_recebido,
             "total_a_receber": total_a_receber,
             "total_atrasado": total_atrasado,

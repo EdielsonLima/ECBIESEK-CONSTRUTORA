@@ -11,7 +11,9 @@ interface Parcela {
   parcela: number;
   tipo_condicao: string;
   data_vencimento: string | null;
-  valor_original: number;
+  valor_nominal: number;
+  correcao_monetaria: number;
+  valor_corrigido: number;
   acrescimo: number;
   data_baixa: string | null;
   valor_baixa: number;
@@ -28,6 +30,9 @@ interface ExtratoData {
   };
   parcelas: Parcela[];
   totais: {
+    total_nominal: number;
+    total_correcao: number;
+    total_corrigido: number;
     total_original: number;
     total_recebido: number;
     total_a_receber: number;
@@ -156,7 +161,9 @@ export const ExtratoCliente: React.FC = () => {
         case 'titulo': return dir * String(a.titulo).localeCompare(String(b.titulo));
         case 'tipo_condicao': return dir * String(a.tipo_condicao || '').localeCompare(String(b.tipo_condicao || ''));
         case 'data_vencimento': return dir * String(a.data_vencimento || '').localeCompare(String(b.data_vencimento || ''));
-        case 'valor_original': return dir * ((a.valor_original || 0) - (b.valor_original || 0));
+        case 'valor_nominal': return dir * ((a.valor_nominal || 0) - (b.valor_nominal || 0));
+        case 'correcao_monetaria': return dir * ((a.correcao_monetaria || 0) - (b.correcao_monetaria || 0));
+        case 'valor_corrigido': return dir * ((a.valor_corrigido || 0) - (b.valor_corrigido || 0));
         case 'acrescimo': return dir * ((a.acrescimo || 0) - (b.acrescimo || 0));
         case 'dias_atraso': return dir * ((a.dias_atraso || 0) - (b.dias_atraso || 0));
         case 'data_baixa': return dir * String(a.data_baixa || '').localeCompare(String(b.data_baixa || ''));
@@ -235,8 +242,8 @@ export const ExtratoCliente: React.FC = () => {
     y += 14;
 
     // Barra de Progresso
-    const pctRec = extrato.totais.total_original > 0
-      ? (extrato.totais.total_recebido / extrato.totais.total_original * 100) : 0;
+    const pctRec = extrato.totais.total_corrigido > 0
+      ? (extrato.totais.total_recebido / extrato.totais.total_corrigido * 100) : 0;
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 41, 59);
@@ -264,7 +271,7 @@ export const ExtratoCliente: React.FC = () => {
     y += 4;
 
     const cards = [
-      { label: 'Total Original', valor: extrato.totais.total_original, cor: [71, 85, 105] },    // slate
+      { label: 'Total Corrigido', valor: extrato.totais.total_corrigido, cor: [71, 85, 105] },    // slate
       { label: 'Total Recebido', valor: extrato.totais.total_recebido, cor: [34, 197, 94] },     // green
       { label: 'A Receber', valor: extrato.totais.total_a_receber, cor: [59, 130, 246] },        // blue
       { label: 'Em Atraso', valor: extrato.totais.total_atrasado, cor: [239, 68, 68] },          // red
@@ -297,7 +304,9 @@ export const ExtratoCliente: React.FC = () => {
       p.titulo,
       p.tipo_condicao || '-',
       formatDate(p.data_vencimento),
-      `R$ ${formatCurrencyRaw(p.valor_original)}`,
+      `R$ ${formatCurrencyRaw(p.valor_nominal)}`,
+      p.correcao_monetaria > 0 ? `R$ ${formatCurrencyRaw(p.correcao_monetaria)}` : '-',
+      `R$ ${formatCurrencyRaw(p.valor_corrigido)}`,
       p.acrescimo > 0 ? `R$ ${formatCurrencyRaw(p.acrescimo)}` : '-',
       p.dias_atraso > 0 ? `${p.dias_atraso}d` : '-',
       formatDate(p.data_baixa),
@@ -307,31 +316,35 @@ export const ExtratoCliente: React.FC = () => {
 
     autoTable(doc, {
       startY: y,
-      head: [['Titulo/Parcela', 'Tipo Condição', 'Vencimento', 'Valor Original', 'Acréscimo', 'Dias Atraso', 'Data Baixa', 'Valor Baixa', 'Status']],
+      head: [['Titulo/Parcela', 'Tipo Condição', 'Vencimento', 'Valor Original', 'Correção Monetária', 'Valor Corrigido', 'Acréscimo', 'Dias Atraso', 'Data Baixa', 'Valor Baixa', 'Status']],
       body: tableBody,
       foot: [[
         'TOTAIS', '', '',
-        `R$ ${formatCurrencyRaw(extrato.totais.total_original)}`,
+        `R$ ${formatCurrencyRaw(extrato.totais.total_nominal)}`,
+        `R$ ${formatCurrencyRaw(extrato.totais.total_correcao || 0)}`,
+        `R$ ${formatCurrencyRaw(extrato.totais.total_corrigido)}`,
         `R$ ${formatCurrencyRaw(extrato.totais.total_acrescimo || 0)}`,
         '', '',
         `R$ ${formatCurrencyRaw(extrato.totais.total_recebido)}`,
         '',
       ]],
       theme: 'grid',
-      styles: { fontSize: 7.5, cellPadding: 2, lineColor: [200, 200, 200], lineWidth: 0.2 },
-      headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
-      footStyles: { fillColor: [243, 244, 246], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 8 },
+      styles: { fontSize: 7, cellPadding: 1.5, lineColor: [200, 200, 200], lineWidth: 0.2 },
+      headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
+      footStyles: { fillColor: [243, 244, 246], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 7.5 },
       alternateRowStyles: { fillColor: [249, 250, 251] },
       columnStyles: {
-        0: { cellWidth: 28 },
+        0: { cellWidth: 24 },
         3: { halign: 'right' },
         4: { halign: 'right' },
-        5: { halign: 'center' },
-        7: { halign: 'right' },
-        8: { halign: 'center', cellWidth: 22 },
+        5: { halign: 'right' },
+        6: { halign: 'right' },
+        7: { halign: 'center' },
+        9: { halign: 'right' },
+        10: { halign: 'center', cellWidth: 18 },
       },
       didParseCell: (data: any) => {
-        if (data.section === 'body' && data.column.index === 8) {
+        if (data.section === 'body' && data.column.index === 10) {
           const status = data.cell.raw;
           if (status === 'Recebido') {
             data.cell.styles.textColor = [22, 163, 74];
@@ -344,7 +357,7 @@ export const ExtratoCliente: React.FC = () => {
             data.cell.styles.fontStyle = 'bold';
           }
         }
-        if (data.section === 'body' && data.column.index === 5) {
+        if (data.section === 'body' && data.column.index === 7) {
           const val = data.cell.raw;
           if (val !== '-') {
             data.cell.styles.textColor = [220, 38, 38];
@@ -354,10 +367,16 @@ export const ExtratoCliente: React.FC = () => {
         if (data.section === 'body' && data.column.index === 4) {
           const val = data.cell.raw;
           if (val !== '-') {
+            data.cell.styles.textColor = [180, 120, 0]; // amber
+          }
+        }
+        if (data.section === 'body' && data.column.index === 6) {
+          const val = data.cell.raw;
+          if (val !== '-') {
             data.cell.styles.textColor = [234, 88, 12]; // orange
           }
         }
-        if (data.section === 'body' && data.column.index === 7) {
+        if (data.section === 'body' && data.column.index === 9) {
           const val = data.cell.raw;
           if (val !== '-') {
             data.cell.styles.textColor = [22, 163, 74]; // green
@@ -403,11 +422,13 @@ export const ExtratoCliente: React.FC = () => {
 
     // Resumo Financeiro
     wsData.push(['RESUMO FINANCEIRO']);
-    wsData.push(['Total Original', 'Total Recebido', 'A Receber', 'Em Atraso', 'Saldo Devedor', '% Recebido']);
-    const pctRec = extrato.totais.total_original > 0
-      ? (extrato.totais.total_recebido / extrato.totais.total_original * 100) : 0;
+    wsData.push(['Total Nominal', 'Correção Monetária', 'Total Corrigido', 'Total Recebido', 'A Receber', 'Em Atraso', 'Saldo Devedor', '% Recebido']);
+    const pctRec = extrato.totais.total_corrigido > 0
+      ? (extrato.totais.total_recebido / extrato.totais.total_corrigido * 100) : 0;
     wsData.push([
-      extrato.totais.total_original,
+      extrato.totais.total_nominal,
+      extrato.totais.total_correcao,
+      extrato.totais.total_corrigido,
       extrato.totais.total_recebido,
       extrato.totais.total_a_receber,
       extrato.totais.total_atrasado,
@@ -418,7 +439,7 @@ export const ExtratoCliente: React.FC = () => {
 
     // Tabela de Parcelas
     wsData.push(['HISTÓRICO DE PARCELAS']);
-    wsData.push(['Titulo/Parcela', 'Tipo Condição', 'Vencimento', 'Valor Original', 'Acréscimo', 'Dias Atraso', 'Data Baixa', 'Valor Baixa', 'Status']);
+    wsData.push(['Titulo/Parcela', 'Tipo Condição', 'Vencimento', 'Valor Original', 'Correção Monetária', 'Valor Corrigido', 'Acréscimo', 'Dias Atraso', 'Data Baixa', 'Valor Baixa', 'Status']);
 
     const parcelasOrdenadas = ordenarParcelas(extrato.parcelas);
     parcelasOrdenadas.forEach(p => {
@@ -426,7 +447,9 @@ export const ExtratoCliente: React.FC = () => {
         p.titulo,
         p.tipo_condicao || '-',
         formatDate(p.data_vencimento),
-        p.valor_original,
+        p.valor_nominal,
+        p.correcao_monetaria > 0 ? p.correcao_monetaria : null,
+        p.valor_corrigido,
         p.acrescimo > 0 ? p.acrescimo : null,
         p.dias_atraso > 0 ? p.dias_atraso : null,
         formatDate(p.data_baixa),
@@ -438,7 +461,9 @@ export const ExtratoCliente: React.FC = () => {
     // Totais
     wsData.push([
       'TOTAIS', '', '',
-      extrato.totais.total_original,
+      extrato.totais.total_nominal,
+      extrato.totais.total_correcao || 0,
+      extrato.totais.total_corrigido,
       extrato.totais.total_acrescimo || 0,
       '', '',
       extrato.totais.total_recebido,
@@ -453,6 +478,8 @@ export const ExtratoCliente: React.FC = () => {
       { wch: 20 }, // Tipo Condição
       { wch: 14 }, // Vencimento
       { wch: 18 }, // Valor Original
+      { wch: 18 }, // Correção Monetária
+      { wch: 18 }, // Valor Corrigido
       { wch: 14 }, // Acréscimo
       { wch: 12 }, // Dias Atraso
       { wch: 14 }, // Data Baixa
@@ -508,7 +535,7 @@ export const ExtratoCliente: React.FC = () => {
   const pctRecebido = totalParcelas > 0 ? (parcelasRecebidas / totalParcelas * 100) : 0;
   const pctAReceber = totalParcelas > 0 ? (parcelasAReceber / totalParcelas * 100) : 0;
   const pctAtrasado = totalParcelas > 0 ? (parcelasAtrasadas / totalParcelas * 100) : 0;
-  const pctValorRecebido = totais && totais.total_original > 0 ? (totais.total_recebido / totais.total_original * 100) : 0;
+  const pctValorRecebido = totais && totais.total_corrigido > 0 ? (totais.total_recebido / totais.total_corrigido * 100) : 0;
 
   if (loadingClientes) {
     return (
@@ -666,9 +693,9 @@ export const ExtratoCliente: React.FC = () => {
           {/* Cards de Totais - Gradient */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
             <div className="rounded-lg bg-gradient-to-br from-slate-600 to-slate-800 p-4 shadow-lg text-white">
-              <p className="text-xs font-medium text-slate-300 uppercase tracking-wider">Total Original</p>
-              <p className="text-xl font-bold mt-1">{formatCurrency(extrato.totais.total_original)}</p>
-              <p className="text-xs text-slate-400 mt-1">{extrato.totais.quantidade_parcelas} parcelas</p>
+              <p className="text-xs font-medium text-slate-300 uppercase tracking-wider">Total Corrigido</p>
+              <p className="text-xl font-bold mt-1">{formatCurrency(extrato.totais.total_corrigido)}</p>
+              <p className="text-xs text-slate-400 mt-1">{extrato.totais.quantidade_parcelas} parcelas (Nominal: {formatCurrency(extrato.totais.total_nominal)} + Correção: {formatCurrency(extrato.totais.total_correcao)})</p>
             </div>
             <div className="rounded-lg bg-gradient-to-br from-green-500 to-emerald-700 p-4 shadow-lg text-white">
               <p className="text-xs font-medium text-green-100 uppercase tracking-wider">Total Recebido</p>
@@ -712,8 +739,14 @@ export const ExtratoCliente: React.FC = () => {
                     <th onClick={() => toggleOrdenacao('data_vencimento')} className="cursor-pointer px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
                       Vencimento {renderSortIcon('data_vencimento')}
                     </th>
-                    <th onClick={() => toggleOrdenacao('valor_original')} className="cursor-pointer px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
-                      Valor Original {renderSortIcon('valor_original')}
+                    <th onClick={() => toggleOrdenacao('valor_nominal')} className="cursor-pointer px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                      Valor Original {renderSortIcon('valor_nominal')}
+                    </th>
+                    <th onClick={() => toggleOrdenacao('correcao_monetaria')} className="cursor-pointer px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                      Correção Monetária {renderSortIcon('correcao_monetaria')}
+                    </th>
+                    <th onClick={() => toggleOrdenacao('valor_corrigido')} className="cursor-pointer px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                      Valor Corrigido {renderSortIcon('valor_corrigido')}
                     </th>
                     <th onClick={() => toggleOrdenacao('acrescimo')} className="cursor-pointer px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
                       Acrescimo {renderSortIcon('acrescimo')}
@@ -749,7 +782,17 @@ export const ExtratoCliente: React.FC = () => {
                         {formatDate(parcela.data_vencimento)}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3 text-right text-sm font-medium text-gray-900">
-                        {formatCurrency(parcela.valor_original)}
+                        {formatCurrency(parcela.valor_nominal)}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-3 text-right text-sm">
+                        {parcela.correcao_monetaria > 0 ? (
+                          <span className="text-amber-600 font-medium">{formatCurrency(parcela.correcao_monetaria)}</span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-3 text-right text-sm font-medium text-indigo-700">
+                        {formatCurrency(parcela.valor_corrigido)}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3 text-right text-sm">
                         {parcela.acrescimo > 0 ? (
@@ -795,7 +838,13 @@ export const ExtratoCliente: React.FC = () => {
                       TOTAIS
                     </td>
                     <td className="whitespace-nowrap px-3 py-3 text-right text-sm text-gray-900">
-                      {formatCurrency(extrato.totais.total_original)}
+                      {formatCurrency(extrato.totais.total_nominal)}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-3 text-right text-sm text-amber-600">
+                      {formatCurrency(extrato.totais.total_correcao || 0)}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-3 text-right text-sm text-indigo-700">
+                      {formatCurrency(extrato.totais.total_corrigido)}
                     </td>
                     <td className="whitespace-nowrap px-3 py-3 text-right text-sm text-orange-600">
                       {formatCurrency(extrato.totais.total_acrescimo || 0)}
