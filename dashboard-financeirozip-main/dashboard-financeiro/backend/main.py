@@ -5191,8 +5191,9 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                     ) as valor_nominal,
                     {rec_valor_corrigido}
                     SUM(cr.valor_acrescimo) as acrescimo,
+                    SUM(cr.valor_desconto) as desconto,
                     MAX(cr.data_recebimento) as data_baixa,
-                    SUM(cr.valor_baixa) + SUM(cr.valor_acrescimo) as valor_baixa,
+                    SUM(cr.valor_baixa) + SUM(cr.valor_acrescimo) - SUM(cr.valor_desconto) as valor_baixa,
                     cr.id_interno_empresa
                 FROM contas_recebidas cr
                 {rec_joins}
@@ -5209,6 +5210,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 r.valor_nominal,
                 r.valor_corrigido,
                 r.acrescimo,
+                r.desconto,
                 r.data_baixa,
                 r.valor_baixa,
                 0 as dias_atraso,
@@ -5242,6 +5244,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 car.valor_vencimento as valor_nominal,
                 {ar_valor_corrigido}
                 car.valor_acrescimo as acrescimo,
+                0 as desconto,
                 NULL::date as data_baixa,
                 0 as valor_baixa,
                 CASE
@@ -5292,6 +5295,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
             correcao_monetaria = round(valor_corrigido - valor_nominal, 2)
             valor_baixa = float(row['valor_baixa'] or 0)
             acrescimo = float(row['acrescimo'] or 0)
+            desconto = float(row['desconto'] or 0)
             tipo_cond = row['tipo_condicao'] or '-'
 
             total_nominal += valor_nominal
@@ -5314,6 +5318,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 "correcao_monetaria": correcao_monetaria,
                 "valor_corrigido": valor_corrigido,
                 "acrescimo": acrescimo,
+                "desconto": desconto,
                 "data_baixa": str(row['data_baixa']) if row['data_baixa'] else None,
                 "valor_baixa": valor_baixa,
                 "dias_atraso": row['dias_atraso'] or 0,

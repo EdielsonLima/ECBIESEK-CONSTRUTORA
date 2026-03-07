@@ -890,6 +890,7 @@ export const apiService = {
       correcao_monetaria: number;
       valor_corrigido: number;
       acrescimo: number;
+      desconto: number;
       data_baixa: string | null;
       valor_baixa: number;
       dias_atraso: number;

@@ -15,6 +15,7 @@ interface Parcela {
   correcao_monetaria: number;
   valor_corrigido: number;
   acrescimo: number;
+  desconto: number;
   data_baixa: string | null;
   valor_baixa: number;
   dias_atraso: number;
@@ -178,6 +179,7 @@ export const ExtratoCliente: React.FC = () => {
         case 'correcao_monetaria': return dir * ((a.correcao_monetaria || 0) - (b.correcao_monetaria || 0));
         case 'valor_corrigido': return dir * ((a.valor_corrigido || 0) - (b.valor_corrigido || 0));
         case 'acrescimo': return dir * ((a.acrescimo || 0) - (b.acrescimo || 0));
+        case 'desconto': return dir * ((a.desconto || 0) - (b.desconto || 0));
         case 'dias_atraso': return dir * ((a.dias_atraso || 0) - (b.dias_atraso || 0));
         case 'data_baixa': return dir * String(a.data_baixa || '').localeCompare(String(b.data_baixa || ''));
         case 'valor_baixa': return dir * ((a.valor_baixa || 0) - (b.valor_baixa || 0));
@@ -321,6 +323,7 @@ export const ExtratoCliente: React.FC = () => {
       p.correcao_monetaria > 0 ? `R$ ${formatCurrencyRaw(p.correcao_monetaria)}` : '-',
       `R$ ${formatCurrencyRaw(p.valor_corrigido)}`,
       p.acrescimo > 0 ? `R$ ${formatCurrencyRaw(p.acrescimo)}` : '-',
+      p.desconto > 0 ? `R$ ${formatCurrencyRaw(p.desconto)}` : '-',
       p.dias_atraso > 0 ? `${p.dias_atraso}d` : '-',
       formatDate(p.data_baixa),
       p.valor_baixa > 0 ? `R$ ${formatCurrencyRaw(p.valor_baixa)}` : '-',
@@ -329,7 +332,7 @@ export const ExtratoCliente: React.FC = () => {
 
     autoTable(doc, {
       startY: y,
-      head: [['Titulo/Parcela', 'Tipo Condição', 'Vencimento', 'Valor Original', 'Correção Monetária', 'Valor Corrigido', 'Acréscimo', 'Dias Atraso', 'Data Baixa', 'Valor Baixa', 'Status']],
+      head: [['Titulo/Parcela', 'Tipo Condição', 'Vencimento', 'Valor Original', 'Correção Monetária', 'Valor Corrigido', 'Acréscimo', 'Desconto', 'Dias Atraso', 'Data Baixa', 'Valor Baixa', 'Status']],
       body: tableBody,
       foot: [[
         'TOTAIS', '', '',
@@ -337,7 +340,7 @@ export const ExtratoCliente: React.FC = () => {
         `R$ ${formatCurrencyRaw(extrato.totais.total_correcao || 0)}`,
         `R$ ${formatCurrencyRaw(extrato.totais.total_corrigido)}`,
         `R$ ${formatCurrencyRaw(extrato.totais.total_acrescimo || 0)}`,
-        '', '',
+        '', '', '',
         `R$ ${formatCurrencyRaw(extrato.totais.total_recebido)}`,
         '',
       ]],
@@ -452,7 +455,7 @@ export const ExtratoCliente: React.FC = () => {
 
     // Tabela de Parcelas
     wsData.push(['HISTÓRICO DE PARCELAS']);
-    wsData.push(['Titulo/Parcela', 'Tipo Condição', 'Vencimento', 'Valor Original', 'Correção Monetária', 'Valor Corrigido', 'Acréscimo', 'Dias Atraso', 'Data Baixa', 'Valor Baixa', 'Status']);
+    wsData.push(['Titulo/Parcela', 'Tipo Condição', 'Vencimento', 'Valor Original', 'Correção Monetária', 'Valor Corrigido', 'Acréscimo', 'Desconto', 'Dias Atraso', 'Data Baixa', 'Valor Baixa', 'Status']);
 
     const parcelasOrdenadas = ordenarParcelas(extrato.parcelas);
     parcelasOrdenadas.forEach(p => {
@@ -464,6 +467,7 @@ export const ExtratoCliente: React.FC = () => {
         p.correcao_monetaria > 0 ? p.correcao_monetaria : null,
         p.valor_corrigido,
         p.acrescimo > 0 ? p.acrescimo : null,
+        p.desconto > 0 ? p.desconto : null,
         p.dias_atraso > 0 ? p.dias_atraso : null,
         formatDate(p.data_baixa),
         p.valor_baixa > 0 ? p.valor_baixa : null,
@@ -478,7 +482,7 @@ export const ExtratoCliente: React.FC = () => {
       extrato.totais.total_correcao || 0,
       extrato.totais.total_corrigido,
       extrato.totais.total_acrescimo || 0,
-      '', '',
+      '', '', '',
       extrato.totais.total_recebido,
       '',
     ]);
@@ -494,6 +498,7 @@ export const ExtratoCliente: React.FC = () => {
       { wch: 18 }, // Correção Monetária
       { wch: 18 }, // Valor Corrigido
       { wch: 14 }, // Acréscimo
+      { wch: 14 }, // Desconto
       { wch: 12 }, // Dias Atraso
       { wch: 14 }, // Data Baixa
       { wch: 18 }, // Valor Baixa
@@ -791,6 +796,9 @@ export const ExtratoCliente: React.FC = () => {
                     <th onClick={() => toggleOrdenacao('acrescimo')} className="cursor-pointer px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
                       Acrescimo {renderSortIcon('acrescimo')}
                     </th>
+                    <th onClick={() => toggleOrdenacao('desconto')} className="cursor-pointer px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                      Desconto {renderSortIcon('desconto')}
+                    </th>
                     <th onClick={() => toggleOrdenacao('dias_atraso')} className="cursor-pointer px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
                       Dias Atraso {renderSortIcon('dias_atraso')}
                     </th>
@@ -837,6 +845,13 @@ export const ExtratoCliente: React.FC = () => {
                       <td className="whitespace-nowrap px-3 py-3 text-right text-sm">
                         {parcela.acrescimo > 0 ? (
                           <span className="text-orange-600 font-medium">{formatCurrency(parcela.acrescimo)}</span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-3 text-right text-sm">
+                        {parcela.desconto > 0 ? (
+                          <span className="text-red-600 font-medium">{formatCurrency(parcela.desconto)}</span>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
@@ -889,6 +904,7 @@ export const ExtratoCliente: React.FC = () => {
                     <td className="whitespace-nowrap px-3 py-3 text-right text-sm text-orange-600">
                       {formatCurrency(extrato.totais.total_acrescimo || 0)}
                     </td>
+                    <td></td>
                     <td></td>
                     <td></td>
                     <td className="whitespace-nowrap px-3 py-3 text-right text-sm text-green-600">
