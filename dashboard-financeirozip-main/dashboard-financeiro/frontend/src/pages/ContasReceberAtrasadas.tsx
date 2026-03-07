@@ -474,17 +474,17 @@ export const ContasReceberAtrasadas: React.FC = () => {
                   >
                     Vencimento {renderSortIcon('data_vencimento')}
                   </th>
-                  <th 
-                    onClick={() => toggleOrdenacao('dias_atraso')} 
+                  <th
+                    onClick={() => toggleOrdenacao('dias_atraso')}
                     className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
                   >
                     Dias Atraso {renderSortIcon('dias_atraso')}
                   </th>
-                  <th 
-                    onClick={() => toggleOrdenacao('valor_total')} 
+                  <th
+                    onClick={() => toggleOrdenacao('nome_centrocusto')}
                     className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
                   >
-                    Valor {renderSortIcon('valor_total')}
+                    Centro de Custo {renderSortIcon('nome_centrocusto')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                     Título
@@ -495,11 +495,11 @@ export const ContasReceberAtrasadas: React.FC = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                     Documento
                   </th>
-                  <th 
-                    onClick={() => toggleOrdenacao('nome_empresa')} 
+                  <th
+                    onClick={() => toggleOrdenacao('valor_total')}
                     className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
                   >
-                    Empresa {renderSortIcon('nome_empresa')}
+                    Valor {renderSortIcon('valor_total')}
                   </th>
                 </tr>
               </thead>
@@ -523,8 +523,8 @@ export const ContasReceberAtrasadas: React.FC = () => {
                           {diasAtraso}d
                         </span>
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-red-600">
-                        {formatCurrency(conta.valor_total)}
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                        {conta.nome_centrocusto || '-'}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                         {conta.titulo || '-'}
@@ -535,8 +535,8 @@ export const ContasReceberAtrasadas: React.FC = () => {
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                         {conta.numero_documento || conta.id_documento || '-'}
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                        {conta.nome_empresa || '-'}
+                      <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-red-600">
+                        {formatCurrency(conta.valor_total)}
                       </td>
                     </tr>
                   );
