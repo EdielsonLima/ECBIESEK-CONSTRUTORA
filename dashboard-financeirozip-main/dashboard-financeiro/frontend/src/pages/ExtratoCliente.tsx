@@ -9,6 +9,7 @@ import { saveAs } from 'file-saver';
 interface Parcela {
   titulo: string;
   parcela: number;
+  parcela_display: string;
   tipo_condicao: string;
   data_vencimento: string | null;
   valor_nominal: number;
@@ -323,7 +324,7 @@ export const ExtratoCliente: React.FC = () => {
     const parcelasOrdenadas = ordenarParcelas(extrato.parcelas);
     const tableBody = parcelasOrdenadas.map(p => [
       p.titulo,
-      String(p.parcela),
+      p.parcela_display || String(p.parcela),
       p.indice || 'REAL',
       p.tipo_condicao || '-',
       formatDate(p.data_vencimento),
@@ -473,7 +474,7 @@ export const ExtratoCliente: React.FC = () => {
     parcelasOrdenadas.forEach(p => {
       wsData.push([
         p.titulo,
-        p.parcela,
+        p.parcela_display || String(p.parcela),
         p.indice || 'REAL',
         p.tipo_condicao || '-',
         formatDate(p.data_vencimento),
@@ -885,7 +886,7 @@ export const ExtratoCliente: React.FC = () => {
                         {parcela.titulo}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3 text-center text-sm text-gray-600">
-                        {parcela.parcela}
+                        {parcela.parcela_display || parcela.parcela}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3 text-sm">
                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
