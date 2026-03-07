@@ -324,7 +324,7 @@ export const ExtratoCliente: React.FC = () => {
       `R$ ${formatCurrencyRaw(p.valor_corrigido)}`,
       p.acrescimo > 0 ? `R$ ${formatCurrencyRaw(p.acrescimo)}` : '-',
       p.desconto > 0 ? `R$ ${formatCurrencyRaw(p.desconto)}` : '-',
-      p.dias_atraso > 0 ? `${p.dias_atraso}d` : '-',
+      p.dias_atraso !== 0 ? `${p.dias_atraso}d` : '-',
       formatDate(p.data_baixa),
       p.valor_baixa > 0 ? `R$ ${formatCurrencyRaw(p.valor_baixa)}` : '-',
       p.status,
@@ -332,7 +332,7 @@ export const ExtratoCliente: React.FC = () => {
 
     autoTable(doc, {
       startY: y,
-      head: [['Titulo/Parcela', 'Tipo Condição', 'Vencimento', 'Valor Original', 'Correção Monetária', 'Valor Corrigido', 'Acréscimo', 'Desconto', 'Dias Atraso', 'Data Baixa', 'Valor Baixa', 'Status']],
+      head: [['Titulo/Parcela', 'Tipo Condição', 'Vencimento', 'Valor Original', 'Correção Monetária', 'Valor Corrigido', 'Acréscimo', 'Desconto', 'Dias', 'Data Baixa', 'Valor Baixa', 'Status']],
       body: tableBody,
       foot: [[
         'TOTAIS', '', '',
@@ -455,7 +455,7 @@ export const ExtratoCliente: React.FC = () => {
 
     // Tabela de Parcelas
     wsData.push(['HISTÓRICO DE PARCELAS']);
-    wsData.push(['Titulo/Parcela', 'Tipo Condição', 'Vencimento', 'Valor Original', 'Correção Monetária', 'Valor Corrigido', 'Acréscimo', 'Desconto', 'Dias Atraso', 'Data Baixa', 'Valor Baixa', 'Status']);
+    wsData.push(['Titulo/Parcela', 'Tipo Condição', 'Vencimento', 'Valor Original', 'Correção Monetária', 'Valor Corrigido', 'Acréscimo', 'Desconto', 'Dias', 'Data Baixa', 'Valor Baixa', 'Status']);
 
     const parcelasOrdenadas = ordenarParcelas(extrato.parcelas);
     parcelasOrdenadas.forEach(p => {
@@ -468,7 +468,7 @@ export const ExtratoCliente: React.FC = () => {
         p.valor_corrigido,
         p.acrescimo > 0 ? p.acrescimo : null,
         p.desconto > 0 ? p.desconto : null,
-        p.dias_atraso > 0 ? p.dias_atraso : null,
+        p.dias_atraso !== 0 ? p.dias_atraso : null,
         formatDate(p.data_baixa),
         p.valor_baixa > 0 ? p.valor_baixa : null,
         p.status,
@@ -499,7 +499,7 @@ export const ExtratoCliente: React.FC = () => {
       { wch: 18 }, // Valor Corrigido
       { wch: 14 }, // Acréscimo
       { wch: 14 }, // Desconto
-      { wch: 12 }, // Dias Atraso
+      { wch: 12 }, // Dias
       { wch: 14 }, // Data Baixa
       { wch: 18 }, // Valor Baixa
       { wch: 14 }, // Status
@@ -833,7 +833,7 @@ export const ExtratoCliente: React.FC = () => {
                       Desconto {renderSortIcon('desconto')}
                     </th>
                     <th onClick={() => toggleOrdenacao('dias_atraso')} className="cursor-pointer px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
-                      Dias Atraso {renderSortIcon('dias_atraso')}
+                      Dias {renderSortIcon('dias_atraso')}
                     </th>
                     <th onClick={() => toggleOrdenacao('data_baixa')} className="cursor-pointer px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
                       Data Baixa {renderSortIcon('data_baixa')}
@@ -894,11 +894,12 @@ export const ExtratoCliente: React.FC = () => {
                         )}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3 text-center text-sm">
-                        {parcela.dias_atraso > 0 ? (
+                        {parcela.dias_atraso !== 0 ? (
                           <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold ${
                             parcela.dias_atraso > 90 ? 'bg-red-100 text-red-700' :
                             parcela.dias_atraso > 30 ? 'bg-orange-100 text-orange-700' :
-                            'bg-yellow-100 text-yellow-700'
+                            parcela.dias_atraso > 0 ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-green-100 text-green-700'
                           }`}>
                             {parcela.dias_atraso}d
                           </span>
