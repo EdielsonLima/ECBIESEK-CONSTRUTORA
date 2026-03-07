@@ -219,11 +219,10 @@ export const ExtratoCliente: React.FC = () => {
     doc.setTextColor(100, 100, 100);
     const campos = [
       { label: 'Cliente', valor: extrato.header.cliente },
-      { label: 'Empresa', valor: extrato.header.empresa },
       { label: 'Empreendimento', valor: extrato.header.empreendimento },
       { label: 'Documento', valor: extrato.header.documento },
     ];
-    const colW = (pageWidth - 2 * margin) / 4;
+    const colW = (pageWidth - 2 * margin) / 3;
     campos.forEach((c, i) => {
       const x = margin + i * colW;
       doc.setFont('helvetica', 'normal');
