@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { apiService } from '../services/api';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
 interface Parcela {
   titulo: string;
@@ -163,6 +167,338 @@ export const ExtratoCliente: React.FC = () => {
     });
   };
 
+  const formatCurrencyRaw = (value: number) => {
+    return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const nomeArquivo = (ext: string) => {
+    const cliente = extrato?.header?.cliente || 'cliente';
+    const nome = cliente.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 40);
+    const data = new Date().toISOString().split('T')[0];
+    return `extrato_${nome}_${data}.${ext}`;
+  };
+
+  const exportarPDF = () => {
+    if (!extrato) return;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    let y = 15;
+
+    // Cabeçalho
+    doc.setFillColor(30, 41, 59); // slate-800
+    doc.rect(0, 0, pageWidth, 28, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ECBIESEK CONSTRUTORA', margin, 12);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Extrato do Cliente', margin, 19);
+    const agora = new Date();
+    const dataGeracao = `Gerado em ${agora.toLocaleDateString('pt-BR')} às ${agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    doc.setFontSize(9);
+    doc.text(dataGeracao, pageWidth - margin, 12, { align: 'right' });
+    doc.text('Gestão Financeira - Construtora', pageWidth - margin, 19, { align: 'right' });
+
+    y = 35;
+
+    // Dados do Cliente
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DADOS DO CLIENTE', margin, y);
+    y += 2;
+    doc.setDrawColor(30, 41, 59);
+    doc.setLineWidth(0.5);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 6;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 100, 100);
+    const campos = [
+      { label: 'Cliente', valor: extrato.header.cliente },
+      { label: 'Empresa', valor: extrato.header.empresa },
+      { label: 'Empreendimento', valor: extrato.header.empreendimento },
+      { label: 'Documento', valor: extrato.header.documento },
+    ];
+    const colW = (pageWidth - 2 * margin) / 4;
+    campos.forEach((c, i) => {
+      const x = margin + i * colW;
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(120, 120, 120);
+      doc.text(c.label, x, y);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 41, 59);
+      doc.text(c.valor || '-', x, y + 5);
+    });
+    y += 14;
+
+    // Barra de Progresso
+    const pctRec = extrato.totais.total_original > 0
+      ? (extrato.totais.total_recebido / extrato.totais.total_original * 100) : 0;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 41, 59);
+    doc.text('PROGRESSO DE RECEBIMENTO', margin, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(22, 163, 74); // green-600
+    doc.text(`${pctRec.toFixed(1)}% do valor recebido`, pageWidth - margin, y, { align: 'right' });
+    y += 4;
+
+    const barW = pageWidth - 2 * margin;
+    const barH = 5;
+    doc.setFillColor(229, 231, 235); // gray-200
+    doc.roundedRect(margin, y, barW, barH, 2, 2, 'F');
+    if (pctRec > 0) {
+      doc.setFillColor(34, 197, 94); // green-500
+      doc.roundedRect(margin, y, barW * Math.min(pctRec, 100) / 100, barH, 2, 2, 'F');
+    }
+    y += 10;
+
+    // Resumo Financeiro
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 41, 59);
+    doc.text('RESUMO FINANCEIRO', margin, y);
+    y += 4;
+
+    const cards = [
+      { label: 'Total Original', valor: extrato.totais.total_original, cor: [71, 85, 105] },    // slate
+      { label: 'Total Recebido', valor: extrato.totais.total_recebido, cor: [34, 197, 94] },     // green
+      { label: 'A Receber', valor: extrato.totais.total_a_receber, cor: [59, 130, 246] },        // blue
+      { label: 'Em Atraso', valor: extrato.totais.total_atrasado, cor: [239, 68, 68] },          // red
+      { label: 'Saldo Devedor', valor: extrato.totais.total_a_receber + extrato.totais.total_atrasado, cor: [249, 115, 22] }, // orange
+    ];
+    const cardW = (pageWidth - 2 * margin - 4 * 3) / 5;
+    cards.forEach((card, i) => {
+      const x = margin + i * (cardW + 3);
+      doc.setFillColor(card.cor[0], card.cor[1], card.cor[2]);
+      doc.roundedRect(x, y, cardW, 14, 2, 2, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.text(card.label.toUpperCase(), x + 3, y + 5);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`R$ ${formatCurrencyRaw(card.valor)}`, x + 3, y + 11);
+    });
+    y += 20;
+
+    // Tabela de Parcelas
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 41, 59);
+    doc.text('HISTÓRICO DE PARCELAS', margin, y);
+    y += 3;
+
+    const parcelasOrdenadas = ordenarParcelas(extrato.parcelas);
+    const tableBody = parcelasOrdenadas.map(p => [
+      p.titulo,
+      p.tipo_condicao || '-',
+      formatDate(p.data_vencimento),
+      `R$ ${formatCurrencyRaw(p.valor_original)}`,
+      p.acrescimo > 0 ? `R$ ${formatCurrencyRaw(p.acrescimo)}` : '-',
+      p.dias_atraso > 0 ? `${p.dias_atraso}d` : '-',
+      formatDate(p.data_baixa),
+      p.valor_baixa > 0 ? `R$ ${formatCurrencyRaw(p.valor_baixa)}` : '-',
+      p.status,
+    ]);
+
+    autoTable(doc, {
+      startY: y,
+      head: [['Titulo/Parcela', 'Tipo Condição', 'Vencimento', 'Valor Original', 'Acréscimo', 'Dias Atraso', 'Data Baixa', 'Valor Baixa', 'Status']],
+      body: tableBody,
+      foot: [[
+        'TOTAIS', '', '',
+        `R$ ${formatCurrencyRaw(extrato.totais.total_original)}`,
+        `R$ ${formatCurrencyRaw(extrato.totais.total_acrescimo || 0)}`,
+        '', '',
+        `R$ ${formatCurrencyRaw(extrato.totais.total_recebido)}`,
+        '',
+      ]],
+      theme: 'grid',
+      styles: { fontSize: 7.5, cellPadding: 2, lineColor: [200, 200, 200], lineWidth: 0.2 },
+      headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
+      footStyles: { fillColor: [243, 244, 246], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 8 },
+      alternateRowStyles: { fillColor: [249, 250, 251] },
+      columnStyles: {
+        0: { cellWidth: 28 },
+        3: { halign: 'right' },
+        4: { halign: 'right' },
+        5: { halign: 'center' },
+        7: { halign: 'right' },
+        8: { halign: 'center', cellWidth: 22 },
+      },
+      didParseCell: (data: any) => {
+        if (data.section === 'body' && data.column.index === 8) {
+          const status = data.cell.raw;
+          if (status === 'Recebido') {
+            data.cell.styles.textColor = [22, 163, 74];
+            data.cell.styles.fontStyle = 'bold';
+          } else if (status === 'Atrasado') {
+            data.cell.styles.textColor = [220, 38, 38];
+            data.cell.styles.fontStyle = 'bold';
+          } else {
+            data.cell.styles.textColor = [37, 99, 235];
+            data.cell.styles.fontStyle = 'bold';
+          }
+        }
+        if (data.section === 'body' && data.column.index === 5) {
+          const val = data.cell.raw;
+          if (val !== '-') {
+            data.cell.styles.textColor = [220, 38, 38];
+            data.cell.styles.fontStyle = 'bold';
+          }
+        }
+        if (data.section === 'body' && data.column.index === 4) {
+          const val = data.cell.raw;
+          if (val !== '-') {
+            data.cell.styles.textColor = [234, 88, 12]; // orange
+          }
+        }
+        if (data.section === 'body' && data.column.index === 7) {
+          const val = data.cell.raw;
+          if (val !== '-') {
+            data.cell.styles.textColor = [22, 163, 74]; // green
+          }
+        }
+      },
+      margin: { left: margin, right: margin },
+    });
+
+    // Rodapé em todas as páginas
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      const pageH = doc.internal.pageSize.getHeight();
+      doc.setFillColor(30, 41, 59);
+      doc.rect(0, pageH - 10, pageWidth, 10, 'F');
+      doc.setTextColor(180, 180, 180);
+      doc.setFontSize(7);
+      doc.text(dataGeracao, margin, pageH - 4);
+      doc.text(`ECBIESEK-CONSTRUTORA © ${agora.getFullYear()}`, pageWidth / 2, pageH - 4, { align: 'center' });
+      doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin, pageH - 4, { align: 'right' });
+    }
+
+    doc.save(nomeArquivo('pdf'));
+  };
+
+  const exportarExcel = () => {
+    if (!extrato) return;
+
+    const wb = XLSX.utils.book_new();
+    const wsData: any[][] = [];
+
+    // Título
+    wsData.push(['EXTRATO DO CLIENTE - ECBIESEK CONSTRUTORA']);
+    wsData.push([`Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`]);
+    wsData.push([]);
+
+    // Dados do Cliente
+    wsData.push(['DADOS DO CLIENTE']);
+    wsData.push(['Cliente:', extrato.header.cliente, '', 'Empresa:', extrato.header.empresa]);
+    wsData.push(['Empreendimento:', extrato.header.empreendimento, '', 'Documento:', extrato.header.documento]);
+    wsData.push([]);
+
+    // Resumo Financeiro
+    wsData.push(['RESUMO FINANCEIRO']);
+    wsData.push(['Total Original', 'Total Recebido', 'A Receber', 'Em Atraso', 'Saldo Devedor', '% Recebido']);
+    const pctRec = extrato.totais.total_original > 0
+      ? (extrato.totais.total_recebido / extrato.totais.total_original * 100) : 0;
+    wsData.push([
+      extrato.totais.total_original,
+      extrato.totais.total_recebido,
+      extrato.totais.total_a_receber,
+      extrato.totais.total_atrasado,
+      extrato.totais.total_a_receber + extrato.totais.total_atrasado,
+      pctRec / 100,
+    ]);
+    wsData.push([]);
+
+    // Tabela de Parcelas
+    wsData.push(['HISTÓRICO DE PARCELAS']);
+    wsData.push(['Titulo/Parcela', 'Tipo Condição', 'Vencimento', 'Valor Original', 'Acréscimo', 'Dias Atraso', 'Data Baixa', 'Valor Baixa', 'Status']);
+
+    const parcelasOrdenadas = ordenarParcelas(extrato.parcelas);
+    parcelasOrdenadas.forEach(p => {
+      wsData.push([
+        p.titulo,
+        p.tipo_condicao || '-',
+        formatDate(p.data_vencimento),
+        p.valor_original,
+        p.acrescimo > 0 ? p.acrescimo : null,
+        p.dias_atraso > 0 ? p.dias_atraso : null,
+        formatDate(p.data_baixa),
+        p.valor_baixa > 0 ? p.valor_baixa : null,
+        p.status,
+      ]);
+    });
+
+    // Totais
+    wsData.push([
+      'TOTAIS', '', '',
+      extrato.totais.total_original,
+      extrato.totais.total_acrescimo || 0,
+      '', '',
+      extrato.totais.total_recebido,
+      '',
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Larguras das colunas
+    ws['!cols'] = [
+      { wch: 18 }, // Titulo/Parcela
+      { wch: 20 }, // Tipo Condição
+      { wch: 14 }, // Vencimento
+      { wch: 18 }, // Valor Original
+      { wch: 14 }, // Acréscimo
+      { wch: 12 }, // Dias Atraso
+      { wch: 14 }, // Data Baixa
+      { wch: 18 }, // Valor Baixa
+      { wch: 14 }, // Status
+    ];
+
+    // Merge do título
+    ws['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } },
+    ];
+
+    // Formatar colunas de valor como número
+    const startRow = 13; // row onde começam as parcelas (0-indexed)
+    const totalRows = parcelasOrdenadas.length + 1; // +1 para totais
+    for (let r = startRow; r < startRow + totalRows; r++) {
+      ['D', 'E', 'H'].forEach(col => {
+        const cellRef = `${col}${r + 1}`;
+        if (ws[cellRef] && typeof ws[cellRef].v === 'number') {
+          ws[cellRef].z = '#,##0.00';
+        }
+      });
+    }
+
+    // Formatar % recebido
+    const pctCell = `F${10 + 1}`; // row 10 (0-indexed), col F
+    if (ws[pctCell]) {
+      ws[pctCell].z = '0.0%';
+    }
+
+    // Formatar resumo financeiro como moeda
+    ['A', 'B', 'C', 'D', 'E'].forEach((col, i) => {
+      const cellRef = `${col}${10 + 1}`;
+      if (ws[cellRef] && typeof ws[cellRef].v === 'number') {
+        ws[cellRef].z = '#,##0.00';
+      }
+    });
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Extrato');
+    const wbOut = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbOut], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    saveAs(blob, nomeArquivo('xlsx'));
+  };
+
   // Computed values
   const totais = extrato?.totais;
   const parcelas = extrato?.parcelas || [];
@@ -242,7 +578,25 @@ export const ExtratoCliente: React.FC = () => {
         <>
           {/* Dados do Cliente - Banner */}
           <div className="rounded-lg bg-gradient-to-r from-slate-700 to-slate-900 p-6 shadow-lg text-white">
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-300">Dados do Cliente</h2>
+            <div className="flex items-start justify-between mb-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">Dados do Cliente</h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={exportarPDF}
+                  className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 transition-colors shadow"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                  Exportar PDF
+                </button>
+                <button
+                  onClick={exportarExcel}
+                  className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 transition-colors shadow"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                  Exportar Excel
+                </button>
+              </div>
+            </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
               <div>
                 <p className="text-xs text-slate-400">Cliente</p>
