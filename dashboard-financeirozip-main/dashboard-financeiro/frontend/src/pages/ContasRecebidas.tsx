@@ -3,6 +3,7 @@ import { apiService } from '../services/api';
 import { ContaReceber, EmpresaOption, TipoDocumentoOption, CentroCustoOption } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { SearchableSelect } from '../components/SearchableSelect';
+import { criarPDFBase, adicionarFiltrosAtivos, adicionarResumoCards, adicionarTabela, finalizarPDF, gerarNomeArquivo, formatCurrencyPDF, formatDatePDF } from '../utils/pdfExport';
 
 interface MultiSelectDropdownProps {
   label: string;
@@ -624,6 +625,115 @@ export const ContasRecebidas: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  const exportarPDF = () => {
+    const abaLabel = abaAtiva === 'dados' ? 'Dados' : abaAtiva === 'analises' ? 'Análises' : abaAtiva === 'por-cliente' ? 'Por Cliente' : 'Por Unidade';
+    const { doc, pageWidth, margin, dataGeracao } = criarPDFBase('Contas Recebidas', `Aba: ${abaLabel}`);
+    let y = 34;
+
+    // Filtros ativos
+    const filtros = filtrosAtivos.map(f => {
+      const [label, ...rest] = f.split(': ');
+      return { label, valor: rest.join(': ') };
+    });
+    y = adicionarFiltrosAtivos(doc, filtros, y, pageWidth, margin);
+
+    // Cards resumo
+    const totalVal = totalServidor?.total ?? estatisticas?.valor_total ?? 0;
+    const qtdVal = totalServidor?.quantidade ?? estatisticas?.quantidade_titulos ?? 0;
+    y = adicionarResumoCards(doc, [
+      { label: 'Total Recebido', valor: totalVal, cor: [22, 163, 74] },
+      { label: 'Quantidade', valor: String(qtdVal), cor: [59, 130, 246] },
+      { label: 'Ticket Médio', valor: qtdVal > 0 ? totalVal / qtdVal : 0, cor: [139, 92, 246] },
+    ], y, pageWidth, margin);
+
+    if (abaAtiva === 'dados') {
+      const dados = ordenarContas(contas).slice(0, 500);
+      adicionarTabela(doc, {
+        head: [['Cliente', 'Data Recebimento', 'Titulo', 'Parcela', 'Documento', 'TC', 'Centro Custo', 'Valor']],
+        body: dados.map(c => [
+          c.cliente || '-',
+          formatDatePDF(c.data_recebimento),
+          String(c.titulo || (c as any).lancamento || '-'),
+          String(c.numero_parcela || '-'),
+          c.id_documento || '-',
+          (c as any).tipo_condicao || '-',
+          c.nome_centrocusto || '-',
+          `R$ ${formatCurrencyPDF(c.valor_total || 0)}`,
+        ]),
+        foot: [['TOTAL', '', '', '', '', '', '', `R$ ${formatCurrencyPDF(dados.reduce((s, c) => s + (c.valor_total || 0), 0))}`]],
+        columnStyles: { 7: { halign: 'right' } },
+      }, y, margin);
+    } else if (abaAtiva === 'por-cliente') {
+      const totalGeral = contas.reduce((s, c) => s + (c.valor_total || 0), 0);
+      const agrupado = Object.entries(
+        contas.reduce((acc, c) => {
+          const cli = c.cliente || 'Sem Cliente';
+          if (!acc[cli]) acc[cli] = { valor: 0, qtd: 0 };
+          acc[cli].valor += c.valor_total || 0;
+          acc[cli].qtd++;
+          return acc;
+        }, {} as Record<string, { valor: number; qtd: number }>)
+      ).sort((a, b) => b[1].valor - a[1].valor);
+
+      let acum = 0;
+      const body = agrupado.map(([cli, d], i) => {
+        const pct = totalGeral > 0 ? (d.valor / totalGeral * 100) : 0;
+        acum += pct;
+        return [String(i + 1), cli, String(d.qtd), `R$ ${formatCurrencyPDF(d.valor)}`, `${pct.toFixed(2)}%`, `${acum.toFixed(2)}%`];
+      });
+
+      adicionarTabela(doc, {
+        head: [['#', 'Cliente', 'Qtd Títulos', 'Valor', '% do Total', '% Acumulado']],
+        body,
+        foot: [['', 'TOTAL', String(contas.length), `R$ ${formatCurrencyPDF(totalGeral)}`, '100%', '']],
+        columnStyles: { 0: { halign: 'center', cellWidth: 10 }, 2: { halign: 'center' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } },
+        didParseCell: (data: any) => {
+          if (data.section === 'body' && data.column.index === 5) {
+            const val = parseFloat(data.cell.raw);
+            if (val <= 80) { data.cell.styles.textColor = [22, 163, 74]; data.cell.styles.fontStyle = 'bold'; }
+            else if (val <= 95) { data.cell.styles.textColor = [202, 138, 4]; data.cell.styles.fontStyle = 'bold'; }
+            else { data.cell.styles.textColor = [220, 38, 38]; data.cell.styles.fontStyle = 'bold'; }
+          }
+        },
+      }, y, margin);
+    } else if (abaAtiva === 'por-unidade') {
+      const totalGeral = contas.reduce((s, c) => s + (c.valor_total || 0), 0);
+      const agrupado = Object.entries(
+        contas.reduce((acc, c) => {
+          const unidade = (c.numero_documento || c.id_documento || '').trim() || 'Sem Unidade';
+          if (!acc[unidade]) acc[unidade] = { valor: 0, qtd: 0 };
+          acc[unidade].valor += c.valor_total || 0;
+          acc[unidade].qtd++;
+          return acc;
+        }, {} as Record<string, { valor: number; qtd: number }>)
+      ).sort((a, b) => b[1].valor - a[1].valor);
+
+      let acum = 0;
+      const body = agrupado.map(([uni, d], i) => {
+        const pct = totalGeral > 0 ? (d.valor / totalGeral * 100) : 0;
+        acum += pct;
+        return [String(i + 1), uni, String(d.qtd), `R$ ${formatCurrencyPDF(d.valor)}`, `${pct.toFixed(2)}%`, `${acum.toFixed(2)}%`];
+      });
+
+      adicionarTabela(doc, {
+        head: [['#', 'Unidade', 'Qtd Títulos', 'Valor', '% do Total', '% Acumulado']],
+        body,
+        foot: [['', 'TOTAL', String(contas.length), `R$ ${formatCurrencyPDF(totalGeral)}`, '100%', '']],
+        columnStyles: { 0: { halign: 'center', cellWidth: 10 }, 2: { halign: 'center' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } },
+        didParseCell: (data: any) => {
+          if (data.section === 'body' && data.column.index === 5) {
+            const val = parseFloat(data.cell.raw);
+            if (val <= 80) { data.cell.styles.textColor = [22, 163, 74]; data.cell.styles.fontStyle = 'bold'; }
+            else if (val <= 95) { data.cell.styles.textColor = [202, 138, 4]; data.cell.styles.fontStyle = 'bold'; }
+            else { data.cell.styles.textColor = [220, 38, 38]; data.cell.styles.fontStyle = 'bold'; }
+          }
+        },
+      }, y, margin);
+    }
+
+    finalizarPDF(doc, gerarNomeArquivo('contas_recebidas', abaLabel), dataGeracao);
+  };
+
   if (loading) {
     return (
       <div className="flex h-96 items-center justify-center">
@@ -861,6 +971,17 @@ export const ContasRecebidas: React.FC = () => {
           )}
         </p>
         <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={exportarPDF}
+            disabled={contas.length === 0}
+            className="flex items-center rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50"
+          >
+            <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+            Exportar PDF
+          </button>
           <button
             type="button"
             onClick={exportarCSV}

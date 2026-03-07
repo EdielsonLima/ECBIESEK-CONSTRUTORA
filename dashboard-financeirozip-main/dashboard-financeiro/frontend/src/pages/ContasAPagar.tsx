@@ -2,6 +2,7 @@
 import { apiService } from '../services/api';
 import { ContaPagar, EmpresaOption, CentroCustoOption, TipoDocumentoOption } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList, Line, ComposedChart } from 'recharts';
+import { criarPDFBase, adicionarFiltrosAtivos, adicionarResumoCards, adicionarTabela, finalizarPDF, gerarNomeArquivo, formatCurrencyPDF, formatDatePDF } from '../utils/pdfExport';
 
 interface MultiSelectDropdownProps {
   label: string;
@@ -580,6 +581,264 @@ export const ContasAPagar: React.FC = () => {
     return Array.from(credorSet).sort((a, b) => a.localeCompare(b));
   }, [todasContas]);
 
+  const exportarPDF = () => {
+    const abaLabels: Record<AbaAtiva, string> = {
+      'dados': 'Dados',
+      'analises': 'Analises',
+      'por-credor': 'Por Credor',
+      'por-centro-custo': 'Por Centro de Custo',
+      'por-semana': 'Por Semana',
+      'por-origem': 'Por Origem',
+    };
+    const abaLabel = abaLabels[abaAtiva] || abaAtiva;
+    const { doc, pageWidth, margin, y: startY, dataGeracao } = criarPDFBase('Contas a Pagar', `Aba: ${abaLabel}`);
+    let y = startY;
+
+    // Filtros ativos
+    const filtros = [
+      { label: 'Empresa', valor: filtroEmpresa.length > 0 ? filtroEmpresa.map(id => empresas.find(e => e.id === id)?.nome).filter(Boolean).join(', ') : 'Todos' },
+      { label: 'Centro de Custo', valor: filtroCentroCusto.length > 0 ? filtroCentroCusto.map(id => centrosCusto.find(c => c.id === id)?.nome).filter(Boolean).join(', ') : 'Todos' },
+      { label: 'Credor', valor: filtroCredor.length > 0 ? (filtroCredor.length <= 3 ? filtroCredor.join(', ') : `${filtroCredor.length} credores`) : 'Todos' },
+      { label: 'Classificacao', valor: filtroClassificacao.length > 0 ? filtroClassificacao.join(', ') : 'Todos' },
+      { label: 'Prazo', valor: filtroPrazo !== 'todos' ? (getPrazoNome(filtroPrazo) || filtroPrazo) : 'Todos' },
+      { label: 'Ano', valor: filtroAno.length > 0 ? filtroAno.join(', ') : 'Todos' },
+      { label: 'Mes', valor: filtroMes.length > 0 ? filtroMes.map(m => meses.find(mes => mes.valor === m)?.nome).filter(Boolean).join(', ') : 'Todos' },
+      { label: 'Tipo Documento', valor: filtroTipoDocumento.length > 0 ? filtroTipoDocumento.join(', ') : 'Todos' },
+    ];
+    y = adicionarFiltrosAtivos(doc, filtros, y, pageWidth, margin);
+
+    // Cards de resumo
+    if (estatisticas) {
+      const contasHojePDF = contas.filter(c => calcularDiasAteVencimento(c.data_vencimento as any) === 0);
+      const contas7diasPDF = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 7; });
+      const contas15diasPDF = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 15; });
+      const contas30diasPDF = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 30; });
+      const valorHojePDF = contasHojePDF.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+      const valor7diasPDF = contas7diasPDF.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+      const valor15diasPDF = contas15diasPDF.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+      const valor30diasPDF = contas30diasPDF.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+
+      y = adicionarResumoCards(doc, [
+        { label: 'Total a Pagar', valor: estatisticas.valor_total, cor: [59, 130, 246] },
+        { label: 'Vencendo Hoje', valor: valorHojePDF, cor: [249, 115, 22] },
+        { label: 'Proximos 7 dias', valor: valor7diasPDF, cor: [168, 85, 247] },
+        { label: 'Proximos 15 dias', valor: valor15diasPDF, cor: [20, 184, 166] },
+        { label: 'Proximos 30 dias', valor: valor30diasPDF, cor: [99, 102, 241] },
+      ], y, pageWidth, margin);
+    }
+
+    if (abaAtiva === 'dados') {
+      const contasOrdenadas = ordenarContas(contas);
+      y = adicionarTabela(doc, {
+        head: [['Credor', 'Vencimento', 'Dias', 'Valor', 'Titulo', 'Centro de Custo', 'Tipo Doc.']],
+        body: contasOrdenadas.map(c => {
+          const dias = calcularDiasAteVencimento(c.data_vencimento as any);
+          const diasStr = dias < 0 ? `${Math.abs(dias)}d atraso` : dias === 0 ? 'Hoje' : `${dias}d`;
+          return [
+            c.credor || '-',
+            formatDatePDF(c.data_vencimento),
+            diasStr,
+            `R$ ${formatCurrencyPDF(c.valor_total || 0)}`,
+            c.lancamento ? c.lancamento.split('/')[0] : '-',
+            (c as any).nome_centrocusto || '-',
+            c.id_documento || '-',
+          ];
+        }),
+        foot: [['TOTAL', '', '', `R$ ${formatCurrencyPDF(contas.reduce((a, c) => a + (c.valor_total || 0), 0))}`, '', '', '']],
+        columnStyles: { 3: { halign: 'right' } },
+      }, y, margin);
+    } else if (abaAtiva === 'por-credor') {
+      // Recalculate Pareto data for PDF
+      const credorMapPDF = new Map<string, { valor: number; quantidade: number }>();
+      contas.forEach(c => {
+        const credor = c.credor || 'Sem Credor';
+        const atual = credorMapPDF.get(credor) || { valor: 0, quantidade: 0 };
+        credorMapPDF.set(credor, { valor: atual.valor + (c.valor_total || 0), quantidade: atual.quantidade + 1 });
+      });
+      const credoresPorValorPDF = Array.from(credorMapPDF.entries())
+        .map(([credor, data]) => ({ credor, ...data }))
+        .sort((a, b) => b.valor - a.valor);
+      const totalGeralCredor = credoresPorValorPDF.reduce((acc, c) => acc + c.valor, 0);
+      let acumCredor = 0;
+      const credoresParetoPDF = credoresPorValorPDF.map((c, i) => {
+        const pct = totalGeralCredor > 0 ? (c.valor / totalGeralCredor) * 100 : 0;
+        acumCredor += pct;
+        return { ...c, rank: i + 1, percentual: pct, acumulado: acumCredor };
+      });
+
+      y = adicionarTabela(doc, {
+        head: [['#', 'Credor', 'Qtd', 'Valor', '%', '% Acumulado']],
+        body: credoresParetoPDF.map(c => [
+          String(c.rank),
+          c.credor,
+          String(c.quantidade),
+          `R$ ${formatCurrencyPDF(c.valor)}`,
+          `${c.percentual.toFixed(2)}%`,
+          `${c.acumulado.toFixed(2)}%`,
+        ]),
+        foot: [['', 'TOTAL', String(contas.length), `R$ ${formatCurrencyPDF(totalGeralCredor)}`, '100,00%', '']],
+        columnStyles: { 0: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } },
+      }, y, margin);
+    } else if (abaAtiva === 'por-centro-custo') {
+      const ccMapPDF = new Map<string, { valor: number; quantidade: number }>();
+      contas.forEach(c => {
+        const cc = (c as any).nome_centrocusto || 'Sem Centro de Custo';
+        const atual = ccMapPDF.get(cc) || { valor: 0, quantidade: 0 };
+        ccMapPDF.set(cc, { valor: atual.valor + (c.valor_total || 0), quantidade: atual.quantidade + 1 });
+      });
+      const ccPorValorPDF = Array.from(ccMapPDF.entries())
+        .map(([centroCusto, data]) => ({ centroCusto, ...data }))
+        .sort((a, b) => b.valor - a.valor);
+      const totalGeralCC = ccPorValorPDF.reduce((acc, c) => acc + c.valor, 0);
+      let acumCC = 0;
+      const ccParetoPDF = ccPorValorPDF.map((c, i) => {
+        const pct = totalGeralCC > 0 ? (c.valor / totalGeralCC) * 100 : 0;
+        acumCC += pct;
+        return { ...c, rank: i + 1, percentual: pct, acumulado: acumCC };
+      });
+
+      y = adicionarTabela(doc, {
+        head: [['#', 'Centro de Custo', 'Qtd', 'Valor', '%', '% Acumulado']],
+        body: ccParetoPDF.map(c => [
+          String(c.rank),
+          c.centroCusto,
+          String(c.quantidade),
+          `R$ ${formatCurrencyPDF(c.valor)}`,
+          `${c.percentual.toFixed(2)}%`,
+          `${c.acumulado.toFixed(2)}%`,
+        ]),
+        foot: [['', 'TOTAL', String(contas.length), `R$ ${formatCurrencyPDF(totalGeralCC)}`, '100,00%', '']],
+        columnStyles: { 0: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } },
+      }, y, margin);
+    } else if (abaAtiva === 'por-semana') {
+      const getWeekNumberPDF = (d: Date): [number, number] => {
+        const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+        const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+        const weekNo = Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+        return [date.getUTCFullYear(), weekNo];
+      };
+      const getWeekDatesPDF = (year: number, week: number): [Date, Date] => {
+        const jan1 = new Date(year, 0, 1);
+        const dayOffset = jan1.getDay() <= 4 ? jan1.getDay() - 1 : jan1.getDay() - 8;
+        const startDate = new Date(year, 0, 1 + (week - 1) * 7 - dayOffset);
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 6);
+        return [startDate, endDate];
+      };
+      const formatDateShortPDF = (d: Date) => {
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const yy = String(d.getFullYear()).slice(2);
+        return `${dd}/${mm}/${yy}`;
+      };
+
+      const semanaMapPDF = new Map<number, { valor: number; quantidade: number }>();
+      contasAno.forEach(c => {
+        if (!c.data_vencimento) return;
+        const dv = new Date(c.data_vencimento.split('T')[0]);
+        const [ano, semana] = getWeekNumberPDF(dv);
+        if (ano !== filtroAnoSemana) return;
+        if (filtroSemanas.length > 0 && !filtroSemanas.includes(semana)) return;
+        const atual = semanaMapPDF.get(semana) || { valor: 0, quantidade: 0 };
+        semanaMapPDF.set(semana, { valor: atual.valor + (c.valor_total || 0), quantidade: atual.quantidade + 1 });
+      });
+
+      const semanasOrdPDF: { semana: number; periodo: string; valor: number; quantidade: number }[] = [];
+      for (let s = 1; s <= 52; s++) {
+        const [inicio, fim] = getWeekDatesPDF(filtroAnoSemana, s);
+        const dados = semanaMapPDF.get(s) || { valor: 0, quantidade: 0 };
+        if (filtroSemanas.length > 0 && !filtroSemanas.includes(s)) continue;
+        if (dados.valor === 0 && dados.quantidade === 0) continue;
+        semanasOrdPDF.push({ semana: s, periodo: `${formatDateShortPDF(inicio)} - ${formatDateShortPDF(fim)}`, ...dados });
+      }
+
+      const totalGeralSem = semanasOrdPDF.reduce((acc, s) => acc + s.valor, 0);
+      let acumSem = 0;
+      const semanasPorValorPDF = [...semanasOrdPDF].sort((a, b) => b.valor - a.valor);
+      const rankMapPDF = new Map<number, { rank: number; percentual: number; acumulado: number }>();
+      semanasPorValorPDF.forEach((s, i) => {
+        const pct = totalGeralSem > 0 ? (s.valor / totalGeralSem) * 100 : 0;
+        acumSem += pct;
+        rankMapPDF.set(s.semana, { rank: i + 1, percentual: pct, acumulado: acumSem });
+      });
+
+      // Subtitle with year
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Ano: ${filtroAnoSemana}${filtroSemanas.length > 0 ? ` | Semanas: ${filtroSemanas.join(', ')}` : ''}`, margin, y);
+      y += 5;
+
+      y = adicionarTabela(doc, {
+        head: [['Sem.', 'Periodo', 'Qtd', 'Valor', '%', '% Acum']],
+        body: semanasOrdPDF.map(s => {
+          const pareto = rankMapPDF.get(s.semana) || { rank: 0, percentual: 0, acumulado: 0 };
+          return [
+            `S${s.semana}`,
+            s.periodo,
+            String(s.quantidade),
+            `R$ ${formatCurrencyPDF(s.valor)}`,
+            `${pareto.percentual.toFixed(2)}%`,
+            `${pareto.acumulado.toFixed(2)}%`,
+          ];
+        }),
+        foot: [['Total', '-', String(semanasOrdPDF.reduce((a, s) => a + s.quantidade, 0)), `R$ ${formatCurrencyPDF(totalGeralSem)}`, '100,00%', '']],
+        columnStyles: { 0: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } },
+      }, y, margin);
+    } else if (abaAtiva === 'por-origem') {
+      const NOMES_ORIGEM_PDF: Record<string, string> = {
+        'CP': 'Contas a Pagar', 'AC': 'Acordo', 'ME': 'Medicao', 'CO': 'Contrato',
+        'NF': 'Nota Fiscal', 'GR': 'Guia de Recolhimento', 'RE': 'Recibo',
+        'BO': 'Boleto', 'CH': 'Cheque', 'DP': 'Deposito',
+      };
+      const origemMapPDF = new Map<string, { valor: number; quantidade: number }>();
+      contas.forEach(c => {
+        const origem = (c.id_origem || 'Outros').trim();
+        const atual = origemMapPDF.get(origem) || { valor: 0, quantidade: 0 };
+        origemMapPDF.set(origem, { valor: atual.valor + (c.valor_total || 0), quantidade: atual.quantidade + 1 });
+      });
+      const origensOrdPDF = Array.from(origemMapPDF.entries())
+        .map(([origem, data]) => ({ origem, ...data }))
+        .sort((a, b) => b.valor - a.valor);
+      const totalGeralOrig = origensOrdPDF.reduce((acc, o) => acc + o.valor, 0);
+      let acumOrig = 0;
+      const origensParetoPDF = origensOrdPDF.map((o, i) => {
+        const pct = totalGeralOrig > 0 ? (o.valor / totalGeralOrig) * 100 : 0;
+        acumOrig += pct;
+        return { ...o, rank: i + 1, percentual: pct, acumulado: acumOrig };
+      });
+
+      y = adicionarTabela(doc, {
+        head: [['#', 'Origem', 'Descricao', 'Qtd', 'Valor', '%', '% Acumulado']],
+        body: origensParetoPDF.map(o => [
+          String(o.rank),
+          o.origem,
+          NOMES_ORIGEM_PDF[o.origem] || '-',
+          String(o.quantidade),
+          `R$ ${formatCurrencyPDF(o.valor)}`,
+          `${o.percentual.toFixed(2)}%`,
+          `${o.acumulado.toFixed(2)}%`,
+        ]),
+        foot: [['', 'TOTAL', '', String(origensParetoPDF.reduce((a, o) => a + o.quantidade, 0)), `R$ ${formatCurrencyPDF(totalGeralOrig)}`, '100,00%', '']],
+        columnStyles: { 0: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } },
+      }, y, margin);
+    } else if (abaAtiva === 'analises') {
+      // Export vencimento breakdown table
+      y = adicionarTabela(doc, {
+        head: [['Faixa de Vencimento', 'Quantidade', 'Valor']],
+        body: dadosPorVencimento.map(d => [
+          d.faixa,
+          String(d.quantidade),
+          `R$ ${formatCurrencyPDF(d.valor)}`,
+        ]),
+        foot: [['TOTAL', String(dadosPorVencimento.reduce((a, d) => a + d.quantidade, 0)), `R$ ${formatCurrencyPDF(dadosPorVencimento.reduce((a, d) => a + d.valor, 0))}`]],
+        columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' } },
+      }, y, margin);
+    }
+
+    finalizarPDF(doc, gerarNomeArquivo('contas_a_pagar', abaLabel), dataGeracao);
+  };
+
   if (loading) {
     return (
       <div className="flex h-96 items-center justify-center">
@@ -1059,6 +1318,13 @@ export const ContasAPagar: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
                 {salvandoSnapshot ? 'Salvando...' : 'Salvar Snapshot'}
+              </button>
+              <button type="button" onClick={exportarPDF} disabled={contas.length === 0}
+                className="flex items-center rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50">
+                <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                Exportar PDF
               </button>
               {snapshotMsg && (
                 <span className={`text-sm ${snapshotMsg.includes('Erro') ? 'text-red-600' : 'text-green-600'}`}>{snapshotMsg}</span>
