@@ -5143,18 +5143,31 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 ON idx_b.id_indexador = car.id_indexador
                 AND idx_b.data_indexador = car.data_indexador"""
 
-        if usar_incc_manual:
-            # INCC manual: calcula correção para recebidas também
-            rec_valor_corrigido = """
+        # Recebidas: sempre usa LATERAL JOIN para detectar indexador e calcular INCC quando necessário
+        # Heurística: se titulo tem indexador > 0 (INCC) E valor_baixa está próximo do valor_vencimento,
+        # usa valor_vencimento como nominal e calcula correção INCC. Senão, usa valor_baixa (REAL).
+        rec_valor_nominal = """
                     CASE
-                        WHEN idx_base.valor_indexador IS NOT NULL AND idx_base.valor_indexador > 0
-                        THEN ROUND(
-                            SUM(cr.valor_baixa) / idx_base.valor_indexador * ui.valor_indexador, 2)
+                        WHEN titulo_info.id_indexador > 0
+                             AND titulo_info.valor_vencimento IS NOT NULL
+                             AND SUM(cr.valor_baixa) >= titulo_info.valor_vencimento * 0.95
+                             AND SUM(cr.valor_baixa) <= titulo_info.valor_vencimento * 1.05
+                        THEN titulo_info.valor_vencimento
+                        ELSE SUM(cr.valor_baixa)
+                    END as valor_nominal,"""
+        rec_valor_corrigido = """
+                    CASE
+                        WHEN titulo_info.id_indexador > 0
+                             AND idx_base.valor_indexador IS NOT NULL AND idx_base.valor_indexador > 0
+                             AND titulo_info.valor_vencimento IS NOT NULL
+                             AND SUM(cr.valor_baixa) >= titulo_info.valor_vencimento * 0.95
+                             AND SUM(cr.valor_baixa) <= titulo_info.valor_vencimento * 1.05
+                        THEN ROUND(titulo_info.valor_vencimento / idx_base.valor_indexador * ui.valor_indexador, 2)
                         ELSE SUM(cr.valor_baixa)
                     END as valor_corrigido,"""
-            rec_joins = """
+        rec_joins = """
                 LEFT JOIN LATERAL (
-                    SELECT car3.data_indexador, car3.id_indexador
+                    SELECT car3.data_indexador, car3.id_indexador, car3.valor_vencimento
                     FROM contas_a_receber car3
                     WHERE car3.cliente = cr.cliente
                     AND SPLIT_PART(car3.lancamento, '/', 1) = cr.titulo::TEXT
@@ -5165,12 +5178,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 LEFT JOIN ecadindexhist idx_base
                     ON idx_base.id_indexador = COALESCE(titulo_info.id_indexador, 3)
                     AND idx_base.data_indexador = COALESCE(titulo_info.data_indexador, cr.data_calculo)"""
-            rec_group_extra = ", idx_base.valor_indexador, ui.valor_indexador, titulo_info.data_indexador, titulo_info.id_indexador"
-        else:
-            # Padrão: recebidas usa valor_baixa (valor efetivamente pago)
-            rec_valor_corrigido = "SUM(cr.valor_baixa) as valor_corrigido,"
-            rec_joins = ""
-            rec_group_extra = ""
+        rec_group_extra = ", idx_base.valor_indexador, ui.valor_indexador, titulo_info.data_indexador, titulo_info.id_indexador, titulo_info.valor_vencimento"
 
         query = f"""
             {cte_ultimo_incc}
@@ -5191,7 +5199,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                         ELSE cr.tc
                     END as tipo_condicao,
                     cr.data_vencimento,
-                    SUM(cr.valor_baixa) as valor_nominal,
+                    {rec_valor_nominal}
                     {rec_valor_corrigido}
                     SUM(cr.valor_acrescimo) as acrescimo,
                     SUM(cr.valor_desconto) as desconto,
