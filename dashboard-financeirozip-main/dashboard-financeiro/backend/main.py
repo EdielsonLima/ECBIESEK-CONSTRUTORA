@@ -5097,6 +5097,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 SELECT id_indexador, valor_indexador, data_indexador
                 FROM ecadindexhist
                 WHERE id_indexador = 3
+                  AND data_indexador <= (date_trunc('month', CURRENT_DATE) - interval '2 months')::date
                 ORDER BY data_indexador DESC
                 LIMIT 1
             ),
