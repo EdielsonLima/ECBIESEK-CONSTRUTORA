@@ -40,6 +40,7 @@ interface ExtratoData {
     total_a_receber: number;
     total_atrasado: number;
     total_acrescimo: number;
+    total_saldo_atual: number;
     quantidade_parcelas: number;
   };
   calculo_incc_manual?: boolean;
@@ -342,8 +343,9 @@ export const ExtratoCliente: React.FC = () => {
         `R$ ${formatCurrencyRaw(extrato.totais.total_nominal)}`,
         `R$ ${formatCurrencyRaw(extrato.totais.total_correcao || 0)}`,
         `R$ ${formatCurrencyRaw(extrato.totais.total_corrigido)}`,
+        `R$ ${formatCurrencyRaw(extrato.totais.total_saldo_atual || 0)}`,
         `R$ ${formatCurrencyRaw(extrato.totais.total_acrescimo || 0)}`,
-        '', '', '', '',
+        '', '', '',
         `R$ ${formatCurrencyRaw(extrato.totais.total_recebido)}`,
         '',
       ]],
@@ -485,8 +487,9 @@ export const ExtratoCliente: React.FC = () => {
       extrato.totais.total_nominal,
       extrato.totais.total_correcao || 0,
       extrato.totais.total_corrigido,
+      extrato.totais.total_saldo_atual || 0,
       extrato.totais.total_acrescimo || 0,
-      '', '', '', '',
+      '', '', '',
       extrato.totais.total_recebido,
       '',
     ]);
@@ -954,7 +957,9 @@ export const ExtratoCliente: React.FC = () => {
                     <td className="whitespace-nowrap px-3 py-3 text-right text-sm text-indigo-700">
                       {formatCurrency(extrato.totais.total_corrigido)}
                     </td>
-                    <td></td>
+                    <td className="whitespace-nowrap px-3 py-3 text-right text-sm text-blue-600">
+                      {formatCurrency(extrato.totais.total_saldo_atual || 0)}
+                    </td>
                     <td className="whitespace-nowrap px-3 py-3 text-right text-sm text-orange-600">
                       {formatCurrency(extrato.totais.total_acrescimo || 0)}
                     </td>

@@ -906,6 +906,7 @@ export const apiService = {
       total_a_receber: number;
       total_atrasado: number;
       total_acrescimo: number;
+      total_saldo_atual: number;
       quantidade_parcelas: number;
     };
     calculo_incc_manual: boolean;
