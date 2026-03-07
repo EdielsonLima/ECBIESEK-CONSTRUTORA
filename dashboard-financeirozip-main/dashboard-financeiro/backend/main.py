@@ -5224,7 +5224,10 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 r.desconto,
                 r.data_baixa,
                 r.valor_baixa,
-                0 as dias_atraso,
+                CASE
+                    WHEN r.data_baixa > r.data_vencimento THEN r.data_baixa - r.data_vencimento
+                    ELSE 0
+                END as dias_atraso,
                 'Recebido' as status,
                 cc.nome_empresa as empresa,
                 cc.nome_centrocusto as empreendimento,
