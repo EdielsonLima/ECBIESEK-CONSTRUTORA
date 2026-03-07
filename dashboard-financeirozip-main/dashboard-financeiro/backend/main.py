@@ -5138,10 +5138,17 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                     END as valor_corrigido,"""
             rec_joins = """
                 CROSS JOIN ultimo_incc ui
+                LEFT JOIN LATERAL (
+                    SELECT car3.data_indexador
+                    FROM contas_a_receber car3
+                    WHERE car3.cliente = cr.cliente
+                    AND SPLIT_PART(car3.lancamento, '/', 1) = cr.titulo::TEXT
+                    LIMIT 1
+                ) titulo_info ON TRUE
                 LEFT JOIN ecadindexhist idx_base
                     ON idx_base.id_indexador = 3
-                    AND idx_base.data_indexador = cr.data_calculo"""
-            rec_group_extra = ", idx_base.valor_indexador, ui.valor_indexador"
+                    AND idx_base.data_indexador = COALESCE(titulo_info.data_indexador, cr.data_calculo)"""
+            rec_group_extra = ", idx_base.valor_indexador, ui.valor_indexador, titulo_info.data_indexador"
             ar_valor_corrigido = """
                 CASE
                     WHEN car.id_indexador IS NOT NULL AND car.id_indexador > 0

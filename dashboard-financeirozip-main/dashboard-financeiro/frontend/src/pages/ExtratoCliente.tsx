@@ -555,6 +555,11 @@ export const ExtratoCliente: React.FC = () => {
   const pctAtrasado = totalParcelas > 0 ? (parcelasAtrasadas / totalParcelas * 100) : 0;
   const pctValorRecebido = totais && totais.total_corrigido > 0 ? (totais.total_recebido / totais.total_corrigido * 100) : 0;
 
+  // Próxima parcela a vencer (primeira "A Receber" ordenada por data)
+  const proximaParcela = parcelas
+    .filter(p => p.status === 'A Receber')
+    .sort((a, b) => String(a.data_vencimento || '').localeCompare(String(b.data_vencimento || '')))[0] || null;
+
   if (loadingClientes) {
     return (
       <div className="flex h-96 items-center justify-center">
@@ -766,6 +771,34 @@ export const ExtratoCliente: React.FC = () => {
             </div>
           </div>
 
+          {/* Card Próximo Vencimento */}
+          {proximaParcela && (
+            <div className="rounded-lg bg-gradient-to-r from-purple-600 to-violet-800 p-5 shadow-lg text-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20">
+                    <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-purple-200 uppercase tracking-wider">Próximo Vencimento</p>
+                    <p className="text-lg font-bold">{proximaParcela.titulo} — {formatDate(proximaParcela.data_vencimento)}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-purple-200">Valor a Cobrar</p>
+                  <p className="text-2xl font-bold">{formatCurrency(proximaParcela.valor_corrigido)}</p>
+                  {proximaParcela.correcao_monetaria > 0 && (
+                    <p className="text-xs text-purple-300">
+                      Nominal: {formatCurrency(proximaParcela.valor_nominal)} + Correção: {formatCurrency(proximaParcela.correcao_monetaria)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Historico de Parcelas */}
           <div className="rounded-lg bg-white shadow overflow-hidden">
             <div className="p-6 pb-3">
@@ -815,7 +848,11 @@ export const ExtratoCliente: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
                   {ordenarParcelas(extrato.parcelas).map((parcela, index) => (
-                    <tr key={index} className={`hover:bg-gray-50 ${parcela.status === 'Atrasado' ? 'bg-red-50/30' : ''}`}>
+                    <tr key={index} className={`hover:bg-gray-50 ${
+                      proximaParcela && parcela.titulo === proximaParcela.titulo
+                        ? 'bg-purple-50 ring-2 ring-inset ring-purple-300'
+                        : parcela.status === 'Atrasado' ? 'bg-red-50/30' : ''
+                    }`}>
                       <td className="whitespace-nowrap px-3 py-3 text-sm font-medium text-gray-900">
                         {parcela.titulo}
                       </td>
