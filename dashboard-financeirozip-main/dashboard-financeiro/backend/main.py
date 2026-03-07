@@ -5207,7 +5207,14 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                     SUM(cr.valor_baixa) + SUM(cr.valor_acrescimo) - SUM(cr.valor_desconto) as valor_baixa,
                     cr.id_interno_empresa,
                     cr.id_interno_centro_custo,
-                    COALESCE(titulo_info.id_indexador, 0) as id_indexador,
+                    CASE
+                        WHEN titulo_info.id_indexador > 0
+                             AND titulo_info.valor_vencimento IS NOT NULL
+                             AND SUM(cr.valor_baixa) >= titulo_info.valor_vencimento * 0.95
+                             AND SUM(cr.valor_baixa) <= titulo_info.valor_vencimento * 1.05
+                        THEN titulo_info.id_indexador
+                        ELSE 0
+                    END as id_indexador,
                     MAX(cr.parcela_total) as parcela_total
                 FROM contas_recebidas cr
                 {rec_joins}
@@ -5356,12 +5363,17 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
             else:
                 total_a_receber += valor_corrigido
 
-            parcela_total = row.get('parcela_total') or row['parcela']
+            # Extrair número do título (ex: "2394/1" -> "2394")
+            titulo_str = row['titulo'] or ''
+            titulo_num = titulo_str.split('/')[0] if '/' in titulo_str else titulo_str
+            indice_val = row['indice'] or 'REAL'
 
             parcelas.append({
                 "titulo": row['titulo'],
                 "parcela": row['parcela'],
-                "parcela_display": f"{row['parcela']}/{parcela_total}",
+                "_titulo_num": titulo_num,
+                "_indice": indice_val,
+                "_data_vencimento_raw": str(row['data_vencimento']) if row['data_vencimento'] else '',
                 "tipo_condicao": tipo_cond,
                 "data_vencimento": str(row['data_vencimento']) if row['data_vencimento'] else None,
                 "valor_nominal": valor_nominal,
@@ -5374,8 +5386,35 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 "valor_baixa": valor_baixa,
                 "dias_atraso": row['dias_atraso'] or 0,
                 "status": row['status'],
-                "indice": row['indice'] or 'REAL',
+                "indice": indice_val,
             })
+
+        # Agrupar parcelas por título+índice e numerar sequencialmente (como Sienge)
+        # Parcelas REAL são sempre 1/1 (cada uma é independente)
+        from collections import defaultdict
+        grupos = defaultdict(list)
+        for p in parcelas:
+            grupo_key = (p['_titulo_num'], p['_indice'])
+            grupos[grupo_key].append(p)
+
+        for grupo_key, grupo_parcelas in grupos.items():
+            titulo_num, indice = grupo_key
+            if indice == 'REAL':
+                # REAL: cada parcela é independente = 1/1
+                for p in grupo_parcelas:
+                    p['parcela_display'] = "1/1"
+            else:
+                # INCC/IGPM/IPCA: numerar sequencialmente por data
+                grupo_parcelas.sort(key=lambda x: x['_data_vencimento_raw'])
+                total_grupo = len(grupo_parcelas)
+                for i, p in enumerate(grupo_parcelas, 1):
+                    p['parcela_display'] = f"{i}/{total_grupo}"
+
+        # Limpar campos temporários
+        for p in parcelas:
+            del p['_titulo_num']
+            del p['_indice']
+            del p['_data_vencimento_raw']
 
         totais = {
             "total_nominal": total_nominal,
