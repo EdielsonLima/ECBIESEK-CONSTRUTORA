@@ -5105,7 +5105,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                         ELSE tc
                     END as tipo_condicao,
                     data_vencimento,
-                    MAX(valor_baixa) as valor_original,
+                    SUM(valor_baixa) as valor_original,
                     SUM(valor_acrescimo) as acrescimo,
                     MAX(data_recebimento) as data_baixa,
                     SUM(valor_baixa) + SUM(valor_acrescimo) as valor_baixa,
