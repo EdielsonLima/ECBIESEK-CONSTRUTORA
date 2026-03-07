@@ -1278,13 +1278,13 @@ export const ContasAReceber: React.FC = () => {
                         <React.Fragment key={index}>
                           <tr
                             onClick={() => setUnidadeExpandida(unidadeExpandida === u.unidade ? null : u.unidade)}
-                            className={`cursor-pointer hover:bg-gray-50 transition-colors ${unidadeExpandida === u.unidade ? 'bg-green-50/50' : u.acumulado <= 80 ? 'bg-green-50/30' : u.acumulado <= 95 ? 'bg-yellow-50/30' : ''}`}
+                            className={`cursor-pointer transition-colors ${unidadeExpandida === u.unidade ? 'bg-green-100 border-l-4 border-green-600 shadow-sm' : `hover:bg-gray-50 ${u.acumulado <= 80 ? 'bg-green-50/30' : u.acumulado <= 95 ? 'bg-yellow-50/30' : ''}`}`}
                           >
                             <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-400 font-mono">
                               <span className={`inline-block transition-transform mr-2 text-[10px] ${unidadeExpandida === u.unidade ? 'rotate-90' : ''}`}>&#9654;</span>
                               {u.rank}
                             </td>
-                            <td className="whitespace-nowrap px-6 py-3 text-sm font-medium text-gray-900">{u.unidade}</td>
+                            <td className={`whitespace-nowrap px-6 py-3 text-sm text-gray-900 ${unidadeExpandida === u.unidade ? 'font-bold text-green-800' : 'font-medium'}`}>{u.unidade}</td>
                             <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500 text-center">{u.quantidade}</td>
                             <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-green-600 text-right">{formatCurrency(u.valor)}</td>
                             <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-700 text-right">
@@ -1305,9 +1305,9 @@ export const ContasAReceber: React.FC = () => {
                             </td>
                           </tr>
                           {unidadeExpandida === u.unidade && (
-                            <tr className="bg-gray-50">
-                              <td colSpan={6} className="px-8 py-4">
-                                <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-inner">
+                            <tr className="bg-green-50/40">
+                              <td colSpan={6} className="px-8 py-4 border-l-4 border-green-600">
+                                <div className="overflow-hidden rounded-lg border border-green-200 bg-white shadow-md">
                                   <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                       <tr>
