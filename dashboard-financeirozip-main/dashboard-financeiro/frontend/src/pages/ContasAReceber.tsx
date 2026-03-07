@@ -1177,7 +1177,7 @@ export const ContasAReceber: React.FC = () => {
       {abaAtiva === 'por-unidade' && (() => {
         const unidadeMap = new Map<string, { valor: number; quantidade: number }>();
         contas.forEach(c => {
-          const unidade = (c.id_documento || '').trim() || 'Sem Unidade';
+          const unidade = (c.numero_documento || c.id_documento || '').trim() || 'Sem Unidade';
           const atual = unidadeMap.get(unidade) || { valor: 0, quantidade: 0 };
           unidadeMap.set(unidade, {
             valor: atual.valor + (c.valor_total || 0),
@@ -1312,7 +1312,7 @@ export const ContasAReceber: React.FC = () => {
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
-                                      {contas.filter(conta => ((conta.id_documento || '').trim() || 'Sem Unidade') === u.unidade).map((conta, j) => {
+                                      {contas.filter(conta => ((conta.numero_documento || conta.id_documento || '').trim() || 'Sem Unidade') === u.unidade).map((conta, j) => {
                                         const dias = calcularDiasAteVencimento(conta.data_vencimento);
                                         const corDias = dias < 0 ? 'text-red-600' : dias === 0 ? 'text-orange-600' : 'text-green-600';
                                         return (
