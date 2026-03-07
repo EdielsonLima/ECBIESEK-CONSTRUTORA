@@ -5093,7 +5093,14 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
         params = recebidas_params + params_where
 
         query = f"""
-            WITH recebidas_agrupadas AS (
+            WITH ultimo_incc AS (
+                SELECT id_indexador, valor_indexador, data_indexador
+                FROM ecadindexhist
+                WHERE id_indexador = 3
+                ORDER BY data_indexador DESC
+                LIMIT 1
+            ),
+            recebidas_agrupadas AS (
                 SELECT
                     cr.cliente,
                     cr.titulo::TEXT as titulo_num,
@@ -5126,7 +5133,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                                  AND SPLIT_PART(car2.lancamento, '/', 1) = cr.titulo::TEXT
                                  LIMIT 1),
                                 SUM(cr.valor_baixa)
-                            ) / idx_base.valor_indexador * idx_calc.valor_indexador, 2)
+                            ) / idx_base.valor_indexador * ui.valor_indexador, 2)
                         ELSE SUM(cr.valor_baixa)
                     END as valor_corrigido,
                     SUM(cr.valor_acrescimo) as acrescimo,
@@ -5134,22 +5141,13 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                     SUM(cr.valor_baixa) + SUM(cr.valor_acrescimo) as valor_baixa,
                     cr.id_interno_empresa
                 FROM contas_recebidas cr
-                LEFT JOIN LATERAL (
-                    SELECT car3.data_indexador, car3.id_indexador
-                    FROM contas_a_receber car3
-                    WHERE car3.cliente = cr.cliente
-                    AND SPLIT_PART(car3.lancamento, '/', 1) = cr.titulo::TEXT
-                    LIMIT 1
-                ) titulo_info ON TRUE
+                CROSS JOIN ultimo_incc ui
                 LEFT JOIN ecadindexhist idx_base
-                    ON idx_base.id_indexador = COALESCE(titulo_info.id_indexador, 3)
-                    AND idx_base.data_indexador = titulo_info.data_indexador
-                LEFT JOIN ecadindexhist idx_calc
-                    ON idx_calc.id_indexador = COALESCE(titulo_info.id_indexador, 3)
-                    AND idx_calc.data_indexador = cr.data_calculo
+                    ON idx_base.id_indexador = 3
+                    AND idx_base.data_indexador = cr.data_calculo
                 WHERE {recebidas_filter}
                 GROUP BY cr.cliente, cr.titulo, cr.parcela, cr.tc, cr.data_vencimento,
-                         cr.id_interno_empresa, idx_base.valor_indexador, idx_calc.valor_indexador
+                         cr.id_interno_empresa, idx_base.valor_indexador, ui.valor_indexador
             )
             SELECT
                 r.cliente,
@@ -5191,7 +5189,12 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 END as tipo_condicao,
                 car.data_vencimento,
                 car.valor_vencimento as valor_nominal,
-                COALESCE(car.valor_corrigido, car.valor_total) as valor_corrigido,
+                CASE
+                    WHEN car.id_indexador IS NOT NULL AND car.id_indexador > 0
+                         AND idx_b.valor_indexador IS NOT NULL AND idx_b.valor_indexador > 0
+                    THEN ROUND(car.valor_vencimento / idx_b.valor_indexador * ui2.valor_indexador, 2)
+                    ELSE COALESCE(car.valor_corrigido, car.valor_total)
+                END as valor_corrigido,
                 car.valor_acrescimo as acrescimo,
                 NULL::date as data_baixa,
                 0 as valor_baixa,
@@ -5207,12 +5210,16 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 cc.nome_centrocusto as empreendimento,
                 TRIM(car.id_documento) as documento
             FROM contas_a_receber car
+            CROSS JOIN ultimo_incc ui2
+            LEFT JOIN ecadindexhist idx_b
+                ON idx_b.id_indexador = car.id_indexador
+                AND idx_b.data_indexador = car.data_indexador
             LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE {where_clause}
 
             ORDER BY data_vencimento ASC
         """
-        
+
         cursor.execute(query, params)
         rows = cursor.fetchall()
         
