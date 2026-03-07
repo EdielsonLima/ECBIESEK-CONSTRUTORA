@@ -288,7 +288,7 @@ export const ContasAReceber: React.FC = () => {
   const carregarDados = async () => {
     try {
       setLoading(true);
-      const data = await apiService.getContasReceber('a_receber', 500);
+      const data = await apiService.getContasReceber('a_receber', 2000);
       setTodasContas(data);
     } catch (err) {
       setError('Erro ao carregar contas a receber');
@@ -660,6 +660,7 @@ export const ContasAReceber: React.FC = () => {
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-600">
           {contas.length} titulo(s) pendente(s)
+          {todasContas.length >= 2000 && <span className="ml-2 text-orange-500">(lista limitada a 2000)</span>}
         </p>
         <button
           type="button"
