@@ -208,6 +208,11 @@ export interface ContaReceber {
   numero_parcela?: string;
   id_tipo_baixa?: number;
   tipo_condicao?: string;
+  valor_acrescimo?: number;
+  valor_desconto?: number;
+  valor_baixa?: number;
+  status_recebimento?: string;
+  dias_atraso_recebimento?: number;
 }
 
 export interface ProgressTitulo {

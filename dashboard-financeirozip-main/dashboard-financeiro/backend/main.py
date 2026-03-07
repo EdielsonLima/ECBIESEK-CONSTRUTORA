@@ -4640,7 +4640,23 @@ def get_contas_recebidas_filtradas(
                 cr.parcela as numero_parcela,
                 cr.id_tipo_baixa,
                 TRIM(cr.tc) as tipo_condicao,
-                COALESCE(car_doc.numero_documento, '') as numero_documento
+                COALESCE(car_doc.numero_documento, '') as numero_documento,
+                cr.data_vencimento,
+                COALESCE(cr.valor_acrescimo, 0) as valor_acrescimo,
+                COALESCE(cr.valor_desconto, 0) as valor_desconto,
+                COALESCE(cr.valor_baixa, 0) as valor_baixa,
+                CASE
+                    WHEN cr.data_vencimento IS NOT NULL AND cr.data_recebimento IS NOT NULL
+                         AND cr.data_recebimento > cr.data_vencimento THEN 'ATRASO'
+                    WHEN cr.data_vencimento IS NOT NULL AND cr.data_recebimento IS NOT NULL
+                         AND cr.data_recebimento <= cr.data_vencimento THEN 'EM DIA'
+                    ELSE NULL
+                END as status_recebimento,
+                CASE
+                    WHEN cr.data_vencimento IS NOT NULL AND cr.data_recebimento IS NOT NULL
+                    THEN (cr.data_recebimento::date - cr.data_vencimento::date)
+                    ELSE NULL
+                END as dias_atraso_recebimento
             FROM contas_recebidas cr
             LEFT JOIN dim_centrocusto cc ON cr.id_interno_centro_custo = cc.id_interno_centrocusto
             LEFT JOIN LATERAL (

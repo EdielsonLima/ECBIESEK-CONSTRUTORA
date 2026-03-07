@@ -1271,31 +1271,53 @@ export const ContasRecebidas: React.FC = () => {
                                   <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                       <tr>
-                                        <th onClick={() => toggleOrdInterna('data_recebimento')} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Data Recebimento{renderSortIconInterna('data_recebimento')}</th>
-                                        <th onClick={() => toggleOrdInterna('titulo')} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Titulo{renderSortIconInterna('titulo')}</th>
-                                        <th onClick={() => toggleOrdInterna('parcela')} className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Parcela{renderSortIconInterna('parcela')}</th>
-                                        <th onClick={() => toggleOrdInterna('documento')} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Documento{renderSortIconInterna('documento')}</th>
-                                        <th onClick={() => toggleOrdInterna('tipo_condicao')} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Tipo Condicao{renderSortIconInterna('tipo_condicao')}</th>
-                                        <th onClick={() => toggleOrdInterna('centro_custo')} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Centro Custo{renderSortIconInterna('centro_custo')}</th>
-                                        <th onClick={() => toggleOrdInterna('valor')} className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Valor{renderSortIconInterna('valor')}</th>
+                                        <th onClick={() => toggleOrdInterna('data_recebimento')} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Recebimento{renderSortIconInterna('data_recebimento')}</th>
+                                        <th onClick={() => toggleOrdInterna('titulo')} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Titulo{renderSortIconInterna('titulo')}</th>
+                                        <th onClick={() => toggleOrdInterna('parcela')} className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Par{renderSortIconInterna('parcela')}</th>
+                                        <th onClick={() => toggleOrdInterna('documento')} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Documento{renderSortIconInterna('documento')}</th>
+                                        <th onClick={() => toggleOrdInterna('tipo_condicao')} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">TC{renderSortIconInterna('tipo_condicao')}</th>
+                                        <th onClick={() => toggleOrdInterna('centro_custo')} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Centro Custo{renderSortIconInterna('centro_custo')}</th>
+                                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acrescimo</th>
+                                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Desconto</th>
+                                        <th onClick={() => toggleOrdInterna('valor')} className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Valor{renderSortIconInterna('valor')}</th>
+                                        <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
                                       {ordenarContasInternas(contas.filter(conta => (conta.cliente || 'Sem Cliente') === c.cliente)).map((conta, j) => (
                                         <tr key={j} className="hover:bg-green-50/50">
-                                          <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{formatDate(conta.data_recebimento)}</td>
-                                          <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-gray-900">{String(conta.titulo || (conta as any).lancamento || '-').split('/')[0]}</td>
-                                          <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500 text-center">{conta.numero_parcela || '-'}</td>
-                                          <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.id_documento || '-'}</td>
-                                          <td className="whitespace-nowrap px-4 py-2 text-sm">
+                                          <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-500">{formatDate(conta.data_recebimento)}</td>
+                                          <td className="whitespace-nowrap px-3 py-2 text-sm font-medium text-gray-900">{String(conta.titulo || (conta as any).lancamento || '-').split('/')[0]}</td>
+                                          <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-500 text-center">{conta.numero_parcela || '-'}</td>
+                                          <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-500">{conta.id_documento || '-'}</td>
+                                          <td className="whitespace-nowrap px-3 py-2 text-sm">
                                             {(conta as any).tipo_condicao ? (
                                               <span title={descTipoCondicao((conta as any).tipo_condicao)} className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold cursor-help ${corTipoCondicao((conta as any).tipo_condicao)}`}>
                                                 {(conta as any).tipo_condicao}
                                               </span>
                                             ) : '-'}
                                           </td>
-                                          <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.nome_centrocusto || '-'}</td>
-                                          <td className="whitespace-nowrap px-4 py-2 text-sm text-green-600 font-semibold text-right">{formatCurrency(conta.valor_total || 0)}</td>
+                                          <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-500">{conta.nome_centrocusto || '-'}</td>
+                                          <td className="whitespace-nowrap px-3 py-2 text-sm text-right">
+                                            {(conta.valor_acrescimo || 0) > 0 ? (
+                                              <span className="text-orange-600 font-medium">{formatCurrency(conta.valor_acrescimo || 0)}</span>
+                                            ) : <span className="text-gray-300">-</span>}
+                                          </td>
+                                          <td className="whitespace-nowrap px-3 py-2 text-sm text-right">
+                                            {(conta.valor_desconto || 0) > 0 ? (
+                                              <span className="text-blue-600 font-medium">{formatCurrency(conta.valor_desconto || 0)}</span>
+                                            ) : <span className="text-gray-300">-</span>}
+                                          </td>
+                                          <td className="whitespace-nowrap px-3 py-2 text-sm text-green-600 font-semibold text-right">{formatCurrency(conta.valor_total || 0)}</td>
+                                          <td className="whitespace-nowrap px-3 py-2 text-sm text-center">
+                                            {conta.status_recebimento === 'EM DIA' ? (
+                                              <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">Em dia</span>
+                                            ) : conta.status_recebimento === 'ATRASO' ? (
+                                              <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700" title={`${conta.dias_atraso_recebimento}d de atraso`}>
+                                                {conta.dias_atraso_recebimento}d atraso
+                                              </span>
+                                            ) : <span className="text-gray-300">-</span>}
+                                          </td>
                                         </tr>
                                       ))}
                                     </tbody>
@@ -1641,13 +1663,15 @@ export const ContasRecebidas: React.FC = () => {
                                   <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                       <tr>
-                                        <th onClick={() => toggleOrdInternaUnidade('cliente')} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Cliente{renderSortIconUnidade('cliente')}</th>
-                                        <th onClick={() => toggleOrdInternaUnidade('data_recebimento')} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Data Recebimento{renderSortIconUnidade('data_recebimento')}</th>
-                                        <th onClick={() => toggleOrdInternaUnidade('titulo')} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Titulo{renderSortIconUnidade('titulo')}</th>
-                                        <th onClick={() => toggleOrdInternaUnidade('parcela')} className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Parcela{renderSortIconUnidade('parcela')}</th>
-                                        <th onClick={() => toggleOrdInternaUnidade('tipo_condicao')} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Tipo Condicao{renderSortIconUnidade('tipo_condicao')}</th>
-                                        <th onClick={() => toggleOrdInternaUnidade('centro_custo')} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Centro Custo{renderSortIconUnidade('centro_custo')}</th>
-                                        <th onClick={() => toggleOrdInternaUnidade('valor')} className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Valor{renderSortIconUnidade('valor')}</th>
+                                        <th onClick={() => toggleOrdInternaUnidade('cliente')} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Cliente{renderSortIconUnidade('cliente')}</th>
+                                        <th onClick={() => toggleOrdInternaUnidade('data_recebimento')} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Recebimento{renderSortIconUnidade('data_recebimento')}</th>
+                                        <th onClick={() => toggleOrdInternaUnidade('titulo')} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Titulo{renderSortIconUnidade('titulo')}</th>
+                                        <th onClick={() => toggleOrdInternaUnidade('parcela')} className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Par{renderSortIconUnidade('parcela')}</th>
+                                        <th onClick={() => toggleOrdInternaUnidade('tipo_condicao')} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">TC{renderSortIconUnidade('tipo_condicao')}</th>
+                                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acrescimo</th>
+                                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Desconto</th>
+                                        <th onClick={() => toggleOrdInternaUnidade('valor')} className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">Valor{renderSortIconUnidade('valor')}</th>
+                                        <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
@@ -1656,19 +1680,37 @@ export const ContasRecebidas: React.FC = () => {
                                         return unidadeConta === u.unidade;
                                       })).map((conta, j) => (
                                         <tr key={j} className="hover:bg-green-50/50">
-                                          <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-gray-900">{conta.cliente || '-'}</td>
-                                          <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{formatDate(conta.data_recebimento)}</td>
-                                          <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-gray-900">{String(conta.titulo || (conta as any).lancamento || '-').split('/')[0]}</td>
-                                          <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500 text-center">{conta.numero_parcela || '-'}</td>
-                                          <td className="whitespace-nowrap px-4 py-2 text-sm">
+                                          <td className="whitespace-nowrap px-3 py-2 text-sm font-medium text-gray-900">{conta.cliente || '-'}</td>
+                                          <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-500">{formatDate(conta.data_recebimento)}</td>
+                                          <td className="whitespace-nowrap px-3 py-2 text-sm font-medium text-gray-900">{String(conta.titulo || (conta as any).lancamento || '-').split('/')[0]}</td>
+                                          <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-500 text-center">{conta.numero_parcela || '-'}</td>
+                                          <td className="whitespace-nowrap px-3 py-2 text-sm">
                                             {(conta as any).tipo_condicao ? (
                                               <span title={descTipoCondicao((conta as any).tipo_condicao)} className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold cursor-help ${corTipoCondicao((conta as any).tipo_condicao)}`}>
                                                 {(conta as any).tipo_condicao}
                                               </span>
                                             ) : '-'}
                                           </td>
-                                          <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.nome_centrocusto || '-'}</td>
-                                          <td className="whitespace-nowrap px-4 py-2 text-sm text-green-600 font-semibold text-right">{formatCurrency(conta.valor_total || 0)}</td>
+                                          <td className="whitespace-nowrap px-3 py-2 text-sm text-right">
+                                            {(conta.valor_acrescimo || 0) > 0 ? (
+                                              <span className="text-orange-600 font-medium">{formatCurrency(conta.valor_acrescimo || 0)}</span>
+                                            ) : <span className="text-gray-300">-</span>}
+                                          </td>
+                                          <td className="whitespace-nowrap px-3 py-2 text-sm text-right">
+                                            {(conta.valor_desconto || 0) > 0 ? (
+                                              <span className="text-blue-600 font-medium">{formatCurrency(conta.valor_desconto || 0)}</span>
+                                            ) : <span className="text-gray-300">-</span>}
+                                          </td>
+                                          <td className="whitespace-nowrap px-3 py-2 text-sm text-green-600 font-semibold text-right">{formatCurrency(conta.valor_total || 0)}</td>
+                                          <td className="whitespace-nowrap px-3 py-2 text-sm text-center">
+                                            {conta.status_recebimento === 'EM DIA' ? (
+                                              <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">Em dia</span>
+                                            ) : conta.status_recebimento === 'ATRASO' ? (
+                                              <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700" title={`${conta.dias_atraso_recebimento}d de atraso`}>
+                                                {conta.dias_atraso_recebimento}d atraso
+                                              </span>
+                                            ) : <span className="text-gray-300">-</span>}
+                                          </td>
                                         </tr>
                                       ))}
                                     </tbody>
