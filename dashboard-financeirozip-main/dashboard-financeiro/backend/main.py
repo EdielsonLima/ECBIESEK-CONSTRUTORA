@@ -5149,13 +5149,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                     CASE
                         WHEN idx_base.valor_indexador IS NOT NULL AND idx_base.valor_indexador > 0
                         THEN ROUND(
-                            COALESCE(
-                                (SELECT car2.valor_vencimento FROM contas_a_receber car2
-                                 WHERE car2.cliente = cr.cliente
-                                 AND SPLIT_PART(car2.lancamento, '/', 1) = cr.titulo::TEXT
-                                 LIMIT 1),
-                                SUM(cr.valor_baixa)
-                            ) / idx_base.valor_indexador * ui.valor_indexador, 2)
+                            SUM(cr.valor_baixa) / idx_base.valor_indexador * ui.valor_indexador, 2)
                         ELSE SUM(cr.valor_baixa)
                     END as valor_corrigido,"""
             rec_joins = """
@@ -5197,24 +5191,19 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                         ELSE cr.tc
                     END as tipo_condicao,
                     cr.data_vencimento,
-                    COALESCE(
-                        (SELECT car2.valor_vencimento FROM contas_a_receber car2
-                         WHERE car2.cliente = cr.cliente
-                         AND SPLIT_PART(car2.lancamento, '/', 1) = cr.titulo::TEXT
-                         LIMIT 1),
-                        SUM(cr.valor_baixa)
-                    ) as valor_nominal,
+                    SUM(cr.valor_baixa) as valor_nominal,
                     {rec_valor_corrigido}
                     SUM(cr.valor_acrescimo) as acrescimo,
                     SUM(cr.valor_desconto) as desconto,
                     MAX(cr.data_recebimento) as data_baixa,
                     SUM(cr.valor_baixa) + SUM(cr.valor_acrescimo) - SUM(cr.valor_desconto) as valor_baixa,
-                    cr.id_interno_empresa
+                    cr.id_interno_empresa,
+                    cr.id_interno_centro_custo
                 FROM contas_recebidas cr
                 {rec_joins}
                 WHERE {recebidas_filter}
                 GROUP BY cr.cliente, cr.titulo, cr.parcela, cr.tc, cr.data_vencimento,
-                         cr.id_interno_empresa{rec_group_extra}
+                         cr.id_interno_empresa, cr.id_interno_centro_custo{rec_group_extra}
             )
             SELECT
                 r.cliente,
@@ -5235,7 +5224,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 cc.nome_centrocusto as empreendimento,
                 'CT' as documento
             FROM recebidas_agrupadas r
-            LEFT JOIN dim_centrocusto cc ON r.id_interno_empresa = cc.id_sienge_empresa
+            LEFT JOIN dim_centrocusto cc ON r.id_interno_centro_custo = cc.id_interno_centrocusto
 
             UNION ALL
 
