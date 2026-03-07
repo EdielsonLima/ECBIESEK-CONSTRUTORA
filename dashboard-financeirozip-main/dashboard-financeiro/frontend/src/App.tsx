@@ -94,7 +94,7 @@ function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard />;
+        return <Dashboard onNavigate={setCurrentPage} />;
       case 'contas-a-pagar':
         return <ContasAPagar />;
       case 'contas-pagas':
@@ -126,7 +126,7 @@ function App() {
       case 'alterar-senha':
         return <AlterarSenha />;
       default:
-        return <Dashboard />;
+        return <Dashboard onNavigate={setCurrentPage} />;
     }
   };
 
