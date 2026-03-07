@@ -5113,15 +5113,17 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
 
         # Fragmentos SQL condicionais baseados no modo de cálculo
         if usar_incc_manual:
-            # INCC manual: calcula correção via fórmula INCC (2 meses antes)
+            # INCC manual: calcula correção usando penúltimo índice (rn=2)
             cte_ultimo_incc = """
-            WITH ultimo_incc AS (
-                SELECT id_indexador, valor_indexador, data_indexador
+            WITH ultimo_incc_all AS (
+                SELECT id_indexador, valor_indexador, data_indexador,
+                       ROW_NUMBER() OVER (PARTITION BY id_indexador ORDER BY data_indexador DESC) AS rn
                 FROM ecadindexhist
-                WHERE id_indexador = 3
-                  AND data_indexador <= (date_trunc('month', CURRENT_DATE) - interval '2 months')::date
-                ORDER BY data_indexador DESC
-                LIMIT 1
+            ),
+            ultimo_incc AS (
+                SELECT id_indexador, valor_indexador, data_indexador
+                FROM ultimo_incc_all
+                WHERE rn = 2
             ),"""
             rec_valor_corrigido = """
                     CASE
@@ -5137,18 +5139,19 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                         ELSE SUM(cr.valor_baixa)
                     END as valor_corrigido,"""
             rec_joins = """
-                CROSS JOIN ultimo_incc ui
                 LEFT JOIN LATERAL (
-                    SELECT car3.data_indexador
+                    SELECT car3.data_indexador, car3.id_indexador
                     FROM contas_a_receber car3
                     WHERE car3.cliente = cr.cliente
                     AND SPLIT_PART(car3.lancamento, '/', 1) = cr.titulo::TEXT
                     LIMIT 1
                 ) titulo_info ON TRUE
+                LEFT JOIN ultimo_incc ui
+                    ON ui.id_indexador = COALESCE(titulo_info.id_indexador, 3)
                 LEFT JOIN ecadindexhist idx_base
-                    ON idx_base.id_indexador = 3
+                    ON idx_base.id_indexador = COALESCE(titulo_info.id_indexador, 3)
                     AND idx_base.data_indexador = COALESCE(titulo_info.data_indexador, cr.data_calculo)"""
-            rec_group_extra = ", idx_base.valor_indexador, ui.valor_indexador, titulo_info.data_indexador"
+            rec_group_extra = ", idx_base.valor_indexador, ui.valor_indexador, titulo_info.data_indexador, titulo_info.id_indexador"
             ar_valor_corrigido = """
                 CASE
                     WHEN car.id_indexador IS NOT NULL AND car.id_indexador > 0
@@ -5157,7 +5160,8 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                     ELSE COALESCE(car.valor_corrigido, car.valor_total)
                 END as valor_corrigido,"""
             ar_joins = """
-            CROSS JOIN ultimo_incc ui2
+            LEFT JOIN ultimo_incc ui2
+                ON ui2.id_indexador = car.id_indexador
             LEFT JOIN ecadindexhist idx_b
                 ON idx_b.id_indexador = car.id_indexador
                 AND idx_b.data_indexador = car.data_indexador"""
