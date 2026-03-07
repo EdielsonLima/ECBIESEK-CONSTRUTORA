@@ -5112,9 +5112,11 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
         params = recebidas_params + params_where
 
         # Fragmentos SQL condicionais baseados no modo de cálculo
-        if usar_incc_manual:
-            # INCC manual: calcula correção usando penúltimo índice (rn=2)
-            cte_ultimo_incc = """
+        # rn=1 (último INCC) para modo padrão, rn=2 (penúltimo) para INCC manual
+        rn_value = 2 if usar_incc_manual else 1
+
+        # CTE sempre presente para cálculo dinâmico de A Receber
+        cte_ultimo_incc = f"""
             WITH ultimo_incc_all AS (
                 SELECT id_indexador, valor_indexador, data_indexador,
                        ROW_NUMBER() OVER (PARTITION BY id_indexador ORDER BY data_indexador DESC) AS rn
@@ -5123,8 +5125,26 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
             ultimo_incc AS (
                 SELECT id_indexador, valor_indexador, data_indexador
                 FROM ultimo_incc_all
-                WHERE rn = 2
+                WHERE rn = {rn_value}
             ),"""
+
+        # A Receber: sempre calcula INCC dinamicamente (evita valor_corrigido desatualizado do banco)
+        ar_valor_corrigido = """
+                CASE
+                    WHEN car.id_indexador IS NOT NULL AND car.id_indexador > 0
+                         AND idx_b.valor_indexador IS NOT NULL AND idx_b.valor_indexador > 0
+                    THEN ROUND(car.valor_vencimento / idx_b.valor_indexador * ui2.valor_indexador, 2)
+                    ELSE COALESCE(car.valor_corrigido, car.valor_total)
+                END as valor_corrigido,"""
+        ar_joins = """
+            LEFT JOIN ultimo_incc ui2
+                ON ui2.id_indexador = car.id_indexador
+            LEFT JOIN ecadindexhist idx_b
+                ON idx_b.id_indexador = car.id_indexador
+                AND idx_b.data_indexador = car.data_indexador"""
+
+        if usar_incc_manual:
+            # INCC manual: calcula correção para recebidas também
             rec_valor_corrigido = """
                     CASE
                         WHEN idx_base.valor_indexador IS NOT NULL AND idx_base.valor_indexador > 0
@@ -5152,27 +5172,11 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                     ON idx_base.id_indexador = COALESCE(titulo_info.id_indexador, 3)
                     AND idx_base.data_indexador = COALESCE(titulo_info.data_indexador, cr.data_calculo)"""
             rec_group_extra = ", idx_base.valor_indexador, ui.valor_indexador, titulo_info.data_indexador, titulo_info.id_indexador"
-            ar_valor_corrigido = """
-                CASE
-                    WHEN car.id_indexador IS NOT NULL AND car.id_indexador > 0
-                         AND idx_b.valor_indexador IS NOT NULL AND idx_b.valor_indexador > 0
-                    THEN ROUND(car.valor_vencimento / idx_b.valor_indexador * ui2.valor_indexador, 2)
-                    ELSE COALESCE(car.valor_corrigido, car.valor_total)
-                END as valor_corrigido,"""
-            ar_joins = """
-            LEFT JOIN ultimo_incc ui2
-                ON ui2.id_indexador = car.id_indexador
-            LEFT JOIN ecadindexhist idx_b
-                ON idx_b.id_indexador = car.id_indexador
-                AND idx_b.data_indexador = car.data_indexador"""
         else:
-            # Padrão: usa valores do Sienge (valor_corrigido do banco)
-            cte_ultimo_incc = "WITH"
+            # Padrão: recebidas usa valor_baixa (valor efetivamente pago)
             rec_valor_corrigido = "SUM(cr.valor_baixa) as valor_corrigido,"
             rec_joins = ""
             rec_group_extra = ""
-            ar_valor_corrigido = "COALESCE(car.valor_corrigido, car.valor_total) as valor_corrigido,"
-            ar_joins = ""
 
         query = f"""
             {cte_ultimo_incc}
@@ -5255,7 +5259,12 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 car.data_vencimento,
                 car.valor_vencimento as valor_nominal,
                 {ar_valor_corrigido}
-                COALESCE(car.valor_corrigido, car.valor_total) as saldo_atual,
+                CASE
+                    WHEN car.id_indexador IS NOT NULL AND car.id_indexador > 0
+                         AND idx_b.valor_indexador IS NOT NULL AND idx_b.valor_indexador > 0
+                    THEN ROUND(car.valor_vencimento / idx_b.valor_indexador * ui2.valor_indexador, 2)
+                    ELSE COALESCE(car.valor_corrigido, car.valor_total)
+                END as saldo_atual,
                 car.valor_acrescimo as acrescimo,
                 0 as desconto,
                 NULL::date as data_baixa,
