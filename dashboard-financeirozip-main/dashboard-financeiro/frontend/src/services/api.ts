@@ -886,7 +886,9 @@ export const apiService = {
       parcela: number;
       tipo_condicao: string;
       data_vencimento: string | null;
-      valor_original: number;
+      valor_nominal: number;
+      correcao_monetaria: number;
+      valor_corrigido: number;
       acrescimo: number;
       data_baixa: string | null;
       valor_baixa: number;
@@ -894,6 +896,9 @@ export const apiService = {
       status: string;
     }>;
     totais: {
+      total_nominal: number;
+      total_correcao: number;
+      total_corrigido: number;
       total_original: number;
       total_recebido: number;
       total_a_receber: number;
