@@ -5072,11 +5072,30 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
     cursor = conn.cursor()
 
     try:
+        # Verificar se há títulos marcados para cálculo INCC manual
+        titulos_incc_manual = set()
+        try:
+            cfg_conn = get_config_db_connection()
+            cfg_cursor = cfg_conn.cursor()
+            cfg_cursor.execute("SELECT titulo FROM config_titulos_incc_manual WHERE cliente = %s", (cliente,))
+            titulos_incc_manual = {r['titulo'] for r in cfg_cursor.fetchall()}
+            cfg_cursor.close()
+            cfg_conn.close()
+        except Exception:
+            pass
+
+        # Determinar se o cálculo INCC manual deve ser usado
+        usar_incc_manual = False
+        if titulo and titulo in titulos_incc_manual:
+            usar_incc_manual = True
+        elif not titulo and len(titulos_incc_manual) > 0:
+            usar_incc_manual = True  # Se não filtrou título, usa manual se qualquer título estiver marcado
+
         exclusoes = get_exclusoes()
         excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='car')
         conditions = ["car.cliente = %s"] + list(excl_conds)
         params_where = [cliente] + list(excl_params)
-        
+
         if titulo:
             conditions.append("SPLIT_PART(car.lancamento, '/', 1) = %s")
             params_where.append(titulo)
@@ -5092,7 +5111,10 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
 
         params = recebidas_params + params_where
 
-        query = f"""
+        # Fragmentos SQL condicionais baseados no modo de cálculo
+        if usar_incc_manual:
+            # INCC manual: calcula correção via fórmula INCC (2 meses antes)
+            cte_ultimo_incc = """
             WITH ultimo_incc AS (
                 SELECT id_indexador, valor_indexador, data_indexador
                 FROM ecadindexhist
@@ -5100,7 +5122,49 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                   AND data_indexador <= (date_trunc('month', CURRENT_DATE) - interval '2 months')::date
                 ORDER BY data_indexador DESC
                 LIMIT 1
-            ),
+            ),"""
+            rec_valor_corrigido = """
+                    CASE
+                        WHEN idx_base.valor_indexador IS NOT NULL AND idx_base.valor_indexador > 0
+                        THEN ROUND(
+                            COALESCE(
+                                (SELECT car2.valor_vencimento FROM contas_a_receber car2
+                                 WHERE car2.cliente = cr.cliente
+                                 AND SPLIT_PART(car2.lancamento, '/', 1) = cr.titulo::TEXT
+                                 LIMIT 1),
+                                SUM(cr.valor_baixa)
+                            ) / idx_base.valor_indexador * ui.valor_indexador, 2)
+                        ELSE SUM(cr.valor_baixa)
+                    END as valor_corrigido,"""
+            rec_joins = """
+                CROSS JOIN ultimo_incc ui
+                LEFT JOIN ecadindexhist idx_base
+                    ON idx_base.id_indexador = 3
+                    AND idx_base.data_indexador = cr.data_calculo"""
+            rec_group_extra = ", idx_base.valor_indexador, ui.valor_indexador"
+            ar_valor_corrigido = """
+                CASE
+                    WHEN car.id_indexador IS NOT NULL AND car.id_indexador > 0
+                         AND idx_b.valor_indexador IS NOT NULL AND idx_b.valor_indexador > 0
+                    THEN ROUND(car.valor_vencimento / idx_b.valor_indexador * ui2.valor_indexador, 2)
+                    ELSE COALESCE(car.valor_corrigido, car.valor_total)
+                END as valor_corrigido,"""
+            ar_joins = """
+            CROSS JOIN ultimo_incc ui2
+            LEFT JOIN ecadindexhist idx_b
+                ON idx_b.id_indexador = car.id_indexador
+                AND idx_b.data_indexador = car.data_indexador"""
+        else:
+            # Padrão: usa valores do Sienge (valor_corrigido do banco)
+            cte_ultimo_incc = "WITH"
+            rec_valor_corrigido = "SUM(cr.valor_baixa) as valor_corrigido,"
+            rec_joins = ""
+            rec_group_extra = ""
+            ar_valor_corrigido = "COALESCE(car.valor_corrigido, car.valor_total) as valor_corrigido,"
+            ar_joins = ""
+
+        query = f"""
+            {cte_ultimo_incc}
             recebidas_agrupadas AS (
                 SELECT
                     cr.cliente,
@@ -5125,30 +5189,16 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                          LIMIT 1),
                         SUM(cr.valor_baixa)
                     ) as valor_nominal,
-                    CASE
-                        WHEN idx_base.valor_indexador IS NOT NULL AND idx_base.valor_indexador > 0
-                        THEN ROUND(
-                            COALESCE(
-                                (SELECT car2.valor_vencimento FROM contas_a_receber car2
-                                 WHERE car2.cliente = cr.cliente
-                                 AND SPLIT_PART(car2.lancamento, '/', 1) = cr.titulo::TEXT
-                                 LIMIT 1),
-                                SUM(cr.valor_baixa)
-                            ) / idx_base.valor_indexador * ui.valor_indexador, 2)
-                        ELSE SUM(cr.valor_baixa)
-                    END as valor_corrigido,
+                    {rec_valor_corrigido}
                     SUM(cr.valor_acrescimo) as acrescimo,
                     MAX(cr.data_recebimento) as data_baixa,
                     SUM(cr.valor_baixa) + SUM(cr.valor_acrescimo) as valor_baixa,
                     cr.id_interno_empresa
                 FROM contas_recebidas cr
-                CROSS JOIN ultimo_incc ui
-                LEFT JOIN ecadindexhist idx_base
-                    ON idx_base.id_indexador = 3
-                    AND idx_base.data_indexador = cr.data_calculo
+                {rec_joins}
                 WHERE {recebidas_filter}
                 GROUP BY cr.cliente, cr.titulo, cr.parcela, cr.tc, cr.data_vencimento,
-                         cr.id_interno_empresa, idx_base.valor_indexador, ui.valor_indexador
+                         cr.id_interno_empresa{rec_group_extra}
             )
             SELECT
                 r.cliente,
@@ -5190,12 +5240,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 END as tipo_condicao,
                 car.data_vencimento,
                 car.valor_vencimento as valor_nominal,
-                CASE
-                    WHEN car.id_indexador IS NOT NULL AND car.id_indexador > 0
-                         AND idx_b.valor_indexador IS NOT NULL AND idx_b.valor_indexador > 0
-                    THEN ROUND(car.valor_vencimento / idx_b.valor_indexador * ui2.valor_indexador, 2)
-                    ELSE COALESCE(car.valor_corrigido, car.valor_total)
-                END as valor_corrigido,
+                {ar_valor_corrigido}
                 car.valor_acrescimo as acrescimo,
                 NULL::date as data_baixa,
                 0 as valor_baixa,
@@ -5211,10 +5256,7 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
                 cc.nome_centrocusto as empreendimento,
                 TRIM(car.id_documento) as documento
             FROM contas_a_receber car
-            CROSS JOIN ultimo_incc ui2
-            LEFT JOIN ecadindexhist idx_b
-                ON idx_b.id_indexador = car.id_indexador
-                AND idx_b.data_indexador = car.data_indexador
+            {ar_joins}
             LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE {where_clause}
 
@@ -5290,7 +5332,13 @@ def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
             "quantidade_parcelas": len(parcelas),
         }
         
-        return {"header": header, "parcelas": parcelas, "totais": totais}
+        return {
+            "header": header,
+            "parcelas": parcelas,
+            "totais": totais,
+            "calculo_incc_manual": usar_incc_manual,
+            "titulos_incc_manual": list(titulos_incc_manual),
+        }
 
     finally:
         cursor.close()
@@ -5882,6 +5930,15 @@ def init_configuracoes_tables():
                 UNIQUE(data_snapshot, faixa)
             )
         """)
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS config_titulos_incc_manual (
+                id {serial} PRIMARY KEY,
+                cliente VARCHAR(200) NOT NULL,
+                titulo VARCHAR(50) NOT NULL,
+                created_at {ts},
+                UNIQUE(cliente, titulo)
+            )
+        """)
         conn.commit()
         backend = "PostgreSQL" if is_pg else f"SQLite ({CONFIG_SQLITE_PATH})"
         print(f"Tabelas de configurações criadas/verificadas em {backend}")
@@ -5982,6 +6039,16 @@ def _ensure_config_tables_in_postgres():
                     quantidade_credores INTEGER NOT NULL DEFAULT 0,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(data_snapshot, faixa)
+                )
+            """)
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS config_titulos_incc_manual (
+                    id SERIAL PRIMARY KEY,
+                    cliente VARCHAR(200) NOT NULL,
+                    titulo VARCHAR(50) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(cliente, titulo)
                 )
             """)
 
@@ -6438,6 +6505,47 @@ def toggle_empresa_exclusao(data: dict):
         return {"success": True}
     except Exception as e:
         print(f"[ERRO] toggle_empresa_exclusao: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro ao salvar configuração: {str(e)}")
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/configuracoes/titulos-incc-manual")
+def get_titulos_incc_manual(cliente: str):
+    """Retorna lista de títulos marcados para cálculo INCC manual"""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT titulo FROM config_titulos_incc_manual WHERE cliente = %s", (cliente,))
+        rows = cursor.fetchall()
+        return {"titulos": [r['titulo'] for r in rows]}
+    except Exception as e:
+        print(f"[ERRO] get_titulos_incc_manual: {e}")
+        return {"titulos": []}
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.post("/api/configuracoes/titulos-incc-manual")
+def toggle_titulo_incc_manual(data: dict):
+    """Marca/desmarca um título para usar cálculo INCC manual"""
+    cliente = data.get('cliente')
+    titulo = data.get('titulo')
+    manual = data.get('manual', True)
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        if manual:
+            cursor.execute(
+                "INSERT INTO config_titulos_incc_manual (cliente, titulo) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                (cliente, titulo)
+            )
+        else:
+            cursor.execute("DELETE FROM config_titulos_incc_manual WHERE cliente = %s AND titulo = %s", (cliente, titulo))
+        conn.commit()
+        return {"success": True}
+    except Exception as e:
+        print(f"[ERRO] toggle_titulo_incc_manual: {e}")
         raise HTTPException(status_code=500, detail=f"Erro ao salvar configuração: {str(e)}")
     finally:
         cursor.close()

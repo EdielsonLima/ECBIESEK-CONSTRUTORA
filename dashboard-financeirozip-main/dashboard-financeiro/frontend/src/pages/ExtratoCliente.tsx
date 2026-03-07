@@ -40,6 +40,8 @@ interface ExtratoData {
     total_acrescimo: number;
     quantidade_parcelas: number;
   };
+  calculo_incc_manual?: boolean;
+  titulos_incc_manual?: string[];
 }
 
 export const ExtratoCliente: React.FC = () => {
@@ -103,6 +105,17 @@ export const ExtratoCliente: React.FC = () => {
       console.error('Erro ao carregar extrato:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleInccManual = async () => {
+    if (!clienteSelecionado || !tituloSelecionado) return;
+    const novoEstado = !(extrato?.calculo_incc_manual || false);
+    try {
+      await apiService.toggleTituloInccManual(clienteSelecionado, tituloSelecionado, novoEstado);
+      await carregarExtrato();
+    } catch (err) {
+      console.error('Erro ao alterar cálculo INCC:', err);
     }
   };
 
@@ -576,6 +589,33 @@ export const ExtratoCliente: React.FC = () => {
             </div>
           )}
         </div>
+        {/* Toggle INCC Manual */}
+        {tituloSelecionado && extrato && (
+          <div className="mt-4 flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+            <button
+              onClick={toggleInccManual}
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 ${
+                extrato.calculo_incc_manual ? 'bg-amber-500' : 'bg-gray-300'
+              }`}
+              role="switch"
+              aria-checked={extrato.calculo_incc_manual || false}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  extrato.calculo_incc_manual ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+            <div>
+              <span className="text-sm font-medium text-amber-800">Correção INCC Manual</span>
+              <p className="text-xs text-amber-600">
+                {extrato.calculo_incc_manual
+                  ? 'Usando fórmula INCC (para títulos com índice incorreto no Sienge)'
+                  : 'Usando valores do Sienge (padrão)'}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Empty state */}
