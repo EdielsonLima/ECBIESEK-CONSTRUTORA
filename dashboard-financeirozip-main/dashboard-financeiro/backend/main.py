@@ -4651,9 +4651,17 @@ def get_contas_recebidas_filtradas(
                 TRIM(cr.id_documento) as id_documento,
                 cr.parcela as numero_parcela,
                 cr.id_tipo_baixa,
-                TRIM(cr.tc) as tipo_condicao
+                TRIM(cr.tc) as tipo_condicao,
+                COALESCE(car_doc.numero_documento, '') as numero_documento
             FROM contas_recebidas cr
             LEFT JOIN dim_centrocusto cc ON cr.id_interno_centro_custo = cc.id_interno_centrocusto
+            LEFT JOIN LATERAL (
+                SELECT TRIM(car.numero_documento) as numero_documento
+                FROM contas_a_receber car
+                WHERE car.cliente = cr.cliente
+                  AND SPLIT_PART(car.lancamento, '/', 1) = cr.titulo::TEXT
+                LIMIT 1
+            ) car_doc ON true
             WHERE {where_clause}
             ORDER BY cr.data_recebimento DESC, cr.cliente, cr.valor_liquido
             LIMIT %s
