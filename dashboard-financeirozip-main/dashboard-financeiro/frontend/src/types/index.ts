@@ -25,6 +25,27 @@ export interface ContaPagar {
   descricao_observacao?: string;
 }
 
+export interface TituloDetalhe {
+  titulo_id: number;
+  numero_documento?: string;
+  numero_parcela?: number;
+  id_origem?: string;
+  origem_nome?: string;
+  id_documento?: string;
+  data_cadastro?: string;
+  data_vencimento?: string;
+  credor?: string;
+  valor_total?: number;
+  lancamento?: string;
+  // Dados do Sienge
+  registeredBy?: string;
+  registeredDate?: string;
+  issueDate?: string;
+  billDate?: string;
+  observation?: string;
+  authorizationStatus?: string;
+}
+
 export interface EmpresaOption {
   id: number;
   nome: string;
