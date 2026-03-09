@@ -1041,7 +1041,6 @@ async def get_titulo_detalhe(titulo_id: int):
                     'issueDate': item.get('issueDate', ''),
                     'billDate': item.get('billDate', ''),
                     'observation': item.get('notes', ''),
-                    'authorizationStatus': item.get('status', ''),
                 }
     except Exception as e:
         print(f"[titulo-detalhe] Erro ao consultar Sienge: {e}")

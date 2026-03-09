@@ -1294,12 +1294,6 @@ export const ContasAPagar: React.FC = () => {
                                   <p className="text-xs text-gray-500 uppercase font-medium">Empresa</p>
                                   <p className="text-sm font-semibold text-gray-900 mt-1">{(conta as any).nome_empresa || '-'}</p>
                                 </div>
-                                {detalhe?.authorizationStatus && (
-                                  <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
-                                    <p className="text-xs text-gray-500 uppercase font-medium">Autorizacao</p>
-                                    <p className="text-sm font-semibold text-gray-900 mt-1">{detalhe.authorizationStatus}</p>
-                                  </div>
-                                )}
                                 {(detalhe?.observation || (conta as any).descricao_observacao) && (
                                   <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100 col-span-2 md:col-span-4">
                                     <p className="text-xs text-gray-500 uppercase font-medium">Observacao</p>
