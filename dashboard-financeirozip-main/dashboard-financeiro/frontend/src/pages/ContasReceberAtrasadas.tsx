@@ -503,7 +503,7 @@ export const ContasReceberAtrasadas: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Recebimentos em Atraso</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Inadimplência</h1>
           <p className="mt-1 text-sm text-gray-500">
             {estatisticas?.quantidade_titulos.toLocaleString('pt-BR')} titulo(s) pendente(s)
             {contas.length >= 2000 && <span className="text-red-500 font-medium"> (lista limitada a 2000)</span>}

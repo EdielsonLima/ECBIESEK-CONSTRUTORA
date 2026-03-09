@@ -102,7 +102,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
           submenu: [
             { id: 'contas-a-receber', label: 'A Receber' },
             { id: 'contas-recebidas', label: 'Recebidas' },
-            { id: 'recebimentos-atrasados', label: 'Atrasadas' },
+            { id: 'recebimentos-atrasados', label: 'Inadimplência' },
             { id: 'extrato-cliente', label: 'Extrato Cliente' },
           ],
         },
