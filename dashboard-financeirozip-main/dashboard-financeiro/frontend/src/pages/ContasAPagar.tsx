@@ -1243,7 +1243,7 @@ export const ContasAPagar: React.FC = () => {
 
                 return (
                   <React.Fragment key={index}>
-                    <tr className={`${isNovoAposRef ? 'bg-yellow-50 hover:bg-yellow-100' : 'hover:bg-gray-50'} cursor-pointer`} onClick={handleExpand}>
+                    <tr className={`${isExpanded ? 'bg-blue-100 border-l-4 border-l-blue-600' : isNovoAposRef ? 'bg-yellow-50 hover:bg-yellow-100' : 'hover:bg-gray-50'} cursor-pointer transition-colors duration-150`} onClick={handleExpand}>
                       <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
                         <div className="flex items-center gap-2">
                           <span className={`text-gray-400 text-xs transition-transform ${isExpanded ? 'rotate-90' : ''}`}>&#9654;</span>
@@ -1283,7 +1283,19 @@ export const ContasAPagar: React.FC = () => {
                     {isExpanded && (
                       <tr>
                         <td colSpan={10} className="p-0">
-                          <div className="bg-blue-50 border-t border-b border-blue-200 px-8 py-4">
+                          <div className="bg-gradient-to-r from-blue-50 via-blue-50 to-indigo-50 border-l-4 border-l-blue-600 border-t-2 border-b-2 border-t-blue-300 border-b-blue-300 px-8 py-5 shadow-inner">
+                            <div className="flex items-center justify-between mb-4 pb-3 border-b border-blue-200">
+                              <div className="flex items-center gap-3">
+                                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 text-white text-sm font-bold">
+                                  {conta.lancamento ? conta.lancamento.split('/')[0] : '#'}
+                                </div>
+                                <div>
+                                  <h3 className="text-base font-bold text-gray-900">{conta.credor || 'Sem credor'}</h3>
+                                  <p className="text-xs text-gray-500">Titulo {conta.lancamento || '-'} | {formatCurrency(conta.valor_total)}</p>
+                                </div>
+                              </div>
+                              <span className="text-xs text-blue-600 font-medium bg-blue-100 px-2 py-1 rounded">Detalhes do Titulo</span>
+                            </div>
                             {detalheCarregando && !detalhe ? (
                               <div className="flex items-center gap-2 text-sm text-gray-500">
                                 <svg className="animate-spin h-4 w-4 text-blue-500" viewBox="0 0 24 24">
@@ -1295,13 +1307,13 @@ export const ContasAPagar: React.FC = () => {
                             ) : (
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 {detalhe?.registeredBy && (
-                                  <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                                  <div className="bg-white rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
                                     <p className="text-xs text-gray-500 uppercase font-medium">Cadastrado por</p>
                                     <p className="text-sm font-semibold text-gray-900 mt-1">{detalhe.registeredBy}</p>
                                   </div>
                                 )}
                                 {detalhe?.registeredDate && (
-                                  <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                                  <div className="bg-white rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
                                     <p className="text-xs text-gray-500 uppercase font-medium">Data Cadastro</p>
                                     <p className="text-sm font-semibold text-gray-900 mt-1">
                                       {new Date(detalhe.registeredDate).toLocaleString('pt-BR')}
@@ -1309,42 +1321,42 @@ export const ContasAPagar: React.FC = () => {
                                   </div>
                                 )}
                                 {detalhe?.changedBy && (
-                                  <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                                  <div className="bg-white rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
                                     <p className="text-xs text-gray-500 uppercase font-medium">Alterado por</p>
                                     <p className="text-sm font-semibold text-gray-900 mt-1">{detalhe.changedBy}</p>
                                   </div>
                                 )}
                                 {detalhe?.changedDate && (
-                                  <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                                  <div className="bg-white rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
                                     <p className="text-xs text-gray-500 uppercase font-medium">Data Alteracao</p>
                                     <p className="text-sm font-semibold text-gray-900 mt-1">
                                       {new Date(detalhe.changedDate).toLocaleString('pt-BR')}
                                     </p>
                                   </div>
                                 )}
-                                <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                                <div className="bg-white rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
                                   <p className="text-xs text-gray-500 uppercase font-medium">Data Emissao</p>
                                   <p className="text-sm font-semibold text-gray-900 mt-1">
                                     {(conta as any).data_emissao ? formatDate((conta as any).data_emissao) : detalhe?.issueDate ? formatDate(detalhe.issueDate) : '-'}
                                   </p>
                                 </div>
-                                <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                                <div className="bg-white rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
                                   <p className="text-xs text-gray-500 uppercase font-medium">N Documento</p>
                                   <p className="text-sm font-semibold text-gray-900 mt-1">{conta.numero_documento || '-'}</p>
                                 </div>
-                                <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                                <div className="bg-white rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
                                   <p className="text-xs text-gray-500 uppercase font-medium">Parcela</p>
                                   <p className="text-sm font-semibold text-gray-900 mt-1">
                                     {conta.lancamento ? conta.lancamento.split('/')[1] || '1' : '-'}
                                   </p>
                                 </div>
-                                <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                                <div className="bg-white rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
                                   <p className="text-xs text-gray-500 uppercase font-medium">Origem</p>
                                   <p className="text-sm font-semibold text-gray-900 mt-1">
                                     {detalhe?.origem_nome || conta.id_origem || '-'}
                                   </p>
                                 </div>
-                                <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                                <div className="bg-white rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
                                   <p className="text-xs text-gray-500 uppercase font-medium">Empresa</p>
                                   <p className="text-sm font-semibold text-gray-900 mt-1">{(conta as any).nome_empresa || '-'}</p>
                                 </div>
