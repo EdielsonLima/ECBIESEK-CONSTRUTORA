@@ -153,6 +153,8 @@ export const ContasAPagar: React.FC = () => {
   const [ccDropdownAberto, setCcDropdownAberto] = useState(false);
   const [credorDropdownAberto, setCredorDropdownAberto] = useState(false);
   const [filtroCredor, setFiltroCredor] = useState<string[]>([]);
+  const [filtroDias, setFiltroDias] = useState<string[]>([]);
+  const [diasDropdownAberto, setDiasDropdownAberto] = useState(false);
   const [classDropdownAberto, setClassDropdownAberto] = useState(false);
   const [anoDropdownAberto, setAnoDropdownAberto] = useState(false);
   const [snapshotsDisponiveis, setSnapshotsDisponiveis] = useState<Array<{ data_snapshot: string; created_at: string }>>([]);
@@ -428,7 +430,8 @@ export const ContasAPagar: React.FC = () => {
     ano: number[],
     mesesSelecionados: number[],
     tiposDocSelecionados: string[],
-    credoresSelecionados: string[]
+    credoresSelecionados: string[],
+    diasSelecionados: string[]
   ) => {
     let contasFiltradas = [...dados];
 
@@ -468,6 +471,12 @@ export const ContasAPagar: React.FC = () => {
         return c.credor && credoresSelecionados.includes(c.credor);
       });
     }
+    if (diasSelecionados.length > 0) {
+      contasFiltradas = contasFiltradas.filter(c => {
+        const dias = calcularDiasAteVencimento(c.data_vencimento as any);
+        return diasSelecionados.includes(String(dias));
+      });
+    }
     if (prazo !== 'todos') {
       contasFiltradas = contasFiltradas.filter(c => {
         const dias = calcularDiasAteVencimento(c.data_vencimento as any);
@@ -487,11 +496,11 @@ export const ContasAPagar: React.FC = () => {
   useEffect(() => {
     if (todasContas.length === 0) return;
 
-    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor);
+    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias);
     setContas(contasFiltradas);
 
     // Card "Total a Pagar" usa TODAS as contas (vencidas + a vencer), mas com filtros locais aplicados
-    const completasFiltradas = aplicarFiltrosLocais(todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor);
+    const completasFiltradas = aplicarFiltrosLocais(todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias);
     const stats: Estatisticas = {
       quantidade_titulos: calcularTitulosUnicos(completasFiltradas),
       valor_total: completasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0),
@@ -560,7 +569,7 @@ export const ContasAPagar: React.FC = () => {
       .filter(d => d.quantidade > 0)
       .sort((a, b) => a.ordem - b.ordem);
     setDadosPorVencimento(vencimentoArray);
-  }, [todasContas, todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor]);
+  }, [todasContas, todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias]);
 
   useEffect(() => {
     carregarDados();
@@ -579,6 +588,7 @@ export const ContasAPagar: React.FC = () => {
     setFiltroMes([]);
     setFiltroTipoDocumento([]);
     setFiltroCredor([]);
+    setFiltroDias([]);
   };
 
   const credoresDisponiveis = React.useMemo(() => {
@@ -587,6 +597,15 @@ export const ContasAPagar: React.FC = () => {
       if (c.credor) credorSet.add(c.credor);
     });
     return Array.from(credorSet).sort((a, b) => a.localeCompare(b));
+  }, [todasContas]);
+
+  const diasDisponiveis = React.useMemo(() => {
+    const diasSet = new Set<number>();
+    todasContas.forEach(c => {
+      const dias = calcularDiasAteVencimento(c.data_vencimento as any);
+      diasSet.add(dias);
+    });
+    return Array.from(diasSet).sort((a, b) => a - b);
   }, [todasContas]);
 
   const exportarPDF = () => {
@@ -612,6 +631,7 @@ export const ContasAPagar: React.FC = () => {
       { label: 'Ano', valor: filtroAno.length > 0 ? filtroAno.join(', ') : 'Todos' },
       { label: 'Mes', valor: filtroMes.length > 0 ? filtroMes.map(m => meses.find(mes => mes.valor === m)?.nome).filter(Boolean).join(', ') : 'Todos' },
       { label: 'Tipo Documento', valor: filtroTipoDocumento.length > 0 ? filtroTipoDocumento.join(', ') : 'Todos' },
+      { label: 'Dias', valor: filtroDias.length > 0 ? filtroDias.map(d => d === '0' ? 'Hoje' : parseInt(d) < 0 ? `${Math.abs(parseInt(d))}d atraso` : `${d}d`).join(', ') : 'Todos' },
     ];
     y = adicionarFiltrosAtivos(doc, filtros, y, pageWidth, margin);
 
@@ -948,6 +968,15 @@ export const ContasAPagar: React.FC = () => {
           setIsOpen={setTipoDocDropdownAberto}
           searchable={true}
         />
+        <MultiSelectDropdown
+          label="Dias"
+          items={diasDisponiveis.map(d => ({ id: String(d), nome: d === 0 ? 'Hoje' : d < 0 ? `${Math.abs(d)}d atraso` : `${d}d` }))}
+          selected={filtroDias}
+          setSelected={setFiltroDias}
+          isOpen={diasDropdownAberto}
+          setIsOpen={setDiasDropdownAberto}
+          searchable={true}
+        />
       </div>
       <div className="mt-4 flex gap-3">
         <button
@@ -1277,7 +1306,7 @@ export const ContasAPagar: React.FC = () => {
         const contas7dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 7; });
         const contas15dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 15; });
         const contas30dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 30; });
-        const completasFiltradas = aplicarFiltrosLocais(todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor);
+        const completasFiltradas = aplicarFiltrosLocais(todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias);
         const credoresTotal = new Set(completasFiltradas.map(c => c.credor)).size;
         const credoresHoje = new Set(contasHoje.map(c => c.credor)).size;
         const credores7dias = new Set(contas7dias.map(c => c.credor)).size;
