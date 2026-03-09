@@ -1286,7 +1286,7 @@ export const ContasAPagar: React.FC = () => {
                           <div className="bg-gradient-to-r from-blue-50 via-blue-50 to-indigo-50 border-l-4 border-l-blue-600 border-t-2 border-b-2 border-t-blue-300 border-b-blue-300 px-8 py-5 shadow-inner">
                             <div className="flex items-center justify-between mb-4 pb-3 border-b border-blue-200">
                               <div className="flex items-center gap-3">
-                                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 text-white text-sm font-bold">
+                                <div className="flex items-center justify-center min-w-[3rem] h-12 px-3 rounded-full bg-blue-600 text-white text-sm font-bold">
                                   {conta.lancamento ? conta.lancamento.split('/')[0] : '#'}
                                 </div>
                                 <div>
