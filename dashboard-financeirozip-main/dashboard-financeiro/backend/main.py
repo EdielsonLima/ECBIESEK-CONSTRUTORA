@@ -920,6 +920,7 @@ def get_contas_ano(ano: int = None):
 _titulo_detalhe_cache: dict = {}
 _TITULO_CACHE_TTL = 300  # 5 minutos
 
+SIENGE_API_URL = "https://api.sienge.com.br/biesek/public/api/v1"
 SIENGE_BULK_API_URL = "https://api.sienge.com.br/biesek/public/api/bulk-data/v1"
 SIENGE_USERNAME = "biesek-dtconsultorias"
 SIENGE_PASSWORD = "W8LWWpo170P3LPpJDD42RL456fEvudEE"
@@ -956,58 +957,30 @@ async def get_titulo_detalhe(titulo_id: int):
         cursor.close()
         conn.close()
 
-    # Chamar API Bulk do Sienge
+    # Chamar API v1 do Sienge (endpoint /bills/{id})
     auth_str = base64.b64encode(f"{SIENGE_USERNAME}:{SIENGE_PASSWORD}".encode()).decode()
-    # Usar range amplo ao redor da data de vencimento
-    data_venc = local_data.get('data_vencimento')
-    if data_venc:
-        if isinstance(data_venc, str):
-            data_venc = datetime.strptime(data_venc.split('T')[0], '%Y-%m-%d').date()
-        start_date = (data_venc - timedelta(days=365)).isoformat()
-        end_date = (data_venc + timedelta(days=30)).isoformat()
-    else:
-        start_date = "2024-01-01"
-        end_date = datetime.now().date().isoformat()
-
     sienge_data = None
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.get(
-                f"{SIENGE_BULK_API_URL}/outcome",
-                params={
-                    "startDate": start_date,
-                    "endDate": end_date,
-                    "selectionType": "D",
-                    "correctionIndexerId": "0",
-                    "correctionDate": datetime.now().date().isoformat(),
-                    "withAuthorizations": "false",
-                    "withBankMovements": "false",
-                },
+                f"{SIENGE_API_URL}/bills/{titulo_id}",
                 headers={
                     "Authorization": f"Basic {auth_str}",
                     "Content-Type": "application/json",
                 }
             )
             if resp.status_code == 200:
-                outcomes = resp.json()
-                if isinstance(outcomes, list):
-                    data_list = outcomes
-                elif isinstance(outcomes, dict) and 'data' in outcomes:
-                    data_list = outcomes['data']
-                else:
-                    data_list = []
-                # Filtrar pelo billId
-                for item in data_list:
-                    if item.get('billId') == titulo_id:
-                        sienge_data = {
-                            'registeredBy': item.get('registeredBy', ''),
-                            'registeredDate': item.get('registeredDate', ''),
-                            'issueDate': item.get('issueDate', ''),
-                            'billDate': item.get('billDate', ''),
-                            'observation': item.get('observation', ''),
-                            'authorizationStatus': item.get('authorizationStatus', ''),
-                        }
-                        break
+                item = resp.json()
+                sienge_data = {
+                    'registeredBy': item.get('registeredBy', ''),
+                    'registeredDate': item.get('registeredDate', ''),
+                    'changedBy': item.get('changedBy', ''),
+                    'changedDate': item.get('changedDate', ''),
+                    'issueDate': item.get('issueDate', ''),
+                    'billDate': item.get('billDate', ''),
+                    'observation': item.get('notes', ''),
+                    'authorizationStatus': item.get('status', ''),
+                }
     except Exception as e:
         print(f"[titulo-detalhe] Erro ao consultar Sienge: {e}")
 
@@ -1032,6 +1005,8 @@ async def get_titulo_detalhe(titulo_id: int):
         # Dados do Sienge (podem ser None se a API falhar)
         'registeredBy': sienge_data.get('registeredBy') if sienge_data else None,
         'registeredDate': sienge_data.get('registeredDate') if sienge_data else None,
+        'changedBy': sienge_data.get('changedBy') if sienge_data else None,
+        'changedDate': sienge_data.get('changedDate') if sienge_data else None,
         'issueDate': sienge_data.get('issueDate') if sienge_data else None,
         'billDate': sienge_data.get('billDate') if sienge_data else None,
         'observation': sienge_data.get('observation') if sienge_data else None,

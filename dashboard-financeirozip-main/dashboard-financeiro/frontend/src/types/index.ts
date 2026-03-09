@@ -41,6 +41,8 @@ export interface TituloDetalhe {
   // Dados do Sienge
   registeredBy?: string;
   registeredDate?: string;
+  changedBy?: string;
+  changedDate?: string;
   issueDate?: string;
   billDate?: string;
   observation?: string;

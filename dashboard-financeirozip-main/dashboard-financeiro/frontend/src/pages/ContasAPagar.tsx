@@ -1226,6 +1226,20 @@ export const ContasAPagar: React.FC = () => {
                                     </p>
                                   </div>
                                 )}
+                                {detalhe?.changedBy && (
+                                  <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                                    <p className="text-xs text-gray-500 uppercase font-medium">Alterado por</p>
+                                    <p className="text-sm font-semibold text-gray-900 mt-1">{detalhe.changedBy}</p>
+                                  </div>
+                                )}
+                                {detalhe?.changedDate && (
+                                  <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                                    <p className="text-xs text-gray-500 uppercase font-medium">Data Alteracao</p>
+                                    <p className="text-sm font-semibold text-gray-900 mt-1">
+                                      {new Date(detalhe.changedDate).toLocaleString('pt-BR')}
+                                    </p>
+                                  </div>
+                                )}
                                 <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
                                   <p className="text-xs text-gray-500 uppercase font-medium">Data Emissao</p>
                                   <p className="text-sm font-semibold text-gray-900 mt-1">
