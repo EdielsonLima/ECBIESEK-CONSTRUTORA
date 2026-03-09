@@ -24,6 +24,7 @@ export interface ContaPagar {
   data_cadastro?: string;
   descricao_observacao?: string;
   data_emissao?: string;
+  flautorizacao?: string;
 }
 
 export interface TituloDetalhe {
