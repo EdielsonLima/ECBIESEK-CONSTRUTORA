@@ -946,9 +946,11 @@ async def get_autorizacoes_bulk():
     credentials = base64.b64encode(f"{SIENGE_USERNAME}:{SIENGE_PASSWORD}".encode()).decode()
 
     url = f"{SIENGE_BULK_API_URL}/outcome"
+    # endDate futuro para incluir títulos com vencimento adiante
+    end_date = f"{datetime.now().year + 2}-12-31"
     params = {
         "startDate": "2024-01-01",
-        "endDate": hoje,
+        "endDate": end_date,
         "selectionType": "D",
         "correctionIndexerId": "0",
         "correctionDate": hoje,
@@ -963,7 +965,8 @@ async def get_autorizacoes_bulk():
                 "Content-Type": "application/json",
             })
             response.raise_for_status()
-            data = response.json()
+            raw = response.json()
+            data = raw.get("data", raw) if isinstance(raw, dict) else raw
 
         resultado = {}
         for item in data:
