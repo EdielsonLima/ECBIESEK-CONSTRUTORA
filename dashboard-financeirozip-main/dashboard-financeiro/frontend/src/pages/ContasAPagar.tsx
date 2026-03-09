@@ -158,6 +158,7 @@ export const ContasAPagar: React.FC = () => {
   const [linhaExpandida, setLinhaExpandida] = useState<number | null>(null);
   const [detalheCarregando, setDetalheCarregando] = useState(false);
   const [detalheCache, setDetalheCache] = useState<Record<number, TituloDetalhe>>({});
+  const [autorizacoesBulk, setAutorizacoesBulk] = useState<Record<string, string>>({});
   const [classDropdownAberto, setClassDropdownAberto] = useState(false);
   const [anoDropdownAberto, setAnoDropdownAberto] = useState(false);
   const [snapshotsDisponiveis, setSnapshotsDisponiveis] = useState<Array<{ data_snapshot: string; created_at: string }>>([]);
@@ -375,6 +376,12 @@ export const ContasAPagar: React.FC = () => {
       }
     };
     carregarFiltros();
+  }, []);
+
+  useEffect(() => {
+    apiService.getAutorizacoesBulk()
+      .then(data => setAutorizacoesBulk(data))
+      .catch(err => console.error('Erro ao carregar autorizações:', err));
   }, []);
 
   useEffect(() => {
@@ -1208,10 +1215,13 @@ export const ContasAPagar: React.FC = () => {
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 font-mono">{conta.id_documento || '-'}</td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm">
-                        {(conta as any).flautorizacao === 'S'
-                          ? <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">Sim</span>
-                          : <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">Nao</span>
-                        }
+                        {(() => {
+                          const authApi = conta.lancamento ? autorizacoesBulk[conta.lancamento] : undefined;
+                          const auth = authApi || (conta as any).flautorizacao;
+                          return auth === 'S'
+                            ? <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">Sim</span>
+                            : <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">Nao</span>;
+                        })()}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{(conta as any).nome_centrocusto || '-'}</td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-blue-600">{formatCurrency(conta.valor_total)}</td>

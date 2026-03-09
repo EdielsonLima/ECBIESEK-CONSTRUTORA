@@ -180,6 +180,12 @@ export const apiService = {
     return response.data;
   },
 
+  // Autorizações em lote (via Sienge Bulk API)
+  getAutorizacoesBulk: async (): Promise<Record<string, string>> => {
+    const response = await api.get<Record<string, string>>('/autorizacoes-bulk');
+    return response.data;
+  },
+
   // Gráfico mensal
   getGraficoMensal: async (): Promise<GraficoMensal[]> => {
     const response = await api.get<GraficoMensal[]>('/grafico-mensal');

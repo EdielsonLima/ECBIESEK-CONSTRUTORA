@@ -924,10 +924,65 @@ def get_contas_ano(ano: int = None):
 _titulo_detalhe_cache: dict = {}
 _TITULO_CACHE_TTL = 300  # 5 minutos
 
+# Cache em memória para autorizações bulk
+_autorizacoes_bulk_cache: dict = {"data": None, "timestamp": 0}
+_AUTORIZACOES_CACHE_TTL = 600  # 10 minutos
+
 SIENGE_API_URL = "https://api.sienge.com.br/biesek/public/api/v1"
 SIENGE_BULK_API_URL = "https://api.sienge.com.br/biesek/public/api/bulk-data/v1"
 SIENGE_USERNAME = "biesek-dtconsultorias"
 SIENGE_PASSWORD = "W8LWWpo170P3LPpJDD42RL456fEvudEE"
+
+@app.get("/api/autorizacoes-bulk")
+async def get_autorizacoes_bulk():
+    """Busca status de autorização de todos os títulos via Sienge Bulk API /outcome"""
+    import time as _time
+
+    now = _time.time()
+    if _autorizacoes_bulk_cache["data"] is not None and (now - _autorizacoes_bulk_cache["timestamp"]) < _AUTORIZACOES_CACHE_TTL:
+        return _autorizacoes_bulk_cache["data"]
+
+    hoje = datetime.now().strftime("%Y-%m-%d")
+    credentials = base64.b64encode(f"{SIENGE_USERNAME}:{SIENGE_PASSWORD}".encode()).decode()
+
+    url = f"{SIENGE_BULK_API_URL}/outcome"
+    params = {
+        "startDate": "2024-01-01",
+        "endDate": hoje,
+        "selectionType": "D",
+        "correctionIndexerId": "0",
+        "correctionDate": hoje,
+        "withAuthorizations": "false",
+        "withBankMovements": "false",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.get(url, params=params, headers={
+                "Authorization": f"Basic {credentials}",
+                "Content-Type": "application/json",
+            })
+            response.raise_for_status()
+            data = response.json()
+
+        resultado = {}
+        for item in data:
+            bill_id = item.get("billId")
+            installment_id = item.get("installmentId")
+            auth_status = item.get("authorizationStatus", "N")
+            if bill_id is not None:
+                key = f"{bill_id}/{installment_id}" if installment_id else str(bill_id)
+                resultado[key] = auth_status
+
+        _autorizacoes_bulk_cache["data"] = resultado
+        _autorizacoes_bulk_cache["timestamp"] = now
+        return resultado
+    except Exception as e:
+        print(f"Erro ao buscar autorizações bulk: {e}")
+        if _autorizacoes_bulk_cache["data"] is not None:
+            return _autorizacoes_bulk_cache["data"]
+        return {}
+
 
 @app.get("/api/titulo-detalhe/{titulo_id}")
 async def get_titulo_detalhe(titulo_id: int):
