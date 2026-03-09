@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { apiService } from '../services/api';
-import { ContaPagar, EmpresaOption, CentroCustoOption, TipoDocumentoOption } from '../types';
+import { ContaPagar, TituloDetalhe, EmpresaOption, CentroCustoOption, TipoDocumentoOption } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList, Line, ComposedChart } from 'recharts';
 import { criarPDFBase, adicionarFiltrosAtivos, adicionarResumoCards, adicionarTabela, finalizarPDF, gerarNomeArquivo, formatCurrencyPDF, formatDatePDF } from '../utils/pdfExport';
 
@@ -155,6 +155,9 @@ export const ContasAPagar: React.FC = () => {
   const [filtroCredor, setFiltroCredor] = useState<string[]>([]);
   const [filtroDias, setFiltroDias] = useState<string[]>([]);
   const [diasDropdownAberto, setDiasDropdownAberto] = useState(false);
+  const [linhaExpandida, setLinhaExpandida] = useState<number | null>(null);
+  const [detalheCarregando, setDetalheCarregando] = useState(false);
+  const [detalheCache, setDetalheCache] = useState<Record<number, TituloDetalhe>>({});
   const [classDropdownAberto, setClassDropdownAberto] = useState(false);
   const [anoDropdownAberto, setAnoDropdownAberto] = useState(false);
   const [snapshotsDisponiveis, setSnapshotsDisponiveis] = useState<Array<{ data_snapshot: string; created_at: string }>>([]);
@@ -929,6 +932,23 @@ export const ContasAPagar: React.FC = () => {
           isOpen={classDropdownAberto}
           setIsOpen={setClassDropdownAberto}
         />
+        <MultiSelectDropdown
+          label="Tipo Documento"
+          items={tiposDocumento.map(t => ({ id: t.id, nome: `${t.id} - ${t.nome}` }))}
+          selected={filtroTipoDocumento}
+          setSelected={setFiltroTipoDocumento}
+          isOpen={tipoDocDropdownAberto}
+          setIsOpen={setTipoDocDropdownAberto}
+          searchable={true}
+        />
+        <MultiSelectDropdown
+          label="Ano"
+          items={anosDisponiveis.map(a => ({ id: a, nome: String(a) }))}
+          selected={filtroAno}
+          setSelected={setFiltroAno}
+          isOpen={anoDropdownAberto}
+          setIsOpen={setAnoDropdownAberto}
+        />
         <div>
           <label className="mb-2 block text-sm font-medium text-gray-700">Prazo de Vencimento</label>
           <select
@@ -944,29 +964,12 @@ export const ContasAPagar: React.FC = () => {
           </select>
         </div>
         <MultiSelectDropdown
-          label="Ano"
-          items={anosDisponiveis.map(a => ({ id: a, nome: String(a) }))}
-          selected={filtroAno}
-          setSelected={setFiltroAno}
-          isOpen={anoDropdownAberto}
-          setIsOpen={setAnoDropdownAberto}
-        />
-        <MultiSelectDropdown
           label="Mes"
           items={meses.map(m => ({ id: m.valor, nome: m.nome }))}
           selected={filtroMes}
           setSelected={setFiltroMes}
           isOpen={mesDropdownAberto}
           setIsOpen={setMesDropdownAberto}
-        />
-        <MultiSelectDropdown
-          label="Tipo Documento"
-          items={tiposDocumento.map(t => ({ id: t.id, nome: `${t.id} - ${t.nome}` }))}
-          selected={filtroTipoDocumento}
-          setSelected={setFiltroTipoDocumento}
-          isOpen={tipoDocDropdownAberto}
-          setIsOpen={setTipoDocDropdownAberto}
-          searchable={true}
         />
         <MultiSelectDropdown
           label="Dias"
@@ -1148,24 +1151,133 @@ export const ContasAPagar: React.FC = () => {
               {ordenarContas(contas).slice(0, 100).map((conta, index) => {
                 const dias = calcularDiasAteVencimento(conta.data_vencimento as any);
                 const corDias = dias < 0 ? 'text-red-600' : dias <= 7 ? 'text-orange-600' : 'text-green-600';
+                const isExpanded = linhaExpandida === index;
+                const tituloId = conta.lancamento ? parseInt(conta.lancamento.split('/')[0]) : null;
+                const detalhe = tituloId ? detalheCache[tituloId] : null;
+
+                const handleExpand = async () => {
+                  if (isExpanded) {
+                    setLinhaExpandida(null);
+                    return;
+                  }
+                  setLinhaExpandida(index);
+                  if (tituloId && !detalheCache[tituloId]) {
+                    setDetalheCarregando(true);
+                    try {
+                      const data = await apiService.getTituloDetalhe(tituloId);
+                      setDetalheCache(prev => ({ ...prev, [tituloId]: data }));
+                    } catch (err) {
+                      console.error('Erro ao buscar detalhe:', err);
+                    } finally {
+                      setDetalheCarregando(false);
+                    }
+                  }
+                };
+
                 return (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">{conta.credor || '-'}</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-400">{conta.data_cadastro ? formatDate(conta.data_cadastro as any) : '-'}</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{formatDate(conta.data_vencimento as any)}</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                      {conta.data_cadastro && conta.data_vencimento
-                        ? `${Math.round((new Date(conta.data_vencimento as any).getTime() - new Date(conta.data_cadastro as any).getTime()) / (1000 * 60 * 60 * 24))}d`
-                        : '-'}
-                    </td>
-                    <td className={`whitespace-nowrap px-6 py-4 text-sm font-semibold ${corDias}`}>
-                      {dias < 0 ? `${Math.abs(dias)}d atraso` : dias === 0 ? 'Hoje' : `${dias}d`}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 font-mono">{conta.id_documento || '-'}</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{(conta as any).nome_centrocusto || '-'}</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-blue-600">{formatCurrency(conta.valor_total)}</td>
-                  </tr>
+                  <React.Fragment key={index}>
+                    <tr className="hover:bg-gray-50 cursor-pointer" onClick={handleExpand}>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-gray-400 text-xs transition-transform ${isExpanded ? 'rotate-90' : ''}`}>&#9654;</span>
+                          {conta.credor || '-'}
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-400">{conta.data_cadastro ? formatDate(conta.data_cadastro as any) : '-'}</td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{formatDate(conta.data_vencimento as any)}</td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                        {conta.data_cadastro && conta.data_vencimento
+                          ? `${Math.round((new Date(conta.data_vencimento as any).getTime() - new Date(conta.data_cadastro as any).getTime()) / (1000 * 60 * 60 * 24))}d`
+                          : '-'}
+                      </td>
+                      <td className={`whitespace-nowrap px-6 py-4 text-sm font-semibold ${corDias}`}>
+                        {dias < 0 ? `${Math.abs(dias)}d atraso` : dias === 0 ? 'Hoje' : `${dias}d`}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 font-mono">{conta.id_documento || '-'}</td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{(conta as any).nome_centrocusto || '-'}</td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-blue-600">{formatCurrency(conta.valor_total)}</td>
+                    </tr>
+                    {isExpanded && (
+                      <tr>
+                        <td colSpan={9} className="p-0">
+                          <div className="bg-blue-50 border-t border-b border-blue-200 px-8 py-4">
+                            {detalheCarregando && !detalhe ? (
+                              <div className="flex items-center gap-2 text-sm text-gray-500">
+                                <svg className="animate-spin h-4 w-4 text-blue-500" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                </svg>
+                                Carregando detalhes do Sienge...
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                {detalhe?.registeredBy && (
+                                  <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                                    <p className="text-xs text-gray-500 uppercase font-medium">Cadastrado por</p>
+                                    <p className="text-sm font-semibold text-gray-900 mt-1">{detalhe.registeredBy}</p>
+                                  </div>
+                                )}
+                                {detalhe?.registeredDate && (
+                                  <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                                    <p className="text-xs text-gray-500 uppercase font-medium">Data Cadastro</p>
+                                    <p className="text-sm font-semibold text-gray-900 mt-1">
+                                      {new Date(detalhe.registeredDate).toLocaleString('pt-BR')}
+                                    </p>
+                                  </div>
+                                )}
+                                {detalhe?.issueDate && (
+                                  <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                                    <p className="text-xs text-gray-500 uppercase font-medium">Data Emissao</p>
+                                    <p className="text-sm font-semibold text-gray-900 mt-1">
+                                      {formatDate(detalhe.issueDate)}
+                                    </p>
+                                  </div>
+                                )}
+                                <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                                  <p className="text-xs text-gray-500 uppercase font-medium">N Documento</p>
+                                  <p className="text-sm font-semibold text-gray-900 mt-1">{conta.numero_documento || '-'}</p>
+                                </div>
+                                <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                                  <p className="text-xs text-gray-500 uppercase font-medium">Parcela</p>
+                                  <p className="text-sm font-semibold text-gray-900 mt-1">
+                                    {conta.lancamento ? conta.lancamento.split('/')[1] || '1' : '-'}
+                                  </p>
+                                </div>
+                                <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                                  <p className="text-xs text-gray-500 uppercase font-medium">Origem</p>
+                                  <p className="text-sm font-semibold text-gray-900 mt-1">
+                                    {detalhe?.origem_nome || conta.id_origem || '-'}
+                                  </p>
+                                </div>
+                                <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                                  <p className="text-xs text-gray-500 uppercase font-medium">Empresa</p>
+                                  <p className="text-sm font-semibold text-gray-900 mt-1">{(conta as any).nome_empresa || '-'}</p>
+                                </div>
+                                {detalhe?.authorizationStatus && (
+                                  <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                                    <p className="text-xs text-gray-500 uppercase font-medium">Autorizacao</p>
+                                    <p className="text-sm font-semibold text-gray-900 mt-1">{detalhe.authorizationStatus}</p>
+                                  </div>
+                                )}
+                                {(detalhe?.observation || (conta as any).descricao_observacao) && (
+                                  <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100 col-span-2 md:col-span-4">
+                                    <p className="text-xs text-gray-500 uppercase font-medium">Observacao</p>
+                                    <p className="text-sm text-gray-900 mt-1">{detalhe?.observation || (conta as any).descricao_observacao}</p>
+                                  </div>
+                                )}
+                                {!detalhe && !detalheCarregando && (
+                                  <div className="col-span-2 md:col-span-4 text-sm text-gray-400 italic">
+                                    Dados do Sienge indisponiveis
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 );
               })}
             </tbody>

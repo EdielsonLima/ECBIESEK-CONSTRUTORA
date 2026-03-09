@@ -18,6 +18,8 @@ import threading
 import time
 from dotenv import load_dotenv
 import anthropic
+import httpx
+import base64
 
 load_dotenv()
 
@@ -905,6 +907,133 @@ def get_contas_ano(ano: int = None):
     finally:
         cursor.close()
         conn.close()
+
+# Cache em memória para detalhes de títulos do Sienge
+_titulo_detalhe_cache: dict = {}
+_TITULO_CACHE_TTL = 300  # 5 minutos
+
+SIENGE_BULK_API_URL = "https://api.sienge.com.br/biesek/public/api/bulk-data/v1"
+SIENGE_USERNAME = "biesek-dtconsultorias"
+SIENGE_PASSWORD = "W8LWWpo170P3LPpJDD42RL456fEvudEE"
+
+@app.get("/api/titulo-detalhe/{titulo_id}")
+async def get_titulo_detalhe(titulo_id: int):
+    """Busca detalhes de auditoria de um título na API do Sienge"""
+    cache_key = str(titulo_id)
+    now = time.time()
+
+    # Verificar cache
+    if cache_key in _titulo_detalhe_cache:
+        cached = _titulo_detalhe_cache[cache_key]
+        if now - cached['timestamp'] < _TITULO_CACHE_TTL:
+            return cached['data']
+
+    # Buscar data de vencimento do título no banco local para montar o range da API
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT data_vencimento, data_cadastro, numero_documento, numero_parcela,
+                   id_origem, id_documento, id_interno_empresa,
+                   credor, valor_total, lancamento
+            FROM contas_a_pagar
+            WHERE CAST(SPLIT_PART(lancamento, '/', 1) AS INTEGER) = %s
+            LIMIT 1
+        """, [titulo_id])
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Título não encontrado")
+        local_data = dict(row)
+    finally:
+        cursor.close()
+        conn.close()
+
+    # Chamar API Bulk do Sienge
+    auth_str = base64.b64encode(f"{SIENGE_USERNAME}:{SIENGE_PASSWORD}".encode()).decode()
+    # Usar range amplo ao redor da data de vencimento
+    data_venc = local_data.get('data_vencimento')
+    if data_venc:
+        if isinstance(data_venc, str):
+            data_venc = datetime.strptime(data_venc.split('T')[0], '%Y-%m-%d').date()
+        start_date = (data_venc - timedelta(days=365)).isoformat()
+        end_date = (data_venc + timedelta(days=30)).isoformat()
+    else:
+        start_date = "2024-01-01"
+        end_date = datetime.now().date().isoformat()
+
+    sienge_data = None
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.get(
+                f"{SIENGE_BULK_API_URL}/outcome",
+                params={
+                    "startDate": start_date,
+                    "endDate": end_date,
+                    "selectionType": "D",
+                    "correctionIndexerId": "0",
+                    "correctionDate": datetime.now().date().isoformat(),
+                    "withAuthorizations": "false",
+                    "withBankMovements": "false",
+                },
+                headers={
+                    "Authorization": f"Basic {auth_str}",
+                    "Content-Type": "application/json",
+                }
+            )
+            if resp.status_code == 200:
+                outcomes = resp.json()
+                if isinstance(outcomes, list):
+                    data_list = outcomes
+                elif isinstance(outcomes, dict) and 'data' in outcomes:
+                    data_list = outcomes['data']
+                else:
+                    data_list = []
+                # Filtrar pelo billId
+                for item in data_list:
+                    if item.get('billId') == titulo_id:
+                        sienge_data = {
+                            'registeredBy': item.get('registeredBy', ''),
+                            'registeredDate': item.get('registeredDate', ''),
+                            'issueDate': item.get('issueDate', ''),
+                            'billDate': item.get('billDate', ''),
+                            'observation': item.get('observation', ''),
+                            'authorizationStatus': item.get('authorizationStatus', ''),
+                        }
+                        break
+    except Exception as e:
+        print(f"[titulo-detalhe] Erro ao consultar Sienge: {e}")
+
+    NOMES_ORIGEM = {
+        'CP': 'Contas a Pagar', 'AC': 'Acordo', 'ME': 'Medição', 'CO': 'Contrato',
+        'NF': 'Nota Fiscal', 'GR': 'Guia de Recolhimento', 'RE': 'Recibo',
+        'BO': 'Boleto', 'CH': 'Cheque', 'DP': 'Depósito', 'FP': 'Folha de Pagamento',
+    }
+
+    resultado = {
+        'titulo_id': titulo_id,
+        'numero_documento': local_data.get('numero_documento'),
+        'numero_parcela': local_data.get('numero_parcela'),
+        'id_origem': local_data.get('id_origem'),
+        'origem_nome': NOMES_ORIGEM.get((local_data.get('id_origem') or '').strip(), local_data.get('id_origem')),
+        'id_documento': local_data.get('id_documento'),
+        'data_cadastro': str(local_data.get('data_cadastro')) if local_data.get('data_cadastro') else None,
+        'data_vencimento': str(local_data.get('data_vencimento')) if local_data.get('data_vencimento') else None,
+        'credor': local_data.get('credor'),
+        'valor_total': float(local_data.get('valor_total') or 0),
+        'lancamento': local_data.get('lancamento'),
+        # Dados do Sienge (podem ser None se a API falhar)
+        'registeredBy': sienge_data.get('registeredBy') if sienge_data else None,
+        'registeredDate': sienge_data.get('registeredDate') if sienge_data else None,
+        'issueDate': sienge_data.get('issueDate') if sienge_data else None,
+        'billDate': sienge_data.get('billDate') if sienge_data else None,
+        'observation': sienge_data.get('observation') if sienge_data else None,
+        'authorizationStatus': sienge_data.get('authorizationStatus') if sienge_data else None,
+    }
+
+    # Salvar no cache
+    _titulo_detalhe_cache[cache_key] = {'data': resultado, 'timestamp': now}
+
+    return resultado
 
 @app.get("/api/grafico-mensal", response_model=List[GraficoMensal])
 def get_grafico_mensal():

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ContaPagar, DashboardMetrics, GraficoMensal, GraficoPorCategoria, EmpresaOption, CentroCustoOption, TipoDocumentoOption, OrigemDadoOption, TipoBaixaOption, ContaCorrenteOption, OrigemTituloOption, KPI, KPICreate, KPIHistorico, KPIResumo, CalculoDisponivel, TipoDocumento, ContaReceber, MetricasReceber, KPIVariacaoDiaria, KPIHistoricoVariacaoResponse, SnapshotDiarioResponse } from '../types';
+import { ContaPagar, TituloDetalhe, DashboardMetrics, GraficoMensal, GraficoPorCategoria, EmpresaOption, CentroCustoOption, TipoDocumentoOption, OrigemDadoOption, TipoBaixaOption, ContaCorrenteOption, OrigemTituloOption, KPI, KPICreate, KPIHistorico, KPIResumo, CalculoDisponivel, TipoDocumento, ContaReceber, MetricasReceber, KPIVariacaoDiaria, KPIHistoricoVariacaoResponse, SnapshotDiarioResponse } from '../types';
 
 const API_URL = '/api';
 
@@ -171,6 +171,12 @@ export const apiService = {
     const params = new URLSearchParams();
     if (ano) params.append('ano', ano.toString());
     const response = await api.get<ContaPagar[]>(`/contas-ano?${params.toString()}`);
+    return response.data;
+  },
+
+  // Detalhes de auditoria de um título (via Sienge)
+  getTituloDetalhe: async (tituloId: number): Promise<TituloDetalhe> => {
+    const response = await api.get<TituloDetalhe>(`/titulo-detalhe/${tituloId}`);
     return response.data;
   },
 
