@@ -225,6 +225,10 @@ export const ContasAPagar: React.FC = () => {
           valorA = (a.id_documento || '').toLowerCase();
           valorB = (b.id_documento || '').toLowerCase();
           break;
+        case 'data_cadastro':
+          valorA = (a.data_cadastro || '').split('T')[0];
+          valorB = (b.data_cadastro || '').split('T')[0];
+          break;
         default:
           return 0;
       }
@@ -1081,6 +1085,9 @@ export const ContasAPagar: React.FC = () => {
                 <th onClick={() => toggleOrdenacao('credor')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Credor{renderSortIcon('credor')}
                 </th>
+                <th onClick={() => toggleOrdenacao('data_cadastro')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                  Cadastro{renderSortIcon('data_cadastro')}
+                </th>
                 <th onClick={() => toggleOrdenacao('data_vencimento')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Vencimento{renderSortIcon('data_vencimento')}
                 </th>
@@ -1108,6 +1115,7 @@ export const ContasAPagar: React.FC = () => {
                 return (
                   <tr key={index} className="hover:bg-gray-50">
                     <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">{conta.credor || '-'}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-400">{conta.data_cadastro ? formatDate(conta.data_cadastro as any) : '-'}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{formatDate(conta.data_vencimento as any)}</td>
                     <td className={`whitespace-nowrap px-6 py-4 text-sm font-semibold ${corDias}`}>
                       {dias < 0 ? `${Math.abs(dias)}d atraso` : dias === 0 ? 'Hoje' : `${dias}d`}
