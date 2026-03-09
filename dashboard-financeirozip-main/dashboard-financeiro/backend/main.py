@@ -987,6 +987,84 @@ async def get_autorizacoes_bulk():
         return {}
 
 
+# Cache para títulos alterados
+_titulos_alterados_cache: dict = {}
+_TITULOS_ALTERADOS_TTL = 300  # 5 minutos
+
+@app.get("/api/titulos-alterados")
+async def get_titulos_alterados(data_inicio: str, data_fim: str):
+    """Busca títulos alterados em um período via Sienge API /bills/by-change-date"""
+    import time as _time
+
+    cache_key = f"{data_inicio}_{data_fim}"
+    now = _time.time()
+    if cache_key in _titulos_alterados_cache:
+        cached = _titulos_alterados_cache[cache_key]
+        if (now - cached["timestamp"]) < _TITULOS_ALTERADOS_TTL:
+            return cached["data"]
+
+    credentials = base64.b64encode(f"{SIENGE_USERNAME}:{SIENGE_PASSWORD}".encode()).decode()
+    todos_titulos = []
+    offset = 0
+    limit = 200
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            while True:
+                response = await client.get(
+                    f"{SIENGE_API_URL}/bills/by-change-date",
+                    params={"startDate": data_inicio, "endDate": data_fim, "limit": limit, "offset": offset},
+                    headers={"Authorization": f"Basic {credentials}", "Content-Type": "application/json"},
+                )
+                response.raise_for_status()
+                data = response.json()
+                results = data.get("results", data) if isinstance(data, dict) else data
+                if isinstance(results, list):
+                    todos_titulos.extend(results)
+                    if len(results) < limit:
+                        break
+                    offset += limit
+                else:
+                    break
+
+        # Busca nomes dos credores no banco local
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            credor_map = {}
+            creditor_ids = list(set(t.get("creditorId") for t in todos_titulos if t.get("creditorId")))
+            if creditor_ids:
+                placeholders = ",".join(["%s"] * len(creditor_ids))
+                cursor.execute(f"SELECT DISTINCT id_credor, credor FROM contas_a_pagar WHERE id_credor IN ({placeholders})", creditor_ids)
+                for row in cursor.fetchall():
+                    credor_map[row["id_credor"]] = row["credor"]
+        finally:
+            cursor.close()
+            conn.close()
+
+        resultado = []
+        for t in todos_titulos:
+            resultado.append({
+                "id": t.get("id"),
+                "creditorId": t.get("creditorId"),
+                "creditorName": credor_map.get(t.get("creditorId"), ""),
+                "documentNumber": t.get("documentNumber"),
+                "documentIdentificationId": t.get("documentIdentificationId"),
+                "totalInvoiceAmount": t.get("totalInvoiceAmount"),
+                "originId": t.get("originId"),
+                "registeredBy": t.get("registeredBy"),
+                "registeredDate": t.get("registeredDate"),
+                "changedBy": t.get("changedBy"),
+                "changedDate": t.get("changedDate"),
+            })
+
+        _titulos_alterados_cache[cache_key] = {"data": resultado, "timestamp": now}
+        return resultado
+    except Exception as e:
+        print(f"Erro ao buscar títulos alterados: {e}")
+        return []
+
+
 @app.get("/api/titulo-detalhe/{titulo_id}")
 async def get_titulo_detalhe(titulo_id: int):
     """Busca detalhes de auditoria de um título na API do Sienge"""
@@ -6325,6 +6403,20 @@ def _ensure_config_tables_in_postgres():
             """)
 
             cursor.execute("""
+                CREATE TABLE IF NOT EXISTS snapshots_titulos_pagar (
+                    id SERIAL PRIMARY KEY,
+                    data_snapshot DATE NOT NULL,
+                    lancamento VARCHAR(50),
+                    credor VARCHAR(200),
+                    valor_total NUMERIC(15,2),
+                    data_vencimento DATE,
+                    data_cadastro DATE,
+                    id_documento VARCHAR(10),
+                    nome_centrocusto VARCHAR(200),
+                    UNIQUE(data_snapshot, lancamento)
+                )
+            """)
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS config_titulos_incc_manual (
                     id SERIAL PRIMARY KEY,
                     cliente VARCHAR(200) NOT NULL,
@@ -7277,6 +7369,114 @@ def get_snapshot_cards_pagar(data: str):
     finally:
         cursor.close()
         conn.close()
+
+# ============ SNAPSHOT DETALHADO (TÍTULOS INDIVIDUAIS) ============
+
+@app.post("/api/snapshots/titulos-pagar")
+def salvar_snapshot_titulos(dados: dict):
+    """Salva títulos individuais de um snapshot"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        data_snapshot = dados.get('data_snapshot')
+        titulos = dados.get('titulos', [])
+        # Limpa títulos anteriores do mesmo dia
+        cursor.execute("DELETE FROM snapshots_titulos_pagar WHERE data_snapshot = %s", (data_snapshot,))
+        for t in titulos:
+            cursor.execute("""
+                INSERT INTO snapshots_titulos_pagar (data_snapshot, lancamento, credor, valor_total, data_vencimento, data_cadastro, id_documento, nome_centrocusto)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (data_snapshot, lancamento) DO UPDATE SET
+                    credor = EXCLUDED.credor, valor_total = EXCLUDED.valor_total,
+                    data_vencimento = EXCLUDED.data_vencimento, data_cadastro = EXCLUDED.data_cadastro,
+                    id_documento = EXCLUDED.id_documento, nome_centrocusto = EXCLUDED.nome_centrocusto
+            """, (data_snapshot, t.get('lancamento'), t.get('credor'), t.get('valor_total'),
+                  t.get('data_vencimento'), t.get('data_cadastro'), t.get('id_documento'), t.get('nome_centrocusto')))
+        conn.commit()
+        return {"success": True, "titulos_salvos": len(titulos)}
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.get("/api/snapshots/titulos-pagar/{data}")
+def get_snapshot_titulos(data: str):
+    """Retorna títulos individuais de um snapshot"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT lancamento, credor, valor_total, data_vencimento, data_cadastro, id_documento, nome_centrocusto
+            FROM snapshots_titulos_pagar WHERE data_snapshot = %s ORDER BY data_vencimento
+        """, (data,))
+        rows = cursor.fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.get("/api/snapshots/comparar/{data}")
+def comparar_snapshot(data: str):
+    """Compara snapshot salvo com dados atuais"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Busca títulos do snapshot
+        cursor.execute("""
+            SELECT lancamento, credor, valor_total, data_vencimento, data_cadastro, id_documento, nome_centrocusto
+            FROM snapshots_titulos_pagar WHERE data_snapshot = %s
+        """, (data,))
+        snap_rows = cursor.fetchall()
+        snap_map = {r['lancamento']: dict(r) for r in snap_rows if r['lancamento']}
+
+        # Busca títulos atuais
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', exclude_paid=True)
+        excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
+        cursor.execute(f"""
+            SELECT cap.lancamento, cap.credor, cap.valor_total, cap.data_vencimento, cap.data_cadastro,
+                   TRIM(cap.id_documento) as id_documento, cc.nome_centrocusto
+            FROM contas_a_pagar cap
+            LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE 1=1{excl_where}
+        """, excl_params)
+        atual_rows = cursor.fetchall()
+        atual_map = {r['lancamento']: dict(r) for r in atual_rows if r['lancamento']}
+
+        adicionados = []
+        removidos = []
+        alterados = []
+
+        for lanc, atual in atual_map.items():
+            if lanc not in snap_map:
+                adicionados.append(atual)
+            else:
+                snap = snap_map[lanc]
+                if abs(float(atual.get('valor_total') or 0) - float(snap.get('valor_total') or 0)) > 0.01:
+                    alterados.append({**atual, 'valor_anterior': float(snap.get('valor_total') or 0)})
+
+        for lanc, snap in snap_map.items():
+            if lanc not in atual_map:
+                removidos.append(snap)
+
+        return {
+            'data_snapshot': data,
+            'adicionados': adicionados,
+            'removidos': removidos,
+            'alterados': alterados,
+            'resumo': {
+                'qtd_adicionados': len(adicionados),
+                'valor_adicionados': sum(float(a.get('valor_total') or 0) for a in adicionados),
+                'qtd_removidos': len(removidos),
+                'valor_removidos': sum(float(r.get('valor_total') or 0) for r in removidos),
+                'qtd_alterados': len(alterados),
+            }
+        }
+    finally:
+        cursor.close()
+        conn.close()
+
 
 # ============ SNAPSHOT SCHEDULE CONFIG ============
 

@@ -1178,6 +1178,28 @@ export const apiService = {
     return response.data;
   },
 
+  // Snapshot detalhado (títulos individuais)
+  salvarSnapshotTitulos: async (dados: { data_snapshot: string; titulos: any[] }): Promise<any> => {
+    const response = await api.post('/snapshots/titulos-pagar', dados);
+    return response.data;
+  },
+
+  getSnapshotTitulos: async (data: string): Promise<any[]> => {
+    const response = await api.get(`/snapshots/titulos-pagar/${data}`);
+    return response.data;
+  },
+
+  compararSnapshot: async (data: string): Promise<any> => {
+    const response = await api.get(`/snapshots/comparar/${data}`);
+    return response.data;
+  },
+
+  // Títulos alterados (via Sienge /bills/by-change-date)
+  getTitulosAlterados: async (dataInicio: string, dataFim: string): Promise<any[]> => {
+    const response = await api.get(`/titulos-alterados?data_inicio=${dataInicio}&data_fim=${dataFim}`);
+    return response.data;
+  },
+
   getSnapshotHorario: async (): Promise<{ horario: string; ativo: boolean; updated_at: string | null }> => {
     const response = await api.get('/configuracoes/snapshot-horario');
     return response.data;

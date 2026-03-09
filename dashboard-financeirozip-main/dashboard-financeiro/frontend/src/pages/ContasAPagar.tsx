@@ -119,7 +119,7 @@ interface DadosPorVencimento {
   ordem: number;
 }
 
-type AbaAtiva = 'dados' | 'analises' | 'por-credor' | 'por-centro-custo' | 'por-semana' | 'por-origem';
+type AbaAtiva = 'dados' | 'analises' | 'por-credor' | 'por-centro-custo' | 'por-semana' | 'por-origem' | 'mudancas';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1'];
 
@@ -167,6 +167,11 @@ export const ContasAPagar: React.FC = () => {
   const [snapshotDados, setSnapshotDados] = useState<Record<string, { faixa: string; data_inicio: string | null; data_fim: string | null; valor_total: number; quantidade_titulos: number; quantidade_credores: number }> | null>(null);
   const [salvandoSnapshot, setSalvandoSnapshot] = useState(false);
   const [snapshotMsg, setSnapshotMsg] = useState<string | null>(null);
+  const [snapshotComparacao, setSnapshotComparacao] = useState<any>(null);
+  const [mudancasDataInicio, setMudancasDataInicio] = useState<string>(() => { const d = new Date(); d.setDate(d.getDate() - 3); return d.toISOString().split('T')[0]; });
+  const [mudancasDataFim, setMudancasDataFim] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [mudancasResultados, setMudancasResultados] = useState<any[]>([]);
+  const [mudancasLoading, setMudancasLoading] = useState(false);
   const [filtroAnoSemana, setFiltroAnoSemana] = useState<number>(new Date().getFullYear());
   const [filtroSemanas, setFiltroSemanas] = useState<number[]>([]);
   const [subAbaCentroCusto, setSubAbaCentroCusto] = useState<'tabela' | 'grafico'>('tabela');
@@ -400,15 +405,20 @@ export const ContasAPagar: React.FC = () => {
   useEffect(() => {
     if (!snapshotSelecionado) {
       setSnapshotDados(null);
+      setSnapshotComparacao(null);
       return;
     }
     const carregarSnapshot = async () => {
       try {
         const data = await apiService.getSnapshotCardsPagar(snapshotSelecionado);
         setSnapshotDados(data.cards);
+        // Carrega comparação detalhada
+        const comp = await apiService.compararSnapshot(snapshotSelecionado).catch(() => null);
+        setSnapshotComparacao(comp);
       } catch (err) {
         console.error('Erro ao carregar snapshot:', err);
         setSnapshotDados(null);
+        setSnapshotComparacao(null);
       }
     };
     carregarSnapshot();
@@ -1476,6 +1486,14 @@ export const ContasAPagar: React.FC = () => {
       ];
 
       await apiService.salvarSnapshotCardsPagar({ data_snapshot: toISO(hoje), cards });
+      // Salva títulos individuais para comparação detalhada
+      const titulosParaSalvar = todasContas.map(c => ({
+        lancamento: c.lancamento, credor: c.credor, valor_total: c.valor_total,
+        data_vencimento: typeof c.data_vencimento === 'string' ? c.data_vencimento.split('T')[0] : null,
+        data_cadastro: typeof c.data_cadastro === 'string' ? c.data_cadastro.split('T')[0] : null,
+        id_documento: c.id_documento, nome_centrocusto: (c as any).nome_centrocusto,
+      }));
+      await apiService.salvarSnapshotTitulos({ data_snapshot: toISO(hoje), titulos: titulosParaSalvar }).catch(() => {});
       setSnapshotMsg('Snapshot salvo com sucesso!');
       const lista = await apiService.listarSnapshotsCardsPagar();
       setSnapshotsDisponiveis(lista);
@@ -1635,6 +1653,71 @@ export const ContasAPagar: React.FC = () => {
         );
       })()}
 
+      {snapshotComparacao && snapshotComparacao.resumo && (snapshotComparacao.resumo.qtd_adicionados > 0 || snapshotComparacao.resumo.qtd_removidos > 0 || snapshotComparacao.resumo.qtd_alterados > 0) && (
+        <div className="mb-6 rounded-lg border border-blue-200 bg-white p-4 shadow">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Comparacao detalhada vs snapshot {snapshotSelecionado ? new Date(snapshotSelecionado + 'T00:00:00').toLocaleDateString('pt-BR') : ''}</h3>
+          <div className="flex gap-4 mb-3 text-sm">
+            {snapshotComparacao.resumo.qtd_adicionados > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-green-800 font-medium">
+                +{snapshotComparacao.resumo.qtd_adicionados} adicionado(s) ({formatCurrency(snapshotComparacao.resumo.valor_adicionados)})
+              </span>
+            )}
+            {snapshotComparacao.resumo.qtd_removidos > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-red-800 font-medium">
+                -{snapshotComparacao.resumo.qtd_removidos} removido(s) ({formatCurrency(snapshotComparacao.resumo.valor_removidos)})
+              </span>
+            )}
+            {snapshotComparacao.resumo.qtd_alterados > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-3 py-1 text-yellow-800 font-medium">
+                {snapshotComparacao.resumo.qtd_alterados} alterado(s)
+              </span>
+            )}
+          </div>
+          <div className="max-h-60 overflow-y-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Status</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Credor</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Titulo</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Vencimento</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Valor</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {snapshotComparacao.adicionados?.map((t: any, i: number) => (
+                  <tr key={`add-${i}`} className="bg-green-50">
+                    <td className="px-3 py-1"><span className="rounded-full bg-green-200 px-2 py-0.5 text-xs font-semibold text-green-800">NOVO</span></td>
+                    <td className="px-3 py-1 text-gray-900">{t.credor}</td>
+                    <td className="px-3 py-1 text-gray-500">{t.lancamento}</td>
+                    <td className="px-3 py-1 text-gray-500">{t.data_vencimento ? new Date(t.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</td>
+                    <td className="px-3 py-1 text-right font-semibold text-green-700">{formatCurrency(t.valor_total)}</td>
+                  </tr>
+                ))}
+                {snapshotComparacao.removidos?.map((t: any, i: number) => (
+                  <tr key={`rem-${i}`} className="bg-red-50">
+                    <td className="px-3 py-1"><span className="rounded-full bg-red-200 px-2 py-0.5 text-xs font-semibold text-red-800">REMOVIDO</span></td>
+                    <td className="px-3 py-1 text-gray-900">{t.credor}</td>
+                    <td className="px-3 py-1 text-gray-500">{t.lancamento}</td>
+                    <td className="px-3 py-1 text-gray-500">{t.data_vencimento ? new Date(t.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</td>
+                    <td className="px-3 py-1 text-right font-semibold text-red-700">{formatCurrency(t.valor_total)}</td>
+                  </tr>
+                ))}
+                {snapshotComparacao.alterados?.map((t: any, i: number) => (
+                  <tr key={`alt-${i}`} className="bg-yellow-50">
+                    <td className="px-3 py-1"><span className="rounded-full bg-yellow-200 px-2 py-0.5 text-xs font-semibold text-yellow-800">ALTERADO</span></td>
+                    <td className="px-3 py-1 text-gray-900">{t.credor}</td>
+                    <td className="px-3 py-1 text-gray-500">{t.lancamento}</td>
+                    <td className="px-3 py-1 text-gray-500">{t.data_vencimento ? new Date(t.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</td>
+                    <td className="px-3 py-1 text-right font-semibold text-yellow-700">{formatCurrency(t.valor_total)} <span className="text-xs text-gray-400">(era {formatCurrency(t.valor_anterior)})</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="mb-6">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
@@ -1715,6 +1798,19 @@ export const ContasAPagar: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
               </svg>
               Por Origem
+            </button>
+            <button
+              type="button"
+              onClick={() => setAbaAtiva('mudancas')}
+              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'mudancas'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                }`}
+            >
+              <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Mudancas
             </button>
           </nav>
         </div>
@@ -2826,6 +2922,124 @@ export const ContasAPagar: React.FC = () => {
           </>
         );
       })()}
+
+      {abaAtiva === 'mudancas' && (
+        <div>
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">Relatório de Mudanças</h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Títulos criados ou alterados em um período (via API Sienge /bills/by-change-date)
+            </p>
+          </div>
+
+          <div className="mb-4 flex flex-wrap items-end gap-4 rounded-lg bg-white p-4 shadow">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
+              <input
+                type="date"
+                value={mudancasDataInicio}
+                onChange={(e) => setMudancasDataInicio(e.target.value)}
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Data Fim</label>
+              <input
+                type="date"
+                value={mudancasDataFim}
+                onChange={(e) => setMudancasDataFim(e.target.value)}
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                setMudancasLoading(true);
+                try {
+                  const dados = await apiService.getTitulosAlterados(mudancasDataInicio, mudancasDataFim);
+                  setMudancasResultados(dados);
+                } catch (err) {
+                  console.error('Erro ao buscar mudanças:', err);
+                  setMudancasResultados([]);
+                } finally {
+                  setMudancasLoading(false);
+                }
+              }}
+              disabled={mudancasLoading}
+              className="rounded-md bg-blue-600 px-5 py-2 text-sm font-medium text-white shadow hover:bg-blue-700 disabled:opacity-50"
+            >
+              {mudancasLoading ? 'Buscando...' : 'Buscar'}
+            </button>
+          </div>
+
+          {mudancasResultados.length > 0 && (
+            <div className="mb-4 rounded-lg bg-blue-50 border border-blue-200 p-3">
+              <p className="text-sm font-medium text-blue-800">
+                {mudancasResultados.length} título(s) encontrado(s) | Total: {formatCurrency(mudancasResultados.reduce((acc, t) => acc + (t.totalInvoiceAmount || 0), 0))}
+              </p>
+            </div>
+          )}
+
+          {mudancasLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+              <span className="ml-3 text-gray-600">Buscando alterações...</span>
+            </div>
+          ) : mudancasResultados.length > 0 ? (
+            <div className="overflow-hidden rounded-lg bg-white shadow">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-blue-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Tipo</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Título</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Credor</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Valor</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Alterado por</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Data Alteração</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Cadastrado por</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Data Cadastro</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Doc</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Origem</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {mudancasResultados.map((t, idx) => {
+                      const isCriado = t.registeredDate && t.changedDate && t.registeredDate.split('T')[0] === t.changedDate.split('T')[0];
+                      return (
+                        <tr key={`${t.id}-${idx}`} className={`hover:bg-gray-50 ${isCriado ? 'bg-green-50' : 'bg-yellow-50'}`}>
+                          <td className="px-4 py-3 text-sm">
+                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${isCriado ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                              {isCriado ? 'Criado' : 'Alterado'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{t.id}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{t.creditorName || `Credor ${t.creditorId}`}</td>
+                          <td className="px-4 py-3 text-sm text-right font-medium text-gray-900">{formatCurrency(t.totalInvoiceAmount || 0)}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{t.changedBy || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{t.changedDate ? new Date(t.changedDate).toLocaleString('pt-BR') : '-'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{t.registeredBy || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{t.registeredDate ? new Date(t.registeredDate).toLocaleString('pt-BR') : '-'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{t.documentNumber || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{t.originId || '-'}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-lg bg-white p-8 text-center shadow">
+              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">Selecione um período e clique em Buscar</h3>
+              <p className="mt-1 text-sm text-gray-500">Os títulos criados ou alterados no período serão exibidos aqui.</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
