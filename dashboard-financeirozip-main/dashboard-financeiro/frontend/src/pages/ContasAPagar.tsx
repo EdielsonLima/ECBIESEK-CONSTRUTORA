@@ -155,6 +155,7 @@ export const ContasAPagar: React.FC = () => {
   const [filtroCredor, setFiltroCredor] = useState<string[]>([]);
   const [filtroDias, setFiltroDias] = useState<string[]>([]);
   const [diasDropdownAberto, setDiasDropdownAberto] = useState(false);
+  const [dataReferencia, setDataReferencia] = useState<string>('');
   const [linhaExpandida, setLinhaExpandida] = useState<number | null>(null);
   const [detalheCarregando, setDetalheCarregando] = useState(false);
   const [detalheCache, setDetalheCache] = useState<Record<number, TituloDetalhe>>({});
@@ -603,6 +604,7 @@ export const ContasAPagar: React.FC = () => {
     setFiltroTipoDocumento([]);
     setFiltroCredor([]);
     setFiltroDias([]);
+    setDataReferencia('');
   };
 
   const credoresDisponiveis = React.useMemo(() => {
@@ -992,6 +994,20 @@ export const ContasAPagar: React.FC = () => {
           searchable={true}
         />
       </div>
+      <div className="mt-4">
+        <label className="mb-2 block text-sm font-medium text-gray-700">Destacar novos apos</label>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={dataReferencia}
+            onChange={(e) => setDataReferencia(e.target.value)}
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
+          />
+          {dataReferencia && (
+            <button type="button" onClick={() => setDataReferencia('')} className="text-xs text-gray-500 hover:underline">Limpar</button>
+          )}
+        </div>
+      </div>
       <div className="mt-4 flex gap-3">
         <button
           type="button"
@@ -1064,6 +1080,11 @@ export const ContasAPagar: React.FC = () => {
       tags.push({ label: 'Tipo Documento', value: tiposNomes, onRemove: () => setFiltroTipoDocumento([]) });
     }
 
+    if (dataReferencia) {
+      const dataRef = new Date(dataReferencia + 'T00:00:00').toLocaleDateString('pt-BR');
+      tags.push({ label: 'Ref', value: `Novos apos ${dataRef}`, onRemove: () => setDataReferencia('') });
+    }
+
     if (tags.length === 0) return null;
 
     return (
@@ -1124,6 +1145,25 @@ export const ContasAPagar: React.FC = () => {
         {!mostrarFiltros && renderFiltrosTags()}
       </div>
 
+      {dataReferencia && (() => {
+        const novos = contas.filter(c => c.data_cadastro && c.data_cadastro.split('T')[0] > dataReferencia);
+        const qtd = novos.length;
+        const valor = novos.reduce((sum, c) => sum + (c.valor_total || 0), 0);
+        const dataRef = new Date(dataReferencia + 'T00:00:00').toLocaleDateString('pt-BR');
+        return qtd > 0 ? (
+          <div className="mb-4 rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 flex items-center gap-3">
+            <span className="inline-flex items-center rounded-full bg-yellow-200 px-2.5 py-1 text-xs font-bold text-yellow-800">{qtd}</span>
+            <span className="text-sm text-yellow-800">
+              titulo(s) inserido(s) apos <strong>{dataRef}</strong> | Impacto: <strong className="text-red-600">+ {valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong>
+            </span>
+          </div>
+        ) : (
+          <div className="mb-4 rounded-lg border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-800">
+            Nenhum titulo novo inserido apos {dataRef}
+          </div>
+        );
+      })()}
+
       <div className="overflow-hidden rounded-lg bg-white shadow">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -1168,6 +1208,8 @@ export const ContasAPagar: React.FC = () => {
                 const isExpanded = linhaExpandida === index;
                 const tituloId = conta.lancamento ? parseInt(conta.lancamento.split('/')[0]) : null;
                 const detalhe = tituloId ? detalheCache[tituloId] : null;
+                const isNovoAposRef = dataReferencia && conta.data_cadastro
+                  && conta.data_cadastro.split('T')[0] > dataReferencia;
 
                 const handleExpand = async () => {
                   if (isExpanded) {
@@ -1190,11 +1232,12 @@ export const ContasAPagar: React.FC = () => {
 
                 return (
                   <React.Fragment key={index}>
-                    <tr className="hover:bg-gray-50 cursor-pointer" onClick={handleExpand}>
+                    <tr className={`${isNovoAposRef ? 'bg-yellow-50 hover:bg-yellow-100' : 'hover:bg-gray-50'} cursor-pointer`} onClick={handleExpand}>
                       <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
                         <div className="flex items-center gap-2">
                           <span className={`text-gray-400 text-xs transition-transform ${isExpanded ? 'rotate-90' : ''}`}>&#9654;</span>
                           {conta.credor || '-'}
+                          {isNovoAposRef && <span className="inline-flex items-center rounded-full bg-yellow-200 px-2 py-0.5 text-xs font-semibold text-yellow-800">NOVO</span>}
                         </div>
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-400">{conta.data_cadastro ? formatDate(conta.data_cadastro as any) : '-'}</td>
