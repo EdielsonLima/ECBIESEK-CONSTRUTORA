@@ -229,6 +229,10 @@ export const ContasAPagar: React.FC = () => {
           valorA = (a.data_cadastro || '').split('T')[0];
           valorB = (b.data_cadastro || '').split('T')[0];
           break;
+        case 'prazo_cadastro':
+          valorA = a.data_cadastro && a.data_vencimento ? Math.round((new Date(a.data_vencimento as any).getTime() - new Date(a.data_cadastro as any).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+          valorB = b.data_cadastro && b.data_vencimento ? Math.round((new Date(b.data_vencimento as any).getTime() - new Date(b.data_cadastro as any).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+          break;
         default:
           return 0;
       }
@@ -1091,20 +1095,23 @@ export const ContasAPagar: React.FC = () => {
                 <th onClick={() => toggleOrdenacao('data_vencimento')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Vencimento{renderSortIcon('data_vencimento')}
                 </th>
+                <th onClick={() => toggleOrdenacao('prazo_cadastro')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                  Prazo{renderSortIcon('prazo_cadastro')}
+                </th>
                 <th onClick={() => toggleOrdenacao('dias')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Dias{renderSortIcon('dias')}
-                </th>
-                <th onClick={() => toggleOrdenacao('valor_total')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
-                  Valor{renderSortIcon('valor_total')}
                 </th>
                 <th onClick={() => toggleOrdenacao('lancamento')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Titulo{renderSortIcon('lancamento')}
                 </th>
+                <th onClick={() => toggleOrdenacao('id_documento')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                  Tipo Doc.{renderSortIcon('id_documento')}
+                </th>
                 <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Centro de Custo{renderSortIcon('nome_centrocusto')}
                 </th>
-                <th onClick={() => toggleOrdenacao('id_documento')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
-                  Tipo Doc.{renderSortIcon('id_documento')}
+                <th onClick={() => toggleOrdenacao('valor_total')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                  Valor{renderSortIcon('valor_total')}
                 </th>
               </tr>
             </thead>
@@ -1117,13 +1124,18 @@ export const ContasAPagar: React.FC = () => {
                     <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">{conta.credor || '-'}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-400">{conta.data_cadastro ? formatDate(conta.data_cadastro as any) : '-'}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{formatDate(conta.data_vencimento as any)}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                      {conta.data_cadastro && conta.data_vencimento
+                        ? `${Math.round((new Date(conta.data_vencimento as any).getTime() - new Date(conta.data_cadastro as any).getTime()) / (1000 * 60 * 60 * 24))}d`
+                        : '-'}
+                    </td>
                     <td className={`whitespace-nowrap px-6 py-4 text-sm font-semibold ${corDias}`}>
                       {dias < 0 ? `${Math.abs(dias)}d atraso` : dias === 0 ? 'Hoje' : `${dias}d`}
                     </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-blue-600">{formatCurrency(conta.valor_total)}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{(conta as any).nome_centrocusto || '-'}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 font-mono">{conta.id_documento || '-'}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{(conta as any).nome_centrocusto || '-'}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-blue-600">{formatCurrency(conta.valor_total)}</td>
                   </tr>
                 );
               })}
