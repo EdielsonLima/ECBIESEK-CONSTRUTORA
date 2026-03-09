@@ -642,6 +642,7 @@ export const ContasAPagar: React.FC = () => {
       'por-centro-custo': 'Por Centro de Custo',
       'por-semana': 'Por Semana',
       'por-origem': 'Por Origem',
+      'mudancas': 'Mudancas',
     };
     const abaLabel = abaLabels[abaAtiva] || abaAtiva;
     const { doc, pageWidth, margin, y: startY, dataGeracao } = criarPDFBase('Contas a Pagar', `Aba: ${abaLabel}`);
