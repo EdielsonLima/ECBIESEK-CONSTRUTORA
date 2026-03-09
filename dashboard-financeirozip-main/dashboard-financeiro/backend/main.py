@@ -7575,7 +7575,8 @@ def _calcular_e_salvar_snapshot_auto():
         conn = psycopg2.connect(**DB_CONFIG, cursor_factory=RealDictCursor)
         cursor = conn.cursor()
         query = f"""
-            SELECT cap.credor, cap.data_vencimento, cap.valor_total
+            SELECT cap.lancamento, cap.credor, cap.data_vencimento, cap.valor_total,
+                   cap.data_cadastro, cap.id_documento, cc.nome_centrocusto
             FROM contas_a_pagar cap
             LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE cap.data_vencimento >= %s{excl_where}
@@ -7664,7 +7665,49 @@ def _calcular_e_salvar_snapshot_auto():
         sconn.commit()
         scursor.close()
         sconn.close()
-        print(f"Auto-snapshot: Snapshot salvo com sucesso para {data_snapshot}")
+        print(f"Auto-snapshot: Cards salvos para {data_snapshot}")
+
+        # Salvar títulos individuais
+        try:
+            tconn = get_db_connection()
+            tcursor = tconn.cursor()
+            tcursor.execute("DELETE FROM snapshots_titulos_pagar WHERE data_snapshot = %s", (data_snapshot,))
+            for r in rows:
+                venc = r['data_vencimento']
+                if isinstance(venc, str):
+                    venc = venc.split('T')[0]
+                elif hasattr(venc, 'isoformat'):
+                    venc = venc.isoformat()
+                dcad = r.get('data_cadastro')
+                if dcad and isinstance(dcad, str):
+                    dcad = dcad.split('T')[0]
+                elif dcad and hasattr(dcad, 'isoformat'):
+                    dcad = dcad.isoformat()
+                tcursor.execute("""
+                    INSERT INTO snapshots_titulos_pagar (data_snapshot, lancamento, credor, valor_total, data_vencimento, data_cadastro, id_documento, nome_centrocusto)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (data_snapshot, lancamento) DO UPDATE SET
+                        valor_total = EXCLUDED.valor_total,
+                        credor = EXCLUDED.credor,
+                        data_vencimento = EXCLUDED.data_vencimento
+                """, (
+                    data_snapshot,
+                    r.get('lancamento'),
+                    r.get('credor'),
+                    float(r.get('valor_total') or 0),
+                    venc,
+                    dcad,
+                    str(r.get('id_documento') or ''),
+                    r.get('nome_centrocusto') or ''
+                ))
+            tconn.commit()
+            tcursor.close()
+            tconn.close()
+            print(f"Auto-snapshot: {len(rows)} títulos individuais salvos para {data_snapshot}")
+        except Exception as te:
+            print(f"Auto-snapshot: Erro ao salvar títulos individuais: {te}")
+
+        print(f"Auto-snapshot: Snapshot completo salvo com sucesso para {data_snapshot}")
     except Exception as e:
         print(f"Auto-snapshot: Erro ao salvar snapshot: {e}")
 
