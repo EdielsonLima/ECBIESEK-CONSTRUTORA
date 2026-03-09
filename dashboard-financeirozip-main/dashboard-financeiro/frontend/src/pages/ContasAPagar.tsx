@@ -1226,14 +1226,12 @@ export const ContasAPagar: React.FC = () => {
                                     </p>
                                   </div>
                                 )}
-                                {detalhe?.issueDate && (
-                                  <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
-                                    <p className="text-xs text-gray-500 uppercase font-medium">Data Emissao</p>
-                                    <p className="text-sm font-semibold text-gray-900 mt-1">
-                                      {formatDate(detalhe.issueDate)}
-                                    </p>
-                                  </div>
-                                )}
+                                <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                                  <p className="text-xs text-gray-500 uppercase font-medium">Data Emissao</p>
+                                  <p className="text-sm font-semibold text-gray-900 mt-1">
+                                    {(conta as any).data_emissao ? formatDate((conta as any).data_emissao) : detalhe?.issueDate ? formatDate(detalhe.issueDate) : '-'}
+                                  </p>
+                                </div>
                                 <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
                                   <p className="text-xs text-gray-500 uppercase font-medium">N Documento</p>
                                   <p className="text-sm font-semibold text-gray-900 mt-1">{conta.numero_documento || '-'}</p>
