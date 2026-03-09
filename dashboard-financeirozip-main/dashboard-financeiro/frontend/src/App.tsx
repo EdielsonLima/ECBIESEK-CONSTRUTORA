@@ -152,7 +152,7 @@ function App() {
                 {currentPage === 'contas-atrasadas' && 'Contas Atrasadas'}
                 {currentPage === 'contas-a-receber' && 'Contas a Receber'}
                 {currentPage === 'contas-recebidas' && 'Contas Recebidas'}
-                {currentPage === 'recebimentos-atrasados' && 'Recebimentos em Atraso'}
+                {currentPage === 'recebimentos-atrasados' && 'Inadimplência'}
                 {currentPage === 'extrato-cliente' && 'Extrato Cliente'}
                 {currentPage === 'kpis' && 'KPIs'}
                 {currentPage === 'configuracoes' && 'Configurações'}
