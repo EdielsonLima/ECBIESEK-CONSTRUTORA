@@ -23,6 +23,7 @@ export interface ContaPagar {
   numero_parcela?: number;
   data_cadastro?: string;
   descricao_observacao?: string;
+  data_emissao?: string;
 }
 
 export interface TituloDetalhe {
