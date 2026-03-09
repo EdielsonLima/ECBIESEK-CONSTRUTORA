@@ -1187,7 +1187,12 @@ export const ContasAPagar: React.FC = () => {
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{formatDate(conta.data_vencimento as any)}</td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                         {conta.data_cadastro && conta.data_vencimento
-                          ? `${Math.round((new Date(conta.data_vencimento as any).getTime() - new Date(conta.data_cadastro as any).getTime()) / (1000 * 60 * 60 * 24))}d`
+                          ? (() => {
+                              const prazoDias = Math.round((new Date(conta.data_vencimento as any).getTime() - new Date(conta.data_cadastro as any).getTime()) / (1000 * 60 * 60 * 24));
+                              return prazoDias <= 2
+                                ? <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">{prazoDias}d</span>
+                                : `${prazoDias}d`;
+                            })()
                           : '-'}
                       </td>
                       <td className={`whitespace-nowrap px-6 py-4 text-sm font-semibold ${corDias}`}>
