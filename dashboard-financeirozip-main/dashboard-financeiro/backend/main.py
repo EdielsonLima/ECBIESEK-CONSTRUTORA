@@ -814,6 +814,7 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                        TRIM(cap.id_origem) as id_origem,
                        cap.numero_parcela,
                        cap.data_cadastro,
+                       cap.flautorizacao,
                        t.descricao_observacao,
                        t.data_emissao
                 FROM contas_a_pagar cap
@@ -838,6 +839,7 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                        TRIM(cap.id_origem) as id_origem,
                        cap.numero_parcela,
                        cap.data_cadastro,
+                       cap.flautorizacao,
                        t.descricao_observacao,
                        t.data_emissao
                 FROM contas_a_pagar cap
@@ -859,6 +861,7 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                        cc.nome_empresa, cc.nome_centrocusto,
                        cap.numero_parcela,
                        cap.data_cadastro,
+                       cap.flautorizacao,
                        t.descricao_observacao,
                        t.data_emissao
                 FROM contas_a_pagar cap
@@ -899,6 +902,7 @@ def get_contas_ano(ano: int = None):
                    TRIM(cap.id_documento) as id_documento,
                    TRIM(cap.id_origem) as id_origem,
                    cap.data_cadastro,
+                   cap.flautorizacao,
                    t.descricao_observacao,
                    t.data_emissao
             FROM contas_a_pagar cap

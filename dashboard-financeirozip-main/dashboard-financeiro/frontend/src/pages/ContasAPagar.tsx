@@ -238,6 +238,10 @@ export const ContasAPagar: React.FC = () => {
           valorA = a.data_cadastro && a.data_vencimento ? Math.round((new Date(a.data_vencimento as any).getTime() - new Date(a.data_cadastro as any).getTime()) / (1000 * 60 * 60 * 24)) : 0;
           valorB = b.data_cadastro && b.data_vencimento ? Math.round((new Date(b.data_vencimento as any).getTime() - new Date(b.data_cadastro as any).getTime()) / (1000 * 60 * 60 * 24)) : 0;
           break;
+        case 'flautorizacao':
+          valorA = (a as any).flautorizacao || '';
+          valorB = (b as any).flautorizacao || '';
+          break;
         default:
           return 0;
       }
@@ -1139,6 +1143,9 @@ export const ContasAPagar: React.FC = () => {
                 <th onClick={() => toggleOrdenacao('id_documento')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Tipo Doc.{renderSortIcon('id_documento')}
                 </th>
+                <th onClick={() => toggleOrdenacao('flautorizacao')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                  Autoriz.{renderSortIcon('flautorizacao')}
+                </th>
                 <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Centro de Custo{renderSortIcon('nome_centrocusto')}
                 </th>
@@ -1200,12 +1207,18 @@ export const ContasAPagar: React.FC = () => {
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 font-mono">{conta.id_documento || '-'}</td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm">
+                        {(conta as any).flautorizacao === 'S'
+                          ? <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">Sim</span>
+                          : <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">Nao</span>
+                        }
+                      </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{(conta as any).nome_centrocusto || '-'}</td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-blue-600">{formatCurrency(conta.valor_total)}</td>
                     </tr>
                     {isExpanded && (
                       <tr>
-                        <td colSpan={9} className="p-0">
+                        <td colSpan={10} className="p-0">
                           <div className="bg-blue-50 border-t border-b border-blue-200 px-8 py-4">
                             {detalheCarregando && !detalhe ? (
                               <div className="flex items-center gap-2 text-sm text-gray-500">
