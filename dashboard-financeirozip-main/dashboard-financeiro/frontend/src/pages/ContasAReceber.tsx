@@ -192,6 +192,10 @@ export const ContasAReceber: React.FC = () => {
           valorA = (a.nome_empresa || '').toLowerCase();
           valorB = (b.nome_empresa || '').toLowerCase();
           break;
+        case 'nome_centrocusto':
+          valorA = (a.nome_centrocusto || '').toLowerCase();
+          valorB = (b.nome_centrocusto || '').toLowerCase();
+          break;
         case 'tipo_condicao':
           valorA = (a.tipo_condicao || '').toLowerCase();
           valorB = (b.tipo_condicao || '').toLowerCase();
@@ -545,9 +549,12 @@ export const ContasAReceber: React.FC = () => {
           c.titulo || c.lancamento || '-',
           c.numero_parcela || '-',
           c.numero_documento || c.id_documento || '-',
-          c.nome_empresa || '-',
+          c.nome_centrocusto || '-',
           c.tipo_condicao || '-',
           `R$ ${formatCurrencyPDF(c.valor_total || 0)}`,
+          `R$ ${formatCurrencyPDF((c.saldo_atual || c.valor_total || 0) - (c.valor_total || 0))}`,
+          `R$ ${formatCurrencyPDF(0)}`,
+          `R$ ${formatCurrencyPDF(0)}`,
           `R$ ${formatCurrencyPDF(c.saldo_atual || c.valor_total || 0)}`,
         ];
       });
@@ -555,14 +562,18 @@ export const ContasAReceber: React.FC = () => {
       const totalSaldoAtual = contas.reduce((acc, c) => acc + (c.saldo_atual || c.valor_total || 0), 0);
 
       adicionarTabela(doc, {
-        head: [['Cliente', 'Vencimento', 'Dias', 'Titulo', 'Parcela', 'Documento', 'Empresa', 'Tipo Condicao', 'Valor', 'Saldo Atual']],
+        head: [['Cliente', 'Vencimento', 'Dias', 'Titulo', 'Parcela', 'Documento', 'Centro Custo', 'Tipo Cond.', 'Valor Orig.', 'Correção', 'Multas', 'Juros', 'Saldo Atual']],
         body,
-        foot: [['TOTAL', '', '', '', '', '', '', '', '', `R$ ${formatCurrencyPDF(totalSaldoAtual)}`]],
+        foot: [['TOTAL', '', '', '', '', '', '', '', '', '', '', '', `R$ ${formatCurrencyPDF(totalSaldoAtual)}`]],
         columnStyles: {
-          0: { cellWidth: 45 },
-          6: { cellWidth: 35 },
-          8: { halign: 'right' },
-          9: { halign: 'right' },
+          0: { cellWidth: 35 },
+          6: { cellWidth: 30 },
+          7: { cellWidth: 22 },
+          8: { halign: 'right', cellWidth: 22 },
+          9: { halign: 'right', cellWidth: 20 },
+          10: { halign: 'right', cellWidth: 18 },
+          11: { halign: 'right', cellWidth: 18 },
+          12: { halign: 'right', cellWidth: 24 },
         },
       }, y, margin);
     } else if (abaAtiva === 'por-cliente') {
@@ -1002,10 +1013,10 @@ export const ContasAReceber: React.FC = () => {
                     Documento {renderSortIcon('numero_documento')}
                   </th>
                   <th
-                    onClick={() => toggleOrdenacao('nome_empresa')}
+                    onClick={() => toggleOrdenacao('nome_centrocusto')}
                     className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
                   >
-                    Empresa {renderSortIcon('nome_empresa')}
+                    Centro de Custos {renderSortIcon('nome_centrocusto')}
                   </th>
                   <th
                     onClick={() => toggleOrdenacao('tipo_condicao')}
@@ -1017,7 +1028,16 @@ export const ContasAReceber: React.FC = () => {
                     onClick={() => toggleOrdenacao('valor_total')}
                     className="cursor-pointer px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
                   >
-                    Valor {renderSortIcon('valor_total')}
+                    Valor Original {renderSortIcon('valor_total')}
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Correção
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Multas
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Juros
                   </th>
                   <th
                     onClick={() => toggleOrdenacao('saldo_atual')}
@@ -1067,13 +1087,22 @@ export const ContasAReceber: React.FC = () => {
                           {conta.numero_documento || conta.id_documento || '-'}
                         </td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                          {conta.nome_empresa || '-'}
+                          {conta.nome_centrocusto || '-'}
                         </td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                           {conta.tipo_condicao || '-'}
                         </td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-right font-medium text-gray-900">
                           {formatCurrency(conta.valor_total)}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-right text-blue-600">
+                          {formatCurrency((conta.saldo_atual || conta.valor_total) - (conta.valor_total || 0))}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-right text-gray-500">
+                          {formatCurrency(0)}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-right text-gray-500">
+                          {formatCurrency(0)}
                         </td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-right font-semibold text-green-700">
                           {formatCurrency(conta.saldo_atual || conta.valor_total)}
@@ -1093,7 +1122,7 @@ export const ContasAReceber: React.FC = () => {
                           .reduce((acc, c) => acc + (c.saldo_atual || c.valor_total || 0), 0);
                         return (
                           <tr>
-                            <td colSpan={10} className="p-0">
+                            <td colSpan={13} className="p-0">
                               <div className="bg-green-50 border-t border-b border-green-200 px-8 py-3">
                                 <div className="flex items-center justify-between mb-2">
                                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -1111,7 +1140,10 @@ export const ContasAReceber: React.FC = () => {
                                           <th className="text-left py-1 pr-3">Dias</th>
                                           <th className="text-left py-1 pr-3">Documento</th>
                                           <th className="text-left py-1 pr-3">Tipo Condicao</th>
-                                          <th className="text-right py-1 pr-3">Valor</th>
+                                          <th className="text-right py-1 pr-3">Valor Original</th>
+                                          <th className="text-right py-1 pr-3">Correção</th>
+                                          <th className="text-right py-1 pr-3">Multas</th>
+                                          <th className="text-right py-1 pr-3">Juros</th>
                                           <th className="text-right py-1">Saldo Atual</th>
                                         </tr>
                                       </thead>
@@ -1135,6 +1167,9 @@ export const ContasAReceber: React.FC = () => {
                                               <td className="py-1.5 pr-3 text-gray-500 font-mono text-xs">{p.numero_documento || p.id_documento || '-'}</td>
                                               <td className="py-1.5 pr-3 text-gray-500">{p.tipo_condicao || '-'}</td>
                                               <td className="py-1.5 pr-3 text-right font-semibold text-gray-700">{formatCurrency(p.valor_total)}</td>
+                                              <td className="py-1.5 pr-3 text-right text-blue-600">{formatCurrency((p.saldo_atual || p.valor_total) - (p.valor_total || 0))}</td>
+                                              <td className="py-1.5 pr-3 text-right text-gray-500">{formatCurrency(0)}</td>
+                                              <td className="py-1.5 pr-3 text-right text-gray-500">{formatCurrency(0)}</td>
                                               <td className="py-1.5 text-right font-semibold text-green-700">{formatCurrency(p.saldo_atual || p.valor_total)}</td>
                                             </tr>
                                           );
