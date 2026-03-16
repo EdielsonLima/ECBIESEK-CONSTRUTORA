@@ -1268,7 +1268,7 @@ export const apiService = {
   // centro_custo_id: ID do centro de custo no Sienge (para filtrar dados por obra)
   _empreendimentos: [
     { id: 0, nome: 'Consolidado', codigo: 'ALL', metragem: 0, vgv_mock: 0, centro_custo_id: null },
-    { id: 1, nome: 'Lake Boulevard', codigo: 'LKB', metragem: 25392.42, vgv_mock: 120000000, centro_custo_id: 16 },
+    { id: 1, nome: 'Lake Boulevard', codigo: 'LKB', metragem: 25392.42, vgv_mock: 120000000, centro_custo_id: 19 },
     { id: 2, nome: 'Buenos Aires', codigo: 'BUA', metragem: 18000, vgv_mock: 85000000, centro_custo_id: null },
     { id: 3, nome: 'Imperial Residence', codigo: 'IMP', metragem: 12000, vgv_mock: 45000000, centro_custo_id: null },
     { id: 4, nome: 'BIE 3', codigo: 'BIE3', metragem: 8000, vgv_mock: 30000000, centro_custo_id: null },
