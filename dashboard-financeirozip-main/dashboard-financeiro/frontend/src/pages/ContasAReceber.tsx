@@ -154,6 +154,9 @@ export const ContasAReceber: React.FC = () => {
   const [ordInternaUnidade, setOrdInternaUnidade] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'data_vencimento', direcao: 'asc' });
   const [filtroUnidades, setFiltroUnidades] = useState<string[]>([]);
   const [unidadeDropdownAberto, setUnidadeDropdownAberto] = useState(false);
+  const [filtroDocumentos, setFiltroDocumentos] = useState<string[]>([]);
+  const [documentoDropdownAberto, setDocumentoDropdownAberto] = useState(false);
+  const [documentosDisponiveis, setDocumentosDisponiveis] = useState<{ id: string; nome: string }[]>([]);
 
   const ordenarContas = (contasParaOrdenar: ContaReceber[]) => {
     return [...contasParaOrdenar].sort((a, b) => {
@@ -316,7 +319,8 @@ export const ContasAReceber: React.FC = () => {
     ano: number | null,
     mesesSelecionados: number[],
     tiposDocSelecionados: string[],
-    cliente: string | null
+    cliente: string | null,
+    documentosSelecionados: string[] = []
   ) => {
     let contasFiltradas = [...dados];
     
@@ -346,6 +350,12 @@ export const ContasAReceber: React.FC = () => {
     if (tiposDocSelecionados.length > 0) {
       contasFiltradas = contasFiltradas.filter(c => {
         return c.id_documento && tiposDocSelecionados.includes(c.id_documento);
+      });
+    }
+    if (documentosSelecionados.length > 0) {
+      contasFiltradas = contasFiltradas.filter(c => {
+        const doc = (c.numero_documento || c.id_documento || '').trim();
+        return documentosSelecionados.includes(doc);
       });
     }
     if (prazo !== 'todos') {
@@ -380,10 +390,18 @@ export const ContasAReceber: React.FC = () => {
       .sort()
       .map(nome => ({ id: nome, nome }));
     setClientes(clientesUnicos);
-    
+
+    const docsSet = new Set<string>();
+    todasContas.forEach(c => {
+      const doc = (c.numero_documento || c.id_documento || '').trim();
+      if (doc) docsSet.add(doc);
+    });
+    const docsUnicos = Array.from(docsSet).sort().map(d => ({ id: d, nome: d }));
+    setDocumentosDisponiveis(docsUnicos);
+
     const contasSemAtraso = todasContas.filter(c => calcularDiasAteVencimento(c.data_vencimento) >= 0);
-    
-    const contasFiltradas = aplicarFiltrosLocais(contasSemAtraso, filtroEmpresa, filtroCentroCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCliente);
+
+    const contasFiltradas = aplicarFiltrosLocais(contasSemAtraso, filtroEmpresa, filtroCentroCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCliente, filtroDocumentos);
     setContas(contasFiltradas);
 
     const venceHoje = contasFiltradas.filter(c => calcularDiasAteVencimento(c.data_vencimento) === 0);
@@ -448,7 +466,7 @@ export const ContasAReceber: React.FC = () => {
       .filter(d => d.quantidade > 0)
       .sort((a, b) => a.ordem - b.ordem);
     setDadosPorVencimento(vencimentoArray);
-  }, [todasContas, filtroEmpresa, filtroCentroCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCliente]);
+  }, [todasContas, filtroEmpresa, filtroCentroCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCliente, filtroDocumentos]);
 
   useEffect(() => {
     carregarDados();
@@ -463,6 +481,7 @@ export const ContasAReceber: React.FC = () => {
     setFiltroTipoDocumento([]);
     setFiltroCliente(null);
     setFiltroUnidades([]);
+    setFiltroDocumentos([]);
   };
 
   const exportarPDF = () => {
@@ -481,6 +500,7 @@ export const ContasAReceber: React.FC = () => {
     const mesesNomes = filtroMes.length > 0 ? filtroMes.map(m => meses.find(ms => ms.valor === m)?.nome || '').join(', ') : 'Todos';
     const clienteNome = filtroCliente || 'Todos';
     const tipoDocNomes = filtroTipoDocumento.length > 0 ? filtroTipoDocumento.join(', ') : 'Todos';
+    const docNomes = filtroDocumentos.length > 0 ? filtroDocumentos.join(', ') : 'Todos';
 
     const filtrosAtivos = [
       { label: 'Empresa', valor: empresaNome },
@@ -490,6 +510,7 @@ export const ContasAReceber: React.FC = () => {
       { label: 'Mes', valor: mesesNomes },
       { label: 'Cliente', valor: clienteNome },
       { label: 'Tipo Documento', valor: tipoDocNomes },
+      { label: 'Documento', valor: docNomes },
     ];
 
     let y = adicionarFiltrosAtivos(doc, filtrosAtivos, startY, pageWidth, margin);
@@ -749,6 +770,15 @@ export const ContasAReceber: React.FC = () => {
           setSelected={setFiltroTipoDocumento}
           isOpen={tipoDocDropdownAberto}
           setIsOpen={setTipoDocDropdownAberto}
+          searchable={true}
+        />
+        <MultiSelectDropdown
+          label="Documento"
+          items={documentosDisponiveis}
+          selected={filtroDocumentos}
+          setSelected={setFiltroDocumentos}
+          isOpen={documentoDropdownAberto}
+          setIsOpen={setDocumentoDropdownAberto}
           searchable={true}
         />
       </div>
