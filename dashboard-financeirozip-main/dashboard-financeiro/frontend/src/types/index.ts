@@ -308,6 +308,8 @@ export interface TituloCliente {
 
 export interface PainelExecutivoData {
   vgv: number;
+  saldo_a_receber: number;
+  estoque: number;
   realizado: number;
   orcamento_total: number;
   saldo_a_realizar: number;

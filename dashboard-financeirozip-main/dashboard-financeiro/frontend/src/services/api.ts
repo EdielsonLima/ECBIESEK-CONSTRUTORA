@@ -1265,16 +1265,17 @@ export const apiService = {
   // CUB Rondonia R8-N Fev/2026: R$ 2.334,56/m2 (fonte: SINDUSCON-RO)
   _cubRO: 2334.56,
   _fatorMultiplicador: 1.2,
+  // centro_custo_id: ID do centro de custo no Sienge (para filtrar dados por obra)
   _empreendimentos: [
-    { id: 0, nome: 'Consolidado', codigo: 'ALL', metragem: 0, vgv_mock: 0 },
-    { id: 1, nome: 'Lake Boulevard', codigo: 'LKB', metragem: 25392.42, vgv_mock: 120000000 },
-    { id: 2, nome: 'Buenos Aires', codigo: 'BUA', metragem: 18000, vgv_mock: 85000000 },
-    { id: 3, nome: 'Imperial Residence', codigo: 'IMP', metragem: 12000, vgv_mock: 45000000 },
-    { id: 4, nome: 'BIE 3', codigo: 'BIE3', metragem: 8000, vgv_mock: 30000000 },
-    { id: 5, nome: 'BIE 4', codigo: 'BIE4', metragem: 5500, vgv_mock: 20000000 },
-    { id: 6, nome: 'Valenca', codigo: 'VAL', metragem: 9000, vgv_mock: 12000000 },
-    { id: 7, nome: 'Lagunas Residencial Clube', codigo: 'LAG', metragem: 7000, vgv_mock: 8000000 },
-  ] as Array<{ id: number; nome: string; codigo: string; metragem: number; vgv_mock: number }>,
+    { id: 0, nome: 'Consolidado', codigo: 'ALL', metragem: 0, vgv_mock: 0, centro_custo_id: null },
+    { id: 1, nome: 'Lake Boulevard', codigo: 'LKB', metragem: 25392.42, vgv_mock: 120000000, centro_custo_id: 16 },
+    { id: 2, nome: 'Buenos Aires', codigo: 'BUA', metragem: 18000, vgv_mock: 85000000, centro_custo_id: null },
+    { id: 3, nome: 'Imperial Residence', codigo: 'IMP', metragem: 12000, vgv_mock: 45000000, centro_custo_id: null },
+    { id: 4, nome: 'BIE 3', codigo: 'BIE3', metragem: 8000, vgv_mock: 30000000, centro_custo_id: null },
+    { id: 5, nome: 'BIE 4', codigo: 'BIE4', metragem: 5500, vgv_mock: 20000000, centro_custo_id: null },
+    { id: 6, nome: 'Valenca', codigo: 'VAL', metragem: 9000, vgv_mock: 12000000, centro_custo_id: null },
+    { id: 7, nome: 'Lagunas Residencial Clube', codigo: 'LAG', metragem: 7000, vgv_mock: 8000000, centro_custo_id: null },
+  ] as Array<{ id: number; nome: string; codigo: string; metragem: number; vgv_mock: number; centro_custo_id: number | null }>,
 
   getEmpreendimentos: async (): Promise<EmpreendimentoOption[]> => {
     return apiService._empreendimentos.map(e => ({ id: e.id, nome: e.nome, codigo: e.codigo }));
@@ -1294,9 +1295,24 @@ export const apiService = {
     }
     const orcamento_total = Math.round(apiService._cubRO * apiService._fatorMultiplicador * metragem);
 
+    // Busca metricas reais de contas a receber
+    const metricasReceber = await apiService.getMetricasReceber();
+    const saldo_a_receber = metricasReceber.total_a_receber; // dados reais
+
+    // Estoque = mock por enquanto (TODO: endpoint real - unidades nao vendidas)
+    // Estimativa: VGV - (saldo a receber + total ja recebido)
+    const estoque = Math.max(0, vgv - saldo_a_receber - metricasReceber.total_recebido);
+
     // Busca dados reais de pago e recebido por mes (com filtros de configuracao)
     const anos = '2023,2024,2025,2026';
     const params: Record<string, string> = { ano: anos };
+
+    // Filtra por centro de custo quando empreendimento especifico
+    const ccId = emp?.centro_custo_id;
+    if (ccId) {
+      params.centro_custo = ccId.toString();
+    }
+
     try {
       const [origensRes, tiposBaixaRes] = await Promise.all([
         apiService.getOrigensExposicaoCaixaSiglas(),
@@ -1324,7 +1340,9 @@ export const apiService = {
     const realizado = totalPago;
 
     const saldo_a_realizar = Math.max(0, orcamento_total - realizado);
-    const valor_empreendimento = vgv - saldo_a_realizar;
+
+    // Valor do Empreendimento = Saldo a Receber + Estoque - Saldo a Realizar
+    const valor_empreendimento = saldo_a_receber + estoque - saldo_a_realizar;
 
     // Calcula saldo acumulado e exposicao mes a mes
     let saldo_acumulado = 0;
@@ -1363,6 +1381,8 @@ export const apiService = {
 
     return {
       vgv,
+      saldo_a_receber,
+      estoque,
       realizado,
       orcamento_total,
       saldo_a_realizar,
@@ -1373,10 +1393,16 @@ export const apiService = {
     };
   },
 
-  getExposicaoExecutivo: async (_empreendimentoId: number): Promise<ExposicaoMensal[]> => {
+  getExposicaoExecutivo: async (empreendimentoId: number): Promise<ExposicaoMensal[]> => {
     // Dados reais: busca pago e recebido por mes via API
     const anos = '2023,2024,2025,2026';
     const params: Record<string, string> = { ano: anos };
+
+    // Filtra por centro de custo quando empreendimento especifico
+    const emp = apiService._empreendimentos.find(e => e.id === empreendimentoId);
+    if (emp?.centro_custo_id) {
+      params.centro_custo = emp.centro_custo_id.toString();
+    }
 
     try {
       const [origensRes, tiposBaixaRes] = await Promise.all([

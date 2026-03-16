@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { apiService } from '../services/api';
 import { PainelExecutivoData, ExposicaoMensal, EmpreendimentoOption } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { DollarSign, CheckCircle, FileText, Clock, Building2, Wallet, TrendingDown, Calculator, TrendingUp } from 'lucide-react';
+import { DollarSign, CheckCircle, FileText, Clock, Building2, Wallet, TrendingDown, Calculator, TrendingUp, Package, HandCoins } from 'lucide-react';
 import { criarPDFBase, adicionarResumoCards, finalizarPDF, gerarNomeArquivo } from '../utils/pdfExport';
 
 interface PainelExecutivoProps {
@@ -219,32 +219,39 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
       </div>
 
       {/* ============ SEÇÃO 1: Visão Geral ============ */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* VGV */}
-        <div className="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Valor Geral de Vendas</p>
-              <p className="mt-2 text-4xl font-extrabold text-gray-900">{formatCurrency(data.vgv)}</p>
-              <p className="mt-1 text-sm text-gray-500">Estoque + Vendas</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Saldo a Receber */}
+        <div className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="rounded-lg p-2 bg-gradient-to-br from-blue-400 to-blue-600 text-white">
+              <HandCoins className="h-5 w-5" />
             </div>
-            <div className="rounded-xl p-4 bg-gradient-to-br from-blue-400 to-blue-600 shadow-lg shadow-blue-200 text-white">
-              <DollarSign className="h-8 w-8" />
-            </div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Saldo a Receber</p>
           </div>
+          <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.saldo_a_receber)}</p>
+          <p className="text-xs text-gray-400 mt-1">Parcelas pendentes de clientes</p>
+        </div>
+        {/* Estoque */}
+        <div className="rounded-2xl border border-cyan-100 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="rounded-lg p-2 bg-gradient-to-br from-cyan-400 to-cyan-600 text-white">
+              <Package className="h-5 w-5" />
+            </div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Estoque</p>
+          </div>
+          <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.estoque)}</p>
+          <p className="text-xs text-gray-400 mt-1">Unidades não vendidas</p>
         </div>
         {/* Valor do Empreendimento */}
-        <div className="rounded-2xl border border-indigo-100 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Valor do Empreendimento</p>
-              <p className="mt-2 text-4xl font-extrabold text-gray-900">{formatCurrency(data.valor_empreendimento)}</p>
-              <p className="mt-1 text-sm text-gray-500">VGV − Saldo a Realizar</p>
+        <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-5 shadow-sm">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="rounded-lg p-2 bg-gradient-to-br from-indigo-400 to-indigo-600 text-white">
+              <Building2 className="h-5 w-5" />
             </div>
-            <div className="rounded-xl p-4 bg-gradient-to-br from-indigo-400 to-indigo-600 shadow-lg shadow-indigo-200 text-white">
-              <Building2 className="h-8 w-8" />
-            </div>
+            <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">Valor do Empreendimento</p>
           </div>
+          <p className="text-3xl font-extrabold text-gray-900">{formatCurrency(data.valor_empreendimento)}</p>
+          <p className="text-xs text-indigo-500 mt-1">Saldo a Receber + Estoque − Saldo a Realizar</p>
         </div>
       </div>
 
@@ -333,7 +340,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
               <p className="text-sm font-semibold text-emerald-700 uppercase tracking-wider">Lucro Potencial</p>
               <p className="text-4xl font-extrabold text-gray-900 mt-1">{formatCurrency(lucroPotencial)}</p>
               <p className="text-sm text-emerald-600 mt-1">
-                {formatCurrency(data.valor_empreendimento)} − {formatCurrency(exposicaoUsada)} (exposição {modoExposicao}) = <span className="font-bold">{percentualLucro.toFixed(1)}% de margem</span>
+                {formatCurrency(data.valor_empreendimento)} (empreendimento) − {formatCurrency(exposicaoUsada)} (exposição {modoExposicao}) = <span className="font-bold">{percentualLucro.toFixed(1)}% de margem</span>
               </p>
             </div>
           </div>
