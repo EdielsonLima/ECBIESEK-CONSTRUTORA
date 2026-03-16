@@ -219,23 +219,34 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
       </div>
 
       {/* ============ SEÇÃO 1: Visão Geral ============ */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Saldo a Receber */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* VGV */}
         <div className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-3 mb-3">
             <div className="rounded-lg p-2 bg-gradient-to-br from-blue-400 to-blue-600 text-white">
-              <HandCoins className="h-5 w-5" />
+              <DollarSign className="h-4 w-4" />
+            </div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">VGV</p>
+          </div>
+          <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.vgv)}</p>
+          <p className="text-xs text-gray-400 mt-1">Estoque + Vendas</p>
+        </div>
+        {/* Saldo a Receber */}
+        <div className="rounded-2xl border border-sky-100 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="rounded-lg p-2 bg-gradient-to-br from-sky-400 to-sky-600 text-white">
+              <HandCoins className="h-4 w-4" />
             </div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Saldo a Receber</p>
           </div>
           <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.saldo_a_receber)}</p>
-          <p className="text-xs text-gray-400 mt-1">Parcelas pendentes de clientes</p>
+          <p className="text-xs text-gray-400 mt-1">Parcelas pendentes</p>
         </div>
         {/* Estoque */}
         <div className="rounded-2xl border border-cyan-100 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-3 mb-3">
             <div className="rounded-lg p-2 bg-gradient-to-br from-cyan-400 to-cyan-600 text-white">
-              <Package className="h-5 w-5" />
+              <Package className="h-4 w-4" />
             </div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Estoque</p>
           </div>
@@ -246,12 +257,12 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
         <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-5 shadow-sm">
           <div className="flex items-center gap-3 mb-3">
             <div className="rounded-lg p-2 bg-gradient-to-br from-indigo-400 to-indigo-600 text-white">
-              <Building2 className="h-5 w-5" />
+              <Building2 className="h-4 w-4" />
             </div>
             <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">Valor do Empreendimento</p>
           </div>
-          <p className="text-3xl font-extrabold text-gray-900">{formatCurrency(data.valor_empreendimento)}</p>
-          <p className="text-xs text-indigo-500 mt-1">Saldo a Receber + Estoque − Saldo a Realizar</p>
+          <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.valor_empreendimento)}</p>
+          <p className="text-xs text-indigo-500 mt-1">A Receber + Estoque − Saldo a Realizar</p>
         </div>
       </div>
 
@@ -292,20 +303,10 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
         </div>
       </div>
 
-      {/* ============ SEÇÃO 3: Capital Investido ============ */}
+      {/* ============ SEÇÃO 3: Exposição de Caixa ============ */}
       <div>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 ml-1">Capital Investido</p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-2xl border border-purple-100 bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="rounded-lg p-2 bg-gradient-to-br from-purple-400 to-purple-600 text-white">
-                <Wallet className="h-4 w-4" />
-              </div>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Saldo Acumulado</p>
-            </div>
-            <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.saldo_acumulado)}</p>
-            <p className="text-xs text-gray-400 mt-1">Capital aportado</p>
-          </div>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 ml-1">Exposição de Caixa</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="rounded-2xl border border-red-100 bg-white p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
               <div className="rounded-lg p-2 bg-gradient-to-br from-red-400 to-red-600 text-white">
@@ -314,7 +315,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Exposição Simples</p>
             </div>
             <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.exposicao_simples)}</p>
-            <p className="text-xs text-gray-400 mt-1">Capital investido</p>
+            <p className="text-xs text-gray-400 mt-1">Saldo acumulado (pago − recebido)</p>
           </div>
           <div className="rounded-2xl border border-rose-100 bg-white p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
@@ -324,7 +325,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Exposição Composta</p>
             </div>
             <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.exposicao_composta)}</p>
-            <p className="text-xs text-gray-400 mt-1">Com custo de oportunidade</p>
+            <p className="text-xs text-gray-400 mt-1">Saldo acumulado + custo de oportunidade</p>
           </div>
         </div>
       </div>
