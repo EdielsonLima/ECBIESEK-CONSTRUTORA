@@ -810,10 +810,7 @@ export const ContasAReceber: React.FC = () => {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">Contas a Receber</h1>
-      </div>
+    <div className="space-y-3 -mt-4">
 
       {(() => {
         const contasHoje = contas.filter(c => calcularDiasAteVencimento(c.data_vencimento) === 0);
@@ -980,76 +977,41 @@ export const ContasAReceber: React.FC = () => {
       </div>
 
       {abaAtiva === 'dados' && (
-        <div className="rounded-lg bg-white p-6 shadow">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">Lista de Contas a Receber</h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+        <div className="rounded-lg bg-white p-3 shadow">
+          <h2 className="mb-2 text-sm font-semibold text-gray-900">Lista de Contas a Receber</h2>
+          <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 160px)' }}>
+            <table className="w-full divide-y divide-gray-200 text-xs">
+              <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
-                  <th 
-                    onClick={() => toggleOrdenacao('cliente')} 
-                    className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
-                  >
+                  <th onClick={() => toggleOrdenacao('cliente')} className="cursor-pointer px-2 py-2 text-left text-[10px] font-semibold uppercase text-gray-500 hover:bg-gray-100 whitespace-nowrap">
                     Cliente {renderSortIcon('cliente')}
                   </th>
-                  <th 
-                    onClick={() => toggleOrdenacao('data_vencimento')} 
-                    className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
-                  >
-                    Vencimento {renderSortIcon('data_vencimento')}
+                  <th onClick={() => toggleOrdenacao('data_vencimento')} className="cursor-pointer px-2 py-2 text-left text-[10px] font-semibold uppercase text-gray-500 hover:bg-gray-100 whitespace-nowrap">
+                    Vencim. {renderSortIcon('data_vencimento')}
                   </th>
-                  <th
-                    onClick={() => toggleOrdenacao('dias')}
-                    className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
-                  >
+                  <th onClick={() => toggleOrdenacao('dias')} className="cursor-pointer px-1 py-2 text-center text-[10px] font-semibold uppercase text-gray-500 hover:bg-gray-100 whitespace-nowrap">
                     Dias {renderSortIcon('dias')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Titulo
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Parcela
-                  </th>
-                  <th
-                    onClick={() => toggleOrdenacao('numero_documento')}
-                    className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
-                  >
+                  <th className="px-2 py-2 text-left text-[10px] font-semibold uppercase text-gray-500 whitespace-nowrap">Titulo</th>
+                  <th className="px-1 py-2 text-center text-[10px] font-semibold uppercase text-gray-500 whitespace-nowrap">Parc.</th>
+                  <th onClick={() => toggleOrdenacao('numero_documento')} className="cursor-pointer px-2 py-2 text-left text-[10px] font-semibold uppercase text-gray-500 hover:bg-gray-100 whitespace-nowrap">
                     Documento {renderSortIcon('numero_documento')}
                   </th>
-                  <th
-                    onClick={() => toggleOrdenacao('nome_centrocusto')}
-                    className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
-                  >
-                    Centro de Custos {renderSortIcon('nome_centrocusto')}
+                  <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="cursor-pointer px-2 py-2 text-left text-[10px] font-semibold uppercase text-gray-500 hover:bg-gray-100 whitespace-nowrap">
+                    Centro Custo {renderSortIcon('nome_centrocusto')}
                   </th>
-                  <th
-                    onClick={() => toggleOrdenacao('tipo_condicao')}
-                    className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
-                  >
-                    Tipo Condicao {renderSortIcon('tipo_condicao')}
+                  <th onClick={() => toggleOrdenacao('tipo_condicao')} className="cursor-pointer px-2 py-2 text-left text-[10px] font-semibold uppercase text-gray-500 hover:bg-gray-100 whitespace-nowrap">
+                    Tipo Cond. {renderSortIcon('tipo_condicao')}
                   </th>
-                  <th
-                    onClick={() => toggleOrdenacao('indexador')}
-                    className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
-                  >
-                    Indexador {renderSortIcon('indexador')}
+                  <th onClick={() => toggleOrdenacao('indexador')} className="cursor-pointer px-1 py-2 text-center text-[10px] font-semibold uppercase text-gray-500 hover:bg-gray-100 whitespace-nowrap">
+                    Index. {renderSortIcon('indexador')}
                   </th>
-                  <th
-                    onClick={() => toggleOrdenacao('valor_total')}
-                    className="cursor-pointer px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
-                  >
-                    Valor Original {renderSortIcon('valor_total')}
+                  <th onClick={() => toggleOrdenacao('valor_total')} className="cursor-pointer px-2 py-2 text-right text-[10px] font-semibold uppercase text-gray-500 hover:bg-gray-100 whitespace-nowrap">
+                    Valor Orig. {renderSortIcon('valor_total')}
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Correção
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                    % Correção
-                  </th>
-                  <th
-                    onClick={() => toggleOrdenacao('saldo_atual')}
-                    className="cursor-pointer px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
-                  >
+                  <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase text-gray-500 whitespace-nowrap">Correção</th>
+                  <th className="px-1 py-2 text-right text-[10px] font-semibold uppercase text-gray-500 whitespace-nowrap">%</th>
+                  <th onClick={() => toggleOrdenacao('saldo_atual')} className="cursor-pointer px-2 py-2 text-right text-[10px] font-semibold uppercase text-gray-500 hover:bg-gray-100 whitespace-nowrap">
                     Saldo Atual {renderSortIcon('saldo_atual')}
                   </th>
                 </tr>
@@ -1065,53 +1027,53 @@ export const ContasAReceber: React.FC = () => {
                         className="hover:bg-gray-50 cursor-pointer"
                         onClick={() => setLinhaExpandida(isExpanded ? null : index)}
                       >
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
-                          <div className="flex items-center gap-2">
-                            <span className={`text-gray-400 text-xs transition-transform ${isExpanded ? 'rotate-90' : ''}`}>&#9654;</span>
+                        <td className="whitespace-nowrap px-2 py-2 text-xs text-gray-900 max-w-[180px] truncate">
+                          <div className="flex items-center gap-1">
+                            <span className={`text-gray-400 text-[10px] transition-transform ${isExpanded ? 'rotate-90' : ''}`}>&#9654;</span>
                             {conta.cliente || '-'}
                           </div>
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                        <td className="whitespace-nowrap px-2 py-2 text-xs text-gray-500">
                           {formatDate(conta.data_vencimento)}
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm">
-                          <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                        <td className="whitespace-nowrap px-1 py-2 text-center">
+                          <span className={`inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
                             dias < 0 ? 'bg-red-100 text-red-800' :
                             dias === 0 ? 'bg-yellow-100 text-yellow-800' :
                             dias <= 7 ? 'bg-orange-100 text-orange-800' :
                             'bg-green-100 text-green-800'
                           }`}>
-                            {dias === 0 ? 'Hoje' : dias < 0 ? `${Math.abs(dias)}d atrasado` : `${dias}d`}
+                            {dias === 0 ? 'Hoje' : dias < 0 ? `${Math.abs(dias)}d` : `${dias}d`}
                           </span>
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                        <td className="whitespace-nowrap px-2 py-2 text-xs text-gray-500">
                           {conta.titulo || conta.lancamento || '-'}
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                        <td className="whitespace-nowrap px-1 py-2 text-xs text-center text-gray-500">
                           {conta.numero_parcela || '-'}
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                        <td className="whitespace-nowrap px-2 py-2 text-xs text-gray-500">
                           {conta.numero_documento || conta.id_documento || '-'}
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                        <td className="whitespace-nowrap px-2 py-2 text-xs text-gray-500 max-w-[120px] truncate">
                           {conta.nome_centrocusto || '-'}
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                        <td className="whitespace-nowrap px-2 py-2 text-xs text-gray-500 max-w-[100px] truncate">
                           {conta.tipo_condicao || '-'}
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                        <td className="whitespace-nowrap px-1 py-2 text-xs text-center text-gray-500">
                           {conta.indexador || 'REAL'}
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-right font-medium text-gray-900">
+                        <td className="whitespace-nowrap px-2 py-2 text-xs text-right font-medium text-gray-900">
                           {formatCurrency(conta.valor_total)}
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-right text-blue-600">
+                        <td className="whitespace-nowrap px-2 py-2 text-xs text-right text-blue-600">
                           {formatCurrency((conta.saldo_atual || conta.valor_total) - (conta.valor_total || 0))}
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-right text-blue-600">
-                          {conta.valor_total ? (((conta.saldo_atual || conta.valor_total) - conta.valor_total) / conta.valor_total * 100).toFixed(2) + '%' : '0,00%'}
+                        <td className="whitespace-nowrap px-1 py-2 text-xs text-right text-blue-600">
+                          {conta.valor_total ? (((conta.saldo_atual || conta.valor_total) - conta.valor_total) / conta.valor_total * 100).toFixed(1) + '%' : '0,0%'}
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-right font-semibold text-green-700">
+                        <td className="whitespace-nowrap px-2 py-2 text-xs text-right font-semibold text-green-700">
                           {formatCurrency(conta.saldo_atual || conta.valor_total)}
                         </td>
                       </tr>
