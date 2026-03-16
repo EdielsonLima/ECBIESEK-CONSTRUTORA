@@ -3,7 +3,7 @@ import { apiService } from '../services/api';
 import { PainelExecutivoData, ExposicaoMensal, EmpreendimentoOption } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { DollarSign, CheckCircle, FileText, Clock, Building2, Wallet, TrendingDown, Calculator } from 'lucide-react';
-import { criarPDFBase, adicionarResumoCards, finalizarPDF, gerarNomeArquivo, formatCurrencyPDF } from '../utils/pdfExport';
+import { criarPDFBase, adicionarResumoCards, finalizarPDF, gerarNomeArquivo } from '../utils/pdfExport';
 
 interface PainelExecutivoProps {
   onNavigate?: (page: string) => void;
@@ -60,7 +60,9 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
   }, []);
 
   useEffect(() => {
-    apiService.getEmpreendimentos().then(setEmpreendimentos).catch(() => {});
+    apiService.getEmpreendimentos().then(setEmpreendimentos).catch((err) => {
+      console.error('Erro ao carregar empreendimentos:', err);
+    });
   }, []);
 
   useEffect(() => {
@@ -100,12 +102,12 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
     y = adicionarResumoCards(doc, [
       { label: 'VGV', valor: data.vgv, cor: [59, 130, 246] },
       { label: 'Realizado', valor: data.realizado, cor: [34, 197, 94] },
-      { label: 'Orcamento Total', valor: data.orcamento_total, cor: [100, 116, 139] },
+      { label: 'Orçamento Total', valor: data.orcamento_total, cor: [100, 116, 139] },
       { label: 'Saldo a Realizar', valor: data.saldo_a_realizar, cor: [249, 115, 22] },
       { label: 'Valor Empreendimento', valor: data.valor_empreendimento, cor: [99, 102, 241] },
       { label: 'Saldo Acumulado', valor: data.saldo_acumulado, cor: [168, 85, 247] },
-      { label: 'Exposicao Simples', valor: data.exposicao_simples, cor: [239, 68, 68] },
-      { label: 'Exposicao Composta', valor: data.exposicao_composta, cor: [244, 63, 94] },
+      { label: 'Exposição Simples', valor: data.exposicao_simples, cor: [239, 68, 68] },
+      { label: 'Exposição Composta', valor: data.exposicao_composta, cor: [244, 63, 94] },
     ], y, pageWidth, margin);
     finalizarPDF(doc, gerarNomeArquivo('painel_executivo', empreendimentoNome), dataGeracao);
   };
@@ -141,12 +143,12 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
   const cards = [
     { title: 'VGV', value: formatCurrency(data.vgv), subtitle: 'Estoque + Vendas', icon: <DollarSign className="h-6 w-6" />, borderColor: 'border-blue-100', iconBg: 'bg-gradient-to-br from-blue-400 to-blue-600 shadow-blue-200' },
     { title: 'Realizado', value: formatCurrency(data.realizado), subtitle: 'Total Pago', icon: <CheckCircle className="h-6 w-6" />, borderColor: 'border-green-100', iconBg: 'bg-gradient-to-br from-green-400 to-green-600 shadow-green-200' },
-    { title: 'Orcamento Total', value: formatCurrency(data.orcamento_total), subtitle: 'Custo Previsto', icon: <FileText className="h-6 w-6" />, borderColor: 'border-slate-100', iconBg: 'bg-gradient-to-br from-slate-400 to-slate-600 shadow-slate-200' },
-    { title: 'Saldo a Realizar', value: formatCurrency(data.saldo_a_realizar), subtitle: 'Orcamento - Realizado', icon: <Clock className="h-6 w-6" />, borderColor: 'border-orange-100', iconBg: 'bg-gradient-to-br from-orange-400 to-orange-600 shadow-orange-200' },
+    { title: 'Orçamento Total', value: formatCurrency(data.orcamento_total), subtitle: 'Custo Previsto', icon: <FileText className="h-6 w-6" />, borderColor: 'border-slate-100', iconBg: 'bg-gradient-to-br from-slate-400 to-slate-600 shadow-slate-200' },
+    { title: 'Saldo a Realizar', value: formatCurrency(data.saldo_a_realizar), subtitle: 'Orçamento - Realizado', icon: <Clock className="h-6 w-6" />, borderColor: 'border-orange-100', iconBg: 'bg-gradient-to-br from-orange-400 to-orange-600 shadow-orange-200' },
     { title: 'Valor do Empreendimento', value: formatCurrency(data.valor_empreendimento), subtitle: 'VGV - Saldo a Realizar', icon: <Building2 className="h-6 w-6" />, borderColor: 'border-indigo-100', iconBg: 'bg-gradient-to-br from-indigo-400 to-indigo-600 shadow-indigo-200' },
     { title: 'Saldo Acumulado', value: formatCurrency(data.saldo_acumulado), subtitle: 'Capital Aportado', icon: <Wallet className="h-6 w-6" />, borderColor: 'border-purple-100', iconBg: 'bg-gradient-to-br from-purple-400 to-purple-600 shadow-purple-200' },
-    { title: 'Exposicao Simples', value: formatCurrency(data.exposicao_simples), subtitle: 'Capital Investido', icon: <TrendingDown className="h-6 w-6" />, borderColor: 'border-red-100', iconBg: 'bg-gradient-to-br from-red-400 to-red-600 shadow-red-200' },
-    { title: 'Exposicao Composta', value: formatCurrency(data.exposicao_composta), subtitle: 'Com Custo Oportunidade', icon: <Calculator className="h-6 w-6" />, borderColor: 'border-rose-100', iconBg: 'bg-gradient-to-br from-rose-400 to-rose-600 shadow-rose-200' },
+    { title: 'Exposição Simples', value: formatCurrency(data.exposicao_simples), subtitle: 'Capital Investido', icon: <TrendingDown className="h-6 w-6" />, borderColor: 'border-red-100', iconBg: 'bg-gradient-to-br from-red-400 to-red-600 shadow-red-200' },
+    { title: 'Exposição Composta', value: formatCurrency(data.exposicao_composta), subtitle: 'Com Custo Oportunidade', icon: <Calculator className="h-6 w-6" />, borderColor: 'border-rose-100', iconBg: 'bg-gradient-to-br from-rose-400 to-rose-600 shadow-rose-200' },
   ];
 
   return (
@@ -154,7 +156,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
       {/* Header com filtro */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <p className="text-sm text-gray-500">Visao consolidada do empreendimento</p>
+          <p className="text-sm text-gray-500">Visão consolidada do empreendimento</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative" ref={dropdownRef}>
@@ -218,7 +220,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <p className="text-xs text-amber-700">
-          <span className="font-semibold">Dados ilustrativos</span> — VGV, Orcamento e Saldo a Realizar usam dados mock. Aguardando endpoints do backend.
+          <span className="font-semibold">Dados ilustrativos</span> — VGV, Orçamento e Saldo a Realizar usam dados mock. Aguardando endpoints do backend.
         </p>
       </div>
 
@@ -247,8 +249,8 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h3 className="text-lg font-bold text-gray-800">Exposicao de Caixa</h3>
-            <p className="text-sm text-gray-500 mt-0.5">Fluxo acumulado mes a mes — {empreendimentoNome}</p>
+            <h3 className="text-lg font-bold text-gray-800">Exposição de Caixa</h3>
+            <p className="text-sm text-gray-500 mt-0.5">Fluxo acumulado mês a mês — {empreendimentoNome}</p>
           </div>
         </div>
         <ResponsiveContainer width="100%" height={380}>
