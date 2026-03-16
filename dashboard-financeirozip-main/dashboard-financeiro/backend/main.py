@@ -4697,6 +4697,16 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
             excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='car')
             excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
             query = f"""
+                WITH ultimo_incc_all AS (
+                    SELECT id_indexador, valor_indexador, data_indexador,
+                           ROW_NUMBER() OVER (PARTITION BY id_indexador ORDER BY data_indexador DESC) AS rn
+                    FROM ecadindexhist
+                ),
+                ultimo_incc AS (
+                    SELECT id_indexador, valor_indexador, data_indexador
+                    FROM ultimo_incc_all
+                    WHERE rn = 1
+                )
                 SELECT car.cliente, car.data_vencimento, car.valor_total,
                        car.lancamento, car.numero_documento, car.id_plano_financeiro,
                        cc.id_sienge_empresa as id_interno_empresa, car.id_interno_centro_custo,
@@ -4715,9 +4725,18 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
                            WHEN 'CO' THEN 'Contrato'
                            WHEN 'CR' THEN 'Crédito'
                            ELSE TRIM(car.tc)
-                       END as tipo_condicao
+                       END as tipo_condicao,
+                       CASE
+                           WHEN car.id_indexador IS NOT NULL AND car.id_indexador > 0
+                                AND idx_b.valor_indexador IS NOT NULL AND idx_b.valor_indexador > 0
+                           THEN ROUND(car.valor_vencimento / idx_b.valor_indexador * ui.valor_indexador, 2)
+                           ELSE COALESCE(car.valor_corrigido, car.valor_total)
+                       END as saldo_atual
                 FROM contas_a_receber car
                 LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
+                LEFT JOIN ultimo_incc ui ON ui.id_indexador = car.id_indexador
+                LEFT JOIN ecadindexhist idx_b ON idx_b.id_indexador = car.id_indexador
+                    AND idx_b.data_indexador = car.data_indexador
                 WHERE car.data_vencimento >= %s{excl_where}
                 ORDER BY car.data_vencimento ASC
                 LIMIT %s
@@ -4727,17 +4746,36 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
             excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='car')
             excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
             query = f"""
+                WITH ultimo_incc_all AS (
+                    SELECT id_indexador, valor_indexador, data_indexador,
+                           ROW_NUMBER() OVER (PARTITION BY id_indexador ORDER BY data_indexador DESC) AS rn
+                    FROM ecadindexhist
+                ),
+                ultimo_incc AS (
+                    SELECT id_indexador, valor_indexador, data_indexador
+                    FROM ultimo_incc_all
+                    WHERE rn = 1
+                )
                 SELECT car.cliente, car.data_vencimento, car.valor_total,
                        car.lancamento, car.numero_documento, car.id_plano_financeiro,
                        cc.id_sienge_empresa as id_interno_empresa, car.id_interno_centro_custo,
                        cc.nome_empresa, cc.nome_centrocusto,
                        TRIM(car.id_documento) as id_documento,
                        car.lancamento as titulo, car.numero_parcela,
-                       TRIM(car.tc) as tipo_condicao
+                       TRIM(car.tc) as tipo_condicao,
+                       CASE
+                           WHEN car.id_indexador IS NOT NULL AND car.id_indexador > 0
+                                AND idx_b.valor_indexador IS NOT NULL AND idx_b.valor_indexador > 0
+                           THEN ROUND(car.valor_vencimento / idx_b.valor_indexador * ui.valor_indexador, 2)
+                           ELSE COALESCE(car.valor_corrigido, car.valor_total)
+                       END as saldo_atual
                 FROM contas_a_receber car
                 LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
                 LEFT JOIN contas_recebidas cr ON car.lancamento = cr.titulo::TEXT
                     AND car.numero_parcela::TEXT = cr.parcela::TEXT
+                LEFT JOIN ultimo_incc ui ON ui.id_indexador = car.id_indexador
+                LEFT JOIN ecadindexhist idx_b ON idx_b.id_indexador = car.id_indexador
+                    AND idx_b.data_indexador = car.data_indexador
                 WHERE car.data_vencimento < %s
                   AND cr.titulo IS NULL{excl_where}
                 ORDER BY car.data_vencimento ASC
@@ -4748,6 +4786,16 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
             excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='car')
             excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
             query = f"""
+                WITH ultimo_incc_all AS (
+                    SELECT id_indexador, valor_indexador, data_indexador,
+                           ROW_NUMBER() OVER (PARTITION BY id_indexador ORDER BY data_indexador DESC) AS rn
+                    FROM ecadindexhist
+                ),
+                ultimo_incc AS (
+                    SELECT id_indexador, valor_indexador, data_indexador
+                    FROM ultimo_incc_all
+                    WHERE rn = 1
+                )
                 SELECT car.cliente, car.data_vencimento, car.valor_total,
                        car.lancamento, car.numero_documento, car.id_plano_financeiro,
                        cc.id_sienge_empresa as id_interno_empresa, car.id_interno_centro_custo,
@@ -4766,9 +4814,18 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
                            WHEN 'CO' THEN 'Contrato'
                            WHEN 'CR' THEN 'Crédito'
                            ELSE TRIM(car.tc)
-                       END as tipo_condicao
+                       END as tipo_condicao,
+                       CASE
+                           WHEN car.id_indexador IS NOT NULL AND car.id_indexador > 0
+                                AND idx_b.valor_indexador IS NOT NULL AND idx_b.valor_indexador > 0
+                           THEN ROUND(car.valor_vencimento / idx_b.valor_indexador * ui.valor_indexador, 2)
+                           ELSE COALESCE(car.valor_corrigido, car.valor_total)
+                       END as saldo_atual
                 FROM contas_a_receber car
                 LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
+                LEFT JOIN ultimo_incc ui ON ui.id_indexador = car.id_indexador
+                LEFT JOIN ecadindexhist idx_b ON idx_b.id_indexador = car.id_indexador
+                    AND idx_b.data_indexador = car.data_indexador
                 WHERE 1=1{excl_where}
                 ORDER BY car.data_vencimento DESC
                 LIMIT %s
