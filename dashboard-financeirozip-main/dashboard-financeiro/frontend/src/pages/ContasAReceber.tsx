@@ -157,6 +157,9 @@ export const ContasAReceber: React.FC = () => {
   const [filtroDocumentos, setFiltroDocumentos] = useState<string[]>([]);
   const [documentoDropdownAberto, setDocumentoDropdownAberto] = useState(false);
   const [documentosDisponiveis, setDocumentosDisponiveis] = useState<{ id: string; nome: string }[]>([]);
+  const [filtroTipoCondicao, setFiltroTipoCondicao] = useState<string[]>([]);
+  const [tipoCondicaoDropdownAberto, setTipoCondicaoDropdownAberto] = useState(false);
+  const [tiposCondicaoDisponiveis, setTiposCondicaoDisponiveis] = useState<{ id: string; nome: string }[]>([]);
 
   const ordenarContas = (contasParaOrdenar: ContaReceber[]) => {
     return [...contasParaOrdenar].sort((a, b) => {
@@ -328,7 +331,8 @@ export const ContasAReceber: React.FC = () => {
     mesesSelecionados: number[],
     tiposDocSelecionados: string[],
     cliente: string | null,
-    documentosSelecionados: string[] = []
+    documentosSelecionados: string[] = [],
+    tiposCondicaoSelecionados: string[] = []
   ) => {
     let contasFiltradas = [...dados];
     
@@ -364,6 +368,11 @@ export const ContasAReceber: React.FC = () => {
       contasFiltradas = contasFiltradas.filter(c => {
         const doc = (c.numero_documento || c.id_documento || '').trim();
         return documentosSelecionados.includes(doc);
+      });
+    }
+    if (tiposCondicaoSelecionados.length > 0) {
+      contasFiltradas = contasFiltradas.filter(c => {
+        return c.tipo_condicao && tiposCondicaoSelecionados.includes(c.tipo_condicao);
       });
     }
     if (prazo !== 'todos') {
@@ -407,9 +416,15 @@ export const ContasAReceber: React.FC = () => {
     const docsUnicos = Array.from(docsSet).sort().map(d => ({ id: d, nome: d }));
     setDocumentosDisponiveis(docsUnicos);
 
+    const tcSet = new Set<string>();
+    todasContas.forEach(c => {
+      if (c.tipo_condicao) tcSet.add(c.tipo_condicao);
+    });
+    setTiposCondicaoDisponiveis(Array.from(tcSet).sort().map(t => ({ id: t, nome: t })));
+
     const contasSemAtraso = todasContas.filter(c => calcularDiasAteVencimento(c.data_vencimento) >= 0);
 
-    const contasFiltradas = aplicarFiltrosLocais(contasSemAtraso, filtroEmpresa, filtroCentroCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCliente, filtroDocumentos);
+    const contasFiltradas = aplicarFiltrosLocais(contasSemAtraso, filtroEmpresa, filtroCentroCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCliente, filtroDocumentos, filtroTipoCondicao);
     setContas(contasFiltradas);
 
     const venceHoje = contasFiltradas.filter(c => calcularDiasAteVencimento(c.data_vencimento) === 0);
@@ -474,7 +489,7 @@ export const ContasAReceber: React.FC = () => {
       .filter(d => d.quantidade > 0)
       .sort((a, b) => a.ordem - b.ordem);
     setDadosPorVencimento(vencimentoArray);
-  }, [todasContas, filtroEmpresa, filtroCentroCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCliente, filtroDocumentos]);
+  }, [todasContas, filtroEmpresa, filtroCentroCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCliente, filtroDocumentos, filtroTipoCondicao]);
 
   useEffect(() => {
     carregarDados();
@@ -490,6 +505,7 @@ export const ContasAReceber: React.FC = () => {
     setFiltroCliente(null);
     setFiltroUnidades([]);
     setFiltroDocumentos([]);
+    setFiltroTipoCondicao([]);
   };
 
   const exportarPDF = () => {
@@ -509,6 +525,7 @@ export const ContasAReceber: React.FC = () => {
     const clienteNome = filtroCliente || 'Todos';
     const tipoDocNomes = filtroTipoDocumento.length > 0 ? filtroTipoDocumento.join(', ') : 'Todos';
     const docNomes = filtroDocumentos.length > 0 ? filtroDocumentos.join(', ') : 'Todos';
+    const tipoCondNomes = filtroTipoCondicao.length > 0 ? filtroTipoCondicao.join(', ') : 'Todos';
 
     const filtrosAtivos = [
       { label: 'Empresa', valor: empresaNome },
@@ -519,6 +536,7 @@ export const ContasAReceber: React.FC = () => {
       { label: 'Cliente', valor: clienteNome },
       { label: 'Tipo Documento', valor: tipoDocNomes },
       { label: 'Documento', valor: docNomes },
+      { label: 'Tipo Condição', valor: tipoCondNomes },
     ];
 
     let y = adicionarFiltrosAtivos(doc, filtrosAtivos, startY, pageWidth, margin);
@@ -794,6 +812,15 @@ export const ContasAReceber: React.FC = () => {
           setSelected={setFiltroDocumentos}
           isOpen={documentoDropdownAberto}
           setIsOpen={setDocumentoDropdownAberto}
+          searchable={true}
+        />
+        <MultiSelectDropdown
+          label="Tipo Condição"
+          items={tiposCondicaoDisponiveis}
+          selected={filtroTipoCondicao}
+          setSelected={setFiltroTipoCondicao}
+          isOpen={tipoCondicaoDropdownAberto}
+          setIsOpen={setTipoCondicaoDropdownAberto}
           searchable={true}
         />
       </div>
