@@ -4726,6 +4726,13 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
                            WHEN 'CR' THEN 'Crédito'
                            ELSE TRIM(car.tc)
                        END as tipo_condicao,
+                       CASE COALESCE(car.id_indexador, 0)
+                           WHEN 0 THEN 'REAL'
+                           WHEN 3 THEN 'INCC-M'
+                           WHEN 4 THEN 'IGPM'
+                           WHEN 5 THEN 'IPCA'
+                           ELSE 'ID ' || COALESCE(car.id_indexador, 0)::TEXT
+                       END as indexador,
                        CASE
                            WHEN car.id_indexador IS NOT NULL AND car.id_indexador > 0
                                 AND idx_b.valor_indexador IS NOT NULL AND idx_b.valor_indexador > 0
@@ -4763,6 +4770,13 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
                        TRIM(car.id_documento) as id_documento,
                        car.lancamento as titulo, car.numero_parcela,
                        TRIM(car.tc) as tipo_condicao,
+                       CASE COALESCE(car.id_indexador, 0)
+                           WHEN 0 THEN 'REAL'
+                           WHEN 3 THEN 'INCC-M'
+                           WHEN 4 THEN 'IGPM'
+                           WHEN 5 THEN 'IPCA'
+                           ELSE 'ID ' || COALESCE(car.id_indexador, 0)::TEXT
+                       END as indexador,
                        CASE
                            WHEN car.id_indexador IS NOT NULL AND car.id_indexador > 0
                                 AND idx_b.valor_indexador IS NOT NULL AND idx_b.valor_indexador > 0
@@ -4815,6 +4829,13 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
                            WHEN 'CR' THEN 'Crédito'
                            ELSE TRIM(car.tc)
                        END as tipo_condicao,
+                       CASE COALESCE(car.id_indexador, 0)
+                           WHEN 0 THEN 'REAL'
+                           WHEN 3 THEN 'INCC-M'
+                           WHEN 4 THEN 'IGPM'
+                           WHEN 5 THEN 'IPCA'
+                           ELSE 'ID ' || COALESCE(car.id_indexador, 0)::TEXT
+                       END as indexador,
                        CASE
                            WHEN car.id_indexador IS NOT NULL AND car.id_indexador > 0
                                 AND idx_b.valor_indexador IS NOT NULL AND idx_b.valor_indexador > 0
