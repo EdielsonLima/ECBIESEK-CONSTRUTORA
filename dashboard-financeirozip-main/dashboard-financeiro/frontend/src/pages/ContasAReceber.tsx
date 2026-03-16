@@ -542,27 +542,27 @@ export const ContasAReceber: React.FC = () => {
           c.cliente || '-',
           formatDatePDF(c.data_vencimento),
           diasStr,
-          `R$ ${formatCurrencyPDF(c.valor_total || 0)}`,
-          `R$ ${formatCurrencyPDF(c.saldo_atual || c.valor_total || 0)}`,
           c.titulo || c.lancamento || '-',
           c.numero_parcela || '-',
           c.numero_documento || c.id_documento || '-',
           c.nome_empresa || '-',
           c.tipo_condicao || '-',
+          `R$ ${formatCurrencyPDF(c.valor_total || 0)}`,
+          `R$ ${formatCurrencyPDF(c.saldo_atual || c.valor_total || 0)}`,
         ];
       });
 
       const totalSaldoAtual = contas.reduce((acc, c) => acc + (c.saldo_atual || c.valor_total || 0), 0);
 
       adicionarTabela(doc, {
-        head: [['Cliente', 'Vencimento', 'Dias', 'Valor', 'Saldo Atual', 'Titulo', 'Parcela', 'Documento', 'Empresa', 'Tipo Condicao']],
+        head: [['Cliente', 'Vencimento', 'Dias', 'Titulo', 'Parcela', 'Documento', 'Empresa', 'Tipo Condicao', 'Valor', 'Saldo Atual']],
         body,
-        foot: [['TOTAL', '', '', '', `R$ ${formatCurrencyPDF(totalSaldoAtual)}`, '', '', '', '', '']],
+        foot: [['TOTAL', '', '', '', '', '', '', '', '', `R$ ${formatCurrencyPDF(totalSaldoAtual)}`]],
         columnStyles: {
           0: { cellWidth: 45 },
-          3: { halign: 'right' },
-          4: { halign: 'right' },
-          8: { cellWidth: 35 },
+          6: { cellWidth: 35 },
+          8: { halign: 'right' },
+          9: { halign: 'right' },
         },
       }, y, margin);
     } else if (abaAtiva === 'por-cliente') {
@@ -983,23 +983,11 @@ export const ContasAReceber: React.FC = () => {
                   >
                     Vencimento {renderSortIcon('data_vencimento')}
                   </th>
-                  <th 
-                    onClick={() => toggleOrdenacao('dias')} 
+                  <th
+                    onClick={() => toggleOrdenacao('dias')}
                     className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
                   >
                     Dias {renderSortIcon('dias')}
-                  </th>
-                  <th
-                    onClick={() => toggleOrdenacao('valor_total')}
-                    className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
-                  >
-                    Valor {renderSortIcon('valor_total')}
-                  </th>
-                  <th
-                    onClick={() => toggleOrdenacao('saldo_atual')}
-                    className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
-                  >
-                    Saldo Atual {renderSortIcon('saldo_atual')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                     Titulo
@@ -1007,8 +995,8 @@ export const ContasAReceber: React.FC = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                     Parcela
                   </th>
-                  <th 
-                    onClick={() => toggleOrdenacao('numero_documento')} 
+                  <th
+                    onClick={() => toggleOrdenacao('numero_documento')}
                     className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
                   >
                     Documento {renderSortIcon('numero_documento')}
@@ -1024,6 +1012,18 @@ export const ContasAReceber: React.FC = () => {
                     className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
                   >
                     Tipo Condicao {renderSortIcon('tipo_condicao')}
+                  </th>
+                  <th
+                    onClick={() => toggleOrdenacao('valor_total')}
+                    className="cursor-pointer px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
+                  >
+                    Valor {renderSortIcon('valor_total')}
+                  </th>
+                  <th
+                    onClick={() => toggleOrdenacao('saldo_atual')}
+                    className="cursor-pointer px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
+                  >
+                    Saldo Atual {renderSortIcon('saldo_atual')}
                   </th>
                 </tr>
               </thead>
@@ -1057,12 +1057,6 @@ export const ContasAReceber: React.FC = () => {
                             {dias === 0 ? 'Hoje' : dias < 0 ? `${Math.abs(dias)}d atrasado` : `${dias}d`}
                           </span>
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                          {formatCurrency(conta.valor_total)}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-green-700">
-                          {formatCurrency(conta.saldo_atual || conta.valor_total)}
-                        </td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                           {conta.titulo || conta.lancamento || '-'}
                         </td>
@@ -1077,6 +1071,12 @@ export const ContasAReceber: React.FC = () => {
                         </td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                           {conta.tipo_condicao || '-'}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-right font-medium text-gray-900">
+                          {formatCurrency(conta.valor_total)}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-right font-semibold text-green-700">
+                          {formatCurrency(conta.saldo_atual || conta.valor_total)}
                         </td>
                       </tr>
                       {isExpanded && tituloBase && (() => {
@@ -1109,10 +1109,10 @@ export const ContasAReceber: React.FC = () => {
                                           <th className="text-left py-1 pr-3">Parcela</th>
                                           <th className="text-left py-1 pr-3">Vencimento</th>
                                           <th className="text-left py-1 pr-3">Dias</th>
-                                          <th className="text-right py-1 pr-3">Valor</th>
-                                          <th className="text-right py-1 pr-3">Saldo Atual</th>
                                           <th className="text-left py-1 pr-3">Documento</th>
-                                          <th className="text-left py-1">Tipo Condicao</th>
+                                          <th className="text-left py-1 pr-3">Tipo Condicao</th>
+                                          <th className="text-right py-1 pr-3">Valor</th>
+                                          <th className="text-right py-1">Saldo Atual</th>
                                         </tr>
                                       </thead>
                                       <tbody>
@@ -1132,10 +1132,10 @@ export const ContasAReceber: React.FC = () => {
                                                   {diasP === 0 ? 'Hoje' : diasP < 0 ? `${Math.abs(diasP)}d atrasado` : `${diasP}d`}
                                                 </span>
                                               </td>
-                                              <td className="py-1.5 pr-3 text-right font-semibold text-gray-700">{formatCurrency(p.valor_total)}</td>
-                                              <td className="py-1.5 pr-3 text-right font-semibold text-green-700">{formatCurrency(p.saldo_atual || p.valor_total)}</td>
                                               <td className="py-1.5 pr-3 text-gray-500 font-mono text-xs">{p.numero_documento || p.id_documento || '-'}</td>
-                                              <td className="py-1.5 text-gray-500">{p.tipo_condicao || '-'}</td>
+                                              <td className="py-1.5 pr-3 text-gray-500">{p.tipo_condicao || '-'}</td>
+                                              <td className="py-1.5 pr-3 text-right font-semibold text-gray-700">{formatCurrency(p.valor_total)}</td>
+                                              <td className="py-1.5 text-right font-semibold text-green-700">{formatCurrency(p.saldo_atual || p.valor_total)}</td>
                                             </tr>
                                           );
                                         })}
