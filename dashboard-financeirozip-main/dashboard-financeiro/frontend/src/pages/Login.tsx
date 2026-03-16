@@ -153,6 +153,9 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           <p className="text-xs text-center text-gray-500">
             Sistema protegido por autenticação segura
           </p>
+          <p className="mt-2 text-[10px] text-center text-gray-400">
+            Desenvolvido por DT Consultorias
+          </p>
         </div>
       </div>
     </div>

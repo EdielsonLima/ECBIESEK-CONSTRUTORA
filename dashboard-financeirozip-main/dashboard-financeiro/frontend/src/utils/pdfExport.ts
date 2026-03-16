@@ -168,7 +168,7 @@ export function finalizarPDF(doc: jsPDF, nomeArquivo: string, dataGeracao: strin
     doc.setTextColor(180, 180, 180);
     doc.setFontSize(7);
     doc.text(dataGeracao, margin, pageH - 4);
-    doc.text(`ECBIESEK-CONSTRUTORA © ${agora.getFullYear()}`, pageWidth / 2, pageH - 4, { align: 'center' });
+    doc.text(`ECBIESEK-CONSTRUTORA © ${agora.getFullYear()} | Desenvolvido por DT Consultorias`, pageWidth / 2, pageH - 4, { align: 'center' });
     doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin, pageH - 4, { align: 'right' });
   }
 

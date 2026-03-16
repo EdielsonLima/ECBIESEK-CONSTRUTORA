@@ -207,7 +207,8 @@ function App() {
 
         <footer className="mt-12 bg-white py-6 shadow-inner">
           <div className="px-8 text-center text-sm text-gray-600">
-            <p>ECBIESEK-CONSTRUTORA © {new Date().getFullYear()}</p>
+            <p>ECBIESEK-CONSTRUTORA &copy; {new Date().getFullYear()}</p>
+            <p className="mt-1 text-xs text-gray-400">Desenvolvido por DT Consultorias</p>
           </div>
         </footer>
       </div>
