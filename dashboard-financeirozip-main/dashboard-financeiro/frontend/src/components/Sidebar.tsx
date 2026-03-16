@@ -397,6 +397,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
             </div>
           </div>
         )}
+        {isOpen && (
+          <div className="flex-shrink-0 px-4 pb-1">
+            <p className="text-[10px] text-center text-slate-600">Desenvolvido por <span className="text-slate-400 font-medium">DT Consultorias</span></p>
+          </div>
+        )}
 
         {/* User Menu no rodapé */}
         <div className="flex-shrink-0 border-t border-slate-800 px-2 py-3 relative">
