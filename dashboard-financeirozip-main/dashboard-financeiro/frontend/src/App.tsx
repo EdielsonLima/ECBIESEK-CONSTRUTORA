@@ -12,6 +12,7 @@ import { KPIs } from './pages/KPIs';
 import { ClassificacaoCentroCusto } from './pages/ClassificacaoCentroCusto';
 import { Configuracoes } from './pages/Configuracoes';
 import { ExposicaoCaixa } from './pages/ExposicaoCaixa';
+import { PainelExecutivo } from './pages/PainelExecutivo';
 import { ChatIA } from './pages/ChatIA';
 import { Login } from './pages/Login';
 import { GerenciarUsuarios } from './pages/GerenciarUsuarios';
@@ -115,6 +116,8 @@ function App() {
         return <ClassificacaoCentroCusto />;
       case 'configuracoes':
         return isAdmin ? <Configuracoes /> : <AcessoNegado />;
+      case 'painel-executivo':
+        return <PainelExecutivo onNavigate={setCurrentPage} />;
       case 'exposicao-caixa':
         return <ExposicaoCaixa />;
       case 'chat-ia':
@@ -157,6 +160,7 @@ function App() {
                 {currentPage === 'kpis' && 'KPIs'}
                 {currentPage === 'configuracoes' && 'Configurações'}
                 {currentPage === 'exposicao-caixa' && 'Exposição de Caixa'}
+                {currentPage === 'painel-executivo' && 'Painel Executivo'}
                 {currentPage === 'chat-ia' && 'Chat IA'}
                 {currentPage === 'gerenciar-usuarios' && 'Gerenciar Usuários'}
                 {currentPage === 'log-atividades' && 'Log de Atividades'}
