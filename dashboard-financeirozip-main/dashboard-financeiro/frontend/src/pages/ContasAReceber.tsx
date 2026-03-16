@@ -177,6 +177,10 @@ export const ContasAReceber: React.FC = () => {
           valorA = a.valor_total || 0;
           valorB = b.valor_total || 0;
           break;
+        case 'saldo_atual':
+          valorA = a.saldo_atual || a.valor_total || 0;
+          valorB = b.saldo_atual || b.valor_total || 0;
+          break;
         case 'numero_documento':
           valorA = (a.numero_documento || '').toLowerCase();
           valorB = (b.numero_documento || '').toLowerCase();
@@ -386,14 +390,14 @@ export const ContasAReceber: React.FC = () => {
 
     const stats: Estatisticas = {
       quantidade_titulos: contasFiltradas.length,
-      valor_total: contasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0),
-      valor_medio: contasFiltradas.length > 0 
-        ? contasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0) / contasFiltradas.length 
+      valor_total: contasFiltradas.reduce((acc, c) => acc + (c.saldo_atual || c.valor_total || 0), 0),
+      valor_medio: contasFiltradas.length > 0
+        ? contasFiltradas.reduce((acc, c) => acc + (c.saldo_atual || c.valor_total || 0), 0) / contasFiltradas.length
         : 0,
       quantidade_atrasados: 0,
       valor_atrasados: 0,
       quantidade_vence_hoje: venceHoje.length,
-      valor_vence_hoje: venceHoje.reduce((acc, c) => acc + (c.valor_total || 0), 0),
+      valor_vence_hoje: venceHoje.reduce((acc, c) => acc + (c.saldo_atual || c.valor_total || 0), 0),
     };
     setEstatisticas(stats);
 
@@ -402,7 +406,7 @@ export const ContasAReceber: React.FC = () => {
       const cliente = c.cliente || 'Sem Cliente';
       const atual = clienteAnaliseMap.get(cliente) || { valor: 0, quantidade: 0 };
       clienteAnaliseMap.set(cliente, {
-        valor: atual.valor + (c.valor_total || 0),
+        valor: atual.valor + (c.saldo_atual || c.valor_total || 0),
         quantidade: atual.quantidade + 1,
       });
     });
@@ -431,7 +435,7 @@ export const ContasAReceber: React.FC = () => {
         if (faixa) {
           const atual = vencimentoMap.get(faixa.faixa)!;
           vencimentoMap.set(faixa.faixa, {
-            valor: atual.valor + (c.valor_total || 0),
+            valor: atual.valor + (c.saldo_atual || c.valor_total || 0),
             quantidade: atual.quantidade + 1,
             ordem: atual.ordem,
           });
@@ -494,10 +498,10 @@ export const ContasAReceber: React.FC = () => {
     const contas7dias = contas.filter(c => { const d = calcularDiasAteVencimento(c.data_vencimento); return d >= 1 && d <= 7; });
     const contas15dias = contas.filter(c => { const d = calcularDiasAteVencimento(c.data_vencimento); return d >= 1 && d <= 15; });
     const contas30dias = contas.filter(c => { const d = calcularDiasAteVencimento(c.data_vencimento); return d >= 1 && d <= 30; });
-    const valorHoje = contasHoje.reduce((acc, c) => acc + (c.valor_total || 0), 0);
-    const valor7dias = contas7dias.reduce((acc, c) => acc + (c.valor_total || 0), 0);
-    const valor15dias = contas15dias.reduce((acc, c) => acc + (c.valor_total || 0), 0);
-    const valor30dias = contas30dias.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+    const valorHoje = contasHoje.reduce((acc, c) => acc + (c.saldo_atual || c.valor_total || 0), 0);
+    const valor7dias = contas7dias.reduce((acc, c) => acc + (c.saldo_atual || c.valor_total || 0), 0);
+    const valor15dias = contas15dias.reduce((acc, c) => acc + (c.saldo_atual || c.valor_total || 0), 0);
+    const valor30dias = contas30dias.reduce((acc, c) => acc + (c.saldo_atual || c.valor_total || 0), 0);
 
     const cards = [
       { label: 'Total a Receber', valor: estatisticas?.valor_total || 0, cor: [22, 163, 74] as [number, number, number] },
@@ -518,6 +522,7 @@ export const ContasAReceber: React.FC = () => {
           formatDatePDF(c.data_vencimento),
           diasStr,
           `R$ ${formatCurrencyPDF(c.valor_total || 0)}`,
+          `R$ ${formatCurrencyPDF(c.saldo_atual || c.valor_total || 0)}`,
           c.titulo || c.lancamento || '-',
           c.numero_parcela || '-',
           c.numero_documento || c.id_documento || '-',
@@ -526,16 +531,17 @@ export const ContasAReceber: React.FC = () => {
         ];
       });
 
-      const totalValor = contas.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+      const totalSaldoAtual = contas.reduce((acc, c) => acc + (c.saldo_atual || c.valor_total || 0), 0);
 
       adicionarTabela(doc, {
-        head: [['Cliente', 'Vencimento', 'Dias', 'Valor', 'Titulo', 'Parcela', 'Documento', 'Empresa', 'Tipo Condicao']],
+        head: [['Cliente', 'Vencimento', 'Dias', 'Valor', 'Saldo Atual', 'Titulo', 'Parcela', 'Documento', 'Empresa', 'Tipo Condicao']],
         body,
-        foot: [['TOTAL', '', '', `R$ ${formatCurrencyPDF(totalValor)}`, '', '', '', '', '']],
+        foot: [['TOTAL', '', '', '', `R$ ${formatCurrencyPDF(totalSaldoAtual)}`, '', '', '', '', '']],
         columnStyles: {
-          0: { cellWidth: 50 },
+          0: { cellWidth: 45 },
           3: { halign: 'right' },
-          7: { cellWidth: 40 },
+          4: { halign: 'right' },
+          8: { cellWidth: 35 },
         },
       }, y, margin);
     } else if (abaAtiva === 'por-cliente') {
@@ -543,7 +549,7 @@ export const ContasAReceber: React.FC = () => {
       contas.forEach(c => {
         const cliente = c.cliente || 'Sem Cliente';
         const atual = clienteMap.get(cliente) || { valor: 0, quantidade: 0 };
-        clienteMap.set(cliente, { valor: atual.valor + (c.valor_total || 0), quantidade: atual.quantidade + 1 });
+        clienteMap.set(cliente, { valor: atual.valor + (c.saldo_atual || c.valor_total || 0), quantidade: atual.quantidade + 1 });
       });
       const clientesPorValor = Array.from(clienteMap.entries())
         .map(([cliente, data]) => ({ cliente, ...data }))
@@ -580,7 +586,7 @@ export const ContasAReceber: React.FC = () => {
       contas.forEach(c => {
         const unidade = (c.numero_documento || c.id_documento || '').trim() || 'Sem Unidade';
         const atual = unidadeMap.get(unidade) || { valor: 0, quantidade: 0 };
-        unidadeMap.set(unidade, { valor: atual.valor + (c.valor_total || 0), quantidade: atual.quantidade + 1 });
+        unidadeMap.set(unidade, { valor: atual.valor + (c.saldo_atual || c.valor_total || 0), quantidade: atual.quantidade + 1 });
       });
       const unidadesPorValor = Array.from(unidadeMap.entries())
         .map(([unidade, data]) => ({ unidade, ...data }))
@@ -770,10 +776,10 @@ export const ContasAReceber: React.FC = () => {
         const contas15dias = contas.filter(c => { const d = calcularDiasAteVencimento(c.data_vencimento); return d >= 1 && d <= 15; });
         const contas30dias = contas.filter(c => { const d = calcularDiasAteVencimento(c.data_vencimento); return d >= 1 && d <= 30; });
 
-        const valorHoje = contasHoje.reduce((acc, c) => acc + (c.valor_total || 0), 0);
-        const valor7dias = contas7dias.reduce((acc, c) => acc + (c.valor_total || 0), 0);
-        const valor15dias = contas15dias.reduce((acc, c) => acc + (c.valor_total || 0), 0);
-        const valor30dias = contas30dias.reduce((acc, c) => acc + (c.valor_total || 0), 0);
+        const valorHoje = contasHoje.reduce((acc, c) => acc + (c.saldo_atual || c.valor_total || 0), 0);
+        const valor7dias = contas7dias.reduce((acc, c) => acc + (c.saldo_atual || c.valor_total || 0), 0);
+        const valor15dias = contas15dias.reduce((acc, c) => acc + (c.saldo_atual || c.valor_total || 0), 0);
+        const valor30dias = contas30dias.reduce((acc, c) => acc + (c.saldo_atual || c.valor_total || 0), 0);
 
         const clientesTotal = new Set(contas.map(c => c.cliente)).size;
         const clientesHoje = new Set(contasHoje.map(c => c.cliente)).size;
@@ -953,11 +959,17 @@ export const ContasAReceber: React.FC = () => {
                   >
                     Dias {renderSortIcon('dias')}
                   </th>
-                  <th 
-                    onClick={() => toggleOrdenacao('valor_total')} 
+                  <th
+                    onClick={() => toggleOrdenacao('valor_total')}
                     className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
                   >
                     Valor {renderSortIcon('valor_total')}
+                  </th>
+                  <th
+                    onClick={() => toggleOrdenacao('saldo_atual')}
+                    className="cursor-pointer px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
+                  >
+                    Saldo Atual {renderSortIcon('saldo_atual')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                     Titulo
@@ -1018,6 +1030,9 @@ export const ContasAReceber: React.FC = () => {
                         <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
                           {formatCurrency(conta.valor_total)}
                         </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-green-700">
+                          {formatCurrency(conta.saldo_atual || conta.valor_total)}
+                        </td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                           {conta.titulo || conta.lancamento || '-'}
                         </td>
@@ -1045,10 +1060,10 @@ export const ContasAReceber: React.FC = () => {
                         const totalParcelas = todasContas.filter(c => c.lancamento && c.lancamento.split('/')[0] === tituloBase).length;
                         const valorTotalTitulo = todasContas
                           .filter(c => c.lancamento && c.lancamento.split('/')[0] === tituloBase)
-                          .reduce((acc, c) => acc + (c.valor_total || 0), 0);
+                          .reduce((acc, c) => acc + (c.saldo_atual || c.valor_total || 0), 0);
                         return (
                           <tr>
-                            <td colSpan={9} className="p-0">
+                            <td colSpan={10} className="p-0">
                               <div className="bg-green-50 border-t border-b border-green-200 px-8 py-3">
                                 <div className="flex items-center justify-between mb-2">
                                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -1065,6 +1080,7 @@ export const ContasAReceber: React.FC = () => {
                                           <th className="text-left py-1 pr-3">Vencimento</th>
                                           <th className="text-left py-1 pr-3">Dias</th>
                                           <th className="text-right py-1 pr-3">Valor</th>
+                                          <th className="text-right py-1 pr-3">Saldo Atual</th>
                                           <th className="text-left py-1 pr-3">Documento</th>
                                           <th className="text-left py-1">Tipo Condicao</th>
                                         </tr>
@@ -1086,7 +1102,8 @@ export const ContasAReceber: React.FC = () => {
                                                   {diasP === 0 ? 'Hoje' : diasP < 0 ? `${Math.abs(diasP)}d atrasado` : `${diasP}d`}
                                                 </span>
                                               </td>
-                                              <td className="py-1.5 pr-3 text-right font-semibold text-green-700">{formatCurrency(p.valor_total)}</td>
+                                              <td className="py-1.5 pr-3 text-right font-semibold text-gray-700">{formatCurrency(p.valor_total)}</td>
+                                              <td className="py-1.5 pr-3 text-right font-semibold text-green-700">{formatCurrency(p.saldo_atual || p.valor_total)}</td>
                                               <td className="py-1.5 pr-3 text-gray-500 font-mono text-xs">{p.numero_documento || p.id_documento || '-'}</td>
                                               <td className="py-1.5 text-gray-500">{p.tipo_condicao || '-'}</td>
                                             </tr>
@@ -1164,7 +1181,7 @@ export const ContasAReceber: React.FC = () => {
           const cliente = c.cliente || 'Sem Cliente';
           const atual = clienteMap.get(cliente) || { valor: 0, quantidade: 0 };
           clienteMap.set(cliente, {
-            valor: atual.valor + (c.valor_total || 0),
+            valor: atual.valor + (c.saldo_atual || c.valor_total || 0),
             quantidade: atual.quantidade + 1,
           });
         });
@@ -1386,7 +1403,7 @@ export const ContasAReceber: React.FC = () => {
           const unidade = (c.numero_documento || c.id_documento || '').trim() || 'Sem Unidade';
           const atual = unidadeMap.get(unidade) || { valor: 0, quantidade: 0 };
           unidadeMap.set(unidade, {
-            valor: atual.valor + (c.valor_total || 0),
+            valor: atual.valor + (c.saldo_atual || c.valor_total || 0),
             quantidade: atual.quantidade + 1,
           });
         });

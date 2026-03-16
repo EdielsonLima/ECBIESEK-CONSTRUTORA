@@ -233,6 +233,7 @@ export interface ContaReceber {
   numero_parcela?: string;
   id_tipo_baixa?: number;
   tipo_condicao?: string;
+  saldo_atual?: number;
   valor_acrescimo?: number;
   valor_desconto?: number;
   valor_baixa?: number;
