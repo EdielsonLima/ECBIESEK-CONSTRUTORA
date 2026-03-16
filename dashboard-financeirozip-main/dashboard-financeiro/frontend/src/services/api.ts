@@ -1344,12 +1344,12 @@ export const apiService = {
     // Valor do Empreendimento = Saldo a Receber + Estoque - Saldo a Realizar
     const valor_empreendimento = saldo_a_receber + estoque - saldo_a_realizar;
 
-    // Calcula saldo acumulado e exposicao mes a mes
-    let saldo_acumulado = 0;
-    let picoNegativo = 0;
-    const TAXA_MENSAL = 0.01; // 1% a.m. para exposicao composta
-    let saldoComposto = 0;
-    let picoNegativoComposto = 0;
+    // Exposicao de caixa mes a mes
+    // Simples = saldo acumulado (pago - recebido ao longo do tempo)
+    // Composta = saldo acumulado + custo de oportunidade (juros compostos sobre saldo negativo)
+    const TAXA_MENSAL = 0.01; // 1% a.m. custo de oportunidade
+    let saldoAcumulado = 0;
+    let custoOportunidade = 0;
 
     const recebidoMap: Record<string, number> = {};
     const pagoMap: Record<string, number> = {};
@@ -1362,22 +1362,18 @@ export const apiService = {
     mesesOrdenados.forEach(mes => {
       const rec = recebidoMap[mes] ?? 0;
       const pag = pagoMap[mes] ?? 0;
-      const fluxo = rec - pag;
+      saldoAcumulado += pag - rec; // positivo = empresa investiu mais do que recebeu
 
-      // Simples: saldo acumulado
-      saldo_acumulado += fluxo;
-      if (saldo_acumulado < picoNegativo) picoNegativo = saldo_acumulado;
-
-      // Composta: aplica juros sobre saldo negativo antes de adicionar fluxo
-      if (saldoComposto < 0) saldoComposto *= (1 + TAXA_MENSAL);
-      saldoComposto += fluxo;
-      if (saldoComposto < picoNegativoComposto) picoNegativoComposto = saldoComposto;
+      // Custo de oportunidade: juros sobre o saldo investido acumulado
+      if (saldoAcumulado > 0) {
+        custoOportunidade += saldoAcumulado * TAXA_MENSAL;
+      }
     });
 
-    // Exposicao = pico negativo (capital maximo investido pela empresa)
-    // Se saldo nunca ficou negativo, usa diferenca pago - recebido como proxy
-    const exposicaoSimples = picoNegativo < 0 ? Math.abs(picoNegativo) : Math.max(0, totalPago - totalRecebido);
-    const exposicaoComposta = picoNegativoComposto < 0 ? Math.abs(picoNegativoComposto) : exposicaoSimples * 1.2;
+    // Exposicao simples = saldo acumulado (total que a empresa colocou a mais do que recebeu)
+    const exposicaoSimples = Math.max(0, saldoAcumulado);
+    // Exposicao composta = saldo acumulado + custo de oportunidade acumulado
+    const exposicaoComposta = exposicaoSimples + custoOportunidade;
 
     return {
       vgv,
@@ -1387,7 +1383,7 @@ export const apiService = {
       orcamento_total,
       saldo_a_realizar,
       valor_empreendimento,
-      saldo_acumulado: Math.abs(saldo_acumulado),
+      saldo_acumulado: exposicaoSimples,
       exposicao_simples: exposicaoSimples,
       exposicao_composta: exposicaoComposta,
     };
