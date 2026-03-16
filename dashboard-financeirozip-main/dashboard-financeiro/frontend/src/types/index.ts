@@ -305,3 +305,28 @@ export interface TituloCliente {
   nome: string;
   valor_total: number;
 }
+
+export interface PainelExecutivoData {
+  vgv: number;
+  realizado: number;
+  orcamento_total: number;
+  saldo_a_realizar: number;
+  valor_empreendimento: number;
+  saldo_acumulado: number;
+  exposicao_simples: number;
+  exposicao_composta: number;
+}
+
+export interface ExposicaoMensal {
+  periodo: string;
+  mes_key: string;
+  recebido: number;
+  pago: number;
+  saldo_acumulado: number;
+}
+
+export interface EmpreendimentoOption {
+  id: number;
+  nome: string;
+  codigo: string;
+}
