@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { apiService } from '../services/api';
 import { PainelExecutivoData, ExposicaoMensal, EmpreendimentoOption } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { DollarSign, CheckCircle, FileText, Clock, Building2, Wallet, TrendingDown, Calculator } from 'lucide-react';
+import { DollarSign, CheckCircle, FileText, Clock, Building2, Wallet, TrendingDown, Calculator, TrendingUp } from 'lucide-react';
 import { criarPDFBase, adicionarResumoCards, finalizarPDF, gerarNomeArquivo } from '../utils/pdfExport';
 
 interface PainelExecutivoProps {
@@ -45,6 +45,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [modoExposicao, setModoExposicao] = useState<'simples' | 'composta'>('simples');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [dropdownSearch, setDropdownSearch] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -140,16 +141,9 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
 
   if (!data) return null;
 
-  const cards = [
-    { title: 'VGV', value: formatCurrency(data.vgv), subtitle: 'Estoque + Vendas', icon: <DollarSign className="h-6 w-6" />, borderColor: 'border-blue-100', iconBg: 'bg-gradient-to-br from-blue-400 to-blue-600 shadow-blue-200' },
-    { title: 'Realizado', value: formatCurrency(data.realizado), subtitle: 'Total Pago', icon: <CheckCircle className="h-6 w-6" />, borderColor: 'border-green-100', iconBg: 'bg-gradient-to-br from-green-400 to-green-600 shadow-green-200' },
-    { title: 'Orçamento Total', value: formatCurrency(data.orcamento_total), subtitle: 'Custo Previsto', icon: <FileText className="h-6 w-6" />, borderColor: 'border-slate-100', iconBg: 'bg-gradient-to-br from-slate-400 to-slate-600 shadow-slate-200' },
-    { title: 'Saldo a Realizar', value: formatCurrency(data.saldo_a_realizar), subtitle: 'Orçamento - Realizado', icon: <Clock className="h-6 w-6" />, borderColor: 'border-orange-100', iconBg: 'bg-gradient-to-br from-orange-400 to-orange-600 shadow-orange-200' },
-    { title: 'Valor do Empreendimento', value: formatCurrency(data.valor_empreendimento), subtitle: 'VGV - Saldo a Realizar', icon: <Building2 className="h-6 w-6" />, borderColor: 'border-indigo-100', iconBg: 'bg-gradient-to-br from-indigo-400 to-indigo-600 shadow-indigo-200' },
-    { title: 'Saldo Acumulado', value: formatCurrency(data.saldo_acumulado), subtitle: 'Capital Aportado', icon: <Wallet className="h-6 w-6" />, borderColor: 'border-purple-100', iconBg: 'bg-gradient-to-br from-purple-400 to-purple-600 shadow-purple-200' },
-    { title: 'Exposição Simples', value: formatCurrency(data.exposicao_simples), subtitle: 'Capital Investido', icon: <TrendingDown className="h-6 w-6" />, borderColor: 'border-red-100', iconBg: 'bg-gradient-to-br from-red-400 to-red-600 shadow-red-200' },
-    { title: 'Exposição Composta', value: formatCurrency(data.exposicao_composta), subtitle: 'Com Custo Oportunidade', icon: <Calculator className="h-6 w-6" />, borderColor: 'border-rose-100', iconBg: 'bg-gradient-to-br from-rose-400 to-rose-600 shadow-rose-200' },
-  ];
+  const exposicaoUsada = modoExposicao === 'simples' ? data.exposicao_simples : data.exposicao_composta;
+  const lucroPotencial = data.valor_empreendimento - exposicaoUsada;
+  const percentualLucro = data.valor_empreendimento > 0 ? (lucroPotencial / data.valor_empreendimento) * 100 : 0;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -224,25 +218,148 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
         </p>
       </div>
 
-      {/* Cards - 8 indicadores em grid 4x2 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {cards.map((card, idx) => (
-          <div
-            key={idx}
-            className={`rounded-2xl border ${card.borderColor} bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg`}
-          >
-            <div className="flex items-center justify-between">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider truncate">{card.title}</p>
-                <p className="mt-2 text-3xl font-extrabold text-gray-900">{card.value}</p>
-                <p className="mt-1 text-sm font-medium text-gray-400">{card.subtitle}</p>
-              </div>
-              <div className={`rounded-xl p-3 shadow-lg ${card.iconBg} text-white flex-shrink-0 ml-3`}>
-                {card.icon}
-              </div>
+      {/* ============ SEÇÃO 1: Visão Geral ============ */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* VGV */}
+        <div className="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Valor Geral de Vendas</p>
+              <p className="mt-2 text-4xl font-extrabold text-gray-900">{formatCurrency(data.vgv)}</p>
+              <p className="mt-1 text-sm text-gray-500">Estoque + Vendas</p>
+            </div>
+            <div className="rounded-xl p-4 bg-gradient-to-br from-blue-400 to-blue-600 shadow-lg shadow-blue-200 text-white">
+              <DollarSign className="h-8 w-8" />
             </div>
           </div>
-        ))}
+        </div>
+        {/* Valor do Empreendimento */}
+        <div className="rounded-2xl border border-indigo-100 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Valor do Empreendimento</p>
+              <p className="mt-2 text-4xl font-extrabold text-gray-900">{formatCurrency(data.valor_empreendimento)}</p>
+              <p className="mt-1 text-sm text-gray-500">VGV − Saldo a Realizar</p>
+            </div>
+            <div className="rounded-xl p-4 bg-gradient-to-br from-indigo-400 to-indigo-600 shadow-lg shadow-indigo-200 text-white">
+              <Building2 className="h-8 w-8" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ============ SEÇÃO 2: Custos ============ */}
+      <div>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 ml-1">Custos</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="rounded-lg p-2 bg-gradient-to-br from-slate-400 to-slate-600 text-white">
+                <FileText className="h-4 w-4" />
+              </div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Orçamento Total</p>
+            </div>
+            <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.orcamento_total)}</p>
+            <p className="text-xs text-gray-400 mt-1">Custo previsto</p>
+          </div>
+          <div className="rounded-2xl border border-green-100 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="rounded-lg p-2 bg-gradient-to-br from-green-400 to-green-600 text-white">
+                <CheckCircle className="h-4 w-4" />
+              </div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Realizado</p>
+            </div>
+            <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.realizado)}</p>
+            <p className="text-xs text-gray-400 mt-1">Total pago</p>
+          </div>
+          <div className="rounded-2xl border border-orange-100 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="rounded-lg p-2 bg-gradient-to-br from-orange-400 to-orange-600 text-white">
+                <Clock className="h-4 w-4" />
+              </div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Saldo a Realizar</p>
+            </div>
+            <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.saldo_a_realizar)}</p>
+            <p className="text-xs text-gray-400 mt-1">Orçamento − Realizado</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ============ SEÇÃO 3: Capital Investido ============ */}
+      <div>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 ml-1">Capital Investido</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="rounded-2xl border border-purple-100 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="rounded-lg p-2 bg-gradient-to-br from-purple-400 to-purple-600 text-white">
+                <Wallet className="h-4 w-4" />
+              </div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Saldo Acumulado</p>
+            </div>
+            <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.saldo_acumulado)}</p>
+            <p className="text-xs text-gray-400 mt-1">Capital aportado</p>
+          </div>
+          <div className="rounded-2xl border border-red-100 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="rounded-lg p-2 bg-gradient-to-br from-red-400 to-red-600 text-white">
+                <TrendingDown className="h-4 w-4" />
+              </div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Exposição Simples</p>
+            </div>
+            <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.exposicao_simples)}</p>
+            <p className="text-xs text-gray-400 mt-1">Capital investido</p>
+          </div>
+          <div className="rounded-2xl border border-rose-100 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="rounded-lg p-2 bg-gradient-to-br from-rose-400 to-rose-600 text-white">
+                <Calculator className="h-4 w-4" />
+              </div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Exposição Composta</p>
+            </div>
+            <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.exposicao_composta)}</p>
+            <p className="text-xs text-gray-400 mt-1">Com custo de oportunidade</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ============ SEÇÃO 4: Lucro Potencial ============ */}
+      <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl border border-emerald-200 p-6 shadow-sm">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="rounded-xl p-3 bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-200 text-white">
+              <TrendingUp className="h-7 w-7" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-emerald-700 uppercase tracking-wider">Lucro Potencial</p>
+              <p className="text-4xl font-extrabold text-gray-900 mt-1">{formatCurrency(lucroPotencial)}</p>
+              <p className="text-sm text-emerald-600 mt-1">
+                {formatCurrency(data.valor_empreendimento)} − {formatCurrency(exposicaoUsada)} (exposição {modoExposicao}) = <span className="font-bold">{percentualLucro.toFixed(1)}% de margem</span>
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center bg-white rounded-xl border border-emerald-200 p-1 shadow-sm">
+            <button
+              onClick={() => setModoExposicao('simples')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                modoExposicao === 'simples'
+                  ? 'bg-emerald-600 text-white shadow-md'
+                  : 'text-gray-600 hover:text-emerald-700 hover:bg-emerald-50'
+              }`}
+            >
+              Simples
+            </button>
+            <button
+              onClick={() => setModoExposicao('composta')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                modoExposicao === 'composta'
+                  ? 'bg-emerald-600 text-white shadow-md'
+                  : 'text-gray-600 hover:text-emerald-700 hover:bg-emerald-50'
+              }`}
+            >
+              Composta
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Grafico Exposicao de Caixa Acumulado */}
