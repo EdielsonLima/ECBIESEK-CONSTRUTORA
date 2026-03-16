@@ -1260,47 +1260,163 @@ export const apiService = {
 
   // === Painel Executivo ===
 
+  // Constantes de orcamento: CUB RO (R8-N, Fev/2026) x fator multiplicador x metragem
+  // Logica do Edielson: CUB regional x fator (1.2 padrao medio) x area construida
+  // CUB Rondonia R8-N Fev/2026: R$ 2.334,56/m2 (fonte: SINDUSCON-RO)
+  _cubRO: 2334.56,
+  _fatorMultiplicador: 1.2,
+  _empreendimentos: [
+    { id: 0, nome: 'Consolidado', codigo: 'ALL', metragem: 0, vgv_mock: 0 },
+    { id: 1, nome: 'Lake Boulevard', codigo: 'LKB', metragem: 25392.42, vgv_mock: 120000000 },
+    { id: 2, nome: 'Buenos Aires', codigo: 'BUA', metragem: 18000, vgv_mock: 85000000 },
+    { id: 3, nome: 'Imperial Residence', codigo: 'IMP', metragem: 12000, vgv_mock: 45000000 },
+    { id: 4, nome: 'BIE 3', codigo: 'BIE3', metragem: 8000, vgv_mock: 30000000 },
+    { id: 5, nome: 'BIE 4', codigo: 'BIE4', metragem: 5500, vgv_mock: 20000000 },
+    { id: 6, nome: 'Valenca', codigo: 'VAL', metragem: 9000, vgv_mock: 12000000 },
+    { id: 7, nome: 'Lagunas Residencial Clube', codigo: 'LAG', metragem: 7000, vgv_mock: 8000000 },
+  ] as Array<{ id: number; nome: string; codigo: string; metragem: number; vgv_mock: number }>,
+
   getEmpreendimentos: async (): Promise<EmpreendimentoOption[]> => {
-    // TODO: substituir por endpoint real quando disponivel
-    return [
-      { id: 0, nome: 'Consolidado', codigo: 'ALL' },
-      { id: 1, nome: 'Lake Boulevard', codigo: 'LKB' },
-      { id: 2, nome: 'Buenos Aires', codigo: 'BUA' },
-      { id: 3, nome: 'Imperial Residence', codigo: 'IMP' },
-      { id: 4, nome: 'BIE 3', codigo: 'BIE3' },
-      { id: 5, nome: 'BIE 4', codigo: 'BIE4' },
-      { id: 6, nome: 'Valenca', codigo: 'VAL' },
-      { id: 7, nome: 'Lagunas Residencial Clube', codigo: 'LAG' },
-    ];
+    return apiService._empreendimentos.map(e => ({ id: e.id, nome: e.nome, codigo: e.codigo }));
   },
 
   getPainelExecutivo: async (empreendimentoId: number): Promise<PainelExecutivoData> => {
-    // TODO: substituir por endpoint real quando disponivel
-    // Dados mock baseados na reuniao 2026-03-16 (referencia Lake Boulevard)
-    const mockPorEmpreendimento: Record<number, PainelExecutivoData> = {
-      0: { vgv: 320000000, realizado: 112000000, orcamento_total: 158000000, saldo_a_realizar: 46000000, valor_empreendimento: 274000000, saldo_acumulado: 35000000, exposicao_simples: 35000000, exposicao_composta: 42000000 },
-      1: { vgv: 120000000, realizado: 43000000, orcamento_total: 58000000, saldo_a_realizar: 15000000, valor_empreendimento: 105000000, saldo_acumulado: 12000000, exposicao_simples: 12000000, exposicao_composta: 14500000 },
-      2: { vgv: 85000000, realizado: 31000000, orcamento_total: 42000000, saldo_a_realizar: 11000000, valor_empreendimento: 74000000, saldo_acumulado: 9000000, exposicao_simples: 9000000, exposicao_composta: 10800000 },
-      3: { vgv: 45000000, realizado: 18000000, orcamento_total: 28000000, saldo_a_realizar: 10000000, valor_empreendimento: 35000000, saldo_acumulado: 7000000, exposicao_simples: 7000000, exposicao_composta: 8200000 },
-      4: { vgv: 30000000, realizado: 10000000, orcamento_total: 15000000, saldo_a_realizar: 5000000, valor_empreendimento: 25000000, saldo_acumulado: 3500000, exposicao_simples: 3500000, exposicao_composta: 4200000 },
-      5: { vgv: 20000000, realizado: 5000000, orcamento_total: 8000000, saldo_a_realizar: 3000000, valor_empreendimento: 17000000, saldo_acumulado: 2000000, exposicao_simples: 2000000, exposicao_composta: 2400000 },
-      6: { vgv: 12000000, realizado: 3000000, orcamento_total: 5000000, saldo_a_realizar: 2000000, valor_empreendimento: 10000000, saldo_acumulado: 1000000, exposicao_simples: 1000000, exposicao_composta: 1200000 },
-      7: { vgv: 8000000, realizado: 2000000, orcamento_total: 2000000, saldo_a_realizar: 0, valor_empreendimento: 8000000, saldo_acumulado: 500000, exposicao_simples: 500000, exposicao_composta: 600000 },
+    // Orcamento = CUB x fator x metragem (formula do Edielson)
+    const emp = apiService._empreendimentos.find(e => e.id === empreendimentoId);
+    let metragem: number;
+    let vgv: number;
+    if (empreendimentoId === 0) {
+      metragem = apiService._empreendimentos.filter(e => e.id > 0).reduce((sum, e) => sum + e.metragem, 0);
+      vgv = apiService._empreendimentos.filter(e => e.id > 0).reduce((sum, e) => sum + e.vgv_mock, 0);
+    } else {
+      metragem = emp?.metragem ?? 0;
+      vgv = emp?.vgv_mock ?? 0;
+    }
+    const orcamento_total = Math.round(apiService._cubRO * apiService._fatorMultiplicador * metragem);
+
+    // Busca dados reais de pago e recebido por mes (com filtros de configuracao)
+    const anos = '2023,2024,2025,2026';
+    const params: Record<string, string> = { ano: anos };
+    try {
+      const [origensRes, tiposBaixaRes] = await Promise.all([
+        apiService.getOrigensExposicaoCaixaSiglas(),
+        apiService.getTiposBaixaExposicaoCaixaIds(),
+      ]);
+      if (origensRes.configurado && origensRes.siglas.length > 0) {
+        params.origens_titulo = origensRes.siglas.join(',');
+      }
+      if (tiposBaixaRes.configurado && tiposBaixaRes.ids.length > 0) {
+        params.tipos_baixa_exposicao = tiposBaixaRes.ids.join(',');
+      }
+    } catch { /* usa sem filtros */ }
+
+    const [resPago, resRecebido] = await Promise.all([
+      api.get('/estatisticas-por-mes', { params }),
+      api.get('/recebidas-por-mes', { params }),
+    ]);
+
+    const pagos: Array<{ mes: string; valor: number }> = resPago.data;
+    const recebidos: Array<{ mes: string; valor: number }> = resRecebido.data;
+
+    // Realizado = soma total de contas pagas (dos dados mensais, ja filtrados)
+    const totalPago = pagos.reduce((s, p) => s + p.valor, 0);
+    const totalRecebido = recebidos.reduce((s, r) => s + r.valor, 0);
+    const realizado = totalPago;
+
+    const saldo_a_realizar = Math.max(0, orcamento_total - realizado);
+    const valor_empreendimento = vgv - saldo_a_realizar;
+
+    // Calcula saldo acumulado e exposicao mes a mes
+    let saldo_acumulado = 0;
+    let picoNegativo = 0;
+    const TAXA_MENSAL = 0.01; // 1% a.m. para exposicao composta
+    let saldoComposto = 0;
+    let picoNegativoComposto = 0;
+
+    const recebidoMap: Record<string, number> = {};
+    const pagoMap: Record<string, number> = {};
+    recebidos.forEach(r => { recebidoMap[r.mes] = r.valor; });
+    pagos.forEach(p => { pagoMap[p.mes] = p.valor; });
+
+    const todosMeses = new Set([...Object.keys(recebidoMap), ...Object.keys(pagoMap)]);
+    const mesesOrdenados = Array.from(todosMeses).sort();
+
+    mesesOrdenados.forEach(mes => {
+      const rec = recebidoMap[mes] ?? 0;
+      const pag = pagoMap[mes] ?? 0;
+      const fluxo = rec - pag;
+
+      // Simples: saldo acumulado
+      saldo_acumulado += fluxo;
+      if (saldo_acumulado < picoNegativo) picoNegativo = saldo_acumulado;
+
+      // Composta: aplica juros sobre saldo negativo antes de adicionar fluxo
+      if (saldoComposto < 0) saldoComposto *= (1 + TAXA_MENSAL);
+      saldoComposto += fluxo;
+      if (saldoComposto < picoNegativoComposto) picoNegativoComposto = saldoComposto;
+    });
+
+    // Exposicao = pico negativo (capital maximo investido pela empresa)
+    // Se saldo nunca ficou negativo, usa diferenca pago - recebido como proxy
+    const exposicaoSimples = picoNegativo < 0 ? Math.abs(picoNegativo) : Math.max(0, totalPago - totalRecebido);
+    const exposicaoComposta = picoNegativoComposto < 0 ? Math.abs(picoNegativoComposto) : exposicaoSimples * 1.2;
+
+    return {
+      vgv,
+      realizado,
+      orcamento_total,
+      saldo_a_realizar,
+      valor_empreendimento,
+      saldo_acumulado: Math.abs(saldo_acumulado),
+      exposicao_simples: exposicaoSimples,
+      exposicao_composta: exposicaoComposta,
     };
-    return mockPorEmpreendimento[empreendimentoId] ?? mockPorEmpreendimento[0];
   },
 
-  getExposicaoExecutivo: async (empreendimentoId: number): Promise<ExposicaoMensal[]> => {
-    // TODO: substituir por endpoint real quando disponivel
-    const meses = ['Mar/23','Abr/23','Mai/23','Jun/23','Jul/23','Ago/23','Set/23','Out/23','Nov/23','Dez/23','Jan/24','Fev/24','Mar/24','Abr/24','Mai/24','Jun/24','Jul/24','Ago/24','Set/24','Out/24','Nov/24','Dez/24','Jan/25','Fev/25','Mar/25','Abr/25','Mai/25','Jun/25','Jul/25','Ago/25','Set/25','Out/25','Nov/25','Dez/25','Jan/26','Fev/26','Mar/26'];
-    const keys = ['2023-03','2023-04','2023-05','2023-06','2023-07','2023-08','2023-09','2023-10','2023-11','2023-12','2024-01','2024-02','2024-03','2024-04','2024-05','2024-06','2024-07','2024-08','2024-09','2024-10','2024-11','2024-12','2025-01','2025-02','2025-03','2025-04','2025-05','2025-06','2025-07','2025-08','2025-09','2025-10','2025-11','2025-12','2026-01','2026-02','2026-03'];
-    const fator = empreendimentoId === 0 ? 2.8 : empreendimentoId === 1 ? 1.0 : 0.7;
+  getExposicaoExecutivo: async (_empreendimentoId: number): Promise<ExposicaoMensal[]> => {
+    // Dados reais: busca pago e recebido por mes via API
+    const anos = '2023,2024,2025,2026';
+    const params: Record<string, string> = { ano: anos };
+
+    try {
+      const [origensRes, tiposBaixaRes] = await Promise.all([
+        apiService.getOrigensExposicaoCaixaSiglas(),
+        apiService.getTiposBaixaExposicaoCaixaIds(),
+      ]);
+      if (origensRes.configurado && origensRes.siglas.length > 0) {
+        params.origens_titulo = origensRes.siglas.join(',');
+      }
+      if (tiposBaixaRes.configurado && tiposBaixaRes.ids.length > 0) {
+        params.tipos_baixa_exposicao = tiposBaixaRes.ids.join(',');
+      }
+    } catch { /* usa sem filtros */ }
+
+    const [resPago, resRecebido] = await Promise.all([
+      api.get('/estatisticas-por-mes', { params }),
+      api.get('/recebidas-por-mes', { params }),
+    ]);
+
+    const pagos: Array<{ mes: string; mes_nome: string; valor: number }> = resPago.data;
+    const recebidos: Array<{ mes: string; valor: number }> = resRecebido.data;
+
+    const recebidoMap: Record<string, number> = {};
+    recebidos.forEach(r => { recebidoMap[r.mes] = r.valor; });
+    const pagoMap: Record<string, number> = {};
+    pagos.forEach(p => { pagoMap[p.mes] = p.valor; });
+
+    const todosMeses = new Set([...Object.keys(recebidoMap), ...Object.keys(pagoMap)]);
+    const mesesOrdenados = Array.from(todosMeses).sort();
+
+    const MESES_NOME = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
     let acumulado = 0;
-    return meses.map((m, i) => {
-      const recebido = Math.round((800000 + Math.sin(i * 0.5) * 400000 + i * 30000) * fator);
-      const pago = Math.round((600000 + Math.cos(i * 0.3) * 300000 + i * 25000) * fator);
+
+    return mesesOrdenados.map(mes => {
+      const [ano, mesNum] = mes.split('-');
+      const periodo = `${MESES_NOME[parseInt(mesNum) - 1]}/${ano.slice(2)}`;
+      const recebido = recebidoMap[mes] ?? 0;
+      const pago = pagoMap[mes] ?? 0;
       acumulado += recebido - pago;
-      return { periodo: m, mes_key: keys[i], recebido, pago, saldo_acumulado: acumulado };
+      return { periodo, mes_key: mes, recebido, pago, saldo_acumulado: acumulado };
     });
   },
 };

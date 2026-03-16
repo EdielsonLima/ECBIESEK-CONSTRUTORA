@@ -214,7 +214,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <p className="text-xs text-amber-700">
-          <span className="font-semibold">Dados ilustrativos</span> — VGV, Orçamento e Saldo a Realizar usam dados mock. Aguardando endpoints do backend.
+          <span className="font-semibold">VGV</span> usa dados mock. <span className="font-semibold">Orçamento</span> = CUB/RO R$ 2.334,56 x fator 1,2 x metragem. <span className="font-semibold">Realizado e Exposição</span> = dados reais da API.
         </p>
       </div>
 
