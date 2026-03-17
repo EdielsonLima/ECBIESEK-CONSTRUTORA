@@ -155,6 +155,8 @@ export const ContasAPagar: React.FC = () => {
   const [filtroCredor, setFiltroCredor] = useState<string[]>([]);
   const [filtroDias, setFiltroDias] = useState<string[]>([]);
   const [diasDropdownAberto, setDiasDropdownAberto] = useState(false);
+  const [filtroPlanoFinanceiro, setFiltroPlanoFinanceiro] = useState<string[]>([]);
+  const [planoFinDropdownAberto, setPlanoFinDropdownAberto] = useState(false);
   const [dataReferencia, setDataReferencia] = useState<string>('');
   const [linhaExpandida, setLinhaExpandida] = useState<number | null>(null);
   const [detalheCarregando, setDetalheCarregando] = useState(false);
@@ -232,6 +234,10 @@ export const ContasAPagar: React.FC = () => {
         case 'nome_centrocusto':
           valorA = ((a as any).nome_centrocusto || '').toLowerCase();
           valorB = ((b as any).nome_centrocusto || '').toLowerCase();
+          break;
+        case 'nome_plano_financeiro':
+          valorA = ((a as any).nome_plano_financeiro || '').toLowerCase();
+          valorB = ((b as any).nome_plano_financeiro || '').toLowerCase();
           break;
         case 'id_documento':
           valorA = (a.id_documento || '').toLowerCase();
@@ -456,7 +462,8 @@ export const ContasAPagar: React.FC = () => {
     mesesSelecionados: number[],
     tiposDocSelecionados: string[],
     credoresSelecionados: string[],
-    diasSelecionados: string[]
+    diasSelecionados: string[],
+    planosFinSelecionados?: string[]
   ) => {
     let contasFiltradas = [...dados];
 
@@ -502,6 +509,12 @@ export const ContasAPagar: React.FC = () => {
         return diasSelecionados.includes(String(dias));
       });
     }
+    if (planosFinSelecionados && planosFinSelecionados.length > 0) {
+      contasFiltradas = contasFiltradas.filter(c => {
+        const nome = (c as any).nome_plano_financeiro || 'Sem Plano';
+        return planosFinSelecionados.includes(nome);
+      });
+    }
     if (prazo !== 'todos') {
       contasFiltradas = contasFiltradas.filter(c => {
         const dias = calcularDiasAteVencimento(c.data_vencimento as any);
@@ -521,11 +534,11 @@ export const ContasAPagar: React.FC = () => {
   useEffect(() => {
     if (todasContas.length === 0) return;
 
-    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias);
+    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro);
     setContas(contasFiltradas);
 
     // Card "Total a Pagar" usa TODAS as contas (vencidas + a vencer), mas com filtros locais aplicados
-    const completasFiltradas = aplicarFiltrosLocais(todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias);
+    const completasFiltradas = aplicarFiltrosLocais(todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro);
     const stats: Estatisticas = {
       quantidade_titulos: calcularTitulosUnicos(completasFiltradas),
       valor_total: completasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0),
@@ -594,7 +607,7 @@ export const ContasAPagar: React.FC = () => {
       .filter(d => d.quantidade > 0)
       .sort((a, b) => a.ordem - b.ordem);
     setDadosPorVencimento(vencimentoArray);
-  }, [todasContas, todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias]);
+  }, [todasContas, todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro]);
 
   useEffect(() => {
     carregarDados();
@@ -614,6 +627,7 @@ export const ContasAPagar: React.FC = () => {
     setFiltroTipoDocumento([]);
     setFiltroCredor([]);
     setFiltroDias([]);
+    setFiltroPlanoFinanceiro([]);
     setDataReferencia('');
   };
 
@@ -632,6 +646,15 @@ export const ContasAPagar: React.FC = () => {
       diasSet.add(dias);
     });
     return Array.from(diasSet).sort((a, b) => a - b);
+  }, [todasContas]);
+
+  const planosFinDisponiveis = React.useMemo(() => {
+    const planoSet = new Set<string>();
+    todasContas.forEach(c => {
+      const nome = (c as any).nome_plano_financeiro;
+      if (nome) planoSet.add(nome);
+    });
+    return Array.from(planoSet).sort((a, b) => a.localeCompare(b));
   }, [todasContas]);
 
   const exportarPDF = () => {
@@ -1004,6 +1027,15 @@ export const ContasAPagar: React.FC = () => {
           setIsOpen={setDiasDropdownAberto}
           searchable={true}
         />
+        <MultiSelectDropdown
+          label="Plano Financeiro"
+          items={planosFinDisponiveis.map(p => ({ id: p, nome: p }))}
+          selected={filtroPlanoFinanceiro}
+          setSelected={setFiltroPlanoFinanceiro}
+          isOpen={planoFinDropdownAberto}
+          setIsOpen={setPlanoFinDropdownAberto}
+          searchable={true}
+        />
       </div>
       <div className="mt-4">
         <label className="mb-2 block text-sm font-medium text-gray-700">Destacar novos apos</label>
@@ -1063,6 +1095,10 @@ export const ContasAPagar: React.FC = () => {
 
     if (filtroCredor.length > 0) {
       tags.push({ label: 'Credor', value: filtroCredor.length === 1 ? filtroCredor[0] : `${filtroCredor.length} credores`, onRemove: () => setFiltroCredor([]) });
+    }
+
+    if (filtroPlanoFinanceiro.length > 0) {
+      tags.push({ label: 'Plano Financeiro', value: filtroPlanoFinanceiro.length === 1 ? filtroPlanoFinanceiro[0] : `${filtroPlanoFinanceiro.length} planos`, onRemove: () => setFiltroPlanoFinanceiro([]) });
     }
 
     if (filtroClassificacao.length > 0) {
@@ -1207,6 +1243,9 @@ export const ContasAPagar: React.FC = () => {
                 <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Centro de Custo{renderSortIcon('nome_centrocusto')}
                 </th>
+                <th onClick={() => toggleOrdenacao('nome_plano_financeiro')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                  Plano Financeiro{renderSortIcon('nome_plano_financeiro')}
+                </th>
                 <th onClick={() => toggleOrdenacao('valor_total')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Valor{renderSortIcon('valor_total')}
                 </th>
@@ -1278,11 +1317,12 @@ export const ContasAPagar: React.FC = () => {
                         })()}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{(conta as any).nome_centrocusto || '-'}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500 max-w-[200px] truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-blue-600">{formatCurrency(conta.valor_total)}</td>
                     </tr>
                     {isExpanded && (
                       <tr>
-                        <td colSpan={10} className="p-0">
+                        <td colSpan={11} className="p-0">
                           <div className="bg-gradient-to-r from-blue-50 via-blue-50 to-indigo-50 border-l-4 border-l-blue-600 border-t-2 border-b-2 border-t-blue-300 border-b-blue-300 px-8 py-5 shadow-inner">
                             <div className="flex items-center justify-between mb-4 pb-3 border-b border-blue-200">
                               <div className="flex items-center gap-3">
@@ -1526,7 +1566,7 @@ export const ContasAPagar: React.FC = () => {
         const contas7dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 7; });
         const contas15dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 15; });
         const contas30dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 30; });
-        const completasFiltradas = aplicarFiltrosLocais(todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias);
+        const completasFiltradas = aplicarFiltrosLocais(todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro);
         const credoresTotal = new Set(completasFiltradas.map(c => c.credor)).size;
         const credoresHoje = new Set(contasHoje.map(c => c.credor)).size;
         const credores7dias = new Set(contas7dias.map(c => c.credor)).size;

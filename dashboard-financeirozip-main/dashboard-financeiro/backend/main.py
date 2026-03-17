@@ -824,11 +824,13 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                        cap.data_cadastro,
                        cap.flautorizacao,
                        t.descricao_observacao,
-                       t.data_emissao
+                       t.data_emissao,
+                       pf.nome_plano_financeiro
                 FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 LEFT JOIN ecpgtitulo t ON t.id_pg_titulo = CAST(SPLIT_PART(cap.lancamento, '/', 1) AS INTEGER)
                     AND t.id_credor = cap.id_credor
+                LEFT JOIN ecadplanofin pf ON cap.id_plano_financeiro = pf.id_plano_financeiro
                 WHERE 1=1{excl_where}
                 ORDER BY cap.data_vencimento ASC
                 LIMIT %s
@@ -849,11 +851,13 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                        cap.data_cadastro,
                        cap.flautorizacao,
                        t.descricao_observacao,
-                       t.data_emissao
+                       t.data_emissao,
+                       pf.nome_plano_financeiro
                 FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 LEFT JOIN ecpgtitulo t ON t.id_pg_titulo = CAST(SPLIT_PART(cap.lancamento, '/', 1) AS INTEGER)
                     AND t.id_credor = cap.id_credor
+                LEFT JOIN ecadplanofin pf ON cap.id_plano_financeiro = pf.id_plano_financeiro
                 WHERE cap.data_vencimento < %s{excl_where}
                 ORDER BY cap.data_vencimento ASC
                 LIMIT %s
@@ -871,11 +875,13 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                        cap.data_cadastro,
                        cap.flautorizacao,
                        t.descricao_observacao,
-                       t.data_emissao
+                       t.data_emissao,
+                       pf.nome_plano_financeiro
                 FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 LEFT JOIN ecpgtitulo t ON t.id_pg_titulo = CAST(SPLIT_PART(cap.lancamento, '/', 1) AS INTEGER)
                     AND t.id_credor = cap.id_credor
+                LEFT JOIN ecadplanofin pf ON cap.id_plano_financeiro = pf.id_plano_financeiro
                 WHERE 1=1{excl_where}
                 ORDER BY cap.data_vencimento DESC
                 LIMIT %s
@@ -912,11 +918,13 @@ def get_contas_ano(ano: int = None):
                    cap.data_cadastro,
                    cap.flautorizacao,
                    t.descricao_observacao,
-                   t.data_emissao
+                   t.data_emissao,
+                   pf.nome_plano_financeiro
             FROM contas_a_pagar cap
             LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
             LEFT JOIN ecpgtitulo t ON t.id_pg_titulo = CAST(SPLIT_PART(cap.lancamento, '/', 1) AS INTEGER)
                 AND t.id_credor = cap.id_credor
+            LEFT JOIN ecadplanofin pf ON cap.id_plano_financeiro = pf.id_plano_financeiro
             WHERE cap.data_vencimento >= %s
               AND EXTRACT(YEAR FROM cap.data_vencimento) = %s{excl_where}
             ORDER BY cap.data_vencimento ASC

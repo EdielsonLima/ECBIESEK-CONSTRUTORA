@@ -25,6 +25,7 @@ export interface ContaPagar {
   descricao_observacao?: string;
   data_emissao?: string;
   flautorizacao?: string;
+  nome_plano_financeiro?: string;
 }
 
 export interface TituloDetalhe {
