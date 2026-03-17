@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiService } from '../services/api';
 import { ContaPagar, EmpresaOption, CentroCustoOption, TipoDocumentoOption, OrigemDadoOption, TipoBaixaOption, ContaCorrenteOption, OrigemTituloOption } from '../types';
-import { SearchableSelect } from '../components/SearchableSelect';
+import { SearchableMultiSelect } from '../components/SearchableMultiSelect';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line, Legend } from 'recharts';
 import { criarPDFBase, adicionarFiltrosAtivos, adicionarResumoCards, adicionarTabela, finalizarPDF, gerarNomeArquivo, formatCurrencyPDF, formatDatePDF } from '../utils/pdfExport';
 
@@ -182,24 +182,20 @@ export const ContasPagas: React.FC = () => {
   const [centrosCustoPadrao, setCentrosCustoPadrao] = useState<number[]>([]);
   const [empresasExpandidas, setEmpresasExpandidas] = useState<number[]>([]);
 
-  const [filtroEmpresa, setFiltroEmpresa] = useState<number | undefined>();
-  const [filtroCentroCusto, setFiltroCentroCusto] = useState<number | undefined>();
-  const [filtroCredor, setFiltroCredor] = useState<string>('');
+  const [filtroEmpresa, setFiltroEmpresa] = useState<number[]>([]);
+  const [filtroCentroCusto, setFiltroCentroCusto] = useState<number[]>([]);
+  const [filtroCredor, setFiltroCredor] = useState<string[]>([]);
   const [filtroIdDocumento, setFiltroIdDocumento] = useState<string[]>([]);
   const [filtroOrigemDado, setFiltroOrigemDado] = useState<string[]>([]);
   const [filtroTipoBaixa, setFiltroTipoBaixa] = useState<number[]>([]);
-  const [filtroContaCorrente, setFiltroContaCorrente] = useState<string | undefined>();
+  const [filtroContaCorrente, setFiltroContaCorrente] = useState<string[]>([]);
   const [filtroOrigemTitulo, setFiltroOrigemTitulo] = useState<string[]>([]);
-  const [mostrarDropdownOrigemTitulo, setMostrarDropdownOrigemTitulo] = useState(false);
   const [filtroAno, setFiltroAno] = useState<number[]>([]);
   const [filtroMes, setFiltroMes] = useState<number[]>([]);
   const [filtroDataInicio, setFiltroDataInicio] = useState<string>('');
   const [filtroDataFim, setFiltroDataFim] = useState<string>('');
 
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
-  const [mostrarDropdownDocumentos, setMostrarDropdownDocumentos] = useState(false);
-  const [mostrarDropdownOrigens, setMostrarDropdownOrigens] = useState(false);
-  const [mostrarDropdownTipoBaixa, setMostrarDropdownTipoBaixa] = useState(false);
   const [mostrarDropdownAnos, setMostrarDropdownAnos] = useState(false);
   const [mostrarDropdownMeses, setMostrarDropdownMeses] = useState(false);
   const [ordenacao, setOrdenacao] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'data_pagamento', direcao: 'desc' });
@@ -350,13 +346,13 @@ export const ContasPagas: React.FC = () => {
       setError(null);
 
       const filtros = {
-        empresa: filtroEmpresa,
-        centro_custo: filtroCentroCusto,
-        credor: filtroCredor || undefined,
+        empresa: filtroEmpresa.length > 0 ? filtroEmpresa.join(',') : undefined,
+        centro_custo: filtroCentroCusto.length > 0 ? filtroCentroCusto.join(',') : undefined,
+        credor: filtroCredor.length > 0 ? filtroCredor.join(',') : undefined,
         id_documento: filtroIdDocumento.length > 0 ? filtroIdDocumento.join(',') : undefined,
         origem_dado: filtroOrigemDado.length > 0 ? filtroOrigemDado.join(',') : undefined,
         tipo_baixa: filtroTipoBaixa.length > 0 ? filtroTipoBaixa.join(',') : undefined,
-        conta_corrente: filtroContaCorrente,
+        conta_corrente: filtroContaCorrente.length > 0 ? filtroContaCorrente.join(',') : undefined,
         origem_titulo: filtroOrigemTitulo.length > 0 ? filtroOrigemTitulo.join(',') : undefined,
         ano: filtroAno.length > 0 ? filtroAno.join(',') : undefined,
         mes: filtroMes.length > 0 ? filtroMes.join(',') : undefined,
@@ -372,17 +368,17 @@ export const ContasPagas: React.FC = () => {
         apiService.getContasPagasPorCentroCusto(filtros),
         apiService.getContasPagasPorOrigem(filtros),
         apiService.getEstatisticasPorMes({
-          empresa: filtroEmpresa,
-          centro_custo: filtroCentroCusto,
-          credor: filtroCredor || undefined,
+          empresa: filtroEmpresa.length > 0 ? filtroEmpresa.join(',') : undefined,
+          centro_custo: filtroCentroCusto.length > 0 ? filtroCentroCusto.join(',') : undefined,
+          credor: filtroCredor.length > 0 ? filtroCredor.join(',') : undefined,
           id_documento: filtroIdDocumento.length > 0 ? filtroIdDocumento.join(',') : undefined,
           origem_dado: filtroOrigemDado.length > 0 ? filtroOrigemDado.join(',') : undefined,
           tipo_baixa: filtroTipoBaixa.length > 0 ? filtroTipoBaixa.join(',') : undefined,
           ano: filtroAno.length > 0 ? filtroAno.join(',') : undefined,
         }),
         apiService.getEstatisticasPorEmpresa({
-          centro_custo: filtroCentroCusto,
-          credor: filtroCredor || undefined,
+          centro_custo: filtroCentroCusto.length > 0 ? filtroCentroCusto.join(',') : undefined,
+          credor: filtroCredor.length > 0 ? filtroCredor.join(',') : undefined,
           id_documento: filtroIdDocumento.length > 0 ? filtroIdDocumento.join(',') : undefined,
           origem_dado: filtroOrigemDado.length > 0 ? filtroOrigemDado.join(',') : undefined,
           tipo_baixa: filtroTipoBaixa.length > 0 ? filtroTipoBaixa.join(',') : undefined,
@@ -392,9 +388,9 @@ export const ContasPagas: React.FC = () => {
           data_fim: filtroDataFim || undefined,
         }),
         apiService.getEstatisticasPorOrigem({
-          empresa: filtroEmpresa,
-          centro_custo: filtroCentroCusto,
-          credor: filtroCredor || undefined,
+          empresa: filtroEmpresa.length > 0 ? filtroEmpresa.join(',') : undefined,
+          centro_custo: filtroCentroCusto.length > 0 ? filtroCentroCusto.join(',') : undefined,
+          credor: filtroCredor.length > 0 ? filtroCredor.join(',') : undefined,
           id_documento: filtroIdDocumento.length > 0 ? filtroIdDocumento.join(',') : undefined,
           origem_dado: filtroOrigemDado.length > 0 ? filtroOrigemDado.join(',') : undefined,
           tipo_baixa: filtroTipoBaixa.length > 0 ? filtroTipoBaixa.join(',') : undefined,
@@ -404,24 +400,24 @@ export const ContasPagas: React.FC = () => {
           data_fim: filtroDataFim || undefined,
         }),
         apiService.getComparacaoAnual({
-          empresa: filtroEmpresa,
-          centro_custo: filtroCentroCusto,
-          credor: filtroCredor || undefined,
+          empresa: filtroEmpresa.length > 0 ? filtroEmpresa.join(',') : undefined,
+          centro_custo: filtroCentroCusto.length > 0 ? filtroCentroCusto.join(',') : undefined,
+          credor: filtroCredor.length > 0 ? filtroCredor.join(',') : undefined,
           id_documento: filtroIdDocumento.length > 0 ? filtroIdDocumento.join(',') : undefined,
           origem_dado: filtroOrigemDado.length > 0 ? filtroOrigemDado.join(',') : undefined,
           tipo_baixa: filtroTipoBaixa.length > 0 ? filtroTipoBaixa.join(',') : undefined,
         }),
         apiService.getComparacaoMensal({
-          empresa: filtroEmpresa,
-          centro_custo: filtroCentroCusto,
-          credor: filtroCredor || undefined,
+          empresa: filtroEmpresa.length > 0 ? filtroEmpresa.join(',') : undefined,
+          centro_custo: filtroCentroCusto.length > 0 ? filtroCentroCusto.join(',') : undefined,
+          credor: filtroCredor.length > 0 ? filtroCredor.join(',') : undefined,
           id_documento: filtroIdDocumento.length > 0 ? filtroIdDocumento.join(',') : undefined,
           origem_dado: filtroOrigemDado.length > 0 ? filtroOrigemDado.join(',') : undefined,
           tipo_baixa: filtroTipoBaixa.length > 0 ? filtroTipoBaixa.join(',') : undefined,
         }),
         apiService.getRankingCredores({
-          empresa: filtroEmpresa,
-          centro_custo: filtroCentroCusto,
+          empresa: filtroEmpresa.length > 0 ? filtroEmpresa.join(',') : undefined,
+          centro_custo: filtroCentroCusto.length > 0 ? filtroCentroCusto.join(',') : undefined,
           id_documento: filtroIdDocumento.length > 0 ? filtroIdDocumento.join(',') : undefined,
           origem_dado: filtroOrigemDado.length > 0 ? filtroOrigemDado.join(',') : undefined,
           tipo_baixa: filtroTipoBaixa.length > 0 ? filtroTipoBaixa.join(',') : undefined,
@@ -446,8 +442,8 @@ export const ContasPagas: React.FC = () => {
 
       // Carregar status das metas
       const statusMetas = await apiService.getOrigemMetasStatus({
-        empresa: filtroEmpresa,
-        centro_custo: filtroCentroCusto,
+        empresa: filtroEmpresa.length > 0 ? filtroEmpresa.join(',') : undefined,
+        centro_custo: filtroCentroCusto.length > 0 ? filtroCentroCusto.join(',') : undefined,
         ano: filtroAno.length > 0 ? filtroAno.join(',') : undefined,
         mes: filtroMes.length > 0 ? filtroMes.join(',') : undefined,
         data_inicio: filtroDataInicio || undefined,
@@ -537,13 +533,13 @@ export const ContasPagas: React.FC = () => {
   };
 
   const limparFiltros = () => {
-    setFiltroEmpresa(undefined);
-    setFiltroCentroCusto(undefined);
-    setFiltroCredor('');
+    setFiltroEmpresa([]);
+    setFiltroCentroCusto([]);
+    setFiltroCredor([]);
     setFiltroIdDocumento([]);
     setFiltroOrigemDado([]);
     setFiltroTipoBaixa([]);
-    setFiltroContaCorrente(undefined);
+    setFiltroContaCorrente([]);
     setFiltroOrigemTitulo([]);
     setFiltroAno([]);
     setFiltroMes([]);
@@ -595,15 +591,15 @@ export const ContasPagas: React.FC = () => {
 
     // Filtros ativos
     const filtros: { label: string; valor: string }[] = [];
-    if (filtroEmpresa) {
-      const empresa = empresas.find(e => e.id === filtroEmpresa);
-      if (empresa) filtros.push({ label: 'Empresa', valor: empresa.nome });
+    if (filtroEmpresa.length > 0) {
+      const empresa = empresas.find(e => e.id === filtroEmpresa[0]);
+      if (empresa) filtros.push({ label: 'Empresa', valor: filtroEmpresa.length === 1 ? empresa.nome : `${filtroEmpresa.length} empresa(s)` });
     }
-    if (filtroCentroCusto) {
-      const cc = centrosCusto.find(c => c.id === filtroCentroCusto);
-      if (cc) filtros.push({ label: 'Centro Custo', valor: cc.nome });
+    if (filtroCentroCusto.length > 0) {
+      const cc = centrosCusto.find(c => c.id === filtroCentroCusto[0]);
+      if (cc) filtros.push({ label: 'Centro Custo', valor: filtroCentroCusto.length === 1 ? cc.nome : `${filtroCentroCusto.length} centro(s)` });
     }
-    if (filtroCredor) filtros.push({ label: 'Credor', valor: filtroCredor });
+    if (filtroCredor.length > 0) filtros.push({ label: 'Credor', valor: filtroCredor.length === 1 ? filtroCredor[0] : `${filtroCredor.length} credor(es)` });
     if (filtroIdDocumento.length > 0) filtros.push({ label: 'Docs', valor: `${filtroIdDocumento.length} selecionado(s)` });
     if (filtroOrigemDado.length > 0) filtros.push({ label: 'Origens', valor: `${filtroOrigemDado.length} selecionada(s)` });
     if (filtroTipoBaixa.length > 0) filtros.push({ label: 'Tipos Baixa', valor: `${filtroTipoBaixa.length} selecionado(s)` });
@@ -787,335 +783,69 @@ export const ContasPagas: React.FC = () => {
       <h3 className="mb-4 text-lg font-semibold text-gray-900">Filtros Avancados</h3>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <SearchableSelect
+        <SearchableMultiSelect
           options={empresas}
           value={filtroEmpresa}
-          onChange={(value) => setFiltroEmpresa(value as number | undefined)}
+          onChange={(value) => setFiltroEmpresa(value as number[])}
           label="Empresa"
-          placeholder="Selecione uma empresa..."
           emptyText="Todas"
         />
 
-        <SearchableSelect
+        <SearchableMultiSelect
           options={centrosCusto}
           value={filtroCentroCusto}
-          onChange={(value) => setFiltroCentroCusto(value as number | undefined)}
+          onChange={(value) => setFiltroCentroCusto(value as number[])}
           label="Centro de Custo"
-          placeholder="Selecione um centro de custo..."
           emptyText="Todos"
         />
 
-        <SearchableSelect
+        <SearchableMultiSelect
           options={credores.map(credor => ({ id: credor, nome: credor }))}
           value={filtroCredor}
-          onChange={(value) => setFiltroCredor(value as string || '')}
+          onChange={(value) => setFiltroCredor(value as string[])}
           label="Credor/Fornecedor"
-          placeholder="Selecione um credor..."
           emptyText="Todos"
         />
 
-        <SearchableSelect
+        <SearchableMultiSelect
           options={contasCorrentes}
           value={filtroContaCorrente}
-          onChange={(value) => setFiltroContaCorrente(value as string | undefined)}
+          onChange={(value) => setFiltroContaCorrente(value as string[])}
           label="Conta Corrente"
-          placeholder="Selecione uma conta corrente..."
           emptyText="Todas"
         />
 
-        <div className="relative">
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            Origem de Documento
-          </label>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setMostrarDropdownOrigemTitulo(!mostrarDropdownOrigemTitulo)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-blue-500 focus:outline-none"
-            >
-              {filtroOrigemTitulo.length === 0 ? (
-                <span className="text-gray-500">Selecione as origens...</span>
-              ) : (
-                <span>{filtroOrigemTitulo.length} origem(ns) selecionada(s)</span>
-              )}
-              <svg
-                className={`absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 transition-transform ${mostrarDropdownOrigemTitulo ? 'rotate-180' : ''}`}
-                fill="none" stroke="currentColor" viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {mostrarDropdownOrigemTitulo && (
-              <div className="absolute z-10 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg">
-                <div className="flex gap-2 border-b border-gray-200 bg-gray-50 p-2">
-                  <button
-                    type="button"
-                    onClick={() => setFiltroOrigemTitulo(origensTitulo.map(o => o.sigla.trim()))}
-                    className="flex-1 rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
-                  >
-                    Selecionar Todos
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFiltroOrigemTitulo([])}
-                    className="flex-1 rounded bg-gray-600 px-3 py-1 text-sm text-white hover:bg-gray-700"
-                  >
-                    Limpar Seleção
-                  </button>
-                </div>
-                <div className="max-h-60 overflow-auto">
-                  {origensTitulo.map((origem) => (
-                    <label
-                      key={origem.id}
-                      className="flex cursor-pointer items-center px-3 py-2 hover:bg-gray-100"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={filtroOrigemTitulo.includes(origem.sigla.trim())}
-                        onChange={(e) => {
-                          const sigla = origem.sigla.trim();
-                          if (e.target.checked) {
-                            setFiltroOrigemTitulo([...filtroOrigemTitulo, sigla]);
-                          } else {
-                            setFiltroOrigemTitulo(filtroOrigemTitulo.filter(s => s !== sigla));
-                          }
-                        }}
-                        className="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-sm font-mono font-semibold text-blue-700 mr-2">{origem.sigla.trim()}</span>
-                      <span className="text-sm text-gray-600">{origem.descricao}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <SearchableMultiSelect
+          options={origensTitulo.map(o => ({ id: o.sigla.trim(), nome: `${o.sigla.trim()} - ${o.descricao}` }))}
+          value={filtroOrigemTitulo}
+          onChange={(value) => setFiltroOrigemTitulo(value as string[])}
+          label="Origem de Documento"
+          emptyText="Todas"
+        />
 
-        <div className="relative">
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            Tipo Documento
-          </label>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setMostrarDropdownDocumentos(!mostrarDropdownDocumentos)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-blue-500 focus:outline-none"
-            >
-              {filtroIdDocumento.length === 0 ? (
-                <span className="text-gray-500">Selecione os documentos...</span>
-              ) : (
-                <span>
-                  {filtroIdDocumento.length} documento(s) selecionado(s)
-                </span>
-              )}
-              <svg
-                className={`absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 transition-transform ${
-                  mostrarDropdownDocumentos ? 'rotate-180' : ''
-                }`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {mostrarDropdownDocumentos && (
-              <div className="absolute z-10 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg">
-                <div className="flex gap-2 border-b border-gray-200 bg-gray-50 p-2">
-                  <button
-                    type="button"
-                    onClick={() => setFiltroIdDocumento(tiposDocumento.map(t => t.id))}
-                    className="flex-1 rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
-                  >
-                    Selecionar Todos
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFiltroIdDocumento([])}
-                    className="flex-1 rounded bg-gray-600 px-3 py-1 text-sm text-white hover:bg-gray-700"
-                  >
-                    Limpar Selecao
-                  </button>
-                </div>
-                <div className="max-h-60 overflow-auto">
-                  {tiposDocumento.map((tipo) => (
-                    <label
-                      key={tipo.id}
-                      className="flex cursor-pointer items-center px-3 py-2 hover:bg-gray-100"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={filtroIdDocumento.includes(tipo.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFiltroIdDocumento([...filtroIdDocumento, tipo.id]);
-                          } else {
-                            setFiltroIdDocumento(filtroIdDocumento.filter(id => id !== tipo.id));
-                          }
-                        }}
-                        className="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-sm">
-                        {tipo.id} - {tipo.nome}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <SearchableMultiSelect
+          options={tiposDocumento.map(t => ({ id: t.id, nome: `${t.id} - ${t.nome}` }))}
+          value={filtroIdDocumento}
+          onChange={(value) => setFiltroIdDocumento(value as string[])}
+          label="Tipo Documento"
+          emptyText="Todos"
+        />
 
-        <div className="relative">
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            Origem do Dado
-          </label>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setMostrarDropdownOrigens(!mostrarDropdownOrigens)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-blue-500 focus:outline-none"
-            >
-              {filtroOrigemDado.length === 0 ? (
-                <span className="text-gray-500">Selecione as origens...</span>
-              ) : (
-                <span>
-                  {filtroOrigemDado.length} origem(ns) selecionada(s)
-                </span>
-              )}
-              <svg
-                className={`absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 transition-transform ${
-                  mostrarDropdownOrigens ? 'rotate-180' : ''
-                }`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {mostrarDropdownOrigens && (
-              <div className="absolute z-10 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg">
-                <div className="flex gap-2 border-b border-gray-200 bg-gray-50 p-2">
-                  <button
-                    type="button"
-                    onClick={() => setFiltroOrigemDado(origensDado.map(o => o.id))}
-                    className="flex-1 rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
-                  >
-                    Selecionar Todos
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFiltroOrigemDado([])}
-                    className="flex-1 rounded bg-gray-600 px-3 py-1 text-sm text-white hover:bg-gray-700"
-                  >
-                    Limpar Selecao
-                  </button>
-                </div>
-                <div className="max-h-60 overflow-auto">
-                  {origensDado.map((origem) => (
-                    <label
-                      key={origem.id}
-                      className="flex cursor-pointer items-center px-3 py-2 hover:bg-gray-100"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={filtroOrigemDado.includes(origem.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFiltroOrigemDado([...filtroOrigemDado, origem.id]);
-                          } else {
-                            setFiltroOrigemDado(filtroOrigemDado.filter(id => id !== origem.id));
-                          }
-                        }}
-                        className="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-sm">
-                        {origem.nome}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <SearchableMultiSelect
+          options={origensDado.map(o => ({ id: o.id, nome: o.nome }))}
+          value={filtroOrigemDado}
+          onChange={(value) => setFiltroOrigemDado(value as string[])}
+          label="Origem do Dado"
+          emptyText="Todas"
+        />
 
-        <div className="relative">
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            Tipo de Baixa
-          </label>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setMostrarDropdownTipoBaixa(!mostrarDropdownTipoBaixa)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-blue-500 focus:outline-none"
-            >
-              {filtroTipoBaixa.length === 0 ? (
-                <span className="text-gray-500">Selecione os tipos...</span>
-              ) : (
-                <span>
-                  {filtroTipoBaixa.length} tipo(s) selecionado(s)
-                </span>
-              )}
-              <svg
-                className={`absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 transition-transform ${
-                  mostrarDropdownTipoBaixa ? 'rotate-180' : ''
-                }`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {mostrarDropdownTipoBaixa && (
-              <div className="absolute z-10 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg">
-                <div className="flex gap-2 border-b border-gray-200 bg-gray-50 p-2">
-                  <button
-                    type="button"
-                    onClick={() => setFiltroTipoBaixa(tiposBaixa.map(t => t.id))}
-                    className="flex-1 rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
-                  >
-                    Selecionar Todos
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFiltroTipoBaixa([])}
-                    className="flex-1 rounded bg-gray-600 px-3 py-1 text-sm text-white hover:bg-gray-700"
-                  >
-                    Limpar Selecao
-                  </button>
-                </div>
-                <div className="max-h-60 overflow-auto">
-                  {tiposBaixa.map((tipo) => (
-                    <label
-                      key={tipo.id}
-                      className="flex cursor-pointer items-center px-3 py-2 hover:bg-gray-100"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={filtroTipoBaixa.includes(tipo.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFiltroTipoBaixa([...filtroTipoBaixa, tipo.id]);
-                          } else {
-                            setFiltroTipoBaixa(filtroTipoBaixa.filter(id => id !== tipo.id));
-                          }
-                        }}
-                        className="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-sm">
-                        Tipo {tipo.id} - {tipo.nome}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <SearchableMultiSelect
+          options={tiposBaixa.map(t => ({ id: t.id, nome: `Tipo ${t.id} - ${t.nome}` }))}
+          value={filtroTipoBaixa}
+          onChange={(value) => setFiltroTipoBaixa(value as number[])}
+          label="Tipo de Baixa"
+          emptyText="Todos"
+        />
 
         <div className="relative">
           <label className="mb-2 block text-sm font-medium text-gray-700">
