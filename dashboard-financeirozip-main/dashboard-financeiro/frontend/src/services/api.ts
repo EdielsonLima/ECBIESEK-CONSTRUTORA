@@ -1264,7 +1264,7 @@ export const apiService = {
   // Logica do Edielson: CUB regional x fator (1.2 padrao medio) x area construida
   // CUB Rondonia R8-N Fev/2026: R$ 2.334,56/m2 (fonte: SINDUSCON-RO)
   _cubRO: 2334.56,
-  _fatorMultiplicador: 1.2,
+  _fatorMultiplicador: 1,
   // centro_custo_id: ID do centro de custo no Sienge (para filtrar dados por obra)
   _empreendimentos: [
     { id: 0, nome: 'Consolidado', codigo: 'ALL', metragem: 0, vgv_mock: 0, centro_custo_id: null },
