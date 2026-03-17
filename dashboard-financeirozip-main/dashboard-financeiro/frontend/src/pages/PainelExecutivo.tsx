@@ -10,13 +10,7 @@ interface PainelExecutivoProps {
 }
 
 const formatCurrency = (value: number): string => {
-  if (Math.abs(value) >= 1000000) {
-    return `R$ ${(value / 1000000).toFixed(1).replace('.', ',')}M`;
-  }
-  if (Math.abs(value) >= 1000) {
-    return `R$ ${(value / 1000).toFixed(0)}K`;
-  }
-  return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
+  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 const formatCurrencyFull = (value: number): string => {
