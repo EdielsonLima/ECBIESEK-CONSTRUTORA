@@ -1404,28 +1404,15 @@ export const apiService = {
   },
 
   getExposicaoExecutivo: async (empreendimentoId: number): Promise<ExposicaoMensal[]> => {
-    // Dados reais: busca pago e recebido por mes via API
+    // Dados reais: apenas filtro de centro de custo (sem origens/tipos)
+    // Consistente com os cards do painel executivo
     const anos = '2023,2024,2025,2026';
     const params: Record<string, string> = { ano: anos };
 
-    // Filtra por centro de custo quando empreendimento especifico
     const emp = apiService._empreendimentos.find(e => e.id === empreendimentoId);
     if (emp?.centro_custo_id) {
       params.centro_custo = emp.centro_custo_id.toString();
     }
-
-    try {
-      const [origensRes, tiposBaixaRes] = await Promise.all([
-        apiService.getOrigensExposicaoCaixaSiglas(),
-        apiService.getTiposBaixaExposicaoCaixaIds(),
-      ]);
-      if (origensRes.configurado && origensRes.siglas.length > 0) {
-        params.origens_titulo = origensRes.siglas.join(',');
-      }
-      if (tiposBaixaRes.configurado && tiposBaixaRes.ids.length > 0) {
-        params.tipos_baixa_exposicao = tiposBaixaRes.ids.join(',');
-      }
-    } catch { /* usa sem filtros */ }
 
     const [resPago, resRecebido] = await Promise.all([
       api.get('/estatisticas-por-mes', { params }),
