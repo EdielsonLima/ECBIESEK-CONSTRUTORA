@@ -5122,10 +5122,17 @@ def get_estoque_unidades(centro_custo: Optional[int] = None):
 
         flag_labels = {
             'D': 'Disponível',
-            'V': 'Vendido',
-            'R': 'Reservado',
+            'R': 'Reserva Técnica',
             'P': 'Permuta',
+            'M': 'Mútuo',
+            'O': 'Proposta',
+            'V': 'Vendido',
+            'C': 'Vendido Pré-Contrato',
+            'A': 'Reservada',
             'L': 'Locado',
+            'T': 'Transferido',
+            'E': 'Terceiros',
+            'G': 'Gravame',
         }
 
         detalhes = []

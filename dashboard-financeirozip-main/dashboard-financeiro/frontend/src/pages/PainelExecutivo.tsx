@@ -251,7 +251,14 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
                   <span key={d.flag} className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
                     d.flag === 'D' ? 'bg-green-100 text-green-700' :
                     d.flag === 'V' ? 'bg-blue-100 text-blue-700' :
+                    d.flag === 'C' ? 'bg-indigo-100 text-indigo-700' :
                     d.flag === 'R' ? 'bg-yellow-100 text-yellow-700' :
+                    d.flag === 'A' ? 'bg-amber-100 text-amber-700' :
+                    d.flag === 'O' ? 'bg-purple-100 text-purple-700' :
+                    d.flag === 'P' ? 'bg-orange-100 text-orange-700' :
+                    d.flag === 'M' ? 'bg-pink-100 text-pink-700' :
+                    d.flag === 'L' ? 'bg-cyan-100 text-cyan-700' :
+                    d.flag === 'T' ? 'bg-slate-100 text-slate-700' :
                     'bg-gray-100 text-gray-600'
                   }`}>
                     {d.status}: {d.quantidade}
