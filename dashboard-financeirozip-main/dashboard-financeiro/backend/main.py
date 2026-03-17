@@ -717,6 +717,14 @@ Regra Importante: Responda as perguntas de forma direta, concisa e profissional.
 def health_check():
     return {"message": "Dashboard Financeiro API - Construtora", "status": "online"}
 
+# ┌──────────────────────────────────────────────────────────────┐
+# │ DOCUMENTAÇÃO: GET /api/metricas                              │
+# ├──────────────────────────────────────────────────────────────┤
+# │ FONTE: contas_pagas (total_pago), contas_a_pagar (a_pagar)  │
+# │ FILTROS: exclusões gerais (empresas, CCs, docs)              │
+# │ USADO POR: Dashboard > Cards (Total Pago, A Pagar, Atraso)  │
+# │ RETORNA: total_pago, total_a_pagar, total_em_atraso + qtds  │
+# └──────────────────────────────────────────────────────────────┘
 @app.get("/api/metricas", response_model=DashboardMetrics)
 def get_metricas():
     """Retorna métricas principais do dashboard"""
@@ -1292,6 +1300,17 @@ def get_proximos_vencimentos(dias: int = 30):
         cursor.close()
         conn.close()
 
+# ┌──────────────────────────────────────────────────────────────┐
+# │ DOCUMENTAÇÃO: GET /api/contas-pagas-filtradas                │
+# ├──────────────────────────────────────────────────────────────┤
+# │ FONTE: contas_pagas (todas as colunas)                       │
+# │ FILTROS AUTO: exclusões gerais, origens, tipos_baixa,        │
+# │   transferências inter-empresa                               │
+# │ FILTROS OPCIONAIS: empresa, centro_custo, credor,            │
+# │   id_documento, origem_dado, tipo_baixa, conta_corrente,     │
+# │   origem_titulo, ano, mes, data_inicio, data_fim             │
+# │ USADO POR: Contas Pagas > lista detalhada de títulos         │
+# └──────────────────────────────────────────────────────────────┘
 @app.get("/api/contas-pagas-filtradas")
 def get_contas_pagas_filtradas(
     empresa: Optional[int] = None,
@@ -1466,6 +1485,17 @@ def get_contas_pagas_filtradas(
         cursor.close()
         conn.close()
 
+# ┌──────────────────────────────────────────────────────────────┐
+# │ DOCUMENTAÇÃO: GET /api/contas-pagas-por-fornecedor           │
+# ├──────────────────────────────────────────────────────────────┤
+# │ FONTE: contas_pagas, agrupado por credor (fornecedor)        │
+# │ NORMALIZAÇÃO: REGEXP_REPLACE remove prefixo CPF/CNPJ         │
+# │ TÍTULOS: COUNT(DISTINCT SPLIT_PART(lancamento,'/',1))         │
+# │   → rateados (8302/1, 8302/2) contam como 1 título           │
+# │ PERÍODOS: 7d, 15d, 30d, total (baseado em dump_date)         │
+# │ FILTROS AUTO: exclusões, origens, tipos_baixa, inter-empresa │
+# │ USADO POR: Contas Pagas > visão por fornecedor               │
+# └──────────────────────────────────────────────────────────────┘
 @app.get("/api/contas-pagas-por-fornecedor")
 def get_contas_pagas_por_fornecedor(
     empresa: Optional[int] = None,
@@ -1690,6 +1720,16 @@ def get_contas_pagas_por_fornecedor(
         cursor.close()
         conn.close()
 
+# ┌──────────────────────────────────────────────────────────────┐
+# │ DOCUMENTAÇÃO: GET /api/contas-pagas-por-centro-custo         │
+# ├──────────────────────────────────────────────────────────────┤
+# │ FONTE: contas_pagas.valor_liquido, agrupado por CC           │
+# │ CHAVE: cc.id_sienge_centrocusto + cc.nome_centrocusto        │
+# │ PERÍODOS: 7d, 15d, 30d, total (baseado em dump_date)         │
+# │ FILTROS AUTO: exclusões, origens, tipos_baixa, inter-empresa │
+# │ USADO POR: Contas Pagas > visão por centro de custo          │
+# │ REFERÊNCIA: valor_total aqui = Realizado no Painel Executivo │
+# └──────────────────────────────────────────────────────────────┘
 @app.get("/api/contas-pagas-por-centro-custo")
 def get_contas_pagas_por_centro_custo(
     empresa: Optional[int] = None,
@@ -2101,6 +2141,16 @@ def get_contas_pagas_por_origem(
         cursor.close()
         conn.close()
 
+# ┌──────────────────────────────────────────────────────────────┐
+# │ DOCUMENTAÇÃO: GET /api/estatisticas-contas-pagas             │
+# ├──────────────────────────────────────────────────────────────┤
+# │ FONTE: contas_pagas — count, sum, avg de valor_liquido       │
+# │ FILTROS AUTO: exclusões, origens, tipos_baixa                │
+# │ ATENÇÃO: aplica tipos_baixa da config → valores MENORES      │
+# │   que /contas-pagas-por-centro-custo. Não usar para          │
+# │   "Realizado" do Orçamento.                                  │
+# │ USADO POR: Contas Pagas > cards de estatísticas              │
+# └──────────────────────────────────────────────────────────────┘
 @app.get("/api/estatisticas-contas-pagas")
 def get_estatisticas_contas_pagas(
     empresa: Optional[int] = None,
@@ -5503,6 +5553,16 @@ def get_contas_recebidas_por_cliente(
         cursor.close()
         conn.close()
 
+# ┌──────────────────────────────────────────────────────────────┐
+# │ DOCUMENTAÇÃO: GET /api/extrato-cliente                       │
+# ├──────────────────────────────────────────────────────────────┤
+# │ FONTE: contas_a_receber + contas_recebidas + ecadindexhist   │
+# │ CÁLCULO INCC: fator = indice_atual / indice_base             │
+# │   valor_corrigido = valor_nominal × fator_correcao            │
+# │   saldo = valor_corrigido - valor_recebido                   │
+# │ TÍTULOS INCC MANUAL: config_titulos_incc_manual              │
+# │ USADO POR: Extrato Cliente > tabela de parcelas              │
+# └──────────────────────────────────────────────────────────────┘
 @app.get("/api/extrato-cliente")
 def get_extrato_cliente(cliente: str, titulo: Optional[str] = None):
     """Retorna extrato completo do cliente com histórico de parcelas"""
@@ -8148,6 +8208,21 @@ def delete_empreendimento_config(emp_id: int):
         conn.close()
 
 # ============ REALIZADO POR CENTRO DE CUSTO (para aba Orçamento) ============
+# ┌──────────────────────────────────────────────────────────────┐
+# │ DOCUMENTAÇÃO: GET /api/realizado-por-centro-custo            │
+# ├──────────────────────────────────────────────────────────────┤
+# │ FONTE: contas_pagas.valor_liquido                            │
+# │ CHAVE: id_sienge_centrocusto (código Sienge, NÃO id interno)│
+# │ FILTROS (mesmos da página Contas Pagas):                     │
+# │   1. Exclusões gerais (empresas, CCs, docs, contas)          │
+# │   2. Origens excluídas (config_origens_exposicao_caixa)      │
+# │   3. Tipos baixa permitidos (config_tipos_baixa_exposicao)   │
+# │   4. Transferências inter-empresa (credor ≠ nome_empresa)    │
+# │ USADO POR: Painel Executivo > Aba Orçamento > col Realizado  │
+# │ DEVE BATER COM: Contas Pagas > Líquido Total (mesmo CC)      │
+# │ MAPEAMENTO: empreendimentos_config.centro_custo_id =         │
+# │   id_sienge_centrocusto (NÃO id_interno_centrocusto)         │
+# └──────────────────────────────────────────────────────────────┘
 
 @app.get("/api/realizado-por-centro-custo")
 def get_realizado_por_centro_custo():
@@ -8222,6 +8297,355 @@ def get_realizado_por_centro_custo():
     finally:
         cursor.close()
         conn.close()
+
+# ============ DOCUMENTAÇÃO DO SISTEMA ============
+
+@app.get("/api/documentacao/fluxo-dados")
+def get_documentacao_fluxo_dados():
+    """Retorna a documentação estruturada do sistema: fluxo de dados, endpoints e glossário."""
+    return {
+        "paginas": [
+            {
+                "nome": "Dashboard (Página Inicial)",
+                "icone": "home",
+                "valores": [
+                    {
+                        "nome": "Total Pago",
+                        "fonte": "SUM(contas_pagas.valor_liquido)",
+                        "endpoint": "GET /api/metricas",
+                        "filtros": ["Exclusões gerais (empresas, CCs, docs)"],
+                        "referencia_cruzada": None,
+                        "arquivo": "main.py",
+                        "descricao": "Soma de todos os valores líquidos pagos, considerando exclusões configuradas."
+                    },
+                    {
+                        "nome": "Total A Pagar",
+                        "fonte": "SUM(contas_a_pagar.valor_total)",
+                        "endpoint": "GET /api/metricas",
+                        "filtros": ["Exclusões gerais"],
+                        "referencia_cruzada": None,
+                        "arquivo": "main.py",
+                        "descricao": "Soma de todos os títulos pendentes de pagamento."
+                    },
+                    {
+                        "nome": "Total Em Atraso",
+                        "fonte": "SUM(contas_a_pagar.valor_total) WHERE vencimento < hoje",
+                        "endpoint": "GET /api/metricas",
+                        "filtros": ["Exclusões gerais"],
+                        "referencia_cruzada": None,
+                        "arquivo": "main.py",
+                        "descricao": "Soma dos títulos com data de vencimento anterior à data atual."
+                    },
+                    {
+                        "nome": "Total Recebido",
+                        "fonte": "SUM(contas_recebidas.valor_liquido)",
+                        "endpoint": "GET /api/metricas-receber",
+                        "filtros": ["Exclusões gerais"],
+                        "referencia_cruzada": None,
+                        "arquivo": "main.py",
+                        "descricao": "Soma de todos os valores recebidos."
+                    },
+                    {
+                        "nome": "Total A Receber",
+                        "fonte": "SUM(contas_a_receber.valor_total)",
+                        "endpoint": "GET /api/metricas-receber",
+                        "filtros": ["Exclusões gerais"],
+                        "referencia_cruzada": None,
+                        "arquivo": "main.py",
+                        "descricao": "Soma de todos os títulos pendentes de recebimento."
+                    }
+                ]
+            },
+            {
+                "nome": "Contas Pagas",
+                "icone": "check-circle",
+                "valores": [
+                    {
+                        "nome": "Líquido Total (por Centro de Custo)",
+                        "fonte": "SUM(contas_pagas.valor_liquido) GROUP BY centro_custo",
+                        "endpoint": "GET /api/contas-pagas-por-centro-custo",
+                        "filtros": ["Exclusões gerais", "Origens (config_origens_exposicao_caixa)", "Tipos de baixa (config_tipos_baixa_exposicao_caixa)", "Transferências inter-empresa"],
+                        "referencia_cruzada": "Deve bater com Realizado no Painel Executivo > Orçamento",
+                        "arquivo": "main.py",
+                        "descricao": "Valor líquido total pago agrupado por centro de custo. Aplica 4 camadas de filtros automáticos da configuração."
+                    },
+                    {
+                        "nome": "Líquido Total (por Fornecedor)",
+                        "fonte": "SUM(contas_pagas.valor_liquido) GROUP BY credor",
+                        "endpoint": "GET /api/contas-pagas-por-fornecedor",
+                        "filtros": ["Exclusões gerais", "Origens", "Tipos de baixa", "Inter-empresa"],
+                        "referencia_cruzada": None,
+                        "arquivo": "main.py",
+                        "descricao": "Valor líquido agrupado por fornecedor. Nomes são normalizados (remove prefixo CPF/CNPJ)."
+                    },
+                    {
+                        "nome": "Qtd Títulos",
+                        "fonte": "COUNT(DISTINCT SPLIT_PART(lancamento, '/', 1))",
+                        "endpoint": "GET /api/contas-pagas-por-fornecedor",
+                        "filtros": ["Mesmos do Líquido Total"],
+                        "referencia_cruzada": None,
+                        "arquivo": "main.py",
+                        "descricao": "Quantidade de títulos únicos. Lançamentos rateados (ex: 8302/1, 8302/2) contam como 1 título."
+                    }
+                ]
+            },
+            {
+                "nome": "Contas a Pagar",
+                "icone": "clock",
+                "valores": [
+                    {
+                        "nome": "Total A Pagar",
+                        "fonte": "SUM(contas_a_pagar.valor_total)",
+                        "endpoint": "GET /api/metricas",
+                        "filtros": ["Exclusões gerais"],
+                        "referencia_cruzada": None,
+                        "arquivo": "main.py",
+                        "descricao": "Soma de todos os títulos pendentes de pagamento."
+                    }
+                ]
+            },
+            {
+                "nome": "Contas Atrasadas",
+                "icone": "alert-triangle",
+                "valores": [
+                    {
+                        "nome": "Total Em Atraso",
+                        "fonte": "SUM(contas_a_pagar.valor_total) WHERE vencimento < hoje",
+                        "endpoint": "GET /api/contas (status=em_atraso)",
+                        "filtros": ["Exclusões gerais"],
+                        "referencia_cruzada": None,
+                        "arquivo": "main.py",
+                        "descricao": "Títulos com data de vencimento anterior à data atual. Agrupável por credor, empresa ou CC."
+                    }
+                ]
+            },
+            {
+                "nome": "Contas a Receber",
+                "icone": "arrow-down-circle",
+                "valores": [
+                    {
+                        "nome": "Total A Receber",
+                        "fonte": "SUM(contas_a_receber.valor_total)",
+                        "endpoint": "GET /api/contas-receber-estatisticas",
+                        "filtros": ["Exclusões gerais"],
+                        "referencia_cruzada": None,
+                        "arquivo": "main.py",
+                        "descricao": "Soma de todos os títulos a receber pendentes."
+                    }
+                ]
+            },
+            {
+                "nome": "Contas Recebidas",
+                "icone": "check-square",
+                "valores": [
+                    {
+                        "nome": "Líquido Total Recebido",
+                        "fonte": "SUM(contas_recebidas.valor_liquido)",
+                        "endpoint": "GET /api/contas-recebidas-totais",
+                        "filtros": ["Exclusões gerais"],
+                        "referencia_cruzada": None,
+                        "arquivo": "main.py",
+                        "descricao": "Soma líquida de todos os valores já recebidos."
+                    }
+                ]
+            },
+            {
+                "nome": "Inadimplência (Recebimentos Atrasados)",
+                "icone": "alert-circle",
+                "valores": [
+                    {
+                        "nome": "Total Inadimplente",
+                        "fonte": "SUM(contas_a_receber.valor_total) WHERE vencimento < hoje",
+                        "endpoint": "GET /api/contas-receber (status=atrasado)",
+                        "filtros": ["Exclusões gerais"],
+                        "referencia_cruzada": None,
+                        "arquivo": "main.py",
+                        "descricao": "Títulos a receber com vencimento passado. Inclui faixas de atraso: 1-7d, 8-15d, 16-30d, 31-60d, 61-90d, +90d."
+                    }
+                ]
+            },
+            {
+                "nome": "Extrato Cliente",
+                "icone": "file-text",
+                "valores": [
+                    {
+                        "nome": "Valor Nominal",
+                        "fonte": "contas_a_receber.valor_nominal (parcela)",
+                        "endpoint": "GET /api/extrato-cliente",
+                        "filtros": [],
+                        "referencia_cruzada": None,
+                        "arquivo": "main.py",
+                        "descricao": "Valor original da parcela sem correção monetária."
+                    },
+                    {
+                        "nome": "Correção Monetária (INCC)",
+                        "fonte": "ecadindexhist → fator = índice_atual / índice_base",
+                        "endpoint": "GET /api/extrato-cliente",
+                        "filtros": [],
+                        "referencia_cruzada": None,
+                        "arquivo": "main.py",
+                        "descricao": "Correção monetária pelo índice INCC. Títulos marcados como 'INCC manual' usam cálculo alternativo da config."
+                    },
+                    {
+                        "nome": "Valor Corrigido",
+                        "fonte": "valor_nominal × fator_correção",
+                        "endpoint": "GET /api/extrato-cliente",
+                        "filtros": [],
+                        "referencia_cruzada": None,
+                        "arquivo": "main.py",
+                        "descricao": "Valor nominal atualizado pela correção monetária INCC."
+                    },
+                    {
+                        "nome": "Saldo",
+                        "fonte": "valor_corrigido - valor_recebido",
+                        "endpoint": "GET /api/extrato-cliente",
+                        "filtros": [],
+                        "referencia_cruzada": None,
+                        "arquivo": "main.py",
+                        "descricao": "Diferença entre o valor corrigido e o que já foi recebido. Representa o que ainda falta pagar."
+                    }
+                ]
+            },
+            {
+                "nome": "Painel Executivo > Aba Orçamento",
+                "icone": "bar-chart-2",
+                "valores": [
+                    {
+                        "nome": "Realizado",
+                        "fonte": "SUM(contas_pagas.valor_liquido) GROUP BY id_sienge_centrocusto",
+                        "endpoint": "GET /api/realizado-por-centro-custo",
+                        "filtros": ["Exclusões gerais (empresas, CCs, docs, contas)", "Origens excluídas (config_origens_exposicao_caixa)", "Tipos baixa permitidos (config_tipos_baixa_exposicao_caixa)", "Transferências inter-empresa (credor ≠ nome empresa)"],
+                        "referencia_cruzada": "Deve bater exatamente com o Líquido Total da página Contas Pagas para o mesmo centro de custo",
+                        "arquivo": "main.py",
+                        "descricao": "Total efetivamente pago por centro de custo. Usa código Sienge (não ID interno). Mapeado via empreendimentos_config.centro_custo_id."
+                    },
+                    {
+                        "nome": "Orçamento",
+                        "fonte": "CUB × Fator × M²",
+                        "endpoint": "GET /api/configuracoes/cub + GET /api/configuracoes/empreendimentos",
+                        "filtros": [],
+                        "referencia_cruzada": "Configurado em Configurações > Orçamentos",
+                        "arquivo": "frontend/src/services/api.ts",
+                        "descricao": "CUB/RO (Custo Unitário Básico) multiplicado pelo fator do empreendimento e pela metragem (m²). Calculado no frontend."
+                    },
+                    {
+                        "nome": "À Realizar",
+                        "fonte": "MAX(0, Orçamento - Realizado)",
+                        "endpoint": "Calculado no frontend",
+                        "filtros": [],
+                        "referencia_cruzada": None,
+                        "arquivo": "frontend/src/services/api.ts",
+                        "descricao": "Diferença entre o orçamento previsto e o que já foi realizado. Mínimo de zero."
+                    },
+                    {
+                        "nome": "% Realizado",
+                        "fonte": "(Realizado / Orçamento) × 100",
+                        "endpoint": "Calculado no frontend",
+                        "filtros": [],
+                        "referencia_cruzada": None,
+                        "arquivo": "frontend/src/services/api.ts",
+                        "descricao": "Percentual de execução do orçamento. Se orçamento for zero, retorna 0%."
+                    }
+                ]
+            },
+            {
+                "nome": "Exposição de Caixa",
+                "icone": "trending-up",
+                "valores": [
+                    {
+                        "nome": "Recebido (mês)",
+                        "fonte": "SUM(contas_recebidas.valor_liquido) por mês",
+                        "endpoint": "GET /api/exposicao-caixa",
+                        "filtros": ["Origens (config WHERE incluir=true AND paginas LIKE '%exposicao%')", "Tipos baixa (config WHERE incluir=1 AND paginas LIKE '%exposicao%')"],
+                        "referencia_cruzada": None,
+                        "arquivo": "main.py",
+                        "descricao": "Total recebido em cada mês, filtrado pelas origens e tipos de baixa configurados para exposição."
+                    },
+                    {
+                        "nome": "Pago (mês)",
+                        "fonte": "SUM(contas_pagas.valor_liquido) por mês",
+                        "endpoint": "GET /api/exposicao-caixa",
+                        "filtros": ["Mesmos filtros de origens e tipos de baixa"],
+                        "referencia_cruzada": None,
+                        "arquivo": "main.py",
+                        "descricao": "Total pago em cada mês."
+                    },
+                    {
+                        "nome": "Saldo Acumulado",
+                        "fonte": "Σ(Recebido - Pago) acumulado mês a mês",
+                        "endpoint": "GET /api/exposicao-caixa",
+                        "filtros": [],
+                        "referencia_cruzada": None,
+                        "arquivo": "main.py",
+                        "descricao": "Soma acumulada da diferença entre recebimentos e pagamentos ao longo dos meses."
+                    }
+                ]
+            },
+            {
+                "nome": "KPIs",
+                "icone": "activity",
+                "valores": [
+                    {
+                        "nome": "Valor do KPI",
+                        "fonte": "Depende do cálculo automático configurado (ex: total_pago_mes, total_a_pagar)",
+                        "endpoint": "GET /api/kpis-variacao-diaria",
+                        "filtros": ["Depende do tipo de cálculo"],
+                        "referencia_cruzada": None,
+                        "arquivo": "main.py",
+                        "descricao": "KPIs podem usar cálculos automáticos (total_pago_mes, total_a_pagar, etc.) ou valores manuais registrados diariamente."
+                    },
+                    {
+                        "nome": "Variação Diária",
+                        "fonte": "valor_hoje - valor_ontem",
+                        "endpoint": "GET /api/kpis-variacao-diaria",
+                        "filtros": [],
+                        "referencia_cruzada": None,
+                        "arquivo": "main.py",
+                        "descricao": "Diferença entre o valor do KPI hoje e o valor de ontem. Registrado via snapshots diários."
+                    }
+                ]
+            }
+        ],
+        "endpoints_resumo": [
+            {"area": "Dashboard", "rota": "GET /api/metricas", "descricao": "Cards: total pago, a pagar, em atraso", "tabelas": "contas_pagas, contas_a_pagar"},
+            {"area": "Dashboard", "rota": "GET /api/metricas-receber", "descricao": "Cards: recebido, a receber, atrasados", "tabelas": "contas_a_receber, contas_recebidas"},
+            {"area": "Dashboard", "rota": "GET /api/grafico-mensal", "descricao": "Evolução mensal (12 meses)", "tabelas": "contas_pagas, contas_a_pagar"},
+            {"area": "Dashboard", "rota": "GET /api/grafico-categoria", "descricao": "Despesas por plano financeiro", "tabelas": "contas_pagas"},
+            {"area": "Contas Pagas", "rota": "GET /api/contas-pagas-filtradas", "descricao": "Lista detalhada com filtros múltiplos", "tabelas": "contas_pagas, dim_centrocusto", "filtros_auto": "exclusões, origens, tipos_baixa, inter-empresa"},
+            {"area": "Contas Pagas", "rota": "GET /api/contas-pagas-por-fornecedor", "descricao": "Agrupado por credor (nomes normalizados)", "tabelas": "contas_pagas, dim_centrocusto", "filtros_auto": "exclusões, origens, tipos_baixa, inter-empresa"},
+            {"area": "Contas Pagas", "rota": "GET /api/contas-pagas-por-centro-custo", "descricao": "Agrupado por CC (7d/15d/30d/total)", "tabelas": "contas_pagas, dim_centrocusto", "filtros_auto": "exclusões, origens, tipos_baixa, inter-empresa"},
+            {"area": "Contas Pagas", "rota": "GET /api/estatisticas-contas-pagas", "descricao": "Estatísticas gerais (count, sum, avg)", "tabelas": "contas_pagas", "filtros_auto": "exclusões, origens, tipos_baixa"},
+            {"area": "Contas Pagas", "rota": "GET /api/top-credores", "descricao": "Top N credores por volume", "tabelas": "contas_pagas, dim_credores"},
+            {"area": "Contas a Receber", "rota": "GET /api/contas-receber", "descricao": "Lista contas a receber", "tabelas": "contas_a_receber, dim_centrocusto"},
+            {"area": "Contas a Receber", "rota": "GET /api/contas-recebidas-filtradas", "descricao": "Contas recebidas com filtros", "tabelas": "contas_recebidas, dim_centrocusto"},
+            {"area": "Contas a Receber", "rota": "GET /api/extrato-cliente", "descricao": "Extrato completo do cliente (INCC)", "tabelas": "contas_a_receber, contas_recebidas, ecadindexhist"},
+            {"area": "Painel Executivo", "rota": "GET /api/realizado-por-centro-custo", "descricao": "Realizado por CC (chave: Sienge ID)", "tabelas": "contas_pagas, dim_centrocusto", "filtros_auto": "exclusões, origens, tipos_baixa, inter-empresa"},
+            {"area": "Painel Executivo", "rota": "GET /api/configuracoes/cub", "descricao": "Valor CUB/RO", "tabelas": "cub_config"},
+            {"area": "Painel Executivo", "rota": "GET /api/configuracoes/empreendimentos", "descricao": "Lista empreendimentos (fator, m², CC)", "tabelas": "empreendimentos_config"},
+            {"area": "Exposição", "rota": "GET /api/exposicao-caixa", "descricao": "Recebido vs Pago mensal", "tabelas": "contas_pagas, contas_recebidas"},
+            {"area": "KPIs", "rota": "GET /api/kpis-variacao-diaria", "descricao": "Todos os KPIs com variação", "tabelas": "kpis, kpi_historico"},
+            {"area": "Configurações", "rota": "GET /api/configuracoes", "descricao": "Todas as exclusões ativas", "tabelas": "config_*"},
+            {"area": "Filtros", "rota": "GET /api/filtros/empresas", "descricao": "Dropdown de empresas ativas", "tabelas": "dim_centrocusto"},
+            {"area": "Filtros", "rota": "GET /api/filtros/centros-custo", "descricao": "Dropdown de CCs ativos", "tabelas": "dim_centrocusto"},
+        ],
+        "glossario": [
+            {"termo": "CUB/RO", "definicao": "Custo Unitário Básico da Construção Civil do estado de Rondônia. Índice mensal publicado pelo SINDUSCON que representa o custo por metro quadrado de construção. Usado para calcular o orçamento dos empreendimentos."},
+            {"termo": "Valor Líquido", "definicao": "Valor efetivamente pago ou recebido após descontos, juros, multas e abatimentos. É a coluna 'valor_liquido' nas tabelas contas_pagas e contas_recebidas."},
+            {"termo": "Centro de Custo", "definicao": "Obra ou departamento ao qual um gasto está vinculado. Cada centro de custo tem um ID interno (usado pelo banco) e um ID Sienge (código no sistema Sienge). No Orçamento, usamos o ID Sienge."},
+            {"termo": "ID Sienge vs ID Interno", "definicao": "O Sienge atribui um código próprio (id_sienge_centrocusto) a cada centro de custo. O banco de dados interno tem outro ID (id_interno_centrocusto). Exemplo: Lake Boulevard = Sienge 16, Interno 19. O sistema de Orçamento usa o ID Sienge."},
+            {"termo": "Tipo de Baixa", "definicao": "Forma como um título foi liquidado. Exemplos: 1=Normal, 5=Devolução, 10=Estorno, etc. Configurável por página em Configurações > Tipos de Baixa."},
+            {"termo": "Origem (id_origem)", "definicao": "Módulo do Sienge de onde veio o título. AC=Contas a Pagar, CP=Compras, BC=Banco Central, CF=Contas Financeiras, etc. Configurável por página em Configurações > Origens."},
+            {"termo": "Lançamento", "definicao": "Identificador do título no Sienge. Títulos rateados têm sufixo /1, /2, etc. (ex: 8302/1, 8302/2). Na contagem de títulos, rateados são agrupados."},
+            {"termo": "Transferência Inter-empresa", "definicao": "Pagamento onde o credor é outra empresa do próprio grupo Biesek. Estas são automaticamente excluídas das listagens de Contas Pagas para não inflar os valores."},
+            {"termo": "INCC", "definicao": "Índice Nacional de Custo da Construção. Usado para corrigir monetariamente parcelas de recebíveis no Extrato do Cliente. Fator = índice_atual / índice_base."},
+            {"termo": "Exclusões Gerais", "definicao": "Empresas, centros de custo, tipos de documento e contas correntes marcados como 'excluídos' em Configurações. Afetam TODAS as páginas do sistema."},
+            {"termo": "Fator (Orçamento)", "definicao": "Multiplicador aplicado ao CUB para cada empreendimento. Representa a complexidade/padrão da obra. Fator 1.0 = padrão CUB. Editável em Configurações > Orçamentos."},
+            {"termo": "Snapshot", "definicao": "Fotografia diária dos valores dos cards de Contas a Pagar. Permite comparar a posição de hoje com a de dias anteriores para detectar alterações."},
+            {"termo": "Exposição de Caixa", "definicao": "Diferença acumulada entre recebimentos e pagamentos ao longo do tempo. Mostra o fluxo de caixa do empreendimento."},
+            {"termo": "VGV", "definicao": "Valor Geral de Vendas. Soma do preço de todas as unidades de um empreendimento imobiliário."}
+        ]
+    }
+
 
 # ============ CUB CONFIG ============
 
