@@ -1322,20 +1322,16 @@ export const apiService = {
     }
     const emp = apiService._empreendimentos.find(e => e.id === empreendimentoId);
     let metragem: number;
-    let vgv: number;
     let fatorConsolidado: number;
     if (empreendimentoId === 0) {
       const ativos = apiService._empreendimentos.filter(e => e.id > 0);
       metragem = ativos.reduce((sum, e) => sum + e.metragem, 0);
-      vgv = ativos.reduce((sum, e) => sum + e.vgv_mock, 0);
-      // Consolidated: weighted average fator by metragem
       const totalMetragem = ativos.reduce((sum, e) => sum + e.metragem, 0);
       fatorConsolidado = totalMetragem > 0
         ? ativos.reduce((sum, e) => sum + e.fator * e.metragem, 0) / totalMetragem
         : 1;
     } else {
       metragem = emp?.metragem ?? 0;
-      vgv = emp?.vgv_mock ?? 0;
       fatorConsolidado = emp?.fator ?? 1;
     }
     const orcamento_total = Math.round(apiService._cubRO * fatorConsolidado * metragem);
@@ -1355,6 +1351,8 @@ export const apiService = {
     const resEstoque = await api.get('/estoque-unidades', { params: paramsEstoque });
     const estoqueData = resEstoque.data;
     const estoque = estoqueData.estoque_disponivel ?? 0;
+    // VGV = valor total de todas as unidades (vendidas + disponíveis) da tabela imovel_unidade
+    const vgv = estoqueData.total_geral ?? 0;
 
     const anos = '2023,2024,2025,2026';
 
