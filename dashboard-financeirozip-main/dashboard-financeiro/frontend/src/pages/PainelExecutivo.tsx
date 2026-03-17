@@ -234,7 +234,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Saldo a Receber</p>
             </div>
             <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.saldo_a_receber)}</p>
-            <p className="text-xs text-gray-400 mt-1">Parcelas pendentes</p>
+            <p className="text-xs text-gray-400 mt-1">A receber + inadimplentes, corrigidos por indexador (INCC/IGPM/IPCA)</p>
           </div>
           <div className="rounded-2xl border border-cyan-100 bg-white p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
