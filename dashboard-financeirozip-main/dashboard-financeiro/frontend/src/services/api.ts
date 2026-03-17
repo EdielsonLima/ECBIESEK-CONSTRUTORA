@@ -1357,12 +1357,11 @@ export const apiService = {
     // Valor do Empreendimento = Saldo a Receber + Estoque - Saldo a Realizar
     const valor_empreendimento = saldo_a_receber + estoque - saldo_a_realizar;
 
-    // Exposicao de caixa mes a mes
-    // Simples = saldo acumulado (pago - recebido ao longo do tempo)
-    // Composta = saldo acumulado + custo de oportunidade (juros compostos sobre saldo negativo)
-    const TAXA_MENSAL = 0.01; // 1% a.m. custo de oportunidade
-    let saldoAcumulado = 0;
-    let custoOportunidade = 0;
+    // Exposicao de caixa — mesma logica da pagina ExposicaoCaixa.tsx
+    // Taxa 1.5% a.m. (padrao da ExposicaoCaixa)
+    const TAXA_MENSAL = 1.5;
+    let acumulado = 0;
+    let jurosAcumulados = 0;
 
     const recebidoMap: Record<string, number> = {};
     const pagoMap: Record<string, number> = {};
@@ -1372,21 +1371,35 @@ export const apiService = {
     const todosMeses = new Set([...Object.keys(recebidoMap), ...Object.keys(pagoMap)]);
     const mesesOrdenados = Array.from(todosMeses).sort();
 
+    let picoExposicao = 0; // pico negativo do acumulado
+    let picoExposicaoAjustada = 0; // pico da exposicao + juros compostos
+
     mesesOrdenados.forEach(mes => {
       const rec = recebidoMap[mes] ?? 0;
       const pag = pagoMap[mes] ?? 0;
-      saldoAcumulado += pag - rec; // positivo = empresa investiu mais do que recebeu
+      const resultadoMensal = rec - pag;
+      acumulado += resultadoMensal;
+      const exposicaoNegativa = Math.min(0, acumulado);
 
-      // Custo de oportunidade: juros sobre o saldo investido acumulado
-      if (saldoAcumulado > 0) {
-        custoOportunidade += saldoAcumulado * TAXA_MENSAL;
+      if (exposicaoNegativa < 0) {
+        // Composto: (|exposicao| + juros anteriores) * taxa
+        const baseLancamento = Math.abs(exposicaoNegativa) + jurosAcumulados;
+        const custoMensalComposto = baseLancamento * (TAXA_MENSAL / 100);
+        jurosAcumulados += custoMensalComposto;
+
+        const exposicaoAjustada = Math.abs(exposicaoNegativa) + (jurosAcumulados - custoMensalComposto);
+        if (exposicaoAjustada > picoExposicaoAjustada) picoExposicaoAjustada = exposicaoAjustada;
+      } else {
+        jurosAcumulados = 0; // zera quando acumulado volta a positivo
       }
+
+      if (exposicaoNegativa < picoExposicao) picoExposicao = exposicaoNegativa;
     });
 
-    // Exposicao simples = saldo acumulado (total que a empresa colocou a mais do que recebeu)
-    const exposicaoSimples = Math.max(0, saldoAcumulado);
-    // Exposicao composta = saldo acumulado + custo de oportunidade acumulado
-    const exposicaoComposta = exposicaoSimples + custoOportunidade;
+    // Exposicao simples = pico negativo do acumulado (valor absoluto)
+    const exposicaoSimples = Math.abs(picoExposicao);
+    // Exposicao composta = pico da exposicao ajustada (com juros compostos)
+    const exposicaoComposta = picoExposicaoAjustada;
 
     return {
       vgv,
