@@ -218,51 +218,40 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
         </p>
       </div>
 
-      {/* ============ SEÇÃO 1: Visão Geral ============ */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* VGV */}
-        <div className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="rounded-lg p-2 bg-gradient-to-br from-blue-400 to-blue-600 text-white">
-              <DollarSign className="h-4 w-4" />
+      {/* ============ SEÇÃO 1: Vendas ============ */}
+      <div>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 ml-1">Vendas</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="rounded-lg p-2 bg-gradient-to-br from-blue-400 to-blue-600 text-white">
+                <DollarSign className="h-4 w-4" />
+              </div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">VGV</p>
             </div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">VGV</p>
+            <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.vgv)}</p>
+            <p className="text-xs text-gray-400 mt-1">Valor Geral de Vendas</p>
           </div>
-          <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.vgv)}</p>
-          <p className="text-xs text-gray-400 mt-1">Estoque + Vendas</p>
-        </div>
-        {/* Saldo a Receber */}
-        <div className="rounded-2xl border border-sky-100 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="rounded-lg p-2 bg-gradient-to-br from-sky-400 to-sky-600 text-white">
-              <HandCoins className="h-4 w-4" />
+          <div className="rounded-2xl border border-sky-100 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="rounded-lg p-2 bg-gradient-to-br from-sky-400 to-sky-600 text-white">
+                <HandCoins className="h-4 w-4" />
+              </div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Saldo a Receber</p>
             </div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Saldo a Receber</p>
+            <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.saldo_a_receber)}</p>
+            <p className="text-xs text-gray-400 mt-1">Parcelas pendentes</p>
           </div>
-          <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.saldo_a_receber)}</p>
-          <p className="text-xs text-gray-400 mt-1">Parcelas pendentes</p>
-        </div>
-        {/* Estoque */}
-        <div className="rounded-2xl border border-cyan-100 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="rounded-lg p-2 bg-gradient-to-br from-cyan-400 to-cyan-600 text-white">
-              <Package className="h-4 w-4" />
+          <div className="rounded-2xl border border-cyan-100 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="rounded-lg p-2 bg-gradient-to-br from-cyan-400 to-cyan-600 text-white">
+                <Package className="h-4 w-4" />
+              </div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Estoque</p>
             </div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Estoque</p>
+            <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.estoque)}</p>
+            <p className="text-xs text-gray-400 mt-1">Unidades não vendidas</p>
           </div>
-          <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.estoque)}</p>
-          <p className="text-xs text-gray-400 mt-1">Unidades não vendidas</p>
-        </div>
-        {/* Valor do Empreendimento */}
-        <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-5 shadow-sm">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="rounded-lg p-2 bg-gradient-to-br from-indigo-400 to-indigo-600 text-white">
-              <Building2 className="h-4 w-4" />
-            </div>
-            <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">Valor do Empreendimento</p>
-          </div>
-          <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.valor_empreendimento)}</p>
-          <p className="text-xs text-indigo-500 mt-1">A Receber + Estoque − Saldo a Realizar</p>
         </div>
       </div>
 
@@ -278,7 +267,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Orçamento Total</p>
             </div>
             <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.orcamento_total)}</p>
-            <p className="text-xs text-gray-400 mt-1">Custo previsto</p>
+            <p className="text-xs text-gray-400 mt-1">CUB × metragem</p>
           </div>
           <div className="rounded-2xl border border-green-100 bg-white p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
@@ -303,7 +292,25 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
         </div>
       </div>
 
-      {/* ============ SEÇÃO 3: Exposição de Caixa ============ */}
+      {/* ============ SEÇÃO 3: Valor do Empreendimento ============ */}
+      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-white p-6 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="rounded-xl p-3 bg-gradient-to-br from-indigo-400 to-indigo-600 shadow-lg shadow-indigo-200 text-white">
+              <Building2 className="h-7 w-7" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-indigo-600 uppercase tracking-wider">Valor do Empreendimento</p>
+              <p className="text-4xl font-extrabold text-gray-900 mt-1">{formatCurrency(data.valor_empreendimento)}</p>
+              <p className="text-sm text-indigo-500 mt-1">
+                {formatCurrency(data.saldo_a_receber)} (a receber) + {formatCurrency(data.estoque)} (estoque) − {formatCurrency(data.saldo_a_realizar)} (a realizar)
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ============ SEÇÃO 4: Exposição de Caixa ============ */}
       <div>
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 ml-1">Exposição de Caixa</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -315,7 +322,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Exposição Simples</p>
             </div>
             <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.exposicao_simples)}</p>
-            <p className="text-xs text-gray-400 mt-1">Saldo acumulado (pago − recebido)</p>
+            <p className="text-xs text-gray-400 mt-1">Pico do saldo acumulado (pago − recebido)</p>
           </div>
           <div className="rounded-2xl border border-rose-100 bg-white p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
@@ -325,23 +332,23 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Exposição Composta</p>
             </div>
             <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.exposicao_composta)}</p>
-            <p className="text-xs text-gray-400 mt-1">Saldo acumulado + custo de oportunidade</p>
+            <p className="text-xs text-gray-400 mt-1">Saldo acumulado + custo de oportunidade (1,5% a.m.)</p>
           </div>
         </div>
       </div>
 
-      {/* ============ SEÇÃO 4: Lucro Potencial ============ */}
-      <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl border border-emerald-200 p-6 shadow-sm">
+      {/* ============ SEÇÃO 5: Lucro ============ */}
+      <div className={`rounded-2xl border p-6 shadow-sm ${lucroPotencial >= 0 ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200' : 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200'}`}>
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="rounded-xl p-3 bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-200 text-white">
+            <div className={`rounded-xl p-3 shadow-lg text-white ${lucroPotencial >= 0 ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-emerald-200' : 'bg-gradient-to-br from-red-400 to-red-600 shadow-red-200'}`}>
               <TrendingUp className="h-7 w-7" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-emerald-700 uppercase tracking-wider">Lucro Potencial</p>
+              <p className={`text-sm font-semibold uppercase tracking-wider ${lucroPotencial >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>Lucro Projetado</p>
               <p className="text-4xl font-extrabold text-gray-900 mt-1">{formatCurrency(lucroPotencial)}</p>
-              <p className="text-sm text-emerald-600 mt-1">
-                {formatCurrency(data.valor_empreendimento)} (empreendimento) − {formatCurrency(exposicaoUsada)} (exposição {modoExposicao}) = <span className="font-bold">{percentualLucro.toFixed(1)}% de margem</span>
+              <p className={`text-sm mt-1 ${lucroPotencial >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                {formatCurrency(data.valor_empreendimento)} (empreendimento) − {formatCurrency(exposicaoUsada)} (exposição {modoExposicao})
               </p>
             </div>
           </div>
