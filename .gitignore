@@ -3,8 +3,18 @@
 .claude/
 .mcp.json
 
+# Playwright CLI snapshots
+.playwright-cli/
+
+# Screenshots e exports temporarios
+painel-executivo-lake.png
+
 # Dependencias
 node_modules/
+package-lock.json
 
 # Build
 dist/
+
+# Databases locais
+*.db
