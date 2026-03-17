@@ -1261,16 +1261,19 @@ export const apiService = {
 
   // === Painel Executivo ===
 
-  // Constantes de orcamento: CUB RO (R8-N, Fev/2026) x fator multiplicador x metragem
-  // Logica do Edielson: CUB regional x fator (1.2 padrao medio) x area construida
-  // CUB Rondonia R8-N Fev/2026: R$ 2.334,56/m2 (fonte: SINDUSCON-RO)
-  _cubRO: 2334.56,
+  // CUB RO carregado dinamicamente do backend (config DB)
+  _cubRO: 2334.56, // fallback
   _fatorMultiplicador: 1,
   // centro_custo_id: ID do centro de custo no Sienge (para filtrar dados por obra)
   _empreendimentos: [] as Array<{ id: number; nome: string; codigo: string; metragem: number; vgv_mock: number; centro_custo_id: number | null; fator: number }>,
 
   loadEmpreendimentos: async () => {
     try {
+      // Carrega CUB do backend
+      try {
+        const resCub = await api.get('/configuracoes/cub');
+        if (resCub.data?.valor) apiService._cubRO = resCub.data.valor;
+      } catch (_) { /* usa fallback */ }
       const res = await api.get('/configuracoes/empreendimentos');
       const data = res.data;
       apiService._empreendimentos = [

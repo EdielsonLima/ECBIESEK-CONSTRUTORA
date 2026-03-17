@@ -6488,6 +6488,22 @@ def init_configuracoes_tables():
                 atualizado_em TEXT
             )
         """)
+        # Tabela cub_config para armazenar valor do CUB/RO atualizado
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS cub_config (
+                id {serial} PRIMARY KEY,
+                valor REAL NOT NULL,
+                referencia TEXT,
+                atualizado_em TEXT
+            )
+        """)
+        cursor.execute("SELECT COUNT(*) as cnt FROM cub_config")
+        row_cub = cursor.fetchone()
+        if row_cub and int(row_cub['cnt']) == 0:
+            cursor.execute(
+                "INSERT INTO cub_config (valor, referencia, atualizado_em) VALUES (%s, %s, %s)",
+                (2334.56, 'Fev/2026', datetime.now().isoformat())
+            )
         # Seed empreendimentos_config if empty
         cursor.execute("SELECT COUNT(*) as cnt FROM empreendimentos_config")
         row_emp = cursor.fetchone()
@@ -6646,6 +6662,23 @@ def _ensure_config_tables_in_postgres():
                     atualizado_em TEXT
                 )
             """)
+            # Tabela cub_config
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS cub_config (
+                    id SERIAL PRIMARY KEY,
+                    valor REAL NOT NULL,
+                    referencia TEXT,
+                    atualizado_em TEXT
+                )
+            """)
+            cursor.execute("SELECT COUNT(*) as cnt FROM cub_config")
+            row_cub = cursor.fetchone()
+            if row_cub and int(row_cub['cnt']) == 0:
+                cursor.execute(
+                    "INSERT INTO cub_config (valor, referencia, atualizado_em) VALUES (%s, %s, %s)",
+                    (2334.56, 'Fev/2026', datetime.now().isoformat())
+                )
+
             cursor.execute("SELECT COUNT(*) as cnt FROM empreendimentos_config")
             row_emp = cursor.fetchone()
             if row_emp and int(row_emp['cnt']) == 0:
@@ -8107,6 +8140,56 @@ def delete_empreendimento_config(emp_id: int):
     except Exception as e:
         conn.rollback()
         print(f"[ERRO] delete_empreendimento_config: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+# ============ CUB CONFIG ============
+
+@app.get("/api/configuracoes/cub")
+def get_cub_config():
+    """Retorna o valor atual do CUB/RO."""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT valor, referencia, atualizado_em FROM cub_config ORDER BY id LIMIT 1")
+        row = cursor.fetchone()
+        if row:
+            return dict(row)
+        return {"valor": 2334.56, "referencia": "Fev/2026", "atualizado_em": None}
+    except Exception as e:
+        print(f"[ERRO] get_cub_config: {e}")
+        return {"valor": 2334.56, "referencia": "Fev/2026", "atualizado_em": None}
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.put("/api/configuracoes/cub")
+def update_cub_config(data: dict):
+    """Atualiza o valor do CUB/RO."""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        valor = data.get('valor', 2334.56)
+        referencia = data.get('referencia', '')
+        cursor.execute("SELECT COUNT(*) as cnt FROM cub_config")
+        row = cursor.fetchone()
+        if row and int(row['cnt']) > 0:
+            cursor.execute(
+                "UPDATE cub_config SET valor = %s, referencia = %s, atualizado_em = %s WHERE id = (SELECT MIN(id) FROM cub_config)",
+                (valor, referencia, datetime.now().isoformat())
+            )
+        else:
+            cursor.execute(
+                "INSERT INTO cub_config (valor, referencia, atualizado_em) VALUES (%s, %s, %s)",
+                (valor, referencia, datetime.now().isoformat())
+            )
+        conn.commit()
+        return {"success": True, "valor": valor, "referencia": referencia}
+    except Exception as e:
+        conn.rollback()
+        print(f"[ERRO] update_cub_config: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         cursor.close()

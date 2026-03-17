@@ -88,6 +88,8 @@ export const Configuracoes: React.FC = () => {
   const [loadingOrcamentos, setLoadingOrcamentos] = useState(false);
   const [salvandoOrcamentos, setSalvandoOrcamentos] = useState(false);
   const [orcamentosMsg, setOrcamentosMsg] = useState<string | null>(null);
+  const [cubValor, setCubValor] = useState(2334.56);
+  const [cubReferencia, setCubReferencia] = useState('Fev/2026');
 
   useEffect(() => {
     carregarDados();
@@ -416,8 +418,15 @@ export const Configuracoes: React.FC = () => {
   const carregarOrcamentos = async () => {
     setLoadingOrcamentos(true);
     try {
-      const res = await apiHttp.get('/configuracoes/empreendimentos');
-      setEmpreendimentosConfig(res.data);
+      const [resEmp, resCub] = await Promise.all([
+        apiHttp.get('/configuracoes/empreendimentos'),
+        apiHttp.get('/configuracoes/cub'),
+      ]);
+      setEmpreendimentosConfig(resEmp.data);
+      if (resCub.data) {
+        setCubValor(resCub.data.valor || 2334.56);
+        setCubReferencia(resCub.data.referencia || '');
+      }
     } catch (err) {
       console.error('Erro ao carregar orcamentos:', err);
     } finally {
@@ -429,8 +438,8 @@ export const Configuracoes: React.FC = () => {
     setSalvandoOrcamentos(true);
     setOrcamentosMsg(null);
     try {
-      await Promise.all(
-        empreendimentosConfig.map(emp =>
+      await Promise.all([
+        ...empreendimentosConfig.map(emp =>
           apiHttp.put(`/configuracoes/empreendimentos/${emp.id}`, {
             nome: emp.nome,
             codigo: emp.codigo,
@@ -440,8 +449,9 @@ export const Configuracoes: React.FC = () => {
             vgv_mock: emp.vgv_mock,
             status: emp.status,
           })
-        )
-      );
+        ),
+        apiHttp.put('/configuracoes/cub', { valor: cubValor, referencia: cubReferencia }),
+      ]);
       setOrcamentosMsg('Salvo com sucesso!');
       // Reload empreendimentos in apiService so painel executivo picks up changes
       await apiService.loadEmpreendimentos();
@@ -1199,6 +1209,29 @@ export const Configuracoes: React.FC = () => {
 
         {abaAtiva === 'orcamentos' && (
           <div>
+            {/* CUB/RO info bar */}
+            <div className="bg-blue-50 px-6 py-3 border-b border-gray-200">
+              <div className="flex items-center gap-4 flex-wrap">
+                <span className="text-sm font-medium text-gray-700">CUB/RO (R$/m²):</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={cubValor}
+                  onChange={(e) => setCubValor(parseFloat(e.target.value) || 0)}
+                  className="w-32 text-sm font-semibold border border-blue-200 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
+                />
+                <span className="text-sm text-gray-500">Referência:</span>
+                <input
+                  type="text"
+                  value={cubReferencia}
+                  onChange={(e) => setCubReferencia(e.target.value)}
+                  className="w-28 text-sm border border-blue-200 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
+                  placeholder="Mês/Ano"
+                />
+                <span className="text-xs text-gray-400">Fonte: SINDUSCON-RO | Fórmula: M² × Fator × CUB</span>
+              </div>
+            </div>
+
             <div className="bg-green-50 px-6 py-3 border-b border-gray-200">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-3">
@@ -1251,7 +1284,7 @@ export const Configuracoes: React.FC = () => {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Centro de Custo</th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">M2</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">VGV (R$)</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Orçamento (R$)</th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
                     </tr>
                   </thead>
@@ -1300,14 +1333,8 @@ export const Configuracoes: React.FC = () => {
                             className="w-28 text-sm text-right border border-gray-200 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
                           />
                         </td>
-                        <td className="px-4 py-3">
-                          <input
-                            type="number"
-                            step="1"
-                            value={emp.vgv_mock}
-                            onChange={(e) => updateEmpreendimentoField(emp.id, 'vgv_mock', parseFloat(e.target.value) || 0)}
-                            className="w-32 text-sm text-right border border-gray-200 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
-                          />
+                        <td className="px-4 py-3 text-right text-sm font-medium text-gray-700">
+                          {((emp.metragem || 0) * (emp.fator || 1) * cubValor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3 text-center">
                           <button
