@@ -253,7 +253,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <p className="text-xs text-amber-700">
-          <span className="font-semibold">VGV</span> usa dados mock. <span className="font-semibold">Orçamento</span> = CUB/RO R$ 2.334,56 x metragem. <span className="font-semibold">Estoque, Realizado, Saldo a Receber e Exposição</span> = dados reais.
+          <span className="font-semibold">VGV</span> = Total Vendido + Estoque. <span className="font-semibold">Orçamento</span> = CUB/RO x Fator x Metragem. <span className="font-semibold">Estoque, Realizado, Saldo a Receber e Exposição</span> = dados reais.
         </p>
       </div>
 
@@ -269,7 +269,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">VGV</p>
             </div>
             <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.vgv)}</p>
-            <p className="text-xs text-gray-400 mt-1">Valor Geral de Vendas</p>
+            <p className="text-xs text-gray-400 mt-1">Total Vendido + Estoque</p>
           </div>
           <div className="rounded-2xl border border-sky-100 bg-white p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
