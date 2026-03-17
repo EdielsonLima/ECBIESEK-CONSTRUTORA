@@ -1,0 +1,9 @@
+# Credenciais e configuracoes locais
+.env
+.claude/
+
+# Dependencias
+node_modules/
+
+# Build
+dist/
