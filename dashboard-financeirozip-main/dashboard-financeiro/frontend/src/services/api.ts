@@ -1351,8 +1351,8 @@ export const apiService = {
     const resEstoque = await api.get('/estoque-unidades', { params: paramsEstoque });
     const estoqueData = resEstoque.data;
     const estoque = estoqueData.estoque_disponivel ?? 0;
-    // VGV = valor das unidades vendidas (flag_comercial = 'V') da tabela imovel_unidade
-    const vgv = estoqueData.vgv_vendido ?? 0;
+    // VGV = Vendido + Estoque (todas as unidades do empreendimento)
+    const vgv = estoqueData.total_geral ?? 0;
 
     const anos = '2023,2024,2025,2026';
 
