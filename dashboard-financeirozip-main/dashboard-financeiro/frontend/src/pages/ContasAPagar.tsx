@@ -273,11 +273,11 @@ export const ContasAPagar: React.FC = () => {
   };
 
   const renderSortIcon = (campo: string) => (
-    <span className="ml-1 inline-block">
+    <span className="ml-1 inline-block text-[10px]">
       {ordenacao.campo === campo ? (
-        ordenacao.direcao === 'asc' ? 'â–²' : 'â–¼'
+        ordenacao.direcao === 'asc' ? '\u25B2' : '\u25BC'
       ) : (
-        <span className="text-gray-300">â–¼</span>
+        <span className="text-gray-300">{'\u25BC'}</span>
       )}
     </span>
   );
@@ -1958,7 +1958,7 @@ export const ContasAPagar: React.FC = () => {
                       <tr>
                         <th onClick={() => toggleOrdenacao('rank')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-12 cursor-pointer hover:bg-blue-100">#{renderSortIcon('rank')}</th>
                         <th onClick={() => toggleOrdenacao('credor')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Credor{renderSortIcon('credor')}</th>
-                        <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Qtd TÃ­tulos{renderSortIcon('quantidade')}</th>
+                        <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Qtd Titulos{renderSortIcon('quantidade')}</th>
                         <th onClick={() => toggleOrdenacao('valor')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Valor{renderSortIcon('valor')}</th>
                         <th onClick={() => toggleOrdenacao('percentual')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">% do Total{renderSortIcon('percentual')}</th>
                         <th onClick={() => toggleOrdenacao('acumulado')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">% Acumulado{renderSortIcon('acumulado')}</th>
@@ -2102,15 +2102,15 @@ export const ContasAPagar: React.FC = () => {
             <div className="mt-4 flex items-center gap-6 text-xs text-gray-500">
               <div className="flex items-center gap-1.5">
                 <span className="inline-block w-3 h-3 rounded-full bg-green-100 border border-green-300"></span>
-                A (atÃ© 80%) â€” Principais credores
+                A (ate 80%) - Principais credores
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="inline-block w-3 h-3 rounded-full bg-yellow-100 border border-yellow-300"></span>
-                B (80-95%) â€” Credores intermediÃ¡rios
+                B (80-95%) - Credores intermediarios
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="inline-block w-3 h-3 rounded-full bg-red-100 border border-red-300"></span>
-                C (95-100%) â€” Credores menores
+                C (95-100%) - Credores menores
               </div>
             </div>
           </>
@@ -2201,7 +2201,7 @@ export const ContasAPagar: React.FC = () => {
                       <tr>
                         <th onClick={() => toggleOrdenacao('rank')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-12 cursor-pointer hover:bg-blue-100">#{renderSortIcon('rank')}</th>
                         <th onClick={() => toggleOrdenacao('centroCusto')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Centro de Custo{renderSortIcon('centroCusto')}</th>
-                        <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Qtd TÃ­tulos{renderSortIcon('quantidade')}</th>
+                        <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Qtd Titulos{renderSortIcon('quantidade')}</th>
                         <th onClick={() => toggleOrdenacao('valor')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Valor{renderSortIcon('valor')}</th>
                         <th onClick={() => toggleOrdenacao('percentual')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">% do Total{renderSortIcon('percentual')}</th>
                         <th onClick={() => toggleOrdenacao('acumulado')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">% Acumulado{renderSortIcon('acumulado')}</th>
@@ -2295,11 +2295,11 @@ export const ContasAPagar: React.FC = () => {
             <div className="mt-4 flex items-center gap-6 text-xs text-gray-500">
               <div className="flex items-center gap-1.5">
                 <span className="inline-block w-3 h-3 rounded-full bg-green-100 border border-green-300"></span>
-                A (atÃ© 80%) â€” Principais centros de custo
+                A (ate 80%) - Principais centros de custo
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="inline-block w-3 h-3 rounded-full bg-yellow-100 border border-yellow-300"></span>
-                B (80-95%) â€” Centros intermediÃ¡rios
+                B (80-95%) - Centros intermediarios
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="inline-block w-3 h-3 rounded-full bg-red-100 border border-red-300"></span>
@@ -2410,7 +2410,7 @@ export const ContasAPagar: React.FC = () => {
         });
 
         // Dados para grÃ¡fico
-        const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'SÃ¡b'];
+        const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
         const semanaSelecionadaUnica = filtroSemanas.length === 1 ? filtroSemanas[0] : null;
 
         let dadosGrafico: { name: string; valor: number; quantidade: number; periodo: string }[];
@@ -2561,7 +2561,7 @@ export const ContasAPagar: React.FC = () => {
                       Semana {maiorSemana.semana} <span className="text-sm font-normal text-green-600">({maiorSemana.periodo})</span>
                     </p>
                     <p className="text-xl font-bold text-green-900">{formatCurrency(maiorSemana.valor)}</p>
-                    <p className="text-xs text-green-600">{maiorSemana.quantidade} tÃ­tulo(s) | {maiorSemana.percentual.toFixed(2)}% do total</p>
+                    <p className="text-xs text-green-600">{maiorSemana.quantidade} titulo(s) | {maiorSemana.percentual.toFixed(2)}% do total</p>
                   </div>
                   <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
                     <div className="flex items-center gap-2 mb-1">
@@ -2574,7 +2574,7 @@ export const ContasAPagar: React.FC = () => {
                       Semana {menorSemana.semana} <span className="text-sm font-normal text-blue-600">({menorSemana.periodo})</span>
                     </p>
                     <p className="text-xl font-bold text-blue-900">{formatCurrency(menorSemana.valor)}</p>
-                    <p className="text-xs text-blue-600">{menorSemana.quantidade} tÃ­tulo(s) | {menorSemana.percentual.toFixed(2)}% do total</p>
+                    <p className="text-xs text-blue-600">{menorSemana.quantidade} titulo(s) | {menorSemana.percentual.toFixed(2)}% do total</p>
                   </div>
                   <div className="rounded-lg border border-purple-200 bg-purple-50 p-4">
                     <div className="flex items-center gap-2 mb-1">
@@ -2585,7 +2585,7 @@ export const ContasAPagar: React.FC = () => {
                     </div>
                     <p className="text-xl font-bold text-purple-900">{formatCurrency(mediaSemanal)}</p>
                     <p className="text-xs text-purple-600">{semanasComValor.length} semana(s) com valores</p>
-                    <p className="text-xs text-purple-600">MÃ©dia de {Math.round(semanasComValor.reduce((a, s) => a + s.quantidade, 0) / semanasComValor.length)} tÃ­tulo(s)/semana</p>
+                    <p className="text-xs text-purple-600">Media de {Math.round(semanasComValor.reduce((a, s) => a + s.quantidade, 0) / semanasComValor.length)} titulo(s)/semana</p>
                   </div>
                 </div>
               );
