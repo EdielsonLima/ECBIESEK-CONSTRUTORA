@@ -810,6 +810,7 @@ export const apiService = {
   }): Promise<{
     quantidade_titulos: number;
     valor_total: number;
+    valor_total_corrigido?: number;
     valor_medio: number;
     quantidade_atrasados: number;
     valor_atrasados: number;
