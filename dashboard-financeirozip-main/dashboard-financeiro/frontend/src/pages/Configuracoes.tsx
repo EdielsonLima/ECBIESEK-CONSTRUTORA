@@ -1284,6 +1284,7 @@ export const Configuracoes: React.FC = () => {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Centro de Custo</th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">M2</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Fator</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Orçamento (R$)</th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
                     </tr>
@@ -1331,6 +1332,15 @@ export const Configuracoes: React.FC = () => {
                             value={emp.metragem}
                             onChange={(e) => updateEmpreendimentoField(emp.id, 'metragem', parseFloat(e.target.value) || 0)}
                             className="w-28 text-sm text-right border border-gray-200 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={emp.fator}
+                            onChange={(e) => updateEmpreendimentoField(emp.id, 'fator', parseFloat(e.target.value) || 0)}
+                            className="w-20 text-sm text-right border border-gray-200 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
                           />
                         </td>
                         <td className="px-4 py-3 text-right text-sm font-medium text-gray-700">
