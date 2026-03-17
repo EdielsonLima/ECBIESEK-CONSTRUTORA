@@ -1358,13 +1358,20 @@ export const apiService = {
 
     const anos = '2023,2024,2025,2026';
 
-    // --- REALIZADO: total pago SEM filtros de origens/tipos (valor real do CC) ---
-    const paramsRealizado: Record<string, string> = { ano: anos };
-    if (ccIdInterno) paramsRealizado.centro_custo = ccIdInterno.toString();
-
-    const resPagoReal = await api.get('/estatisticas-por-mes', { params: paramsRealizado });
-    const pagosReal: Array<{ mes: string; valor: number }> = resPagoReal.data;
-    const realizado = pagosReal.reduce((s, p) => s + p.valor, 0);
+    // --- REALIZADO: usa /realizado-por-centro-custo (mesmos filtros da Contas Pagas e aba Orçamento) ---
+    const ccIdSienge = emp?.centro_custo_id;
+    let realizado = 0;
+    try {
+      const resRealizado = await api.get('/realizado-por-centro-custo');
+      const realizadoMap = resRealizado.data;
+      if (empreendimentoId === 0) {
+        // Consolidado: soma todos os centros de custo
+        realizado = Object.values(realizadoMap).reduce((s: number, v: any) => s + (v.valor_liquido || 0), 0);
+      } else if (ccIdSienge) {
+        const ccData = realizadoMap[String(ccIdSienge)];
+        realizado = ccData?.valor_liquido || 0;
+      }
+    } catch { /* fallback */ }
 
     // --- EXPOSICAO: pago e recebido apenas com filtro de centro de custo ---
     // Sem filtros de origens/tipos_baixa para refletir o fluxo de caixa real
