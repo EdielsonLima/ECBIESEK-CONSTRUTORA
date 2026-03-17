@@ -1294,17 +1294,28 @@ export const apiService = {
       vgv = emp?.vgv_mock ?? 0;
     }
     const orcamento_total = Math.round(apiService._cubRO * apiService._fatorMultiplicador * metragem);
+    const ccId = emp?.centro_custo_id;
 
-    // Busca metricas reais de contas a receber
-    const metricasReceber = await apiService.getMetricasReceber();
-    const saldo_a_receber = metricasReceber.total_a_receber; // dados reais
+    // Busca saldo a receber FILTRADO por centro de custo
+    const filtrosReceber: { centro_custo?: number } = {};
+    if (ccId) filtrosReceber.centro_custo = ccId;
+    const estatReceber = await apiService.getEstatisticasContasReceber(filtrosReceber);
+    const saldo_a_receber = estatReceber.valor_total; // dados reais filtrados por CC
 
-    // Estoque = mock por enquanto (TODO: endpoint real - unidades nao vendidas)
-    // Estimativa: VGV - (saldo a receber + total ja recebido)
-    const estoque = Math.max(0, vgv - saldo_a_receber - metricasReceber.total_recebido);
+    // Estoque = mock por empreendimento (TODO: endpoint real - unidades nao vendidas)
+    const estoqueMock: Record<number, number> = {
+      0: 120000000, // Consolidado
+      1: 45000000,  // Lake Boulevard
+      2: 25000000,  // Buenos Aires
+      3: 15000000,  // Imperial Residence
+      4: 10000000,  // BIE 3
+      5: 8000000,   // BIE 4
+      6: 5000000,   // Valenca
+      7: 12000000,  // Lagunas
+    };
+    const estoque = estoqueMock[empreendimentoId] ?? 0;
 
     const anos = '2023,2024,2025,2026';
-    const ccId = emp?.centro_custo_id;
 
     // --- REALIZADO: total pago SEM filtros de origens/tipos (valor real do CC) ---
     const paramsRealizado: Record<string, string> = { ano: anos };
