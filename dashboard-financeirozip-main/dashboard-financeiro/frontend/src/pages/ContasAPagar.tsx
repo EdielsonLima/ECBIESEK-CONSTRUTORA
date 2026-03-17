@@ -183,7 +183,7 @@ export const ContasAPagar: React.FC = () => {
   const [semanaExpandida, setSemanaExpandida] = useState<number | null>(null);
   const [credorExpandido, setCredorExpandido] = useState<string | null>(null);
 
-  // Carregar contas do ano inteiro quando a aba Por Semana Ã© ativada
+  // Carregar contas do ano inteiro quando a aba Por Semana e ativada
   useEffect(() => {
     if (abaAtiva === 'por-semana') {
       const carregarContasAno = async () => {
@@ -614,7 +614,7 @@ export const ContasAPagar: React.FC = () => {
   }, []);
 
   const aplicarFiltros = () => {
-    // Filtros jÃ¡ sÃ£o aplicados automaticamente pelo useEffect
+    // Filtros ja sao aplicados automaticamente pelo useEffect
   };
 
   const limparFiltros = () => {
@@ -1895,7 +1895,7 @@ export const ContasAPagar: React.FC = () => {
           return { ...c, rank: i + 1, percentual, acumulado };
         });
 
-        // Aplicar ordenaÃ§Ã£o selecionada pelo usuÃ¡rio para exibiÃ§Ã£o
+        // Aplicar ordenacao selecionada pelo usuario para exibicao
         const credoresExibidos = [...credoresComPareto].sort((a, b) => {
           const dir = ordenacao.direcao === 'asc' ? 1 : -1;
           switch (ordenacao.campo) {
@@ -2303,14 +2303,14 @@ export const ContasAPagar: React.FC = () => {
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="inline-block w-3 h-3 rounded-full bg-red-100 border border-red-300"></span>
-                C (95-100%) â€” Centros menores
+                C (95-100%) - Centros menores
               </div>
             </div>
           </>
         );
       })()}
       {abaAtiva === 'por-semana' && (() => {
-        // FunÃ§Ã£o para obter o nÃºmero da semana ISO
+        // Funcao para obter o numero da semana ISO
         const getWeekNumber = (d: Date): [number, number] => {
           const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
           date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
@@ -2319,7 +2319,7 @@ export const ContasAPagar: React.FC = () => {
           return [date.getUTCFullYear(), weekNo];
         };
 
-        // FunÃ§Ã£o para obter datas de inÃ­cio e fim de uma semana
+        // Funcao para obter datas de inicio e fim de uma semana
         const getWeekDates = (year: number, week: number): [Date, Date] => {
           const jan1 = new Date(year, 0, 1);
           const dayOffset = jan1.getDay() <= 4 ? jan1.getDay() - 1 : jan1.getDay() - 8;
@@ -2395,7 +2395,7 @@ export const ContasAPagar: React.FC = () => {
           return { ...s, ...pareto };
         });
 
-        // OrdenaÃ§Ã£o da tabela
+        // Ordenacao da tabela
         const semanasExibidas = [...semanasComPareto].sort((a, b) => {
           const dir = ordenacao.direcao === 'asc' ? 1 : -1;
           switch (ordenacao.campo) {
@@ -2409,14 +2409,14 @@ export const ContasAPagar: React.FC = () => {
           }
         });
 
-        // Dados para grÃ¡fico
+        // Dados para grafico
         const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
         const semanaSelecionadaUnica = filtroSemanas.length === 1 ? filtroSemanas[0] : null;
 
         let dadosGrafico: { name: string; valor: number; quantidade: number; periodo: string }[];
 
         if (semanaSelecionadaUnica) {
-          // VisÃ£o diÃ¡ria: mostrar todos os dias da semana selecionada
+          // Visao diaria: mostrar todos os dias da semana selecionada
           const [inicioSemana, fimSemana] = getWeekDates(filtroAnoSemana, semanaSelecionadaUnica);
           const diasMap = new Map<string, { valor: number; quantidade: number }>();
 
@@ -2454,7 +2454,7 @@ export const ContasAPagar: React.FC = () => {
               };
             });
         } else {
-          // VisÃ£o semanal padrÃ£o
+          // Visao semanal padrao
           dadosGrafico = semanasOrdenadas.map(s => ({
             name: `S${s.semana}`,
             valor: s.valor,
@@ -2463,12 +2463,12 @@ export const ContasAPagar: React.FC = () => {
           }));
         }
 
-        // Semanas disponÃ­veis para filtro
+        // Semanas disponiveis para filtro
         const semanasDisponiveis = Array.from(semanaMap.keys()).sort((a, b) => a - b);
         const semanasParaFiltro = Array.from({ length: totalSemanasAno }, (_, i) => i + 1);
 
         const anosArray = Array.from(anosDisp).sort();
-        // Adicionar ano atual se nÃ£o tiver
+        // Adicionar ano atual se nao tiver
         if (!anosArray.includes(new Date().getFullYear())) anosArray.push(new Date().getFullYear());
         anosArray.sort();
 
@@ -2476,8 +2476,8 @@ export const ContasAPagar: React.FC = () => {
         const [, semanaAtual] = getWeekNumber(new Date());
 
         const tituloGrafico = semanaSelecionadaUnica
-          ? `Valores por Dia â€” Semana ${semanaSelecionadaUnica} de ${filtroAnoSemana}`
-          : `Valores por Semana â€” ${filtroAnoSemana}`;
+          ? `Valores por Dia - Semana ${semanaSelecionadaUnica} de ${filtroAnoSemana}`
+          : `Valores por Semana - ${filtroAnoSemana}`;
 
         return (
           <>
@@ -2541,7 +2541,7 @@ export const ContasAPagar: React.FC = () => {
               </div>
             </div>
 
-            {/* Insights dinÃ¢micos */}
+            {/* Insights dinamicos */}
             {(() => {
               const semanasComValor = semanasComPareto.filter(s => s.valor > 0);
               if (semanasComValor.length === 0) return null;
@@ -2581,7 +2581,7 @@ export const ContasAPagar: React.FC = () => {
                       <svg className="h-5 w-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                       </svg>
-                      <span className="text-sm font-semibold text-purple-700">MÃ©dia semanal</span>
+                      <span className="text-sm font-semibold text-purple-700">Media semanal</span>
                     </div>
                     <p className="text-xl font-bold text-purple-900">{formatCurrency(mediaSemanal)}</p>
                     <p className="text-xs text-purple-600">{semanasComValor.length} semana(s) com valores</p>
@@ -2591,9 +2591,9 @@ export const ContasAPagar: React.FC = () => {
               );
             })()}
 
-            {/* GrÃ¡fico */}
+            {/* Grafico */}
             {dadosGrafico.length > 0 && (() => {
-              // Calcular mÃ©dia mÃ³vel de 4 semanas
+              // Calcular media movel de 4 semanas
               const dadosComMedia = dadosGrafico.map((d, i) => {
                 if (semanaSelecionadaUnica) return { ...d, media: undefined };
                 const janela = dadosGrafico.slice(Math.max(0, i - 3), i + 1).filter(x => x.valor > 0);
@@ -2611,7 +2611,7 @@ export const ContasAPagar: React.FC = () => {
                           <span className="inline-block w-3 h-3 rounded bg-blue-400"></span> Valor semanal
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <span className="inline-block w-6 h-0.5 bg-red-500"></span> MÃ©dia mÃ³vel (4 sem.)
+                          <span className="inline-block w-6 h-0.5 bg-red-500"></span> Media movel (4 sem.)
                         </div>
                       </div>
                     )}
@@ -2630,8 +2630,8 @@ export const ContasAPagar: React.FC = () => {
                                 <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
                                   <p className="mb-1 font-semibold text-gray-900">{data.name}</p>
                                   <p className="text-sm text-blue-600">Valor: {formatCurrency(data.valor)}</p>
-                                  <p className="text-sm text-gray-600">TÃ­tulos: {data.quantidade}</p>
-                                  {data.media && <p className="text-sm text-red-500">MÃ©dia mÃ³vel: {formatCurrency(data.media)}</p>}
+                                  <p className="text-sm text-gray-600">Titulos: {data.quantidade}</p>
+                                  {data.media && <p className="text-sm text-red-500">Media movel: {formatCurrency(data.media)}</p>}
                                 </div>
                               );
                             }
@@ -2667,7 +2667,7 @@ export const ContasAPagar: React.FC = () => {
                   <thead className="bg-blue-50">
                     <tr>
                       <th onClick={() => toggleOrdenacao('semana')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Sem.{renderSortIcon('semana')}</th>
-                      <th onClick={() => toggleOrdenacao('periodo')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">PerÃ­odo{renderSortIcon('periodo')}</th>
+                      <th onClick={() => toggleOrdenacao('periodo')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Periodo{renderSortIcon('periodo')}</th>
                       <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Qtd{renderSortIcon('quantidade')}</th>
                       <th onClick={() => toggleOrdenacao('valor')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Valor{renderSortIcon('valor')}</th>
                       <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">Var.</th>
@@ -2677,7 +2677,7 @@ export const ContasAPagar: React.FC = () => {
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
                     {semanasExibidas.map((s, index) => {
-                      // Calcular variaÃ§Ã£o com semana anterior
+                      // Calcular variacao com semana anterior
                       const semanaAnterior = semanasComPareto.find(x => x.semana === s.semana - 1);
                       const variacao = semanaAnterior && semanaAnterior.valor > 0 && s.valor > 0
                         ? ((s.valor - semanaAnterior.valor) / semanaAnterior.valor) * 100
@@ -2691,7 +2691,7 @@ export const ContasAPagar: React.FC = () => {
                             <td className="whitespace-nowrap px-4 py-3 text-sm font-mono font-semibold text-gray-700">
                               <div className="flex items-center gap-1.5">
                                 {s.valor > 0 && (
-                                  <span className={`text-gray-400 text-xs transition-transform ${semanaExpandida === s.semana ? 'rotate-90' : ''}`}>â–¶</span>
+                                  <span className={`text-gray-400 text-xs transition-transform ${semanaExpandida === s.semana ? 'rotate-90' : ''}`}>{'\u25B6'}</span>
                                 )}
                                 {s.semana}
                                 {s.semana === semanaAtual && (
@@ -2706,7 +2706,7 @@ export const ContasAPagar: React.FC = () => {
                               {variacao !== null && (
                                 <span className={`text-xs font-semibold ${variacao > 0 ? 'text-red-500' : variacao < 0 ? 'text-green-500' : 'text-gray-400'
                                   }`}>
-                                  {variacao > 0 ? 'â†‘' : variacao < 0 ? 'â†“' : 'â†’'}
+                                  {variacao > 0 ? "\u2191" : variacao < 0 ? "\u2193" : "\u2192"}
                                   {Math.abs(variacao).toFixed(0)}%
                                 </span>
                               )}
@@ -2735,7 +2735,7 @@ export const ContasAPagar: React.FC = () => {
                               <tr>
                                 <td colSpan={7} className="p-0">
                                   <div className="bg-gray-50 border-t border-b border-gray-200 px-8 py-3">
-                                    <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider">TÃ­tulos da Semana {s.semana} ({titulosSemana.length} registro(s))</p>
+                                    <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider">Titulos da Semana {s.semana} ({titulosSemana.length} registro(s))</p>
                                     <div className="max-h-60 overflow-y-auto">
                                       <table className="w-full text-sm">
                                         <thead>
@@ -2793,14 +2793,14 @@ export const ContasAPagar: React.FC = () => {
         const NOMES_ORIGEM: Record<string, string> = {
           'CP': 'Contas a Pagar',
           'AC': 'Acordo',
-          'ME': 'MediÃ§Ã£o',
+          'ME': 'Medicao',
           'CO': 'Contrato',
           'NF': 'Nota Fiscal',
           'GR': 'Guia de Recolhimento',
           'RE': 'Recibo',
           'BO': 'Boleto',
           'CH': 'Cheque',
-          'DP': 'DepÃ³sito',
+          'DP': 'Deposito',
         };
 
         const origemMap = new Map<string, { valor: number; quantidade: number }>();
@@ -2873,7 +2873,7 @@ export const ContasAPagar: React.FC = () => {
 
             {dadosGrafico.length > 0 && (
               <div className="mb-6 rounded-lg bg-white p-6 shadow">
-                <h3 className="mb-4 text-lg font-semibold text-gray-900">DistribuiÃ§Ã£o por Origem</h3>
+                <h3 className="mb-4 text-lg font-semibold text-gray-900">Distribuicao por Origem</h3>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={dadosGrafico} layout="vertical" margin={{ top: 5, right: 30, left: 60, bottom: 5 }}>
@@ -2886,9 +2886,9 @@ export const ContasAPagar: React.FC = () => {
                             const data = payload[0].payload;
                             return (
                               <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
-                                <p className="mb-1 font-semibold text-gray-900">{data.name} â€” {data.nomeCompleto}</p>
+                                <p className="mb-1 font-semibold text-gray-900">{data.name} - {data.nomeCompleto}</p>
                                 <p className="text-sm text-blue-600">Valor: {formatCurrency(data.valor)}</p>
-                                <p className="text-sm text-gray-600">TÃ­tulos: {data.quantidade}</p>
+                                <p className="text-sm text-gray-600">Titulos: {data.quantidade}</p>
                                 <p className="text-sm text-gray-600">{data.percentual.toFixed(2)}% do total</p>
                               </div>
                             );
@@ -2915,7 +2915,7 @@ export const ContasAPagar: React.FC = () => {
                     <tr>
                       <th onClick={() => toggleOrdenacao('rank')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">#</th>
                       <th onClick={() => toggleOrdenacao('credor')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Origem{renderSortIcon('credor')}</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">DescriÃ§Ã£o</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Descricao</th>
                       <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Qtd{renderSortIcon('quantidade')}</th>
                       <th onClick={() => toggleOrdenacao('valor')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Valor{renderSortIcon('valor')}</th>
                       <th onClick={() => toggleOrdenacao('percentual')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">%{renderSortIcon('percentual')}</th>
@@ -2962,7 +2962,7 @@ export const ContasAPagar: React.FC = () => {
 
               <div className="flex items-center gap-4 px-6 py-3 border-t border-gray-200 bg-gray-50">
                 <span className="flex items-center gap-1.5 text-xs">
-                  <span className="inline-block w-3 h-3 rounded bg-green-100 border border-green-300"></span> A (atÃ© 80%)
+                  <span className="inline-block w-3 h-3 rounded bg-green-100 border border-green-300"></span> A (ate 80%)
                 </span>
                 <span className="flex items-center gap-1.5 text-xs">
                   <span className="inline-block w-3 h-3 rounded bg-yellow-100 border border-yellow-300"></span> B (80-95%)
