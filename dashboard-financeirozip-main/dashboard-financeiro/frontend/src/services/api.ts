@@ -1303,15 +1303,20 @@ export const apiService = {
     // Estimativa: VGV - (saldo a receber + total ja recebido)
     const estoque = Math.max(0, vgv - saldo_a_receber - metricasReceber.total_recebido);
 
-    // Busca dados reais de pago e recebido por mes (com filtros de configuracao)
     const anos = '2023,2024,2025,2026';
-    const params: Record<string, string> = { ano: anos };
-
-    // Filtra por centro de custo quando empreendimento especifico
     const ccId = emp?.centro_custo_id;
-    if (ccId) {
-      params.centro_custo = ccId.toString();
-    }
+
+    // --- REALIZADO: total pago SEM filtros de origens/tipos (valor real do CC) ---
+    const paramsRealizado: Record<string, string> = { ano: anos };
+    if (ccId) paramsRealizado.centro_custo = ccId.toString();
+
+    const resPagoReal = await api.get('/estatisticas-por-mes', { params: paramsRealizado });
+    const pagosReal: Array<{ mes: string; valor: number }> = resPagoReal.data;
+    const realizado = pagosReal.reduce((s, p) => s + p.valor, 0);
+
+    // --- EXPOSICAO: pago e recebido COM filtros de configuracao ---
+    const paramsExposicao: Record<string, string> = { ano: anos };
+    if (ccId) paramsExposicao.centro_custo = ccId.toString();
 
     try {
       const [origensRes, tiposBaixaRes] = await Promise.all([
@@ -1319,25 +1324,22 @@ export const apiService = {
         apiService.getTiposBaixaExposicaoCaixaIds(),
       ]);
       if (origensRes.configurado && origensRes.siglas.length > 0) {
-        params.origens_titulo = origensRes.siglas.join(',');
+        paramsExposicao.origens_titulo = origensRes.siglas.join(',');
       }
       if (tiposBaixaRes.configurado && tiposBaixaRes.ids.length > 0) {
-        params.tipos_baixa_exposicao = tiposBaixaRes.ids.join(',');
+        paramsExposicao.tipos_baixa_exposicao = tiposBaixaRes.ids.join(',');
       }
     } catch { /* usa sem filtros */ }
 
     const [resPago, resRecebido] = await Promise.all([
-      api.get('/estatisticas-por-mes', { params }),
-      api.get('/recebidas-por-mes', { params }),
+      api.get('/estatisticas-por-mes', { params: paramsExposicao }),
+      api.get('/recebidas-por-mes', { params: paramsExposicao }),
     ]);
 
     const pagos: Array<{ mes: string; valor: number }> = resPago.data;
     const recebidos: Array<{ mes: string; valor: number }> = resRecebido.data;
-
-    // Realizado = soma total de contas pagas (dos dados mensais, ja filtrados)
     const totalPago = pagos.reduce((s, p) => s + p.valor, 0);
     const totalRecebido = recebidos.reduce((s, r) => s + r.valor, 0);
-    const realizado = totalPago;
 
     const saldo_a_realizar = Math.max(0, orcamento_total - realizado);
 
