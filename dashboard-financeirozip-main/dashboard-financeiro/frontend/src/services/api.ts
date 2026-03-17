@@ -1531,18 +1531,18 @@ export const apiService = {
 
     const emps = apiService._empreendimentos.filter(e => e.id > 0);
 
-    // Busca realizado (valor_liquido) via /estatisticas-contas-pagas — mesmo endpoint da página Contas Pagas
-    const realizadoPromises = emps.map(async (emp) => {
-      if (!emp.centro_custo_id) return 0;
-      try {
-        const res = await api.get('/estatisticas-contas-pagas', { params: { centro_custo: emp.centro_custo_id } });
-        return res.data?.valor_liquido ?? 0;
-      } catch {
-        return 0;
-      }
-    });
+    // Busca realizado por CC em uma única chamada (sem filtros de origens/tipos_baixa)
+    let realizadoMap: Record<string, number> = {};
+    try {
+      const res = await api.get('/realizado-por-centro-custo');
+      realizadoMap = Object.fromEntries(
+        Object.entries(res.data).map(([k, v]: [string, any]) => [k, v.valor_liquido || 0])
+      );
+    } catch { /* fallback vazio */ }
 
-    const realizados = await Promise.all(realizadoPromises);
+    const realizados = emps.map(emp =>
+      emp.centro_custo_id ? (realizadoMap[String(emp.centro_custo_id)] || 0) : 0
+    );
 
     // Busca config de empreendimentos para status
     let configEmps: any[] = [];

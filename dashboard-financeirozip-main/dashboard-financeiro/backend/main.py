@@ -8145,6 +8145,41 @@ def delete_empreendimento_config(emp_id: int):
         cursor.close()
         conn.close()
 
+# ============ REALIZADO POR CENTRO DE CUSTO (para aba Orçamento) ============
+
+@app.get("/api/realizado-por-centro-custo")
+def get_realizado_por_centro_custo():
+    """Retorna o total pago (valor_liquido) agrupado por centro de custo interno.
+    Sem filtros de origens/tipos_baixa — total bruto igual ao que a página Contas Pagas mostra."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp', has_conta_corrente=True)
+        conditions = list(excl_conds)
+        params = list(excl_params)
+
+        where_clause = (" AND " + " AND ".join(conditions)) if conditions else ""
+
+        cursor.execute(f"""
+            SELECT
+                cp.id_interno_centro_custo as cc_id,
+                COALESCE(SUM(cp.valor_liquido), 0) as valor_liquido,
+                COUNT(*) as quantidade_titulos
+            FROM contas_pagas cp
+            LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE cp.id_interno_centro_custo IS NOT NULL {where_clause}
+            GROUP BY cp.id_interno_centro_custo
+        """, tuple(params))
+        rows = cursor.fetchall()
+        return {str(r['cc_id']): {"valor_liquido": float(r['valor_liquido']), "quantidade_titulos": int(r['quantidade_titulos'])} for r in rows}
+    except Exception as e:
+        print(f"[ERRO] get_realizado_por_centro_custo: {e}")
+        return {}
+    finally:
+        cursor.close()
+        conn.close()
+
 # ============ CUB CONFIG ============
 
 @app.get("/api/configuracoes/cub")
