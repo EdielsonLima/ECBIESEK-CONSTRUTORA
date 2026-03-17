@@ -325,6 +325,8 @@ export interface ExposicaoMensal {
   recebido: number;
   pago: number;
   saldo_acumulado: number;
+  exposicao_simples: number;
+  exposicao_composta: number;
 }
 
 export interface EmpreendimentoOption {

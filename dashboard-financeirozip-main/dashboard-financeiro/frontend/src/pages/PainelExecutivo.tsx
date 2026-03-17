@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiService } from '../services/api';
 import { PainelExecutivoData, ExposicaoMensal, EmpreendimentoOption } from '../types';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { DollarSign, CheckCircle, FileText, Clock, Building2, Wallet, TrendingDown, Calculator, TrendingUp, Package, HandCoins } from 'lucide-react';
 import { criarPDFBase, adicionarResumoCards, finalizarPDF, gerarNomeArquivo } from '../utils/pdfExport';
 
@@ -377,26 +377,60 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
         </div>
       </div>
 
-      {/* Grafico Exposicao de Caixa Acumulado */}
+      {/* Grafico Evolucao da Exposicao */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-2">
           <div>
-            <h3 className="text-lg font-bold text-gray-800">Exposição de Caixa</h3>
-            <p className="text-sm text-gray-500 mt-0.5">Fluxo acumulado mês a mês — {empreendimentoNome}</p>
+            <h3 className="text-lg font-bold text-gray-800">Evolução da Exposição</h3>
+            <p className="text-sm text-gray-500 mt-0.5">{empreendimentoNome} — Acima de zero = empresa exposta</p>
+          </div>
+          <div className="flex items-center bg-gray-100 rounded-xl p-1">
+            <button
+              onClick={() => setModoExposicao('simples')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                modoExposicao === 'simples' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'
+              }`}
+            >
+              Simples
+            </button>
+            <button
+              onClick={() => setModoExposicao('composta')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                modoExposicao === 'composta' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'
+              }`}
+            >
+              Composta
+            </button>
           </div>
         </div>
-        <ResponsiveContainer width="100%" height={380}>
-          <LineChart data={exposicao} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+        <ResponsiveContainer width="100%" height={350}>
+          <AreaChart data={exposicao} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
+            <defs>
+              <linearGradient id="gradExposicao" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#ef4444" stopOpacity={0.3} />
+                <stop offset="100%" stopColor="#ef4444" stopOpacity={0.02} />
+              </linearGradient>
+            </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis dataKey="periodo" tick={{ fontSize: 11, fill: '#9CA3AF' }} tickLine={false} interval={2} />
             <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} tickLine={false} tickFormatter={(v: number) => `${(v / 1000000).toFixed(1)}M`} />
             <Tooltip content={<CustomTooltip />} />
-            <Legend verticalAlign="top" height={36} formatter={(value: string) => <span className="text-sm text-gray-600">{value}</span>} />
-            <Line type="monotone" dataKey="recebido" name="Recebido" stroke="#22c55e" strokeWidth={2} dot={false} activeDot={{ r: 5 }} />
-            <Line type="monotone" dataKey="pago" name="Pago" stroke="#ef4444" strokeWidth={2} dot={false} activeDot={{ r: 5 }} />
-            <Line type="monotone" dataKey="saldo_acumulado" name="Saldo Acumulado" stroke="#3b82f6" strokeWidth={2.5} dot={false} activeDot={{ r: 6 }} strokeDasharray="5 5" />
-          </LineChart>
+            <ReferenceLine y={0} stroke="#10b981" strokeWidth={2} strokeDasharray="8 4" label={{ value: 'Equilíbrio', position: 'insideTopRight', fill: '#10b981', fontSize: 12, fontWeight: 600 }} />
+            <Area
+              type="monotone"
+              dataKey={modoExposicao === 'simples' ? 'exposicao_simples' : 'exposicao_composta'}
+              name={modoExposicao === 'simples' ? 'Exposição Simples' : 'Exposição Composta'}
+              stroke="#ef4444"
+              strokeWidth={2.5}
+              fill="url(#gradExposicao)"
+              dot={false}
+              activeDot={{ r: 6, fill: '#ef4444', stroke: '#fff', strokeWidth: 2 }}
+            />
+          </AreaChart>
         </ResponsiveContainer>
+        <p className="text-xs text-gray-400 text-center mt-2">
+          Linha verde = ponto de equilíbrio (zero). Quanto mais alto, maior a exposição de capital da empresa.
+        </p>
       </div>
     </div>
   );

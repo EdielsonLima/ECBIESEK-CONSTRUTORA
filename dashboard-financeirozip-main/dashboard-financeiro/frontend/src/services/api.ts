@@ -1431,7 +1431,9 @@ export const apiService = {
     const mesesOrdenados = Array.from(todosMeses).sort();
 
     const MESES_NOME = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const TAXA_MENSAL = 1.5;
     let acumulado = 0;
+    let jurosAcumulados = 0;
 
     return mesesOrdenados.map(mes => {
       const [ano, mesNum] = mes.split('-');
@@ -1439,7 +1441,21 @@ export const apiService = {
       const recebido = recebidoMap[mes] ?? 0;
       const pago = pagoMap[mes] ?? 0;
       acumulado += recebido - pago;
-      return { periodo, mes_key: mes, recebido, pago, saldo_acumulado: acumulado };
+
+      // Exposicao simples = acumulado invertido (positivo = empresa exposta)
+      const exposicaoSimples = -acumulado;
+
+      // Exposicao composta = acumulado + juros compostos
+      const exposicaoNegativa = Math.min(0, acumulado);
+      if (exposicaoNegativa < 0) {
+        const base = Math.abs(exposicaoNegativa) + jurosAcumulados;
+        jurosAcumulados += base * (TAXA_MENSAL / 100);
+      } else {
+        jurosAcumulados = 0;
+      }
+      const exposicaoComposta = exposicaoSimples + jurosAcumulados;
+
+      return { periodo, mes_key: mes, recebido, pago, saldo_acumulado: acumulado, exposicao_simples: exposicaoSimples, exposicao_composta: exposicaoComposta };
     });
   },
 };
