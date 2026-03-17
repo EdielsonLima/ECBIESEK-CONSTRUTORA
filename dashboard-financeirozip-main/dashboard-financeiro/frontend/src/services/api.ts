@@ -1529,17 +1529,14 @@ export const apiService = {
       if (resCub.data?.referencia) cubReferencia = resCub.data.referencia;
     } catch (_) {}
 
-    const anos = '2023,2024,2025,2026';
     const emps = apiService._empreendimentos.filter(e => e.id > 0);
 
-    // Busca realizado para cada empreendimento em paralelo
+    // Busca realizado (valor_liquido) via /estatisticas-contas-pagas — mesmo endpoint da página Contas Pagas
     const realizadoPromises = emps.map(async (emp) => {
-      const params: Record<string, string> = { ano: anos };
-      if (emp.centro_custo_id) params.centro_custo = emp.centro_custo_id.toString();
+      if (!emp.centro_custo_id) return 0;
       try {
-        const res = await api.get('/estatisticas-por-mes', { params });
-        const meses: Array<{ valor: number }> = res.data;
-        return meses.reduce((s, m) => s + m.valor, 0);
+        const res = await api.get('/estatisticas-contas-pagas', { params: { centro_custo: emp.centro_custo_id } });
+        return res.data?.valor_liquido ?? 0;
       } catch {
         return 0;
       }
