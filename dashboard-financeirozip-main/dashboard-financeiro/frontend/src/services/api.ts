@@ -1325,22 +1325,10 @@ export const apiService = {
     const pagosReal: Array<{ mes: string; valor: number }> = resPagoReal.data;
     const realizado = pagosReal.reduce((s, p) => s + p.valor, 0);
 
-    // --- EXPOSICAO: pago e recebido COM filtros de configuracao ---
+    // --- EXPOSICAO: pago e recebido apenas com filtro de centro de custo ---
+    // Sem filtros de origens/tipos_baixa para refletir o fluxo de caixa real
     const paramsExposicao: Record<string, string> = { ano: anos };
     if (ccId) paramsExposicao.centro_custo = ccId.toString();
-
-    try {
-      const [origensRes, tiposBaixaRes] = await Promise.all([
-        apiService.getOrigensExposicaoCaixaSiglas(),
-        apiService.getTiposBaixaExposicaoCaixaIds(),
-      ]);
-      if (origensRes.configurado && origensRes.siglas.length > 0) {
-        paramsExposicao.origens_titulo = origensRes.siglas.join(',');
-      }
-      if (tiposBaixaRes.configurado && tiposBaixaRes.ids.length > 0) {
-        paramsExposicao.tipos_baixa_exposicao = tiposBaixaRes.ids.join(',');
-      }
-    } catch { /* usa sem filtros */ }
 
     const [resPago, resRecebido] = await Promise.all([
       api.get('/estatisticas-por-mes', { params: paramsExposicao }),
