@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiService } from '../services/api';
-import { PainelExecutivoData, ExposicaoMensal, EmpreendimentoOption } from '../types';
+import { PainelExecutivoData, ExposicaoMensal, EmpreendimentoOption, EstoqueDetalhe } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { DollarSign, CheckCircle, FileText, Clock, Building2, Wallet, TrendingDown, Calculator, TrendingUp, Package, HandCoins } from 'lucide-react';
 import { criarPDFBase, adicionarResumoCards, finalizarPDF, gerarNomeArquivo } from '../utils/pdfExport';
@@ -208,7 +208,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <p className="text-xs text-amber-700">
-          <span className="font-semibold">VGV</span> e <span className="font-semibold">Estoque</span> usam dados mock. <span className="font-semibold">Orçamento</span> = CUB/RO R$ 2.334,56 x metragem. <span className="font-semibold">Realizado, Saldo a Receber e Exposição</span> = dados reais.
+          <span className="font-semibold">VGV</span> usa dados mock. <span className="font-semibold">Orçamento</span> = CUB/RO R$ 2.334,56 x metragem. <span className="font-semibold">Estoque, Realizado, Saldo a Receber e Exposição</span> = dados reais.
         </p>
       </div>
 
@@ -244,7 +244,21 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Estoque</p>
             </div>
             <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.estoque)}</p>
-            <p className="text-xs text-gray-400 mt-1">Unidades não vendidas</p>
+            <p className="text-xs text-gray-400 mt-1">{data.qtd_disponivel} unidades disponíveis de {data.qtd_total_unidades}</p>
+            {data.estoque_detalhes && data.estoque_detalhes.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {data.estoque_detalhes.map((d) => (
+                  <span key={d.flag} className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                    d.flag === 'D' ? 'bg-green-100 text-green-700' :
+                    d.flag === 'V' ? 'bg-blue-100 text-blue-700' :
+                    d.flag === 'R' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-gray-100 text-gray-600'
+                  }`}>
+                    {d.status}: {d.quantidade}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

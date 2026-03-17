@@ -5092,6 +5092,76 @@ def get_contas_recebidas_totais(
         cursor.close()
         conn.close()
 
+@app.get("/api/estoque-unidades")
+def get_estoque_unidades(centro_custo: Optional[int] = None):
+    """Retorna estoque de unidades da tabela imovel_unidade agrupado por flag_comercial"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        conditions = []
+        params = []
+
+        if centro_custo is not None:
+            conditions.append("iu.id_interno_centrocusto = %s")
+            params.append(centro_custo)
+
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+
+        query = f"""
+            SELECT
+                COALESCE(iu.flag_comercial, 'N/A') as flag_comercial,
+                COUNT(*) as quantidade_unidades,
+                COALESCE(SUM(iu.quantidade_indexador), 0) as valor_total
+            FROM imovel_unidade iu
+            WHERE {where_clause}
+            GROUP BY iu.flag_comercial
+            ORDER BY iu.flag_comercial
+        """
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+
+        flag_labels = {
+            'D': 'Disponível',
+            'V': 'Vendido',
+            'R': 'Reservado',
+            'P': 'Permuta',
+            'L': 'Locado',
+        }
+
+        detalhes = []
+        total_geral = 0
+        qtd_geral = 0
+        estoque_disponivel = 0
+        qtd_disponivel = 0
+
+        for row in rows:
+            flag = row['flag_comercial']
+            valor = float(row['valor_total'])
+            qtd = int(row['quantidade_unidades'])
+            detalhes.append({
+                'flag': flag,
+                'status': flag_labels.get(flag, flag),
+                'quantidade': qtd,
+                'valor': valor,
+            })
+            total_geral += valor
+            qtd_geral += qtd
+            if flag == 'D':
+                estoque_disponivel = valor
+                qtd_disponivel = qtd
+
+        return {
+            'estoque_disponivel': estoque_disponivel,
+            'qtd_disponivel': qtd_disponivel,
+            'total_geral': total_geral,
+            'qtd_geral': qtd_geral,
+            'detalhes': detalhes,
+        }
+    finally:
+        cursor.close()
+        conn.close()
+
+
 @app.get("/api/contas-receber-estatisticas")
 def get_contas_receber_estatisticas(
     empresa: Optional[int] = None,

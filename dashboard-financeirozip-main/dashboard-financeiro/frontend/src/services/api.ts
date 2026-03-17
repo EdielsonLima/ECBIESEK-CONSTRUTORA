@@ -1303,18 +1303,12 @@ export const apiService = {
     const estatReceber = await apiService.getEstatisticasContasReceber(filtrosReceber);
     const saldo_a_receber = estatReceber.valor_total_corrigido ?? estatReceber.valor_total; // saldo atual corrigido por indexador
 
-    // Estoque = mock por empreendimento (TODO: endpoint real - unidades nao vendidas)
-    const estoqueMock: Record<number, number> = {
-      0: 120000000, // Consolidado
-      1: 45000000,  // Lake Boulevard
-      2: 25000000,  // Buenos Aires
-      3: 15000000,  // Imperial Residence
-      4: 10000000,  // BIE 3
-      5: 8000000,   // BIE 4
-      6: 5000000,   // Valenca
-      7: 12000000,  // Lagunas
-    };
-    const estoque = estoqueMock[empreendimentoId] ?? 0;
+    // Estoque = unidades disponíveis (flag_comercial = 'D') da tabela imovel_unidade
+    const paramsEstoque: Record<string, string> = {};
+    if (ccId) paramsEstoque.centro_custo = ccId.toString();
+    const resEstoque = await api.get('/estoque-unidades', { params: paramsEstoque });
+    const estoqueData = resEstoque.data;
+    const estoque = estoqueData.estoque_disponivel ?? 0;
 
     const anos = '2023,2024,2025,2026';
 
@@ -1394,6 +1388,9 @@ export const apiService = {
       vgv,
       saldo_a_receber,
       estoque,
+      estoque_detalhes: estoqueData.detalhes ?? [],
+      qtd_disponivel: estoqueData.qtd_disponivel ?? 0,
+      qtd_total_unidades: estoqueData.qtd_geral ?? 0,
       realizado,
       orcamento_total,
       saldo_a_realizar,

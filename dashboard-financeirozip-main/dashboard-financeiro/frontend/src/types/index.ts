@@ -306,10 +306,20 @@ export interface TituloCliente {
   valor_total: number;
 }
 
+export interface EstoqueDetalhe {
+  flag: string;
+  status: string;
+  quantidade: number;
+  valor: number;
+}
+
 export interface PainelExecutivoData {
   vgv: number;
   saldo_a_receber: number;
   estoque: number;
+  estoque_detalhes: EstoqueDetalhe[];
+  qtd_disponivel: number;
+  qtd_total_unidades: number;
   realizado: number;
   orcamento_total: number;
   saldo_a_realizar: number;
