@@ -1502,4 +1502,84 @@ export const apiService = {
       return { periodo, mes_key: mes, recebido, pago, saldo_acumulado: acumulado, exposicao_simples: exposicaoSimples, exposicao_composta: exposicaoComposta };
     });
   },
+
+  getOrcamentoPorEmpreendimento: async (): Promise<{
+    cubValor: number;
+    cubReferencia: string;
+    empreendimentos: Array<{
+      id: number;
+      nome: string;
+      fator: number;
+      metragem: number;
+      orcamento: number;
+      realizado: number;
+      a_realizar: number;
+      percentual_realizado: number;
+      status: string;
+    }>;
+    totais: { orcamento: number; realizado: number; a_realizar: number };
+  }> => {
+    if (apiService._empreendimentos.length <= 1) {
+      await apiService.loadEmpreendimentos();
+    }
+    const cubValor = apiService._cubRO;
+    let cubReferencia = '';
+    try {
+      const resCub = await api.get('/configuracoes/cub');
+      if (resCub.data?.referencia) cubReferencia = resCub.data.referencia;
+    } catch (_) {}
+
+    const anos = '2023,2024,2025,2026';
+    const emps = apiService._empreendimentos.filter(e => e.id > 0);
+
+    // Busca realizado para cada empreendimento em paralelo
+    const realizadoPromises = emps.map(async (emp) => {
+      const params: Record<string, string> = { ano: anos };
+      if (emp.centro_custo_id) params.centro_custo = emp.centro_custo_id.toString();
+      try {
+        const res = await api.get('/estatisticas-por-mes', { params });
+        const meses: Array<{ valor: number }> = res.data;
+        return meses.reduce((s, m) => s + m.valor, 0);
+      } catch {
+        return 0;
+      }
+    });
+
+    const realizados = await Promise.all(realizadoPromises);
+
+    // Busca config de empreendimentos para status
+    let configEmps: any[] = [];
+    try {
+      const res = await api.get('/configuracoes/empreendimentos');
+      configEmps = res.data;
+    } catch (_) {}
+
+    const resultado = emps.map((emp, i) => {
+      const orcamento = Math.round(cubValor * (emp.fator || 1) * (emp.metragem || 0));
+      const realizado = realizados[i];
+      const a_realizar = Math.max(0, orcamento - realizado);
+      const percentual_realizado = orcamento > 0 ? (realizado / orcamento) * 100 : 0;
+      const configEmp = configEmps.find((c: any) => c.id === emp.id);
+      const status = configEmp?.status || 'ativa';
+      return {
+        id: emp.id,
+        nome: emp.nome,
+        fator: emp.fator || 1,
+        metragem: emp.metragem || 0,
+        orcamento,
+        realizado,
+        a_realizar,
+        percentual_realizado,
+        status,
+      };
+    });
+
+    const totais = {
+      orcamento: resultado.reduce((s, e) => s + e.orcamento, 0),
+      realizado: resultado.reduce((s, e) => s + e.realizado, 0),
+      a_realizar: resultado.filter(e => e.status === 'ativa').reduce((s, e) => s + e.a_realizar, 0),
+    };
+
+    return { cubValor, cubReferencia, empreendimentos: resultado, totais };
+  },
 };

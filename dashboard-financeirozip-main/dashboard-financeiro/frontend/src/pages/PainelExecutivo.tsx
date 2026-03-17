@@ -39,10 +39,24 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [abaAtiva, setAbaAtiva] = useState<'geral' | 'orcamento'>('geral');
   const [modoExposicao, setModoExposicao] = useState<'simples' | 'composta'>('simples');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [dropdownSearch, setDropdownSearch] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Orcamento tab data
+  const [orcamentoData, setOrcamentoData] = useState<{
+    cubValor: number;
+    cubReferencia: string;
+    empreendimentos: Array<{
+      id: number; nome: string; fator: number; metragem: number;
+      orcamento: number; realizado: number; a_realizar: number;
+      percentual_realizado: number; status: string;
+    }>;
+    totais: { orcamento: number; realizado: number; a_realizar: number };
+  } | null>(null);
+  const [loadingOrcamento, setLoadingOrcamento] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -59,6 +73,16 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
       console.error('Erro ao carregar empreendimentos:', err);
     });
   }, []);
+
+  useEffect(() => {
+    if (abaAtiva === 'orcamento' && !orcamentoData) {
+      setLoadingOrcamento(true);
+      apiService.getOrcamentoPorEmpreendimento()
+        .then(setOrcamentoData)
+        .catch(err => console.error('Erro orcamento:', err))
+        .finally(() => setLoadingOrcamento(false));
+    }
+  }, [abaAtiva]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -202,6 +226,27 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+        <button
+          onClick={() => setAbaAtiva('geral')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            abaAtiva === 'geral' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Geral
+        </button>
+        <button
+          onClick={() => setAbaAtiva('orcamento')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            abaAtiva === 'orcamento' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Orçamento
+        </button>
+      </div>
+
+      {abaAtiva === 'geral' && (<>
       {/* Badge dados mock */}
       <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
         <svg className="h-4 w-4 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -447,6 +492,104 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
           Linha verde = ponto de equilíbrio (zero). Quanto mais alto, maior a exposição de capital da empresa.
         </p>
       </div>
+      </>)}
+
+      {/* ============ ABA ORÇAMENTO ============ */}
+      {abaAtiva === 'orcamento' && (
+        <div className="space-y-6">
+          {loadingOrcamento ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-4 text-gray-500">Carregando orçamentos...</p>
+              </div>
+            </div>
+          ) : orcamentoData ? (
+            <>
+              {/* CUB badges */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="bg-gray-800 text-white rounded-lg px-4 py-2">
+                  <p className="text-[10px] text-gray-300 uppercase">Valor CUB mês atual</p>
+                  <p className="text-lg font-bold">{formatCurrency(orcamentoData.cubValor)}</p>
+                </div>
+                <div className="bg-gray-700 text-white rounded-lg px-4 py-2">
+                  <p className="text-[10px] text-gray-300 uppercase">Referência</p>
+                  <p className="text-lg font-bold">{orcamentoData.cubReferencia || '-'}</p>
+                </div>
+              </div>
+
+              {/* 3 summary cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="rounded-2xl border-t-4 border-t-blue-500 bg-white p-5 shadow-sm border border-gray-100">
+                  <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-2">Orçamento</p>
+                  <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(orcamentoData.totais.orcamento)}</p>
+                </div>
+                <div className="rounded-2xl border-t-4 border-t-green-500 bg-white p-5 shadow-sm border border-gray-100">
+                  <p className="text-xs font-semibold text-green-600 uppercase tracking-wider mb-2">Realizado</p>
+                  <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(orcamentoData.totais.realizado)}</p>
+                </div>
+                <div className="rounded-2xl border-t-4 border-t-orange-500 bg-white p-5 shadow-sm border border-gray-100">
+                  <p className="text-xs font-semibold text-orange-600 uppercase tracking-wider mb-2">A Realizar</p>
+                  <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(orcamentoData.totais.a_realizar)}</p>
+                  <p className="text-xs text-gray-400 mt-1">Valor não contabiliza obras finalizadas e saldos negativos</p>
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empreendimento</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Fator</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Orçamento</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Realizado</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">À Realizar</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">% Real</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 bg-white">
+                      {orcamentoData.empreendimentos.map((emp) => (
+                        <tr key={emp.id} className={`hover:bg-gray-50 ${emp.status === 'finalizada' ? 'text-gray-400' : ''}`}>
+                          <td className={`px-4 py-3 text-sm font-medium ${emp.status === 'finalizada' ? 'text-gray-400' : 'text-gray-900'}`}>
+                            {emp.nome}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-center text-gray-600">{emp.fator.toFixed(2)}</td>
+                          <td className="px-4 py-3 text-sm text-right font-medium text-gray-700">{formatCurrency(emp.orcamento)}</td>
+                          <td className="px-4 py-3 text-sm text-right font-medium text-green-700">{formatCurrency(emp.realizado)}</td>
+                          <td className="px-4 py-3 text-sm text-right font-medium text-orange-700">{formatCurrency(emp.a_realizar)}</td>
+                          <td className="px-4 py-3 text-sm text-center">
+                            <span className={`font-semibold ${
+                              emp.percentual_realizado >= 80 ? 'text-red-600' :
+                              emp.percentual_realizado >= 50 ? 'text-amber-600' :
+                              'text-green-600'
+                            }`}>
+                              {emp.percentual_realizado.toFixed(2)}%
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                              emp.status === 'ativa'
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-gray-100 text-gray-500'
+                            }`}>
+                              {emp.status === 'ativa' ? 'Ativa' : 'Finalizada'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-10 text-gray-500">Nenhum dado disponível</div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
