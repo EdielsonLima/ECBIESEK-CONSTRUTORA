@@ -1267,34 +1267,74 @@ export const apiService = {
   _cubRO: 2334.56,
   _fatorMultiplicador: 1,
   // centro_custo_id: ID do centro de custo no Sienge (para filtrar dados por obra)
-  _empreendimentos: [
-    { id: 0, nome: 'Consolidado', codigo: 'ALL', metragem: 0, vgv_mock: 0, centro_custo_id: null },
-    { id: 1, nome: 'Lake Boulevard', codigo: 'LKB', metragem: 25392.42, vgv_mock: 120000000, centro_custo_id: 19 },
-    { id: 2, nome: 'Buenos Aires', codigo: 'BUA', metragem: 18000, vgv_mock: 85000000, centro_custo_id: null },
-    { id: 3, nome: 'Imperial Residence', codigo: 'IMP', metragem: 12000, vgv_mock: 45000000, centro_custo_id: null },
-    { id: 4, nome: 'BIE 3', codigo: 'BIE3', metragem: 8000, vgv_mock: 30000000, centro_custo_id: null },
-    { id: 5, nome: 'BIE 4', codigo: 'BIE4', metragem: 5500, vgv_mock: 20000000, centro_custo_id: null },
-    { id: 6, nome: 'Valenca', codigo: 'VAL', metragem: 9000, vgv_mock: 12000000, centro_custo_id: null },
-    { id: 7, nome: 'Lagunas Residencial Clube', codigo: 'LAG', metragem: 7000, vgv_mock: 8000000, centro_custo_id: null },
-  ] as Array<{ id: number; nome: string; codigo: string; metragem: number; vgv_mock: number; centro_custo_id: number | null }>,
+  _empreendimentos: [] as Array<{ id: number; nome: string; codigo: string; metragem: number; vgv_mock: number; centro_custo_id: number | null; fator: number }>,
+
+  loadEmpreendimentos: async () => {
+    try {
+      const res = await api.get('/configuracoes/empreendimentos');
+      const data = res.data;
+      apiService._empreendimentos = [
+        { id: 0, nome: 'Consolidado', codigo: 'ALL', metragem: 0, vgv_mock: 0, centro_custo_id: null, fator: 1 },
+        ...data.map((e: any) => ({
+          id: e.id,
+          nome: e.nome,
+          codigo: e.codigo,
+          metragem: e.metragem || 0,
+          vgv_mock: e.vgv_mock || 0,
+          centro_custo_id: e.centro_custo_id,
+          fator: e.fator || 1,
+        }))
+      ];
+    } catch (err) {
+      console.error('Erro ao carregar empreendimentos do config:', err);
+      // Fallback hardcoded caso o backend ainda não tenha a tabela
+      if (apiService._empreendimentos.length === 0) {
+        apiService._empreendimentos = [
+          { id: 0, nome: 'Consolidado', codigo: 'ALL', metragem: 0, vgv_mock: 0, centro_custo_id: null, fator: 1 },
+          { id: 1, nome: 'Lake Boulevard', codigo: 'LKB', metragem: 25392.42, vgv_mock: 120000000, centro_custo_id: 19, fator: 1 },
+          { id: 2, nome: 'Buenos Aires', codigo: 'BUA', metragem: 18000, vgv_mock: 85000000, centro_custo_id: null, fator: 1 },
+          { id: 3, nome: 'Imperial Residence', codigo: 'IMP', metragem: 12000, vgv_mock: 45000000, centro_custo_id: null, fator: 1 },
+          { id: 4, nome: 'BIE 3', codigo: 'BIE3', metragem: 8000, vgv_mock: 30000000, centro_custo_id: null, fator: 1 },
+          { id: 5, nome: 'BIE 4', codigo: 'BIE4', metragem: 5500, vgv_mock: 20000000, centro_custo_id: null, fator: 1 },
+          { id: 6, nome: 'Valenca', codigo: 'VAL', metragem: 9000, vgv_mock: 12000000, centro_custo_id: null, fator: 1 },
+          { id: 7, nome: 'Lagunas Residencial Clube', codigo: 'LAG', metragem: 7000, vgv_mock: 8000000, centro_custo_id: null, fator: 1 },
+        ];
+      }
+    }
+  },
 
   getEmpreendimentos: async (): Promise<EmpreendimentoOption[]> => {
+    if (apiService._empreendimentos.length <= 1) {
+      await apiService.loadEmpreendimentos();
+    }
     return apiService._empreendimentos.map(e => ({ id: e.id, nome: e.nome, codigo: e.codigo }));
   },
 
   getPainelExecutivo: async (empreendimentoId: number): Promise<PainelExecutivoData> => {
     // Orcamento = CUB x fator x metragem (formula do Edielson)
+    // Load empreendimentos from config DB if not loaded yet
+    if (apiService._empreendimentos.length <= 1) {
+      await apiService.loadEmpreendimentos();
+    }
     const emp = apiService._empreendimentos.find(e => e.id === empreendimentoId);
     let metragem: number;
     let vgv: number;
+    let fatorConsolidado: number;
     if (empreendimentoId === 0) {
-      metragem = apiService._empreendimentos.filter(e => e.id > 0).reduce((sum, e) => sum + e.metragem, 0);
-      vgv = apiService._empreendimentos.filter(e => e.id > 0).reduce((sum, e) => sum + e.vgv_mock, 0);
+      const ativos = apiService._empreendimentos.filter(e => e.id > 0);
+      metragem = ativos.reduce((sum, e) => sum + e.metragem, 0);
+      vgv = ativos.reduce((sum, e) => sum + e.vgv_mock, 0);
+      // Consolidated: weighted average fator by metragem
+      const totalMetragem = ativos.reduce((sum, e) => sum + e.metragem, 0);
+      fatorConsolidado = totalMetragem > 0
+        ? ativos.reduce((sum, e) => sum + e.fator * e.metragem, 0) / totalMetragem
+        : 1;
     } else {
       metragem = emp?.metragem ?? 0;
       vgv = emp?.vgv_mock ?? 0;
+      fatorConsolidado = emp?.fator ?? 1;
     }
-    const orcamento_total = Math.round(apiService._cubRO * apiService._fatorMultiplicador * metragem);
+    const orcamento_total = Math.round(apiService._cubRO * fatorConsolidado * metragem);
     const ccId = emp?.centro_custo_id;
 
     // Busca saldo a receber FILTRADO por centro de custo
@@ -1404,6 +1444,9 @@ export const apiService = {
   getExposicaoExecutivo: async (empreendimentoId: number): Promise<ExposicaoMensal[]> => {
     // Dados reais: apenas filtro de centro de custo (sem origens/tipos)
     // Consistente com os cards do painel executivo
+    if (apiService._empreendimentos.length <= 1) {
+      await apiService.loadEmpreendimentos();
+    }
     const anos = '2023,2024,2025,2026';
     const params: Record<string, string> = { ano: anos };
 

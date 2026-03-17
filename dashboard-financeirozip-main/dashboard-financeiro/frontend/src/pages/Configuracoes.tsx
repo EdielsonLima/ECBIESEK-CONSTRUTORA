@@ -1,5 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../services/api';
+import axios from 'axios';
+
+const apiHttp = axios.create({
+  baseURL: '/api',
+  headers: { 'Content-Type': 'application/json' },
+});
+apiHttp.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 
 interface EmpresaItem {
   id: number;
@@ -56,7 +67,7 @@ const PAGINAS_DISPONIVEIS = [
 ];
 
 export const Configuracoes: React.FC = () => {
-  const [abaAtiva, setAbaAtiva] = useState<'empresas' | 'centros' | 'documentos' | 'contas_correntes' | 'origens' | 'tipos_baixa' | 'snapshots' | 'diagnostico'>('empresas');
+  const [abaAtiva, setAbaAtiva] = useState<'empresas' | 'centros' | 'documentos' | 'contas_correntes' | 'origens' | 'tipos_baixa' | 'snapshots' | 'diagnostico' | 'orcamentos'>('empresas');
   const [empresas, setEmpresas] = useState<EmpresaItem[]>([]);
   const [centrosCusto, setCentrosCusto] = useState<CentroCustoItem[]>([]);
   const [empresasCentros, setEmpresasCentros] = useState<EmpresaCentros[]>([]);
@@ -73,6 +84,10 @@ export const Configuracoes: React.FC = () => {
   const [snapshotSalvando, setSnapshotSalvando] = useState(false);
   const [snapshotMsg, setSnapshotMsg] = useState<string | null>(null);
   const [snapshotsDisponiveis, setSnapshotsDisponiveis] = useState<Array<{ data_snapshot: string; created_at: string }>>([]);
+  const [empreendimentosConfig, setEmpreendimentosConfig] = useState<any[]>([]);
+  const [loadingOrcamentos, setLoadingOrcamentos] = useState(false);
+  const [salvandoOrcamentos, setSalvandoOrcamentos] = useState(false);
+  const [orcamentosMsg, setOrcamentosMsg] = useState<string | null>(null);
 
   useEffect(() => {
     carregarDados();
@@ -398,6 +413,89 @@ export const Configuracoes: React.FC = () => {
     }
   };
 
+  const carregarOrcamentos = async () => {
+    setLoadingOrcamentos(true);
+    try {
+      const res = await apiHttp.get('/configuracoes/empreendimentos');
+      setEmpreendimentosConfig(res.data);
+    } catch (err) {
+      console.error('Erro ao carregar orcamentos:', err);
+    } finally {
+      setLoadingOrcamentos(false);
+    }
+  };
+
+  const salvarTodosOrcamentos = async () => {
+    setSalvandoOrcamentos(true);
+    setOrcamentosMsg(null);
+    try {
+      await Promise.all(
+        empreendimentosConfig.map(emp =>
+          apiHttp.put(`/configuracoes/empreendimentos/${emp.id}`, {
+            nome: emp.nome,
+            codigo: emp.codigo,
+            centro_custo_id: emp.centro_custo_id,
+            metragem: emp.metragem,
+            fator: emp.fator,
+            vgv_mock: emp.vgv_mock,
+            status: emp.status,
+          })
+        )
+      );
+      setOrcamentosMsg('Salvo com sucesso!');
+      // Reload empreendimentos in apiService so painel executivo picks up changes
+      await apiService.loadEmpreendimentos();
+      setTimeout(() => setOrcamentosMsg(null), 3000);
+    } catch (err) {
+      console.error('Erro ao salvar orcamentos:', err);
+      setOrcamentosMsg('Erro ao salvar');
+    } finally {
+      setSalvandoOrcamentos(false);
+    }
+  };
+
+  const adicionarEmpreendimento = async () => {
+    try {
+      const res = await apiHttp.post('/configuracoes/empreendimentos', {
+        nome: 'Novo Empreendimento',
+        codigo: 'NOVO',
+        centro_custo_id: null,
+        metragem: 0,
+        fator: 1,
+        vgv_mock: 0,
+        status: 'ativa',
+      });
+      setEmpreendimentosConfig(prev => [...prev, res.data]);
+    } catch (err) {
+      console.error('Erro ao adicionar empreendimento:', err);
+    }
+  };
+
+  const removerEmpreendimento = async (id: number) => {
+    try {
+      await apiHttp.delete(`/configuracoes/empreendimentos/${id}`);
+      setEmpreendimentosConfig(prev => prev.filter(e => e.id !== id));
+    } catch (err) {
+      console.error('Erro ao remover empreendimento:', err);
+    }
+  };
+
+  const toggleStatusEmpreendimento = (id: number) => {
+    setEmpreendimentosConfig(prev =>
+      prev.map(e =>
+        e.id === id
+          ? { ...e, status: e.status === 'ativa' ? 'finalizada' : 'ativa' }
+          : e
+      )
+    );
+  };
+
+  const updateEmpreendimentoField = (id: number, field: string, value: any) => {
+    setEmpreendimentosConfig(prev =>
+      prev.map(e => (e.id === id ? { ...e, [field]: value } : e))
+    );
+  };
+
   const filtrarPorBusca = (nome: string) => {
     if (!busca) return true;
     return nome.toLowerCase().includes(busca.toLowerCase());
@@ -572,6 +670,17 @@ export const Configuracoes: React.FC = () => {
           }`}
         >
           Empresas e Centros
+        </button>
+        <button
+          type="button"
+          onClick={() => { setAbaAtiva('orcamentos'); setBusca(''); if (empreendimentosConfig.length === 0) carregarOrcamentos(); }}
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            abaAtiva === 'orcamentos'
+              ? 'bg-green-600 text-white'
+              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+          }`}
+        >
+          Orcamentos
         </button>
       </div>
 
@@ -1083,6 +1192,149 @@ export const Configuracoes: React.FC = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {abaAtiva === 'orcamentos' && (
+          <div>
+            <div className="bg-green-50 px-6 py-3 border-b border-gray-200">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-gray-700">
+                    {empreendimentosConfig.length} empreendimento(s)
+                  </span>
+                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                    {empreendimentosConfig.filter(e => e.status === 'ativa').length} ativa(s)
+                  </span>
+                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+                    {empreendimentosConfig.filter(e => e.status === 'finalizada').length} finalizada(s)
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {orcamentosMsg && (
+                    <span className={`text-sm ${orcamentosMsg.includes('Erro') ? 'text-red-600' : 'text-green-600'}`}>
+                      {orcamentosMsg}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={adicionarEmpreendimento}
+                    className="rounded-lg bg-green-600 px-3 py-1 text-xs text-white hover:bg-green-700"
+                  >
+                    + Adicionar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={salvarTodosOrcamentos}
+                    disabled={salvandoOrcamentos}
+                    className="rounded-lg bg-blue-600 px-4 py-1 text-xs text-white hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {salvandoOrcamentos ? 'Salvando...' : 'Salvar Tudo'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {loadingOrcamentos ? (
+              <div className="px-6 py-8 text-center text-gray-500">Carregando...</div>
+            ) : empreendimentosConfig.length === 0 ? (
+              <div className="px-6 py-8 text-center text-gray-500">Nenhum empreendimento configurado</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cod</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empreendimento</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Centro de Custo</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">M2</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Fator</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">VGV (R$)</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {empreendimentosConfig
+                      .filter(e => !busca || e.nome.toLowerCase().includes(busca.toLowerCase()) || e.codigo.toLowerCase().includes(busca.toLowerCase()))
+                      .map(emp => (
+                      <tr key={emp.id} className={`hover:bg-gray-50 ${emp.status === 'finalizada' ? 'bg-gray-50' : ''}`}>
+                        <td className="px-4 py-3 text-sm text-gray-500 font-mono">{emp.id}</td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="text"
+                            value={emp.nome}
+                            onChange={(e) => updateEmpreendimentoField(emp.id, 'nome', e.target.value)}
+                            className={`w-full text-sm border-0 bg-transparent focus:ring-1 focus:ring-blue-500 rounded px-1 py-0.5 ${emp.status === 'finalizada' ? 'text-gray-400' : 'text-gray-900'}`}
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="number"
+                            value={emp.centro_custo_id ?? ''}
+                            onChange={(e) => updateEmpreendimentoField(emp.id, 'centro_custo_id', e.target.value ? parseInt(e.target.value) : null)}
+                            className="w-20 text-sm border border-gray-200 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
+                            placeholder="CC"
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => toggleStatusEmpreendimento(emp.id)}
+                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium cursor-pointer ${
+                              emp.status === 'ativa'
+                                ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            {emp.status === 'ativa' ? 'Ativa' : 'Finalizada'}
+                          </button>
+                        </td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={emp.metragem}
+                            onChange={(e) => updateEmpreendimentoField(emp.id, 'metragem', parseFloat(e.target.value) || 0)}
+                            className="w-28 text-sm text-right border border-gray-200 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={emp.fator}
+                            onChange={(e) => updateEmpreendimentoField(emp.id, 'fator', parseFloat(e.target.value) || 0)}
+                            className="w-20 text-sm text-right border border-gray-200 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="number"
+                            step="1"
+                            value={emp.vgv_mock}
+                            onChange={(e) => updateEmpreendimentoField(emp.id, 'vgv_mock', parseFloat(e.target.value) || 0)}
+                            className="w-32 text-sm text-right border border-gray-200 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => removerEmpreendimento(emp.id)}
+                            className="text-red-400 hover:text-red-600 transition-colors"
+                            title="Remover empreendimento"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

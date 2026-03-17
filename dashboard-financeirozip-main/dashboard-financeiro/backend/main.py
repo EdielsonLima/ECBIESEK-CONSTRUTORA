@@ -6474,6 +6474,38 @@ def init_configuracoes_tables():
                 UNIQUE(cliente, titulo)
             )
         """)
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS empreendimentos_config (
+                id {serial} PRIMARY KEY,
+                nome TEXT NOT NULL,
+                codigo TEXT NOT NULL,
+                centro_custo_id INTEGER,
+                metragem REAL DEFAULT 0,
+                fator REAL DEFAULT 1,
+                vgv_mock REAL DEFAULT 0,
+                status TEXT DEFAULT 'ativa',
+                criado_por TEXT,
+                atualizado_em TEXT
+            )
+        """)
+        # Seed empreendimentos_config if empty
+        cursor.execute("SELECT COUNT(*) as cnt FROM empreendimentos_config")
+        row_emp = cursor.fetchone()
+        if row_emp and int(row_emp['cnt']) == 0:
+            seed_empreendimentos = [
+                ('Lake Boulevard', 'LKB', 19, 25392.42, 1, 120000000, 'ativa'),
+                ('Buenos Aires', 'BUA', 15, 18000, 1, 85000000, 'ativa'),
+                ('Imperial Residence', 'IMP', 31, 12000, 1, 45000000, 'ativa'),
+                ('BIE 3', 'BIE3', None, 8000, 1, 30000000, 'finalizada'),
+                ('BIE 4', 'BIE4', 40, 5500, 1, 20000000, 'ativa'),
+                ('Valenca', 'VAL', 49, 9000, 1, 12000000, 'ativa'),
+                ('Lagunas Residencial Clube', 'LAG', 33, 7000, 1, 8000000, 'ativa'),
+            ]
+            for nome, codigo, cc_id, metragem, fator, vgv, status in seed_empreendimentos:
+                cursor.execute(
+                    "INSERT INTO empreendimentos_config (nome, codigo, centro_custo_id, metragem, fator, vgv_mock, status) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                    (nome, codigo, cc_id, metragem, fator, vgv, status)
+                )
         conn.commit()
         backend = "PostgreSQL" if is_pg else f"SQLite ({CONFIG_SQLITE_PATH})"
         print(f"Tabelas de configurações criadas/verificadas em {backend}")
@@ -6600,6 +6632,37 @@ def _ensure_config_tables_in_postgres():
                     UNIQUE(cliente, titulo)
                 )
             """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS empreendimentos_config (
+                    id SERIAL PRIMARY KEY,
+                    nome TEXT NOT NULL,
+                    codigo TEXT NOT NULL,
+                    centro_custo_id INTEGER,
+                    metragem REAL DEFAULT 0,
+                    fator REAL DEFAULT 1,
+                    vgv_mock REAL DEFAULT 0,
+                    status TEXT DEFAULT 'ativa',
+                    criado_por TEXT,
+                    atualizado_em TEXT
+                )
+            """)
+            cursor.execute("SELECT COUNT(*) as cnt FROM empreendimentos_config")
+            row_emp = cursor.fetchone()
+            if row_emp and int(row_emp['cnt']) == 0:
+                seed_empreendimentos = [
+                    ('Lake Boulevard', 'LKB', 19, 25392.42, 1, 120000000, 'ativa'),
+                    ('Buenos Aires', 'BUA', 15, 18000, 1, 85000000, 'ativa'),
+                    ('Imperial Residence', 'IMP', 31, 12000, 1, 45000000, 'ativa'),
+                    ('BIE 3', 'BIE3', None, 8000, 1, 30000000, 'finalizada'),
+                    ('BIE 4', 'BIE4', 40, 5500, 1, 20000000, 'ativa'),
+                    ('Valenca', 'VAL', 49, 9000, 1, 12000000, 'ativa'),
+                    ('Lagunas Residencial Clube', 'LAG', 33, 7000, 1, 8000000, 'ativa'),
+                ]
+                for nome, codigo, cc_id, metragem, fator, vgv, status in seed_empreendimentos:
+                    cursor.execute(
+                        "INSERT INTO empreendimentos_config (nome, codigo, centro_custo_id, metragem, fator, vgv_mock, status) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                        (nome, codigo, cc_id, metragem, fator, vgv, status)
+                    )
 
             # Insere tipos de previsão como excluídos por padrão
             tipos_previsao = [
@@ -7951,6 +8014,103 @@ def _auto_snapshot_loop():
         except Exception as e:
             print(f"Auto-snapshot: Erro no loop: {e}")
             time.sleep(300)
+
+# ============ EMPREENDIMENTOS CONFIG (Orcamentos) ============
+
+@app.get("/api/configuracoes/empreendimentos")
+def get_empreendimentos_config():
+    """Lista todos os empreendimentos configurados."""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id, nome, codigo, centro_custo_id, metragem, fator, vgv_mock, status, criado_por, atualizado_em FROM empreendimentos_config ORDER BY id")
+        rows = cursor.fetchall()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        print(f"[ERRO] get_empreendimentos_config: {e}")
+        return []
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.put("/api/configuracoes/empreendimentos/{emp_id}")
+def update_empreendimento_config(emp_id: int, data: dict):
+    """Atualiza um empreendimento (metragem, fator, status, vgv_mock, nome, codigo, centro_custo_id)."""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        fields = []
+        params = []
+        for key in ['nome', 'codigo', 'centro_custo_id', 'metragem', 'fator', 'vgv_mock', 'status']:
+            if key in data:
+                fields.append(f"{key} = %s")
+                params.append(data[key])
+        if not fields:
+            return {"success": False, "detail": "Nenhum campo para atualizar"}
+        fields.append("atualizado_em = %s")
+        params.append(datetime.now().isoformat())
+        params.append(emp_id)
+        sql = f"UPDATE empreendimentos_config SET {', '.join(fields)} WHERE id = %s"
+        cursor.execute(sql, tuple(params))
+        conn.commit()
+        return {"success": True}
+    except Exception as e:
+        conn.rollback()
+        print(f"[ERRO] update_empreendimento_config: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.post("/api/configuracoes/empreendimentos")
+def create_empreendimento_config(data: dict):
+    """Cria um novo empreendimento."""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO empreendimentos_config (nome, codigo, centro_custo_id, metragem, fator, vgv_mock, status, criado_por, atualizado_em) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            (
+                data.get('nome', ''),
+                data.get('codigo', ''),
+                data.get('centro_custo_id'),
+                data.get('metragem', 0),
+                data.get('fator', 1),
+                data.get('vgv_mock', 0),
+                data.get('status', 'ativa'),
+                data.get('criado_por'),
+                datetime.now().isoformat(),
+            )
+        )
+        conn.commit()
+        # Return the created record
+        cursor.execute("SELECT id, nome, codigo, centro_custo_id, metragem, fator, vgv_mock, status, criado_por, atualizado_em FROM empreendimentos_config ORDER BY id DESC LIMIT 1")
+        row = cursor.fetchone()
+        return dict(row) if row else {"success": True}
+    except Exception as e:
+        conn.rollback()
+        print(f"[ERRO] create_empreendimento_config: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.delete("/api/configuracoes/empreendimentos/{emp_id}")
+def delete_empreendimento_config(emp_id: int):
+    """Remove um empreendimento."""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM empreendimentos_config WHERE id = %s", (emp_id,))
+        conn.commit()
+        return {"success": True}
+    except Exception as e:
+        conn.rollback()
+        print(f"[ERRO] delete_empreendimento_config: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
 
 _auto_snapshot_thread = threading.Thread(target=_auto_snapshot_loop, daemon=True)
 _auto_snapshot_thread.start()
