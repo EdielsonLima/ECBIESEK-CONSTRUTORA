@@ -6508,14 +6508,15 @@ def init_configuracoes_tables():
         cursor.execute("SELECT COUNT(*) as cnt FROM empreendimentos_config")
         row_emp = cursor.fetchone()
         if row_emp and int(row_emp['cnt']) == 0:
+            # centro_custo_id = id_sienge_centrocusto (código Sienge, não interno)
             seed_empreendimentos = [
-                ('Lake Boulevard', 'LKB', 19, 25392.42, 1, 120000000, 'ativa'),
-                ('Buenos Aires', 'BUA', 15, 18000, 1, 85000000, 'ativa'),
-                ('Imperial Residence', 'IMP', 31, 12000, 1, 45000000, 'ativa'),
+                ('Lake Boulevard', 'LKB', 16, 25392.42, 1, 120000000, 'ativa'),
+                ('Buenos Aires', 'BUA', 12, 18000, 1, 85000000, 'ativa'),
+                ('Imperial Residence', 'IMP', 25, 12000, 1, 45000000, 'ativa'),
                 ('BIE 3', 'BIE3', None, 8000, 1, 30000000, 'finalizada'),
-                ('BIE 4', 'BIE4', 40, 5500, 1, 20000000, 'ativa'),
-                ('Valenca', 'VAL', 49, 9000, 1, 12000000, 'ativa'),
-                ('Lagunas Residencial Clube', 'LAG', 33, 7000, 1, 8000000, 'ativa'),
+                ('BIE 4', 'BIE4', 32, 5500, 1, 20000000, 'ativa'),
+                ('Valenca', 'VAL', 40, 9000, 1, 12000000, 'ativa'),
+                ('Lagunas Residencial Clube', 'LAG', 21, 7000, 1, 8000000, 'ativa'),
             ]
             for nome, codigo, cc_id, metragem, fator, vgv, status in seed_empreendimentos:
                 cursor.execute(
@@ -6682,14 +6683,15 @@ def _ensure_config_tables_in_postgres():
             cursor.execute("SELECT COUNT(*) as cnt FROM empreendimentos_config")
             row_emp = cursor.fetchone()
             if row_emp and int(row_emp['cnt']) == 0:
+                # centro_custo_id = id_sienge_centrocusto (código Sienge, não interno)
                 seed_empreendimentos = [
-                    ('Lake Boulevard', 'LKB', 19, 25392.42, 1, 120000000, 'ativa'),
-                    ('Buenos Aires', 'BUA', 15, 18000, 1, 85000000, 'ativa'),
-                    ('Imperial Residence', 'IMP', 31, 12000, 1, 45000000, 'ativa'),
+                    ('Lake Boulevard', 'LKB', 16, 25392.42, 1, 120000000, 'ativa'),
+                    ('Buenos Aires', 'BUA', 12, 18000, 1, 85000000, 'ativa'),
+                    ('Imperial Residence', 'IMP', 25, 12000, 1, 45000000, 'ativa'),
                     ('BIE 3', 'BIE3', None, 8000, 1, 30000000, 'finalizada'),
-                    ('BIE 4', 'BIE4', 40, 5500, 1, 20000000, 'ativa'),
-                    ('Valenca', 'VAL', 49, 9000, 1, 12000000, 'ativa'),
-                    ('Lagunas Residencial Clube', 'LAG', 33, 7000, 1, 8000000, 'ativa'),
+                    ('BIE 4', 'BIE4', 32, 5500, 1, 20000000, 'ativa'),
+                    ('Valenca', 'VAL', 40, 9000, 1, 12000000, 'ativa'),
+                    ('Lagunas Residencial Clube', 'LAG', 21, 7000, 1, 8000000, 'ativa'),
                 ]
                 for nome, codigo, cc_id, metragem, fator, vgv, status in seed_empreendimentos:
                     cursor.execute(
@@ -8149,7 +8151,7 @@ def delete_empreendimento_config(emp_id: int):
 
 @app.get("/api/realizado-por-centro-custo")
 def get_realizado_por_centro_custo():
-    """Retorna o total pago (valor_liquido) agrupado por centro de custo interno.
+    """Retorna o total pago (valor_liquido) agrupado por centro de custo (chave = id_sienge).
     Sem filtros de origens/tipos_baixa — total bruto igual ao que a página Contas Pagas mostra."""
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -8163,16 +8165,16 @@ def get_realizado_por_centro_custo():
 
         cursor.execute(f"""
             SELECT
-                cp.id_interno_centro_custo as cc_id,
+                cc.id_sienge_centrocusto as sienge_id,
                 COALESCE(SUM(cp.valor_liquido), 0) as valor_liquido,
                 COUNT(*) as quantidade_titulos
             FROM contas_pagas cp
-            LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
+            INNER JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
             WHERE cp.id_interno_centro_custo IS NOT NULL {where_clause}
-            GROUP BY cp.id_interno_centro_custo
+            GROUP BY cc.id_sienge_centrocusto
         """, tuple(params))
         rows = cursor.fetchall()
-        return {str(r['cc_id']): {"valor_liquido": float(r['valor_liquido']), "quantidade_titulos": int(r['quantidade_titulos'])} for r in rows}
+        return {str(r['sienge_id']): {"valor_liquido": float(r['valor_liquido']), "quantidade_titulos": int(r['quantidade_titulos'])} for r in rows}
     except Exception as e:
         print(f"[ERRO] get_realizado_por_centro_custo: {e}")
         return {}
