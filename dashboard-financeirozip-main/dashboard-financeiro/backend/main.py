@@ -5198,6 +5198,8 @@ def get_estoque_unidades(centro_custo: Optional[int] = None):
         qtd_geral = 0
         estoque_disponivel = 0
         qtd_disponivel = 0
+        vgv_vendido = 0
+        qtd_vendido = 0
 
         for row in rows:
             flag = row['flag_comercial']
@@ -5214,10 +5216,15 @@ def get_estoque_unidades(centro_custo: Optional[int] = None):
             if flag == 'D':
                 estoque_disponivel = valor
                 qtd_disponivel = qtd
+            if flag == 'V':
+                vgv_vendido = valor
+                qtd_vendido = qtd
 
         return {
             'estoque_disponivel': estoque_disponivel,
             'qtd_disponivel': qtd_disponivel,
+            'vgv_vendido': vgv_vendido,
+            'qtd_vendido': qtd_vendido,
             'total_geral': total_geral,
             'qtd_geral': qtd_geral,
             'detalhes': detalhes,
