@@ -229,6 +229,25 @@ class ChatRequest(BaseModel):
     messages: List[ChatMessage]
 
 # Funções auxiliares
+def parse_csv_int(value: str) -> list:
+    """Converte string CSV em lista de ints. Ex: '1,2,3' -> [1, 2, 3]"""
+    return [int(v.strip()) for v in value.split(',') if v.strip().isdigit()]
+
+def parse_csv_str(value: str) -> list:
+    """Converte string CSV em lista de strings. Ex: 'a,b' -> ['a', 'b']"""
+    return [v.strip() for v in value.split(',') if v.strip()]
+
+def add_multi_filter(conditions, params, value_str, column, is_int=False):
+    """Adiciona filtro multi-valor (CSV) à query. Suporta int e str."""
+    if not value_str:
+        return
+    values = parse_csv_int(value_str) if is_int else parse_csv_str(value_str)
+    if not values:
+        return
+    placeholders = ', '.join(['%s'] * len(values))
+    conditions.append(f"{column} IN ({placeholders})")
+    params.extend(values)
+
 def get_db_connection():
     """Cria conexão com o banco de dados externo (dados financeiros)"""
     try:
@@ -1321,8 +1340,8 @@ def get_proximos_vencimentos(dias: int = 30):
 # └──────────────────────────────────────────────────────────────┘
 @app.get("/api/contas-pagas-filtradas")
 def get_contas_pagas_filtradas(
-    empresa: Optional[int] = None,
-    centro_custo: Optional[int] = None,
+    empresa: Optional[str] = None,
+    centro_custo: Optional[str] = None,
     credor: Optional[str] = None,
     id_documento: Optional[str] = None,
     origem_dado: Optional[str] = None,
@@ -1389,21 +1408,35 @@ def get_contas_pagas_filtradas(
         except Exception:
             pass
 
-        if empresa is not None:
-            conditions.append("""cp.id_interno_empresa IN (
-                SELECT DISTINCT cp2.id_interno_empresa FROM contas_pagas cp2
-                JOIN dim_centrocusto cc2 ON cp2.id_interno_centro_custo = cc2.id_interno_centrocusto
-                WHERE cc2.id_sienge_empresa = %s
-            )""")
-            params.append(empresa)
+        if empresa:
+            emp_ids = parse_csv_int(empresa)
+            if emp_ids:
+                emp_ph = ', '.join(['%s'] * len(emp_ids))
+                conditions.append(f"""cp.id_interno_empresa IN (
+                    SELECT DISTINCT cp2.id_interno_empresa FROM contas_pagas cp2
+                    JOIN dim_centrocusto cc2 ON cp2.id_interno_centro_custo = cc2.id_interno_centrocusto
+                    WHERE cc2.id_sienge_empresa IN ({emp_ph})
+                )""")
+                params.extend(emp_ids)
 
-        if centro_custo is not None:
-            conditions.append("cp.id_interno_centro_custo = %s")
-            params.append(centro_custo)
+        if centro_custo:
+            cc_ids = parse_csv_int(centro_custo)
+            if cc_ids:
+                cc_ph = ', '.join(['%s'] * len(cc_ids))
+                conditions.append(f"cp.id_interno_centro_custo IN ({cc_ph})")
+                params.extend(cc_ids)
 
         if credor:
-            conditions.append("cp.credor ILIKE %s")
-            params.append(f"%{credor}%")
+            credores_list = parse_csv_str(credor)
+            if len(credores_list) == 1:
+                conditions.append("cp.credor ILIKE %s")
+                params.append(f"%{credores_list[0]}%")
+            elif len(credores_list) > 1:
+                cr_conds = []
+                for cr in credores_list:
+                    cr_conds.append("cp.credor ILIKE %s")
+                    params.append(f"%{cr}%")
+                conditions.append(f"({' OR '.join(cr_conds)})")
 
         if id_documento:
             docs = [doc.strip() for doc in id_documento.split(',')]
@@ -1506,8 +1539,8 @@ def get_contas_pagas_filtradas(
 # └──────────────────────────────────────────────────────────────┘
 @app.get("/api/contas-pagas-por-fornecedor")
 def get_contas_pagas_por_fornecedor(
-    empresa: Optional[int] = None,
-    centro_custo: Optional[int] = None,
+    empresa: Optional[str] = None,
+    centro_custo: Optional[str] = None,
     credor: Optional[str] = None,
     id_documento: Optional[str] = None,
     origem_dado: Optional[str] = None,
@@ -1581,21 +1614,35 @@ def get_contas_pagas_por_fornecedor(
         except Exception:
             pass
 
-        if empresa is not None:
-            conditions.append("""cp.id_interno_empresa IN (
-                SELECT DISTINCT cp2.id_interno_empresa FROM contas_pagas cp2
-                JOIN dim_centrocusto cc2 ON cp2.id_interno_centro_custo = cc2.id_interno_centrocusto
-                WHERE cc2.id_sienge_empresa = %s
-            )""")
-            params.append(empresa)
+        if empresa:
+            emp_ids = parse_csv_int(empresa)
+            if emp_ids:
+                emp_ph = ', '.join(['%s'] * len(emp_ids))
+                conditions.append(f"""cp.id_interno_empresa IN (
+                    SELECT DISTINCT cp2.id_interno_empresa FROM contas_pagas cp2
+                    JOIN dim_centrocusto cc2 ON cp2.id_interno_centro_custo = cc2.id_interno_centrocusto
+                    WHERE cc2.id_sienge_empresa IN ({emp_ph})
+                )""")
+                params.extend(emp_ids)
 
-        if centro_custo is not None:
-            conditions.append("cp.id_interno_centro_custo = %s")
-            params.append(centro_custo)
+        if centro_custo:
+            cc_ids = parse_csv_int(centro_custo)
+            if cc_ids:
+                cc_ph = ', '.join(['%s'] * len(cc_ids))
+                conditions.append(f"cp.id_interno_centro_custo IN ({cc_ph})")
+                params.extend(cc_ids)
 
         if credor:
-            conditions.append("cp.credor ILIKE %s")
-            params.append(f"%{credor}%")
+            credores_list = parse_csv_str(credor)
+            if len(credores_list) == 1:
+                conditions.append("cp.credor ILIKE %s")
+                params.append(f"%{credores_list[0]}%")
+            elif len(credores_list) > 1:
+                cr_conds = []
+                for cr in credores_list:
+                    cr_conds.append("cp.credor ILIKE %s")
+                    params.append(f"%{cr}%")
+                conditions.append(f"({' OR '.join(cr_conds)})")
 
         if id_documento:
             docs = [doc.strip() for doc in id_documento.split(',')]
@@ -1740,8 +1787,8 @@ def get_contas_pagas_por_fornecedor(
 # └──────────────────────────────────────────────────────────────┘
 @app.get("/api/contas-pagas-por-centro-custo")
 def get_contas_pagas_por_centro_custo(
-    empresa: Optional[int] = None,
-    centro_custo: Optional[int] = None,
+    empresa: Optional[str] = None,
+    centro_custo: Optional[str] = None,
     credor: Optional[str] = None,
     id_documento: Optional[str] = None,
     origem_dado: Optional[str] = None,
@@ -1811,21 +1858,35 @@ def get_contas_pagas_por_centro_custo(
         except Exception:
             pass
 
-        if empresa is not None:
-            conditions.append("""cp.id_interno_empresa IN (
-                SELECT DISTINCT cp2.id_interno_empresa FROM contas_pagas cp2
-                JOIN dim_centrocusto cc2 ON cp2.id_interno_centro_custo = cc2.id_interno_centrocusto
-                WHERE cc2.id_sienge_empresa = %s
-            )""")
-            params.append(empresa)
+        if empresa:
+            emp_ids = parse_csv_int(empresa)
+            if emp_ids:
+                emp_ph = ', '.join(['%s'] * len(emp_ids))
+                conditions.append(f"""cp.id_interno_empresa IN (
+                    SELECT DISTINCT cp2.id_interno_empresa FROM contas_pagas cp2
+                    JOIN dim_centrocusto cc2 ON cp2.id_interno_centro_custo = cc2.id_interno_centrocusto
+                    WHERE cc2.id_sienge_empresa IN ({emp_ph})
+                )""")
+                params.extend(emp_ids)
 
-        if centro_custo is not None:
-            conditions.append("cp.id_interno_centro_custo = %s")
-            params.append(centro_custo)
+        if centro_custo:
+            cc_ids = parse_csv_int(centro_custo)
+            if cc_ids:
+                cc_ph = ', '.join(['%s'] * len(cc_ids))
+                conditions.append(f"cp.id_interno_centro_custo IN ({cc_ph})")
+                params.extend(cc_ids)
 
         if credor:
-            conditions.append("cp.credor ILIKE %s")
-            params.append(f"%{credor}%")
+            credores_list = parse_csv_str(credor)
+            if len(credores_list) == 1:
+                conditions.append("cp.credor ILIKE %s")
+                params.append(f"%{credores_list[0]}%")
+            elif len(credores_list) > 1:
+                cr_conds = []
+                for cr in credores_list:
+                    cr_conds.append("cp.credor ILIKE %s")
+                    params.append(f"%{cr}%")
+                conditions.append(f"({' OR '.join(cr_conds)})")
 
         if id_documento:
             docs = [doc.strip() for doc in id_documento.split(',')]
@@ -1948,8 +2009,8 @@ def get_contas_pagas_por_centro_custo(
 
 @app.get("/api/contas-pagas-por-origem")
 def get_contas_pagas_por_origem(
-    empresa: Optional[int] = None,
-    centro_custo: Optional[int] = None,
+    empresa: Optional[str] = None,
+    centro_custo: Optional[str] = None,
     credor: Optional[str] = None,
     id_documento: Optional[str] = None,
     origem_dado: Optional[str] = None,
@@ -2019,21 +2080,35 @@ def get_contas_pagas_por_origem(
         except Exception:
             pass
 
-        if empresa is not None:
-            conditions.append("""cp.id_interno_empresa IN (
-                SELECT DISTINCT cp2.id_interno_empresa FROM contas_pagas cp2
-                JOIN dim_centrocusto cc2 ON cp2.id_interno_centro_custo = cc2.id_interno_centrocusto
-                WHERE cc2.id_sienge_empresa = %s
-            )""")
-            params.append(empresa)
+        if empresa:
+            emp_ids = parse_csv_int(empresa)
+            if emp_ids:
+                emp_ph = ', '.join(['%s'] * len(emp_ids))
+                conditions.append(f"""cp.id_interno_empresa IN (
+                    SELECT DISTINCT cp2.id_interno_empresa FROM contas_pagas cp2
+                    JOIN dim_centrocusto cc2 ON cp2.id_interno_centro_custo = cc2.id_interno_centrocusto
+                    WHERE cc2.id_sienge_empresa IN ({emp_ph})
+                )""")
+                params.extend(emp_ids)
 
-        if centro_custo is not None:
-            conditions.append("cp.id_interno_centro_custo = %s")
-            params.append(centro_custo)
+        if centro_custo:
+            cc_ids = parse_csv_int(centro_custo)
+            if cc_ids:
+                cc_ph = ', '.join(['%s'] * len(cc_ids))
+                conditions.append(f"cp.id_interno_centro_custo IN ({cc_ph})")
+                params.extend(cc_ids)
 
         if credor:
-            conditions.append("cp.credor ILIKE %s")
-            params.append(f"%{credor}%")
+            credores_list = parse_csv_str(credor)
+            if len(credores_list) == 1:
+                conditions.append("cp.credor ILIKE %s")
+                params.append(f"%{credores_list[0]}%")
+            elif len(credores_list) > 1:
+                cr_conds = []
+                for cr in credores_list:
+                    cr_conds.append("cp.credor ILIKE %s")
+                    params.append(f"%{cr}%")
+                conditions.append(f"({' OR '.join(cr_conds)})")
 
         if id_documento:
             docs = [doc.strip() for doc in id_documento.split(',')]
@@ -2161,8 +2236,8 @@ def get_contas_pagas_por_origem(
 # └──────────────────────────────────────────────────────────────┘
 @app.get("/api/estatisticas-contas-pagas")
 def get_estatisticas_contas_pagas(
-    empresa: Optional[int] = None,
-    centro_custo: Optional[int] = None,
+    empresa: Optional[str] = None,
+    centro_custo: Optional[str] = None,
     credor: Optional[str] = None,
     id_documento: Optional[str] = None,
     origem_dado: Optional[str] = None,
@@ -2226,21 +2301,35 @@ def get_estatisticas_contas_pagas(
         except Exception:
             pass
 
-        if empresa is not None:
-            conditions.append("""cp.id_interno_empresa IN (
-                SELECT DISTINCT cp2.id_interno_empresa FROM contas_pagas cp2
-                JOIN dim_centrocusto cc2 ON cp2.id_interno_centro_custo = cc2.id_interno_centrocusto
-                WHERE cc2.id_sienge_empresa = %s
-            )""")
-            params.append(empresa)
+        if empresa:
+            emp_ids = parse_csv_int(empresa)
+            if emp_ids:
+                emp_ph = ', '.join(['%s'] * len(emp_ids))
+                conditions.append(f"""cp.id_interno_empresa IN (
+                    SELECT DISTINCT cp2.id_interno_empresa FROM contas_pagas cp2
+                    JOIN dim_centrocusto cc2 ON cp2.id_interno_centro_custo = cc2.id_interno_centrocusto
+                    WHERE cc2.id_sienge_empresa IN ({emp_ph})
+                )""")
+                params.extend(emp_ids)
 
-        if centro_custo is not None:
-            conditions.append("cp.id_interno_centro_custo = %s")
-            params.append(centro_custo)
+        if centro_custo:
+            cc_ids = parse_csv_int(centro_custo)
+            if cc_ids:
+                cc_ph = ', '.join(['%s'] * len(cc_ids))
+                conditions.append(f"cp.id_interno_centro_custo IN ({cc_ph})")
+                params.extend(cc_ids)
 
         if credor:
-            conditions.append("cp.credor ILIKE %s")
-            params.append(f"%{credor}%")
+            credores_list = parse_csv_str(credor)
+            if len(credores_list) == 1:
+                conditions.append("cp.credor ILIKE %s")
+                params.append(f"%{credores_list[0]}%")
+            elif len(credores_list) > 1:
+                cr_conds = []
+                for cr in credores_list:
+                    cr_conds.append("cp.credor ILIKE %s")
+                    params.append(f"%{cr}%")
+                conditions.append(f"({' OR '.join(cr_conds)})")
 
         if id_documento:
             docs = [doc.strip() for doc in id_documento.split(',')]
@@ -2597,8 +2686,8 @@ def get_tipos_baixa():
 
 @app.get("/api/estatisticas-por-mes")
 def get_estatisticas_por_mes(
-    empresa: Optional[int] = None,
-    centro_custo: Optional[int] = None,
+    empresa: Optional[str] = None,
+    centro_custo: Optional[str] = None,
     credor: Optional[str] = None,
     id_documento: Optional[str] = None,
     origem_dado: Optional[str] = None,
@@ -2617,17 +2706,31 @@ def get_estatisticas_por_mes(
         conditions = list(excl_conds)
         params = list(excl_params)
 
-        if empresa is not None:
-            conditions.append("cc.id_sienge_empresa = %s")
-            params.append(empresa)
+        if empresa:
+            emp_ids = parse_csv_int(empresa)
+            if emp_ids:
+                emp_ph = ', '.join(['%s'] * len(emp_ids))
+                conditions.append(f"cc.id_sienge_empresa IN ({emp_ph})")
+                params.extend(emp_ids)
 
-        if centro_custo is not None:
-            conditions.append("cp.id_interno_centro_custo = %s")
-            params.append(centro_custo)
+        if centro_custo:
+            cc_ids = parse_csv_int(centro_custo)
+            if cc_ids:
+                cc_ph = ', '.join(['%s'] * len(cc_ids))
+                conditions.append(f"cp.id_interno_centro_custo IN ({cc_ph})")
+                params.extend(cc_ids)
 
         if credor:
-            conditions.append("cp.credor ILIKE %s")
-            params.append(f"%{credor}%")
+            credores_list = parse_csv_str(credor)
+            if len(credores_list) == 1:
+                conditions.append("cp.credor ILIKE %s")
+                params.append(f"%{credores_list[0]}%")
+            elif len(credores_list) > 1:
+                cr_conds = []
+                for cr in credores_list:
+                    cr_conds.append("cp.credor ILIKE %s")
+                    params.append(f"%{cr}%")
+                conditions.append(f"({' OR '.join(cr_conds)})")
 
         if id_documento:
             docs = [doc.strip() for doc in id_documento.split(',')]
@@ -2708,8 +2811,8 @@ def get_estatisticas_por_mes(
 
 @app.get("/api/recebidas-por-mes")
 def get_recebidas_por_mes(
-    empresa: Optional[int] = None,
-    centro_custo: Optional[int] = None,
+    empresa: Optional[str] = None,
+    centro_custo: Optional[str] = None,
     ano: Optional[str] = None
 ):
     """Retorna totais de contas recebidas agrupados por mês"""
@@ -2721,13 +2824,19 @@ def get_recebidas_por_mes(
         conditions = list(excl_conds)
         params = list(excl_params)
 
-        if empresa is not None:
-            conditions.append("cc.id_sienge_empresa = %s")
-            params.append(empresa)
+        if empresa:
+            emp_ids = parse_csv_int(empresa)
+            if emp_ids:
+                emp_ph = ', '.join(['%s'] * len(emp_ids))
+                conditions.append(f"cc.id_sienge_empresa IN ({emp_ph})")
+                params.extend(emp_ids)
 
-        if centro_custo is not None:
-            conditions.append("cr.id_interno_centro_custo = %s")
-            params.append(centro_custo)
+        if centro_custo:
+            cc_ids = parse_csv_int(centro_custo)
+            if cc_ids:
+                cc_ph = ', '.join(['%s'] * len(cc_ids))
+                conditions.append(f"cr.id_interno_centro_custo IN ({cc_ph})")
+                params.extend(cc_ids)
 
         if ano:
             anos = [int(a.strip()) for a in ano.split(',')]
@@ -2769,7 +2878,7 @@ def get_recebidas_por_mes(
 
 @app.get("/api/estatisticas-por-empresa")
 def get_estatisticas_por_empresa(
-    centro_custo: Optional[int] = None,
+    centro_custo: Optional[str] = None,
     credor: Optional[str] = None,
     id_documento: Optional[str] = None,
     origem_dado: Optional[str] = None,
@@ -2789,9 +2898,12 @@ def get_estatisticas_por_empresa(
         conditions = list(excl_conds)
         params = list(excl_params)
 
-        if centro_custo is not None:
-            conditions.append("cp.id_interno_centro_custo = %s")
-            params.append(centro_custo)
+        if centro_custo:
+            cc_ids = parse_csv_int(centro_custo)
+            if cc_ids:
+                cc_ph = ', '.join(['%s'] * len(cc_ids))
+                conditions.append(f"cp.id_interno_centro_custo IN ({cc_ph})")
+                params.extend(cc_ids)
 
         if credor:
             conditions.append("cp.credor ILIKE %s")
@@ -2873,8 +2985,8 @@ def get_estatisticas_por_empresa(
 
 @app.get("/api/estatisticas-por-origem")
 def get_estatisticas_por_origem(
-    empresa: Optional[int] = None,
-    centro_custo: Optional[int] = None,
+    empresa: Optional[str] = None,
+    centro_custo: Optional[str] = None,
     credor: Optional[str] = None,
     id_documento: Optional[str] = None,
     origem_dado: Optional[str] = None,
@@ -2894,17 +3006,31 @@ def get_estatisticas_por_origem(
         conditions = list(excl_conds)
         params = list(excl_params)
 
-        if empresa is not None:
-            conditions.append("cc.id_sienge_empresa = %s")
-            params.append(empresa)
+        if empresa:
+            emp_ids = parse_csv_int(empresa)
+            if emp_ids:
+                emp_ph = ', '.join(['%s'] * len(emp_ids))
+                conditions.append(f"cc.id_sienge_empresa IN ({emp_ph})")
+                params.extend(emp_ids)
 
-        if centro_custo is not None:
-            conditions.append("cp.id_interno_centro_custo = %s")
-            params.append(centro_custo)
+        if centro_custo:
+            cc_ids = parse_csv_int(centro_custo)
+            if cc_ids:
+                cc_ph = ', '.join(['%s'] * len(cc_ids))
+                conditions.append(f"cp.id_interno_centro_custo IN ({cc_ph})")
+                params.extend(cc_ids)
 
         if credor:
-            conditions.append("cp.credor ILIKE %s")
-            params.append(f"%{credor}%")
+            credores_list = parse_csv_str(credor)
+            if len(credores_list) == 1:
+                conditions.append("cp.credor ILIKE %s")
+                params.append(f"%{credores_list[0]}%")
+            elif len(credores_list) > 1:
+                cr_conds = []
+                for cr in credores_list:
+                    cr_conds.append("cp.credor ILIKE %s")
+                    params.append(f"%{cr}%")
+                conditions.append(f"({' OR '.join(cr_conds)})")
 
         if id_documento:
             docs = [doc.strip() for doc in id_documento.split(',')]
@@ -2981,8 +3107,8 @@ def get_estatisticas_por_origem(
 
 @app.get("/api/top-credores")
 def get_top_credores(
-    empresa: Optional[int] = None,
-    centro_custo: Optional[int] = None,
+    empresa: Optional[str] = None,
+    centro_custo: Optional[str] = None,
     id_documento: Optional[str] = None,
     origem_dado: Optional[str] = None,
     tipo_baixa: Optional[str] = None,
@@ -3002,13 +3128,19 @@ def get_top_credores(
         conditions = list(excl_conds)
         params = list(excl_params)
 
-        if empresa is not None:
-            conditions.append("cc.id_sienge_empresa = %s")
-            params.append(empresa)
+        if empresa:
+            emp_ids = parse_csv_int(empresa)
+            if emp_ids:
+                emp_ph = ', '.join(['%s'] * len(emp_ids))
+                conditions.append(f"cc.id_sienge_empresa IN ({emp_ph})")
+                params.extend(emp_ids)
 
-        if centro_custo is not None:
-            conditions.append("cp.id_interno_centro_custo = %s")
-            params.append(centro_custo)
+        if centro_custo:
+            cc_ids = parse_csv_int(centro_custo)
+            if cc_ids:
+                cc_ph = ', '.join(['%s'] * len(cc_ids))
+                conditions.append(f"cp.id_interno_centro_custo IN ({cc_ph})")
+                params.extend(cc_ids)
 
         if id_documento:
             docs = [doc.strip() for doc in id_documento.split(',')]
@@ -3087,8 +3219,8 @@ def get_top_credores(
 
 @app.get("/api/ranking-credores")
 def get_ranking_credores(
-    empresa: Optional[int] = None,
-    centro_custo: Optional[int] = None,
+    empresa: Optional[str] = None,
+    centro_custo: Optional[str] = None,
     id_documento: Optional[str] = None,
     origem_dado: Optional[str] = None,
     tipo_baixa: Optional[str] = None,
@@ -3107,13 +3239,19 @@ def get_ranking_credores(
         conditions = list(excl_conds)
         params = list(excl_params)
 
-        if empresa is not None:
-            conditions.append("cc.id_sienge_empresa = %s")
-            params.append(empresa)
+        if empresa:
+            emp_ids = parse_csv_int(empresa)
+            if emp_ids:
+                emp_ph = ', '.join(['%s'] * len(emp_ids))
+                conditions.append(f"cc.id_sienge_empresa IN ({emp_ph})")
+                params.extend(emp_ids)
 
-        if centro_custo is not None:
-            conditions.append("cp.id_interno_centro_custo = %s")
-            params.append(centro_custo)
+        if centro_custo:
+            cc_ids = parse_csv_int(centro_custo)
+            if cc_ids:
+                cc_ph = ', '.join(['%s'] * len(cc_ids))
+                conditions.append(f"cp.id_interno_centro_custo IN ({cc_ph})")
+                params.extend(cc_ids)
 
         if id_documento:
             docs = [doc.strip() for doc in id_documento.split(',')]
@@ -3228,8 +3366,8 @@ def get_ranking_credores(
 
 @app.get("/api/comparacao-anual")
 def get_comparacao_anual(
-    empresa: Optional[int] = None,
-    centro_custo: Optional[int] = None,
+    empresa: Optional[str] = None,
+    centro_custo: Optional[str] = None,
     credor: Optional[str] = None,
     id_documento: Optional[str] = None,
     origem_dado: Optional[str] = None,
@@ -3245,17 +3383,31 @@ def get_comparacao_anual(
         conditions = list(excl_conds)
         params = list(excl_params)
 
-        if empresa is not None:
-            conditions.append("cc.id_sienge_empresa = %s")
-            params.append(empresa)
+        if empresa:
+            emp_ids = parse_csv_int(empresa)
+            if emp_ids:
+                emp_ph = ', '.join(['%s'] * len(emp_ids))
+                conditions.append(f"cc.id_sienge_empresa IN ({emp_ph})")
+                params.extend(emp_ids)
 
-        if centro_custo is not None:
-            conditions.append("cp.id_interno_centro_custo = %s")
-            params.append(centro_custo)
+        if centro_custo:
+            cc_ids = parse_csv_int(centro_custo)
+            if cc_ids:
+                cc_ph = ', '.join(['%s'] * len(cc_ids))
+                conditions.append(f"cp.id_interno_centro_custo IN ({cc_ph})")
+                params.extend(cc_ids)
 
         if credor:
-            conditions.append("cp.credor ILIKE %s")
-            params.append(f"%{credor}%")
+            credores_list = parse_csv_str(credor)
+            if len(credores_list) == 1:
+                conditions.append("cp.credor ILIKE %s")
+                params.append(f"%{credores_list[0]}%")
+            elif len(credores_list) > 1:
+                cr_conds = []
+                for cr in credores_list:
+                    cr_conds.append("cp.credor ILIKE %s")
+                    params.append(f"%{cr}%")
+                conditions.append(f"({' OR '.join(cr_conds)})")
 
         if id_documento:
             docs = [doc.strip() for doc in id_documento.split(',')]
@@ -3329,8 +3481,8 @@ def get_comparacao_anual(
 
 @app.get("/api/comparacao-mensal")
 def get_comparacao_mensal(
-    empresa: Optional[int] = None,
-    centro_custo: Optional[int] = None,
+    empresa: Optional[str] = None,
+    centro_custo: Optional[str] = None,
     credor: Optional[str] = None,
     id_documento: Optional[str] = None,
     origem_dado: Optional[str] = None,
@@ -3346,17 +3498,31 @@ def get_comparacao_mensal(
         conditions = list(excl_conds)
         params = list(excl_params)
 
-        if empresa is not None:
-            conditions.append("cc.id_sienge_empresa = %s")
-            params.append(empresa)
+        if empresa:
+            emp_ids = parse_csv_int(empresa)
+            if emp_ids:
+                emp_ph = ', '.join(['%s'] * len(emp_ids))
+                conditions.append(f"cc.id_sienge_empresa IN ({emp_ph})")
+                params.extend(emp_ids)
 
-        if centro_custo is not None:
-            conditions.append("cp.id_interno_centro_custo = %s")
-            params.append(centro_custo)
+        if centro_custo:
+            cc_ids = parse_csv_int(centro_custo)
+            if cc_ids:
+                cc_ph = ', '.join(['%s'] * len(cc_ids))
+                conditions.append(f"cp.id_interno_centro_custo IN ({cc_ph})")
+                params.extend(cc_ids)
 
         if credor:
-            conditions.append("cp.credor ILIKE %s")
-            params.append(f"%{credor}%")
+            credores_list = parse_csv_str(credor)
+            if len(credores_list) == 1:
+                conditions.append("cp.credor ILIKE %s")
+                params.append(f"%{credores_list[0]}%")
+            elif len(credores_list) > 1:
+                cr_conds = []
+                for cr in credores_list:
+                    cr_conds.append("cp.credor ILIKE %s")
+                    params.append(f"%{cr}%")
+                conditions.append(f"({' OR '.join(cr_conds)})")
 
         if id_documento:
             docs = [doc.strip() for doc in id_documento.split(',')]
@@ -3590,7 +3756,7 @@ class KPIHistoricoResponse(BaseModel):
 # Endpoints de Classificação de Centros de Custo
 
 @app.get("/api/centros-custo/todos")
-def get_todos_centros_custo(empresa: Optional[int] = None):
+def get_todos_centros_custo(empresa: Optional[str] = None):
     """Retorna todos os centros de custo do banco externo com suas classificações"""
     conn = get_db_connection()  # Banco externo
     cursor = conn.cursor()
@@ -3599,9 +3765,12 @@ def get_todos_centros_custo(empresa: Optional[int] = None):
         conditions = []
         params = []
         
-        if empresa is not None:
-            conditions.append("cc.id_sienge_empresa = %s")
-            params.append(empresa)
+        if empresa:
+            emp_ids = parse_csv_int(empresa)
+            if emp_ids:
+                emp_ph = ', '.join(['%s'] * len(emp_ids))
+                conditions.append(f"cc.id_sienge_empresa IN ({emp_ph})")
+                params.extend(emp_ids)
         
         where_clause = " AND ".join(conditions) if conditions else "1=1"
         
@@ -4920,8 +5089,8 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
 
 @app.get("/api/contas-recebidas-filtradas")
 def get_contas_recebidas_filtradas(
-    empresa: Optional[int] = None,
-    centro_custo: Optional[int] = None,
+    empresa: Optional[str] = None,
+    centro_custo: Optional[str] = None,
     cliente: Optional[str] = None,
     id_documento: Optional[str] = None,
     ano: Optional[str] = None,
@@ -4963,14 +5132,20 @@ def get_contas_recebidas_filtradas(
             params.extend(exclusoes['tipos_documento'])
 
         # Filtro de empresa via cc.id_sienge_empresa (JOIN direto funciona: LAGOA cc.id_sienge_empresa=3)
-        if empresa is not None:
-            conditions.append("cc.id_sienge_empresa = %s")
-            params.append(empresa)
+        if empresa:
+            emp_ids = parse_csv_int(empresa)
+            if emp_ids:
+                emp_ph = ', '.join(['%s'] * len(emp_ids))
+                conditions.append(f"cc.id_sienge_empresa IN ({emp_ph})")
+                params.extend(emp_ids)
 
         # Filtro de centro de custo (direto em cr.id_interno_centro_custo)
-        if centro_custo is not None:
-            conditions.append("cr.id_interno_centro_custo = %s")
-            params.append(centro_custo)
+        if centro_custo:
+            cc_ids = parse_csv_int(centro_custo)
+            if cc_ids:
+                cc_ph = ', '.join(['%s'] * len(cc_ids))
+                conditions.append(f"cr.id_interno_centro_custo IN ({cc_ph})")
+                params.extend(cc_ids)
 
         if cliente:
             conditions.append("cr.cliente ILIKE %s")
@@ -5069,8 +5244,8 @@ def get_contas_recebidas_filtradas(
 
 @app.get("/api/contas-recebidas-totais")
 def get_contas_recebidas_totais(
-    empresa: Optional[int] = None,
-    centro_custo: Optional[int] = None,
+    empresa: Optional[str] = None,
+    centro_custo: Optional[str] = None,
     cliente: Optional[str] = None,
     id_documento: Optional[str] = None,
     ano: Optional[str] = None,
@@ -5100,13 +5275,19 @@ def get_contas_recebidas_totais(
             conditions.append(f"TRIM(cr.id_documento) NOT IN ({ph})")
             params.extend(exclusoes['tipos_documento'])
 
-        if empresa is not None:
-            conditions.append("cc.id_sienge_empresa = %s")
-            params.append(empresa)
+        if empresa:
+            emp_ids = parse_csv_int(empresa)
+            if emp_ids:
+                emp_ph = ', '.join(['%s'] * len(emp_ids))
+                conditions.append(f"cc.id_sienge_empresa IN ({emp_ph})")
+                params.extend(emp_ids)
 
-        if centro_custo is not None:
-            conditions.append("cr.id_interno_centro_custo = %s")
-            params.append(centro_custo)
+        if centro_custo:
+            cc_ids = parse_csv_int(centro_custo)
+            if cc_ids:
+                cc_ph = ', '.join(['%s'] * len(cc_ids))
+                conditions.append(f"cr.id_interno_centro_custo IN ({cc_ph})")
+                params.extend(cc_ids)
 
         if cliente:
             conditions.append("cr.cliente ILIKE %s")
@@ -5151,7 +5332,7 @@ def get_contas_recebidas_totais(
         conn.close()
 
 @app.get("/api/estoque-unidades")
-def get_estoque_unidades(centro_custo: Optional[int] = None):
+def get_estoque_unidades(centro_custo: Optional[str] = None):
     """Retorna estoque de unidades da tabela imovel_unidade agrupado por flag_comercial"""
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -5159,9 +5340,12 @@ def get_estoque_unidades(centro_custo: Optional[int] = None):
         conditions = []
         params = []
 
-        if centro_custo is not None:
-            conditions.append("iu.id_interno_centrocusto = %s")
-            params.append(centro_custo)
+        if centro_custo:
+            cc_ids = parse_csv_int(centro_custo)
+            if cc_ids:
+                cc_ph = ', '.join(['%s'] * len(cc_ids))
+                conditions.append(f"iu.id_interno_centrocusto IN ({cc_ph})")
+                params.extend(cc_ids)
 
         where_clause = " AND ".join(conditions) if conditions else "1=1"
 
@@ -5236,8 +5420,8 @@ def get_estoque_unidades(centro_custo: Optional[int] = None):
 
 @app.get("/api/contas-receber-estatisticas")
 def get_contas_receber_estatisticas(
-    empresa: Optional[int] = None,
-    centro_custo: Optional[int] = None,
+    empresa: Optional[str] = None,
+    centro_custo: Optional[str] = None,
     ano: Optional[str] = None,
     mes: Optional[str] = None,
     id_documento: Optional[str] = None
@@ -5252,13 +5436,19 @@ def get_contas_receber_estatisticas(
         conditions = list(excl_conds)
         params = list(excl_params)
 
-        if empresa is not None:
-            conditions.append("cc.id_sienge_empresa = %s")
-            params.append(empresa)
+        if empresa:
+            emp_ids = parse_csv_int(empresa)
+            if emp_ids:
+                emp_ph = ', '.join(['%s'] * len(emp_ids))
+                conditions.append(f"cc.id_sienge_empresa IN ({emp_ph})")
+                params.extend(emp_ids)
 
-        if centro_custo is not None:
-            conditions.append("car.id_interno_centro_custo = %s")
-            params.append(centro_custo)
+        if centro_custo:
+            cc_ids = parse_csv_int(centro_custo)
+            if cc_ids:
+                cc_ph = ', '.join(['%s'] * len(cc_ids))
+                conditions.append(f"car.id_interno_centro_custo IN ({cc_ph})")
+                params.extend(cc_ids)
 
         if ano:
             anos = [int(a.strip()) for a in ano.split(',')]
@@ -5338,8 +5528,8 @@ def get_contas_receber_estatisticas(
 
 @app.get("/api/contas-recebidas-estatisticas")
 def get_contas_recebidas_estatisticas(
-    empresa: Optional[int] = None,
-    centro_custo: Optional[int] = None,
+    empresa: Optional[str] = None,
+    centro_custo: Optional[str] = None,
     ano: Optional[str] = None,
     mes: Optional[str] = None,
     id_documento: Optional[str] = None
@@ -5376,13 +5566,19 @@ def get_contas_recebidas_estatisticas(
             params.extend(exclusoes['tipos_documento'])
 
         # Filtro empresa via cc.id_sienge_empresa (JOIN direto cr→dim_centrocusto)
-        if empresa is not None:
-            conditions.append("cc.id_sienge_empresa = %s")
-            params.append(empresa)
+        if empresa:
+            emp_ids = parse_csv_int(empresa)
+            if emp_ids:
+                emp_ph = ', '.join(['%s'] * len(emp_ids))
+                conditions.append(f"cc.id_sienge_empresa IN ({emp_ph})")
+                params.extend(emp_ids)
 
-        if centro_custo is not None:
-            conditions.append("cr.id_interno_centro_custo = %s")
-            params.append(centro_custo)
+        if centro_custo:
+            cc_ids = parse_csv_int(centro_custo)
+            if cc_ids:
+                cc_ph = ', '.join(['%s'] * len(cc_ids))
+                conditions.append(f"cr.id_interno_centro_custo IN ({cc_ph})")
+                params.extend(cc_ids)
 
         if ano:
             anos = [int(a.strip()) for a in ano.split(',')]
@@ -5431,8 +5627,8 @@ def get_contas_recebidas_estatisticas(
 
 @app.get("/api/contas-receber-por-cliente")
 def get_contas_receber_por_cliente(
-    empresa: Optional[int] = None,
-    centro_custo: Optional[int] = None,
+    empresa: Optional[str] = None,
+    centro_custo: Optional[str] = None,
     ano: Optional[str] = None,
     mes: Optional[str] = None,
     id_documento: Optional[str] = None,
@@ -5448,13 +5644,19 @@ def get_contas_receber_por_cliente(
         conditions = list(excl_conds)
         params = list(excl_params)
 
-        if empresa is not None:
-            conditions.append("cc.id_sienge_empresa = %s")
-            params.append(empresa)
+        if empresa:
+            emp_ids = parse_csv_int(empresa)
+            if emp_ids:
+                emp_ph = ', '.join(['%s'] * len(emp_ids))
+                conditions.append(f"cc.id_sienge_empresa IN ({emp_ph})")
+                params.extend(emp_ids)
 
-        if centro_custo is not None:
-            conditions.append("car.id_interno_centro_custo = %s")
-            params.append(centro_custo)
+        if centro_custo:
+            cc_ids = parse_csv_int(centro_custo)
+            if cc_ids:
+                cc_ph = ', '.join(['%s'] * len(cc_ids))
+                conditions.append(f"car.id_interno_centro_custo IN ({cc_ph})")
+                params.extend(cc_ids)
 
         if ano:
             anos = [int(a.strip()) for a in ano.split(',')]
@@ -5503,7 +5705,7 @@ def get_contas_receber_por_cliente(
 
 @app.get("/api/contas-recebidas-por-cliente")
 def get_contas_recebidas_por_cliente(
-    empresa: Optional[int] = None,
+    empresa: Optional[str] = None,
     ano: Optional[str] = None,
     mes: Optional[str] = None,
     id_documento: Optional[str] = None,
@@ -5519,9 +5721,12 @@ def get_contas_recebidas_por_cliente(
         conditions = list(excl_conds)
         params = list(excl_params)
 
-        if empresa is not None:
-            conditions.append("cc.id_sienge_empresa = %s")
-            params.append(empresa)
+        if empresa:
+            emp_ids = parse_csv_int(empresa)
+            if emp_ids:
+                emp_ph = ', '.join(['%s'] * len(emp_ids))
+                conditions.append(f"cc.id_sienge_empresa IN ({emp_ph})")
+                params.extend(emp_ids)
 
         if ano:
             anos = [int(a.strip()) for a in ano.split(',')]
@@ -6019,7 +6224,7 @@ def get_titulos_cliente(cliente: str):
 @app.get("/api/progress-titulos-cliente")
 def get_progress_titulos_cliente(
     cliente: str,
-    empresa: Optional[int] = None,
+    empresa: Optional[str] = None,
     ano: Optional[str] = None,
     mes: Optional[str] = None,
     tipo_baixa: Optional[str] = None,
@@ -6042,9 +6247,12 @@ def get_progress_titulos_cliente(
             ph = ','.join(['%s'] * len(exclusoes['centros_custo']))
             car_conditions.append(f"car.id_interno_centro_custo NOT IN ({ph})")
             car_params.extend(exclusoes['centros_custo'])
-        if empresa is not None:
-            car_conditions.append("cc.id_sienge_empresa = %s")
-            car_params.append(empresa)
+        if empresa:
+            emp_ids = parse_csv_int(empresa)
+            if emp_ids:
+                emp_ph = ', '.join(['%s'] * len(emp_ids))
+                car_conditions.append(f"cc.id_sienge_empresa IN ({emp_ph})")
+                car_params.extend(emp_ids)
         where_car = " AND ".join(car_conditions)
 
         # Condições para contas_recebidas (parcelas já recebidas - com filtros de período)
@@ -6054,9 +6262,12 @@ def get_progress_titulos_cliente(
             ph = ','.join(['%s'] * len(exclusoes['empresas']))
             cr_conditions.append(f"(cc2.id_sienge_empresa IS NULL OR cc2.id_sienge_empresa NOT IN ({ph}))")
             cr_params.extend(exclusoes['empresas'])
-        if empresa is not None:
-            cr_conditions.append("cc2.id_sienge_empresa = %s")
-            cr_params.append(empresa)
+        if empresa:
+            emp_ids = parse_csv_int(empresa)
+            if emp_ids:
+                emp_ph = ', '.join(['%s'] * len(emp_ids))
+                cr_conditions.append(f"cc2.id_sienge_empresa IN ({emp_ph})")
+                cr_params.extend(emp_ids)
         if ano:
             anos = [int(a.strip()) for a in ano.split(',')]
             ph = ', '.join(['%s'] * len(anos))
@@ -6314,8 +6525,8 @@ def delete_origem_meta(meta_id: int):
 
 @app.get("/api/origem-metas/status")
 def get_origem_metas_status(
-    empresa: Optional[int] = None,
-    centro_custo: Optional[int] = None,
+    empresa: Optional[str] = None,
+    centro_custo: Optional[str] = None,
     ano: Optional[str] = None,
     mes: Optional[str] = None,
     data_inicio: Optional[str] = None,
@@ -6350,13 +6561,19 @@ def get_origem_metas_status(
         conditions = list(excl_conds)
         params = list(excl_params)
         
-        if empresa is not None:
-            conditions.append("cc.id_sienge_empresa = %s")
-            params.append(empresa)
+        if empresa:
+            emp_ids = parse_csv_int(empresa)
+            if emp_ids:
+                emp_ph = ', '.join(['%s'] * len(emp_ids))
+                conditions.append(f"cc.id_sienge_empresa IN ({emp_ph})")
+                params.extend(emp_ids)
         
-        if centro_custo is not None:
-            conditions.append("cp.id_interno_centro_custo = %s")
-            params.append(centro_custo)
+        if centro_custo:
+            cc_ids = parse_csv_int(centro_custo)
+            if cc_ids:
+                cc_ph = ', '.join(['%s'] * len(cc_ids))
+                conditions.append(f"cp.id_interno_centro_custo IN ({cc_ph})")
+                params.extend(cc_ids)
         
         if ano:
             anos = [int(a.strip()) for a in ano.split(',')]

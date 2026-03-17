@@ -206,8 +206,8 @@ export const apiService = {
 
   // Contas pagas com filtros
   getContasPagasFiltradas: async (filtros: {
-    empresa?: number;
-    centro_custo?: number;
+    empresa?: number | string;
+    centro_custo?: number | string;
     credor?: string;
     id_documento?: string;
     origem_dado?: string;
@@ -241,8 +241,8 @@ export const apiService = {
 
   // Contas pagas agrupadas por fornecedor
   getContasPagasPorFornecedor: async (filtros: {
-    empresa?: number;
-    centro_custo?: number;
+    empresa?: number | string;
+    centro_custo?: number | string;
     credor?: string;
     id_documento?: string;
     origem_dado?: string;
@@ -288,8 +288,8 @@ export const apiService = {
 
   // Contas pagas agrupadas por centro de custo
   getContasPagasPorCentroCusto: async (filtros: {
-    empresa?: number;
-    centro_custo?: number;
+    empresa?: number | string;
+    centro_custo?: number | string;
     credor?: string;
     id_documento?: string;
     origem_dado?: string;
@@ -404,8 +404,8 @@ export const apiService = {
 
   // Estatísticas Contas Pagas
   getEstatisticasContasPagas: async (filtros: {
-    empresa?: number;
-    centro_custo?: number;
+    empresa?: number | string;
+    centro_custo?: number | string;
     credor?: string;
     id_documento?: string;
     origem_dado?: string;
@@ -442,8 +442,8 @@ export const apiService = {
 
   // Estatísticas por mês
   getEstatisticasPorMes: async (filtros: {
-    empresa?: number;
-    centro_custo?: number;
+    empresa?: number | string;
+    centro_custo?: number | string;
     credor?: string;
     id_documento?: string;
     origem_dado?: string;
@@ -465,7 +465,7 @@ export const apiService = {
 
   // Estatísticas por empresa
   getEstatisticasPorEmpresa: async (filtros: {
-    centro_custo?: number;
+    centro_custo?: number | string;
     credor?: string;
     id_documento?: string;
     origem_dado?: string;
@@ -492,8 +492,8 @@ export const apiService = {
 
   // Estatísticas por origem
   getEstatisticasPorOrigem: async (filtros: {
-    empresa?: number;
-    centro_custo?: number;
+    empresa?: number | string;
+    centro_custo?: number | string;
     credor?: string;
     id_documento?: string;
     origem_dado?: string;
@@ -521,8 +521,8 @@ export const apiService = {
 
   // Top credores
   getTopCredores: async (filtros: {
-    empresa?: number;
-    centro_custo?: number;
+    empresa?: number | string;
+    centro_custo?: number | string;
     id_documento?: string;
     origem_dado?: string;
     tipo_baixa?: string;
@@ -550,8 +550,8 @@ export const apiService = {
 
   // Ranking completo de credores com percentuais e Pareto
   getRankingCredores: async (filtros: {
-    empresa?: number;
-    centro_custo?: number;
+    empresa?: number | string;
+    centro_custo?: number | string;
     id_documento?: string;
     origem_dado?: string;
     tipo_baixa?: string;
@@ -590,8 +590,8 @@ export const apiService = {
 
   // Comparacao anual (ano atual vs ano anterior)
   getComparacaoAnual: async (filtros: {
-    empresa?: number;
-    centro_custo?: number;
+    empresa?: number | string;
+    centro_custo?: number | string;
     credor?: string;
     id_documento?: string;
     origem_dado?: string;
@@ -611,8 +611,8 @@ export const apiService = {
 
   // Comparacao mensal (ultimos 12 meses com variacao)
   getComparacaoMensal: async (filtros: {
-    empresa?: number;
-    centro_custo?: number;
+    empresa?: number | string;
+    centro_custo?: number | string;
     credor?: string;
     id_documento?: string;
     origem_dado?: string;
@@ -733,8 +733,8 @@ export const apiService = {
 
   // Contas recebidas com filtros
   getContasRecebidasFiltradas: async (filtros: {
-    empresa?: number;
-    centro_custo?: number;
+    empresa?: number | string;
+    centro_custo?: number | string;
     cliente?: string;
     id_documento?: string;
     ano?: string;
@@ -762,8 +762,8 @@ export const apiService = {
 
   // Totais de contas recebidas sem LIMIT (para estatísticas corretas)
   getContasRecebidasTotais: async (filtros: {
-    empresa?: number;
-    centro_custo?: number;
+    empresa?: number | string;
+    centro_custo?: number | string;
     cliente?: string;
     id_documento?: string;
     ano?: string;
@@ -785,7 +785,7 @@ export const apiService = {
   // Progresso de recebimento por título de um cliente
   getProgressTitulosCliente: async (filtros: {
     cliente: string;
-    empresa?: number;
+    empresa?: number | string;
     ano?: string;
     mes?: string;
     tipo_baixa?: string;
@@ -802,8 +802,8 @@ export const apiService = {
 
   // Estatísticas contas a receber
   getEstatisticasContasReceber: async (filtros: {
-    empresa?: number;
-    centro_custo?: number;
+    empresa?: number | string;
+    centro_custo?: number | string;
     ano?: string;
     mes?: string;
     id_documento?: string;
@@ -830,8 +830,8 @@ export const apiService = {
 
   // Estatísticas contas recebidas
   getEstatisticasContasRecebidas: async (filtros: {
-    empresa?: number;
-    centro_custo?: number;
+    empresa?: number | string;
+    centro_custo?: number | string;
     ano?: string;
     mes?: string;
     id_documento?: string;
@@ -853,8 +853,8 @@ export const apiService = {
 
   // Contas a receber por cliente
   getContasReceberPorCliente: async (filtros: {
-    empresa?: number;
-    centro_custo?: number;
+    empresa?: number | string;
+    centro_custo?: number | string;
     ano?: string;
     mes?: string;
     id_documento?: string;
@@ -874,7 +874,7 @@ export const apiService = {
 
   // Contas recebidas por cliente
   getContasRecebidasPorCliente: async (filtros: {
-    empresa?: number;
+    empresa?: number | string;
     ano?: string;
     mes?: string;
     id_documento?: string;
@@ -996,8 +996,8 @@ export const apiService = {
 
   // Obter status das metas com base nos filtros
   getOrigemMetasStatus: async (filtros: {
-    empresa?: number;
-    centro_custo?: number;
+    empresa?: number | string;
+    centro_custo?: number | string;
     ano?: string;
     mes?: string;
     data_inicio?: string;
@@ -1025,7 +1025,7 @@ export const apiService = {
   },
 
   // Classificação de Centros de Custo
-  getTodosCentrosCusto: async (empresa?: number): Promise<Array<{
+  getTodosCentrosCusto: async (empresa?: number | string): Promise<Array<{
     id_interno_centrocusto: number;
     nome_centrocusto: string;
     id_sienge_empresa: number;
@@ -1212,8 +1212,8 @@ export const apiService = {
   },
 
   getContasPagasPorOrigem: async (filtros: {
-    empresa?: number;
-    centro_custo?: number;
+    empresa?: number | string;
+    centro_custo?: number | string;
     credor?: string;
     id_documento?: string;
     origem_dado?: string;
@@ -1340,7 +1340,7 @@ export const apiService = {
     const ccIdInterno = emp?.centro_custo_id_interno;
 
     // Busca saldo a receber FILTRADO por centro de custo (usa ID interno)
-    const filtrosReceber: { centro_custo?: number } = {};
+    const filtrosReceber: { centro_custo?: number | string } = {};
     if (ccIdInterno) filtrosReceber.centro_custo = ccIdInterno;
     const estatReceber = await apiService.getEstatisticasContasReceber(filtrosReceber);
     const saldo_a_receber = estatReceber.valor_total_corrigido ?? estatReceber.valor_total; // saldo atual corrigido por indexador

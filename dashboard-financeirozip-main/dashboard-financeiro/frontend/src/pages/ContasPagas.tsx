@@ -990,14 +990,14 @@ export const ContasPagas: React.FC = () => {
   const renderAbaDados = () => {
     const filtrosAtivos = [];
     if (filtroEmpresa) {
-      const empresa = empresas.find(e => e.id === filtroEmpresa);
-      if (empresa) filtrosAtivos.push(`Empresa: ${empresa.nome}`);
+      const empresa = empresas.find(e => filtroEmpresa.includes(e.id as number));
+      if (empresa) filtrosAtivos.push(`Empresa: ${filtroEmpresa.length > 1 ? filtroEmpresa.length + ' empresas' : empresa.nome}`);
     }
-    if (filtroCentroCusto) {
-      const cc = centrosCusto.find(c => c.id === filtroCentroCusto);
-      if (cc) filtrosAtivos.push(`Centro Custo: ${cc.nome}`);
+    if (filtroCentroCusto.length > 0) {
+      const cc = centrosCusto.find(c => filtroCentroCusto.includes(c.id as number));
+      if (cc) filtrosAtivos.push(`Centro Custo: ${filtroCentroCusto.length > 1 ? filtroCentroCusto.length + ' centros' : cc.nome}`);
     }
-    if (filtroCredor) filtrosAtivos.push(`Credor: ${filtroCredor}`);
+    if (filtroCredor.length > 0) filtrosAtivos.push(`Credor: ${filtroCredor.length > 1 ? filtroCredor.length + ' credores' : filtroCredor[0]}`);
     if (filtroIdDocumento.length > 0) filtrosAtivos.push(`Docs: ${filtroIdDocumento.length} selecionado(s)`);
     if (filtroOrigemDado.length > 0) filtrosAtivos.push(`Origens: ${filtroOrigemDado.length} selecionada(s)`);
     if (filtroTipoBaixa.length > 0) filtrosAtivos.push(`Tipos Baixa: ${filtroTipoBaixa.length} selecionado(s)`);
@@ -1218,13 +1218,11 @@ export const ContasPagas: React.FC = () => {
   };
 
   const aplicarFiltrosPadrao = () => {
-    if (empresasPadrao.length > 0 && !filtroEmpresa) {
-      const primeiraEmpresa = empresasPadrao[0];
-      setFiltroEmpresa(primeiraEmpresa);
+    if (empresasPadrao.length > 0 && filtroEmpresa.length === 0) {
+      setFiltroEmpresa(empresasPadrao);
     }
-    if (centrosCustoPadrao.length > 0 && !filtroCentroCusto) {
-      const primeiroCentro = centrosCustoPadrao[0];
-      setFiltroCentroCusto(primeiroCentro);
+    if (centrosCustoPadrao.length > 0 && filtroCentroCusto.length === 0) {
+      setFiltroCentroCusto(centrosCustoPadrao);
     }
   };
 
@@ -1972,14 +1970,14 @@ export const ContasPagas: React.FC = () => {
 
     const filtrosAtivos = [];
     if (filtroEmpresa) {
-      const empresa = empresas.find(e => e.id === filtroEmpresa);
-      if (empresa) filtrosAtivos.push(`Empresa: ${empresa.nome}`);
+      const empresa = empresas.find(e => filtroEmpresa.includes(e.id as number));
+      if (empresa) filtrosAtivos.push(`Empresa: ${filtroEmpresa.length > 1 ? filtroEmpresa.length + ' empresas' : empresa.nome}`);
     }
-    if (filtroCentroCusto) {
-      const cc = centrosCusto.find(c => c.id === filtroCentroCusto);
-      if (cc) filtrosAtivos.push(`Centro Custo: ${cc.nome}`);
+    if (filtroCentroCusto.length > 0) {
+      const cc = centrosCusto.find(c => filtroCentroCusto.includes(c.id as number));
+      if (cc) filtrosAtivos.push(`Centro Custo: ${filtroCentroCusto.length > 1 ? filtroCentroCusto.length + ' centros' : cc.nome}`);
     }
-    if (filtroCredor) filtrosAtivos.push(`Credor: ${filtroCredor}`);
+    if (filtroCredor.length > 0) filtrosAtivos.push(`Credor: ${filtroCredor.length > 1 ? filtroCredor.length + ' credores' : filtroCredor[0]}`);
     if (filtroIdDocumento.length > 0) filtrosAtivos.push(`Docs: ${filtroIdDocumento.length} selecionado(s)`);
     if (filtroOrigemDado.length > 0) filtrosAtivos.push(`Origens: ${filtroOrigemDado.length} selecionada(s)`);
     if (filtroTipoBaixa.length > 0) filtrosAtivos.push(`Tipos Baixa: ${filtroTipoBaixa.length} selecionado(s)`);
