@@ -1300,7 +1300,7 @@ export const apiService = {
     const filtrosReceber: { centro_custo?: number } = {};
     if (ccId) filtrosReceber.centro_custo = ccId;
     const estatReceber = await apiService.getEstatisticasContasReceber(filtrosReceber);
-    const saldo_a_receber = estatReceber.valor_total; // dados reais filtrados por CC
+    const saldo_a_receber = estatReceber.valor_total_corrigido ?? estatReceber.valor_total; // saldo atual corrigido por indexador
 
     // Estoque = mock por empreendimento (TODO: endpoint real - unidades nao vendidas)
     const estoqueMock: Record<number, number> = {

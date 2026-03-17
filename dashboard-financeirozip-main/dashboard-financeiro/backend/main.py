@@ -5143,26 +5143,46 @@ def get_contas_receber_estatisticas(
         hoje = datetime.now().date()
 
         query = f"""
+            WITH ultimo_idx AS (
+                SELECT id_indexador, valor_indexador,
+                       ROW_NUMBER() OVER (PARTITION BY id_indexador ORDER BY data_indexador DESC) AS rn
+                FROM ecadindexhist
+            ),
+            ultimo AS (
+                SELECT id_indexador, valor_indexador FROM ultimo_idx WHERE rn = 1
+            )
             SELECT
                 COUNT(*) as quantidade_titulos,
                 COALESCE(SUM(car.valor_total), 0) as valor_total,
                 COALESCE(AVG(car.valor_total), 0) as valor_medio,
+                COALESCE(SUM(
+                    CASE
+                        WHEN car.id_indexador IS NOT NULL AND car.id_indexador > 0
+                             AND idx_b.valor_indexador IS NOT NULL AND idx_b.valor_indexador > 0
+                        THEN ROUND(car.valor_vencimento / idx_b.valor_indexador * ui.valor_indexador, 2)
+                        ELSE COALESCE(car.valor_corrigido, car.valor_total)
+                    END
+                ), 0) as valor_total_corrigido,
                 COUNT(CASE WHEN car.data_vencimento < %s THEN 1 END) as quantidade_atrasados,
                 COALESCE(SUM(CASE WHEN car.data_vencimento < %s THEN car.valor_total ELSE 0 END), 0) as valor_atrasados,
                 COUNT(CASE WHEN car.data_vencimento = %s THEN 1 END) as quantidade_vence_hoje,
                 COALESCE(SUM(CASE WHEN car.data_vencimento = %s THEN car.valor_total ELSE 0 END), 0) as valor_vence_hoje
             FROM contas_a_receber car
             LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
+            LEFT JOIN ultimo ui ON ui.id_indexador = car.id_indexador
+            LEFT JOIN ecadindexhist idx_b ON idx_b.id_indexador = car.id_indexador
+                AND idx_b.data_indexador = car.data_indexador
             WHERE {where_clause}
         """
         params_with_dates = [hoje, hoje, hoje, hoje] + params
-        
+
         cursor.execute(query, params_with_dates)
         row = cursor.fetchone()
 
         return {
             'quantidade_titulos': row['quantidade_titulos'],
             'valor_total': float(row['valor_total']),
+            'valor_total_corrigido': float(row['valor_total_corrigido']),
             'valor_medio': float(row['valor_medio']),
             'quantidade_atrasados': row['quantidade_atrasados'],
             'valor_atrasados': float(row['valor_atrasados']),
