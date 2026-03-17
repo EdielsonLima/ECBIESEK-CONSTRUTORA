@@ -1276,17 +1276,27 @@ export const Configuracoes: React.FC = () => {
               <div className="px-6 py-8 text-center text-gray-500">Nenhum empreendimento configurado</div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+                <table className="min-w-full divide-y divide-gray-200 table-fixed">
+                  <colgroup>
+                    <col className="w-14" />
+                    <col />
+                    <col className="w-24" />
+                    <col className="w-24" />
+                    <col className="w-32" />
+                    <col className="w-20" />
+                    <col className="w-40" />
+                    <col className="w-12" />
+                  </colgroup>
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cod</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empreendimento</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Centro de Custo</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">M2</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Fator</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Orçamento (R$)</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cod</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empreendimento</th>
+                      <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">CC</th>
+                      <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">M²</th>
+                      <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Fator</th>
+                      <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Orçamento (R$)</th>
+                      <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
@@ -1294,8 +1304,8 @@ export const Configuracoes: React.FC = () => {
                       .filter(e => !busca || e.nome.toLowerCase().includes(busca.toLowerCase()) || e.codigo.toLowerCase().includes(busca.toLowerCase()))
                       .map(emp => (
                       <tr key={emp.id} className={`hover:bg-gray-50 ${emp.status === 'finalizada' ? 'bg-gray-50' : ''}`}>
-                        <td className="px-4 py-3 text-sm text-gray-500 font-mono">{emp.id}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3 text-sm text-gray-500 font-mono">{emp.id}</td>
+                        <td className="px-3 py-3">
                           <input
                             type="text"
                             value={emp.nome}
@@ -1303,16 +1313,16 @@ export const Configuracoes: React.FC = () => {
                             className={`w-full text-sm border-0 bg-transparent focus:ring-1 focus:ring-blue-500 rounded px-1 py-0.5 ${emp.status === 'finalizada' ? 'text-gray-400' : 'text-gray-900'}`}
                           />
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3">
                           <input
                             type="number"
                             value={emp.centro_custo_id ?? ''}
                             onChange={(e) => updateEmpreendimentoField(emp.id, 'centro_custo_id', e.target.value ? parseInt(e.target.value) : null)}
-                            className="w-20 text-sm border border-gray-200 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
+                            className="w-full text-sm text-center border border-gray-200 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
                             placeholder="CC"
                           />
                         </td>
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-3 py-3 text-center">
                           <button
                             type="button"
                             onClick={() => toggleStatusEmpreendimento(emp.id)}
@@ -1325,28 +1335,28 @@ export const Configuracoes: React.FC = () => {
                             {emp.status === 'ativa' ? 'Ativa' : 'Finalizada'}
                           </button>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3">
                           <input
                             type="number"
                             step="0.01"
                             value={emp.metragem}
                             onChange={(e) => updateEmpreendimentoField(emp.id, 'metragem', parseFloat(e.target.value) || 0)}
-                            className="w-28 text-sm text-right border border-gray-200 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
+                            className="w-full text-sm text-right border border-gray-200 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
                           />
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3">
                           <input
                             type="number"
                             step="0.01"
                             value={emp.fator}
                             onChange={(e) => updateEmpreendimentoField(emp.id, 'fator', parseFloat(e.target.value) || 0)}
-                            className="w-20 text-sm text-right border border-gray-200 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
+                            className="w-full text-sm text-right border border-gray-200 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
                           />
                         </td>
-                        <td className="px-4 py-3 text-right text-sm font-medium text-gray-700">
+                        <td className="px-3 py-3 text-right text-sm font-medium text-gray-700 whitespace-nowrap">
                           {((emp.metragem || 0) * (emp.fator || 1) * cubValor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-3 py-3 text-center">
                           <button
                             type="button"
                             onClick={() => removerEmpreendimento(emp.id)}
