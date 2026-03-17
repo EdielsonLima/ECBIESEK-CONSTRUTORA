@@ -1,6 +1,7 @@
 # Credenciais e configuracoes locais
 .env
 .claude/
+.mcp.json
 
 # Dependencias
 node_modules/
