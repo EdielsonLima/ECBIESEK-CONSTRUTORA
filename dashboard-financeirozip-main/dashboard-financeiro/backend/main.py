@@ -8152,7 +8152,7 @@ def delete_empreendimento_config(emp_id: int):
 @app.get("/api/realizado-por-centro-custo")
 def get_realizado_por_centro_custo():
     """Retorna o total pago (valor_liquido) agrupado por centro de custo (chave = id_sienge).
-    Sem filtros de origens/tipos_baixa — total bruto igual ao que a página Contas Pagas mostra."""
+    Aplica os mesmos filtros da página Contas Pagas (exclusões, origens, tipos_baixa, inter-empresa)."""
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -8160,6 +8160,47 @@ def get_realizado_por_centro_custo():
         excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp', has_conta_corrente=True)
         conditions = list(excl_conds)
         params = list(excl_params)
+
+        # Filtros de origens e tipos_baixa da config (mesmo da página Contas Pagas)
+        try:
+            cfg_conn = get_config_db_connection()
+            cfg_cursor = cfg_conn.cursor()
+            try:
+                cfg_cursor.execute(
+                    "SELECT sigla FROM config_origens_exposicao_caixa WHERE incluir = %s OR paginas NOT LIKE %s",
+                    (False, '%contas_pagas%')
+                )
+                origens_excluidas = [r['sigla'].strip().upper() for r in cfg_cursor.fetchall() if r['sigla']]
+                if origens_excluidas:
+                    oe_ph = ', '.join(['%s'] * len(origens_excluidas))
+                    conditions.append(f"TRIM(UPPER(cp.id_origem)) NOT IN ({oe_ph})")
+                    params.extend(origens_excluidas)
+
+                cfg_cursor.execute(
+                    "SELECT id_tipo_baixa FROM config_tipos_baixa_exposicao_caixa WHERE incluir = 1 AND paginas LIKE %s",
+                    ('%contas_pagas%',)
+                )
+                tipos_baixa_config = [r['id_tipo_baixa'] for r in cfg_cursor.fetchall()]
+                if tipos_baixa_config:
+                    tb_ph = ', '.join(['%s'] * len(tipos_baixa_config))
+                    conditions.append(f"cp.id_tipo_baixa IN ({tb_ph})")
+                    params.extend(tipos_baixa_config)
+            finally:
+                cfg_cursor.close()
+                cfg_conn.close()
+        except Exception:
+            pass
+
+        # Excluir transferências inter-empresa
+        try:
+            cursor.execute("SELECT DISTINCT TRIM(nome_empresa) as nome FROM dim_centrocusto WHERE nome_empresa IS NOT NULL")
+            empresa_names = [r['nome'] for r in cursor.fetchall() if r['nome']]
+            if empresa_names:
+                en_ph = ', '.join(['%s'] * len(empresa_names))
+                conditions.append(f"TRIM(cp.credor) NOT IN ({en_ph})")
+                params.extend(empresa_names)
+        except Exception:
+            pass
 
         where_clause = (" AND " + " AND ".join(conditions)) if conditions else ""
 
