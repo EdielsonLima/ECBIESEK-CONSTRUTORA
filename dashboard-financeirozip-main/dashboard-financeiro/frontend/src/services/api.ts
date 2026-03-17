@@ -1265,7 +1265,7 @@ export const apiService = {
   _cubRO: 2334.56, // fallback
   _fatorMultiplicador: 1,
   // centro_custo_id: ID do centro de custo no Sienge (para filtrar dados por obra)
-  _empreendimentos: [] as Array<{ id: number; nome: string; codigo: string; metragem: number; vgv_mock: number; centro_custo_id: number | null; fator: number }>,
+  _empreendimentos: [] as Array<{ id: number; nome: string; codigo: string; metragem: number; vgv_mock: number; centro_custo_id: number | null; centro_custo_id_interno: number | null; fator: number }>,
 
   loadEmpreendimentos: async () => {
     try {
@@ -1277,14 +1277,15 @@ export const apiService = {
       const res = await api.get('/configuracoes/empreendimentos');
       const data = res.data;
       apiService._empreendimentos = [
-        { id: 0, nome: 'Consolidado', codigo: 'ALL', metragem: 0, vgv_mock: 0, centro_custo_id: null, fator: 1 },
+        { id: 0, nome: 'Consolidado', codigo: 'ALL', metragem: 0, vgv_mock: 0, centro_custo_id: null, centro_custo_id_interno: null, fator: 1 },
         ...data.map((e: any) => ({
           id: e.id,
           nome: e.nome,
           codigo: e.codigo,
           metragem: e.metragem || 0,
           vgv_mock: e.vgv_mock || 0,
-          centro_custo_id: e.centro_custo_id,
+          centro_custo_id: e.centro_custo_id,           // Sienge ID (para /realizado-por-centro-custo)
+          centro_custo_id_interno: e.centro_custo_id_interno || null, // Interno (para filtros de outros endpoints)
           fator: e.fator || 1,
         }))
       ];
@@ -1293,14 +1294,14 @@ export const apiService = {
       // Fallback hardcoded caso o backend ainda não tenha a tabela
       if (apiService._empreendimentos.length === 0) {
         apiService._empreendimentos = [
-          { id: 0, nome: 'Consolidado', codigo: 'ALL', metragem: 0, vgv_mock: 0, centro_custo_id: null, fator: 1 },
-          { id: 1, nome: 'Lake Boulevard', codigo: 'LKB', metragem: 25392.42, vgv_mock: 120000000, centro_custo_id: 19, fator: 1 },
-          { id: 2, nome: 'Buenos Aires', codigo: 'BUA', metragem: 18000, vgv_mock: 85000000, centro_custo_id: null, fator: 1 },
-          { id: 3, nome: 'Imperial Residence', codigo: 'IMP', metragem: 12000, vgv_mock: 45000000, centro_custo_id: null, fator: 1 },
-          { id: 4, nome: 'BIE 3', codigo: 'BIE3', metragem: 8000, vgv_mock: 30000000, centro_custo_id: null, fator: 1 },
-          { id: 5, nome: 'BIE 4', codigo: 'BIE4', metragem: 5500, vgv_mock: 20000000, centro_custo_id: null, fator: 1 },
-          { id: 6, nome: 'Valenca', codigo: 'VAL', metragem: 9000, vgv_mock: 12000000, centro_custo_id: null, fator: 1 },
-          { id: 7, nome: 'Lagunas Residencial Clube', codigo: 'LAG', metragem: 7000, vgv_mock: 8000000, centro_custo_id: null, fator: 1 },
+          { id: 0, nome: 'Consolidado', codigo: 'ALL', metragem: 0, vgv_mock: 0, centro_custo_id: null, centro_custo_id_interno: null, fator: 1 },
+          { id: 1, nome: 'Lake Boulevard', codigo: 'LKB', metragem: 25392.42, vgv_mock: 120000000, centro_custo_id: 16, centro_custo_id_interno: 19, fator: 1 },
+          { id: 2, nome: 'Buenos Aires', codigo: 'BUA', metragem: 18000, vgv_mock: 85000000, centro_custo_id: null, centro_custo_id_interno: null, fator: 1 },
+          { id: 3, nome: 'Imperial Residence', codigo: 'IMP', metragem: 12000, vgv_mock: 45000000, centro_custo_id: null, centro_custo_id_interno: null, fator: 1 },
+          { id: 4, nome: 'BIE 3', codigo: 'BIE3', metragem: 8000, vgv_mock: 30000000, centro_custo_id: null, centro_custo_id_interno: null, fator: 1 },
+          { id: 5, nome: 'BIE 4', codigo: 'BIE4', metragem: 5500, vgv_mock: 20000000, centro_custo_id: null, centro_custo_id_interno: null, fator: 1 },
+          { id: 6, nome: 'Valenca', codigo: 'VAL', metragem: 9000, vgv_mock: 12000000, centro_custo_id: null, centro_custo_id_interno: null, fator: 1 },
+          { id: 7, nome: 'Lagunas Residencial Clube', codigo: 'LAG', metragem: 7000, vgv_mock: 8000000, centro_custo_id: null, centro_custo_id_interno: null, fator: 1 },
         ];
       }
     }
@@ -1338,17 +1339,19 @@ export const apiService = {
       fatorConsolidado = emp?.fator ?? 1;
     }
     const orcamento_total = Math.round(apiService._cubRO * fatorConsolidado * metragem);
-    const ccId = emp?.centro_custo_id;
+    // centro_custo_id = Sienge ID (para /realizado-por-centro-custo)
+    // centro_custo_id_interno = ID interno BD (para todos os outros endpoints)
+    const ccIdInterno = emp?.centro_custo_id_interno;
 
-    // Busca saldo a receber FILTRADO por centro de custo
+    // Busca saldo a receber FILTRADO por centro de custo (usa ID interno)
     const filtrosReceber: { centro_custo?: number } = {};
-    if (ccId) filtrosReceber.centro_custo = ccId;
+    if (ccIdInterno) filtrosReceber.centro_custo = ccIdInterno;
     const estatReceber = await apiService.getEstatisticasContasReceber(filtrosReceber);
     const saldo_a_receber = estatReceber.valor_total_corrigido ?? estatReceber.valor_total; // saldo atual corrigido por indexador
 
     // Estoque = unidades disponíveis (flag_comercial = 'D') da tabela imovel_unidade
     const paramsEstoque: Record<string, string> = {};
-    if (ccId) paramsEstoque.centro_custo = ccId.toString();
+    if (ccIdInterno) paramsEstoque.centro_custo = ccIdInterno.toString();
     const resEstoque = await api.get('/estoque-unidades', { params: paramsEstoque });
     const estoqueData = resEstoque.data;
     const estoque = estoqueData.estoque_disponivel ?? 0;
@@ -1357,7 +1360,7 @@ export const apiService = {
 
     // --- REALIZADO: total pago SEM filtros de origens/tipos (valor real do CC) ---
     const paramsRealizado: Record<string, string> = { ano: anos };
-    if (ccId) paramsRealizado.centro_custo = ccId.toString();
+    if (ccIdInterno) paramsRealizado.centro_custo = ccIdInterno.toString();
 
     const resPagoReal = await api.get('/estatisticas-por-mes', { params: paramsRealizado });
     const pagosReal: Array<{ mes: string; valor: number }> = resPagoReal.data;
@@ -1366,7 +1369,7 @@ export const apiService = {
     // --- EXPOSICAO: pago e recebido apenas com filtro de centro de custo ---
     // Sem filtros de origens/tipos_baixa para refletir o fluxo de caixa real
     const paramsExposicao: Record<string, string> = { ano: anos };
-    if (ccId) paramsExposicao.centro_custo = ccId.toString();
+    if (ccIdInterno) paramsExposicao.centro_custo = ccIdInterno.toString();
 
     const [resPago, resRecebido] = await Promise.all([
       api.get('/estatisticas-por-mes', { params: paramsExposicao }),

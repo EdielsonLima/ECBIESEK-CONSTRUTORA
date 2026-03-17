@@ -8114,13 +8114,40 @@ def _auto_snapshot_loop():
 
 @app.get("/api/configuracoes/empreendimentos")
 def get_empreendimentos_config():
-    """Lista todos os empreendimentos configurados."""
+    """Lista todos os empreendimentos configurados.
+    centro_custo_id = id_sienge_centrocusto (código Sienge).
+    centro_custo_id_interno = id_interno_centrocusto (para filtros internos)."""
     conn = get_config_db_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("SELECT id, nome, codigo, centro_custo_id, metragem, fator, vgv_mock, status, criado_por, atualizado_em FROM empreendimentos_config ORDER BY id")
         rows = cursor.fetchall()
-        return [dict(r) for r in rows]
+        emps = [dict(r) for r in rows]
+
+        # Busca mapeamento Sienge → Interno do banco de dados financeiro
+        sienge_ids = [e['centro_custo_id'] for e in emps if e.get('centro_custo_id')]
+        sienge_to_interno = {}
+        if sienge_ids:
+            try:
+                pg_conn = get_db_connection()
+                pg_cursor = pg_conn.cursor()
+                placeholders = ','.join(['%s'] * len(sienge_ids))
+                pg_cursor.execute(
+                    f"SELECT id_sienge_centrocusto, id_interno_centrocusto FROM dim_centrocusto WHERE id_sienge_centrocusto IN ({placeholders})",
+                    sienge_ids
+                )
+                for r in pg_cursor.fetchall():
+                    sienge_to_interno[r['id_sienge_centrocusto']] = r['id_interno_centrocusto']
+                pg_cursor.close()
+                pg_conn.close()
+            except Exception as e:
+                print(f"[WARN] Não foi possível mapear Sienge→Interno: {e}")
+
+        for emp in emps:
+            cc_sienge = emp.get('centro_custo_id')
+            emp['centro_custo_id_interno'] = sienge_to_interno.get(cc_sienge) if cc_sienge else None
+
+        return emps
     except Exception as e:
         print(f"[ERRO] get_empreendimentos_config: {e}")
         return []
