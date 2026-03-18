@@ -1352,7 +1352,8 @@ def get_contas_pagas_filtradas(
     mes: Optional[str] = None,
     data_inicio: Optional[str] = None,
     data_fim: Optional[str] = None,
-    limite: int = 100
+    limite: int = 100,
+    offset: int = 0
 ):
     """Retorna contas pagas com filtros avançados"""
     conn = get_db_connection()
@@ -1536,13 +1537,32 @@ def get_contas_pagas_filtradas(
             LEFT JOIN ecadplanofin pf ON cp.id_plano_financeiro = pf.id_plano_financeiro
             WHERE {where_clause}
             ORDER BY cp.data_pagamento DESC, cp.credor, cp.valor_liquido
-            LIMIT %s
+            LIMIT %s OFFSET %s
         """
         params.append(limite)
+        params.append(offset)
+
+        # Count total
+        count_query = f"""
+            WITH cp_base AS (
+                SELECT cp.*,
+                    CASE WHEN cp.lancamento ~ '^[0-9]+/[0-9]+$'
+                         THEN CAST(SPLIT_PART(cp.lancamento, '/', 1) AS INTEGER)
+                         ELSE NULL END as _titulo_id
+                FROM contas_pagas cp
+            )
+            SELECT COUNT(*) as total
+            FROM cp_base cp
+            LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE {where_clause}
+        """
+        count_params = list(params[:-2])  # sem limite e offset
+        cursor.execute(count_query, count_params)
+        total_count = cursor.fetchone()['total']
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        return [dict(row) for row in rows]
+        return {"data": [dict(row) for row in rows], "total": total_count}
 
     finally:
         cursor.close()

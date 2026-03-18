@@ -219,7 +219,8 @@ export const apiService = {
     data_inicio?: string;
     data_fim?: string;
     limite?: number;
-  }): Promise<ContaPagar[]> => {
+    offset?: number;
+  }): Promise<{ data: ContaPagar[]; total: number }> => {
     const params = new URLSearchParams();
     if (filtros.empresa) params.append('empresa', filtros.empresa.toString());
     if (filtros.centro_custo) params.append('centro_custo', filtros.centro_custo.toString());
@@ -234,8 +235,9 @@ export const apiService = {
     if (filtros.data_inicio) params.append('data_inicio', filtros.data_inicio);
     if (filtros.data_fim) params.append('data_fim', filtros.data_fim);
     if (filtros.limite) params.append('limite', filtros.limite.toString());
+    if (filtros.offset) params.append('offset', filtros.offset.toString());
 
-    const response = await api.get<ContaPagar[]>(`/contas-pagas-filtradas?${params.toString()}`);
+    const response = await api.get<{ data: ContaPagar[]; total: number }>(`/contas-pagas-filtradas?${params.toString()}`);
     return response.data;
   },
 

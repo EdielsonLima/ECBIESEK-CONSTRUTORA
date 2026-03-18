@@ -199,6 +199,9 @@ export const ContasPagas: React.FC = () => {
   const [mostrarDropdownAnos, setMostrarDropdownAnos] = useState(false);
   const [mostrarDropdownMeses, setMostrarDropdownMeses] = useState(false);
   const [ordenacao, setOrdenacao] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'data_pagamento', direcao: 'desc' });
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const [totalRegistros, setTotalRegistros] = useState(0);
+  const itensPorPagina = 100;
 
   const ordenarContas = (contasParaOrdenar: ContaPagar[]) => {
     return [...contasParaOrdenar].sort((a, b) => {
@@ -386,10 +389,11 @@ export const ContasPagas: React.FC = () => {
         mes: filtroMes.length > 0 ? filtroMes.join(',') : undefined,
         data_inicio: filtroDataInicio || undefined,
         data_fim: filtroDataFim || undefined,
-        limite: 500,
+        limite: itensPorPagina,
+        offset: 0,
       };
 
-      const [contasData, estatData, fornecedoresData, centroCustoData, origemTabData, mesData, empresaData, origemData, compAnualData, compMensalData, rankingData] = await Promise.all([
+      const [contasResp, estatData, fornecedoresData, centroCustoData, origemTabData, mesData, empresaData, origemData, compAnualData, compMensalData, rankingData] = await Promise.all([
         apiService.getContasPagasFiltradas(filtros),
         apiService.getEstatisticasContasPagas(filtros),
         apiService.getContasPagasPorFornecedor(filtros),
@@ -456,7 +460,9 @@ export const ContasPagas: React.FC = () => {
         }),
       ]);
 
-      setContas(contasData);
+      setContas(contasResp.data);
+      setTotalRegistros(contasResp.total);
+      setPaginaAtual(1);
       setEstatisticas(estatData);
       setDadosFornecedores(fornecedoresData);
       setDadosCentroCusto(centroCustoData);
@@ -483,6 +489,34 @@ export const ContasPagas: React.FC = () => {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const carregarPagina = async (pagina: number) => {
+    try {
+      const filtros = {
+        empresa: filtroEmpresa.length > 0 ? filtroEmpresa.join(',') : undefined,
+        centro_custo: filtroCentroCusto.length > 0 ? filtroCentroCusto.join(',') : undefined,
+        credor: filtroCredor.length > 0 ? filtroCredor.join(',') : undefined,
+        id_documento: filtroIdDocumento.length > 0 ? filtroIdDocumento.join(',') : undefined,
+        origem_dado: filtroOrigemDado.length > 0 ? filtroOrigemDado.join(',') : undefined,
+        tipo_baixa: filtroTipoBaixa.length > 0 ? filtroTipoBaixa.join(',') : undefined,
+        conta_corrente: filtroContaCorrente.length > 0 ? filtroContaCorrente.join(',') : undefined,
+        origem_titulo: filtroOrigemTitulo.length > 0 ? filtroOrigemTitulo.join(',') : undefined,
+        ano: filtroAno.length > 0 ? filtroAno.join(',') : undefined,
+        mes: filtroMes.length > 0 ? filtroMes.join(',') : undefined,
+        data_inicio: filtroDataInicio || undefined,
+        data_fim: filtroDataFim || undefined,
+        limite: itensPorPagina,
+        offset: (pagina - 1) * itensPorPagina,
+      };
+      const resp = await apiService.getContasPagasFiltradas(filtros);
+      setContas(resp.data);
+      setTotalRegistros(resp.total);
+      setPaginaAtual(pagina);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      console.error('Erro ao carregar pagina:', err);
     }
   };
 
@@ -2607,46 +2641,33 @@ export const ContasPagas: React.FC = () => {
 
   const renderAbaDadosDetalhados = () => {
     const contasOrdenadas = ordenarContas(contas);
+    const totalPaginas = Math.ceil(totalRegistros / itensPorPagina);
+    const registroInicio = (paginaAtual - 1) * itensPorPagina + 1;
+    const registroFim = Math.min(paginaAtual * itensPorPagina, totalRegistros);
+
+    // Totais da pagina atual
     const totalValorOriginal = contas.reduce((s, c) => s + ((c as any).valor_baixa || 0), 0);
     const totalValorPago = contas.reduce((s, c) => s + (c.valor_total || 0), 0);
-    const totalAcrescimos = contas.reduce((s, c) => s + ((c as any).valor_acrescimo || 0), 0);
-    const totalDescontos = contas.reduce((s, c) => s + ((c as any).valor_desconto || 0), 0);
-    const totalJuros = contas.reduce((s, c) => s + ((c as any).valor_juros || 0), 0);
+
+    // Gerar numeros de paginas visiveis
+    const paginasVisiveis = () => {
+      const paginas: number[] = [];
+      const maxVisiveis = 7;
+      let inicio = Math.max(1, paginaAtual - Math.floor(maxVisiveis / 2));
+      const fim = Math.min(totalPaginas, inicio + maxVisiveis - 1);
+      inicio = Math.max(1, fim - maxVisiveis + 1);
+      for (let i = inicio; i <= fim; i++) paginas.push(i);
+      return paginas;
+    };
 
     return (
       <>
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold text-gray-900">Detalhamento de Pagamentos</h2>
-            <p className="mt-1 text-sm text-gray-500">{contas.length} registro(s) encontrado(s)</p>
-          </div>
-          <div className="flex gap-3">
-            <div className="rounded-lg bg-gray-50 border border-gray-200 px-4 py-2 text-center">
-              <div className="text-xs text-gray-600 font-medium">Valor Original</div>
-              <div className="text-sm font-bold text-gray-700">{formatCurrency(totalValorOriginal)}</div>
-            </div>
-            {totalJuros > 0 && (
-              <div className="rounded-lg bg-orange-50 border border-orange-200 px-4 py-2 text-center">
-                <div className="text-xs text-orange-600 font-medium">+ Juros</div>
-                <div className="text-sm font-bold text-orange-700">{formatCurrency(totalJuros)}</div>
-              </div>
-            )}
-            {totalAcrescimos > 0 && (
-              <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-2 text-center">
-                <div className="text-xs text-red-600 font-medium">+ Acrescimos</div>
-                <div className="text-sm font-bold text-red-700">{formatCurrency(totalAcrescimos)}</div>
-              </div>
-            )}
-            {totalDescontos > 0 && (
-              <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-2 text-center">
-                <div className="text-xs text-blue-600 font-medium">- Descontos</div>
-                <div className="text-sm font-bold text-blue-700">{formatCurrency(totalDescontos)}</div>
-              </div>
-            )}
-            <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-2 text-center">
-              <div className="text-xs text-green-600 font-medium">= Valor Pago</div>
-              <div className="text-sm font-bold text-green-700">{formatCurrency(totalValorPago)}</div>
-            </div>
+            <p className="mt-1 text-sm text-gray-500">
+              {totalRegistros > 0 ? `${registroInicio} - ${registroFim} de ${totalRegistros.toLocaleString('pt-BR')} registro(s)` : '0 registros'}
+            </p>
           </div>
         </div>
 
@@ -2742,17 +2763,75 @@ export const ContasPagas: React.FC = () => {
               </tbody>
               <tfoot className="bg-green-50">
                 <tr>
-                  <td colSpan={7} className="px-4 py-3 text-sm font-bold text-gray-900">TOTAL</td>
+                  <td colSpan={7} className="px-4 py-3 text-sm font-bold text-gray-900">SUBTOTAL PAGINA</td>
                   <td className="px-4 py-3 text-sm font-bold text-gray-700 text-right font-mono">{formatCurrency(totalValorOriginal)}</td>
-                  <td className="px-4 py-3 text-sm font-bold text-orange-600 text-right font-mono">{totalJuros > 0 ? formatCurrency(totalJuros) : '-'}</td>
-                  <td className="px-4 py-3 text-sm font-bold text-red-600 text-right font-mono">{totalAcrescimos > 0 ? formatCurrency(totalAcrescimos) : '-'}</td>
-                  <td className="px-4 py-3 text-sm font-bold text-blue-600 text-right font-mono">{totalDescontos > 0 ? formatCurrency(totalDescontos) : '-'}</td>
+                  <td className="px-4 py-3 text-sm font-bold text-orange-600 text-right font-mono">-</td>
+                  <td className="px-4 py-3 text-sm font-bold text-red-600 text-right font-mono">-</td>
+                  <td className="px-4 py-3 text-sm font-bold text-blue-600 text-right font-mono">-</td>
                   <td className="px-4 py-3 text-sm font-bold text-green-700 text-right font-mono">{formatCurrency(totalValorPago)}</td>
                 </tr>
               </tfoot>
             </table>
           </div>
         </div>
+
+        {totalPaginas > 1 && (
+          <div className="mt-4 flex items-center justify-between">
+            <p className="text-sm text-gray-500">
+              Mostrando {registroInicio} - {registroFim} de {totalRegistros.toLocaleString('pt-BR')} registros
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => carregarPagina(1)}
+                disabled={paginaAtual === 1}
+                className="px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Primeira
+              </button>
+              <button
+                type="button"
+                onClick={() => carregarPagina(paginaAtual - 1)}
+                disabled={paginaAtual === 1}
+                className="px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Anterior
+              </button>
+              {paginasVisiveis()[0] > 1 && <span className="px-2 text-gray-400">...</span>}
+              {paginasVisiveis().map(p => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => carregarPagina(p)}
+                  className={`px-3 py-2 text-sm rounded-lg border ${
+                    p === paginaAtual
+                      ? 'bg-green-600 text-white border-green-600'
+                      : 'border-gray-300 bg-white hover:bg-gray-50 text-gray-700'
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+              {paginasVisiveis()[paginasVisiveis().length - 1] < totalPaginas && <span className="px-2 text-gray-400">...</span>}
+              <button
+                type="button"
+                onClick={() => carregarPagina(paginaAtual + 1)}
+                disabled={paginaAtual === totalPaginas}
+                className="px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Proxima
+              </button>
+              <button
+                type="button"
+                onClick={() => carregarPagina(totalPaginas)}
+                disabled={paginaAtual === totalPaginas}
+                className="px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Ultima
+              </button>
+            </div>
+          </div>
+        )}
       </>
     );
   };
