@@ -250,6 +250,10 @@ export const ContasPagas: React.FC = () => {
           valorA = (a as any).valor_juros || 0;
           valorB = (b as any).valor_juros || 0;
           break;
+        case 'valor_baixa':
+          valorA = (a as any).valor_baixa || 0;
+          valorB = (b as any).valor_baixa || 0;
+          break;
         default:
           return 0;
       }
@@ -2603,6 +2607,7 @@ export const ContasPagas: React.FC = () => {
 
   const renderAbaDadosDetalhados = () => {
     const contasOrdenadas = ordenarContas(contas);
+    const totalValorOriginal = contas.reduce((s, c) => s + ((c as any).valor_baixa || 0), 0);
     const totalValorPago = contas.reduce((s, c) => s + (c.valor_total || 0), 0);
     const totalAcrescimos = contas.reduce((s, c) => s + ((c as any).valor_acrescimo || 0), 0);
     const totalDescontos = contas.reduce((s, c) => s + ((c as any).valor_desconto || 0), 0);
@@ -2616,28 +2621,32 @@ export const ContasPagas: React.FC = () => {
             <p className="mt-1 text-sm text-gray-500">{contas.length} registro(s) encontrado(s)</p>
           </div>
           <div className="flex gap-3">
-            <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-2 text-center">
-              <div className="text-xs text-green-600 font-medium">Valor Pago</div>
-              <div className="text-sm font-bold text-green-700">{formatCurrency(totalValorPago)}</div>
+            <div className="rounded-lg bg-gray-50 border border-gray-200 px-4 py-2 text-center">
+              <div className="text-xs text-gray-600 font-medium">Valor Original</div>
+              <div className="text-sm font-bold text-gray-700">{formatCurrency(totalValorOriginal)}</div>
             </div>
+            {totalJuros > 0 && (
+              <div className="rounded-lg bg-orange-50 border border-orange-200 px-4 py-2 text-center">
+                <div className="text-xs text-orange-600 font-medium">+ Juros</div>
+                <div className="text-sm font-bold text-orange-700">{formatCurrency(totalJuros)}</div>
+              </div>
+            )}
             {totalAcrescimos > 0 && (
               <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-2 text-center">
-                <div className="text-xs text-red-600 font-medium">Acrescimos</div>
+                <div className="text-xs text-red-600 font-medium">+ Acrescimos</div>
                 <div className="text-sm font-bold text-red-700">{formatCurrency(totalAcrescimos)}</div>
               </div>
             )}
             {totalDescontos > 0 && (
               <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-2 text-center">
-                <div className="text-xs text-blue-600 font-medium">Descontos</div>
+                <div className="text-xs text-blue-600 font-medium">- Descontos</div>
                 <div className="text-sm font-bold text-blue-700">{formatCurrency(totalDescontos)}</div>
               </div>
             )}
-            {totalJuros > 0 && (
-              <div className="rounded-lg bg-orange-50 border border-orange-200 px-4 py-2 text-center">
-                <div className="text-xs text-orange-600 font-medium">Juros</div>
-                <div className="text-sm font-bold text-orange-700">{formatCurrency(totalJuros)}</div>
-              </div>
-            )}
+            <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-2 text-center">
+              <div className="text-xs text-green-600 font-medium">= Valor Pago</div>
+              <div className="text-sm font-bold text-green-700">{formatCurrency(totalValorPago)}</div>
+            </div>
           </div>
         </div>
 
@@ -2667,8 +2676,8 @@ export const ContasPagas: React.FC = () => {
                   <th onClick={() => toggleOrdenacao('nome_plano_financeiro')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
                     Plano Financeiro{renderSortIcon('nome_plano_financeiro')}
                   </th>
-                  <th onClick={() => toggleOrdenacao('valor_total')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
-                    Valor Pago{renderSortIcon('valor_total')}
+                  <th onClick={() => toggleOrdenacao('valor_baixa')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                    Valor Original{renderSortIcon('valor_baixa')}
                   </th>
                   <th onClick={() => toggleOrdenacao('valor_juros')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
                     Juros{renderSortIcon('valor_juros')}
@@ -2678,6 +2687,9 @@ export const ContasPagas: React.FC = () => {
                   </th>
                   <th onClick={() => toggleOrdenacao('valor_desconto')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
                     Descontos{renderSortIcon('valor_desconto')}
+                  </th>
+                  <th onClick={() => toggleOrdenacao('valor_total')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                    Valor Pago{renderSortIcon('valor_total')}
                   </th>
                 </tr>
               </thead>
@@ -2709,8 +2721,8 @@ export const ContasPagas: React.FC = () => {
                       <td className="px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate" title={(conta as any).nome_plano_financeiro || '-'}>
                         {(conta as any).nome_plano_financeiro || '-'}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-green-700 text-right font-mono">
-                        {formatCurrency(conta.valor_total)}
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-700 text-right font-mono">
+                        {formatCurrency((conta as any).valor_baixa)}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm text-right font-mono text-orange-600">
                         {(conta as any).valor_juros ? formatCurrency((conta as any).valor_juros) : '-'}
@@ -2721,6 +2733,9 @@ export const ContasPagas: React.FC = () => {
                       <td className="whitespace-nowrap px-4 py-3 text-sm text-right font-mono text-blue-600">
                         {(conta as any).valor_desconto ? formatCurrency((conta as any).valor_desconto) : '-'}
                       </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-bold text-green-700 text-right font-mono">
+                        {formatCurrency(conta.valor_total)}
+                      </td>
                     </tr>
                   );
                 })}
@@ -2728,10 +2743,11 @@ export const ContasPagas: React.FC = () => {
               <tfoot className="bg-green-50">
                 <tr>
                   <td colSpan={7} className="px-4 py-3 text-sm font-bold text-gray-900">TOTAL</td>
-                  <td className="px-4 py-3 text-sm font-bold text-green-700 text-right font-mono">{formatCurrency(totalValorPago)}</td>
+                  <td className="px-4 py-3 text-sm font-bold text-gray-700 text-right font-mono">{formatCurrency(totalValorOriginal)}</td>
                   <td className="px-4 py-3 text-sm font-bold text-orange-600 text-right font-mono">{totalJuros > 0 ? formatCurrency(totalJuros) : '-'}</td>
                   <td className="px-4 py-3 text-sm font-bold text-red-600 text-right font-mono">{totalAcrescimos > 0 ? formatCurrency(totalAcrescimos) : '-'}</td>
                   <td className="px-4 py-3 text-sm font-bold text-blue-600 text-right font-mono">{totalDescontos > 0 ? formatCurrency(totalDescontos) : '-'}</td>
+                  <td className="px-4 py-3 text-sm font-bold text-green-700 text-right font-mono">{formatCurrency(totalValorPago)}</td>
                 </tr>
               </tfoot>
             </table>
