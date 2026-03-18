@@ -14,6 +14,7 @@ interface SidebarProps {
 interface SubMenuItem {
   id: string;
   label: string;
+  icon?: React.ReactNode;
 }
 
 interface MenuItem {
@@ -105,9 +106,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
             </svg>
           ),
           submenu: [
-            { id: 'contas-a-pagar', label: 'A Pagar' },
-            { id: 'contas-pagas', label: 'Pagas' },
-            { id: 'contas-atrasadas', label: 'Atrasadas' },
+            { id: 'contas-a-pagar', label: 'A Pagar', icon: (
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+            )},
+            { id: 'contas-pagas', label: 'Pagas', icon: (
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            )},
+            { id: 'contas-atrasadas', label: 'Atrasadas', icon: (
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            )},
           ],
         },
         {
@@ -119,10 +126,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
             </svg>
           ),
           submenu: [
-            { id: 'contas-a-receber', label: 'A Receber' },
-            { id: 'contas-recebidas', label: 'Recebidas' },
-            { id: 'recebimentos-atrasados', label: 'Inadimplência' },
-            { id: 'extrato-cliente', label: 'Extrato Cliente' },
+            { id: 'contas-a-receber', label: 'A Receber', icon: (
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1" /></svg>
+            )},
+            { id: 'contas-recebidas', label: 'Recebidas', icon: (
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            )},
+            { id: 'recebimentos-atrasados', label: 'Inadimplência', icon: (
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            )},
+            { id: 'extrato-cliente', label: 'Extrato Cliente', icon: (
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+            )},
           ],
         },
         {
@@ -400,7 +415,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
                                     : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                                     }`}
                                 >
-                                  <span className="h-1.5 w-1.5 rounded-full bg-current mr-2 flex-shrink-0" />
+                                  <span className="mr-2 flex-shrink-0 opacity-70">
+                                    {subItem.icon || <span className="h-1.5 w-1.5 rounded-full bg-current inline-block" />}
+                                  </span>
                                   <span className="flex-1">{subItem.label}</span>
                                   {validacaoStatus[subItem.id] && validacaoStatus[subItem.id] !== 'nao_validado' && (
                                     <ValidationBadge status={validacaoStatus[subItem.id]} />
