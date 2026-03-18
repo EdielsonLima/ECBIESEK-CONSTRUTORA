@@ -2653,7 +2653,7 @@ export const ContasPagas: React.FC = () => {
         <div className="rounded-lg bg-white shadow overflow-visible">
           <div>
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-green-50 sticky top-[73px] z-30 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
+              <thead className="bg-green-50 sticky top-[85px] z-30 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
                 <tr>
                   <th onClick={() => toggleOrdenacao('credor')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
                     Credor{renderSortIcon('credor')}
