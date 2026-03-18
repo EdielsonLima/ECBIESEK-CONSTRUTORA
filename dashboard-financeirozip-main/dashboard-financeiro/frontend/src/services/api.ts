@@ -1588,3 +1588,50 @@ export const apiService = {
     return { cubValor, cubReferencia, empreendimentos: resultado, totais };
   },
 };
+
+// ============ VALIDACAO SERVICE ============
+
+export const validacaoService = {
+  getPaginas: async () => {
+    const response = await api.get('/validacao/paginas');
+    return response.data;
+  },
+  validarPagina: async (pageId: string, notes?: string) => {
+    const response = await api.post(`/validacao/paginas/${pageId}/validar`, { notes });
+    return response.data;
+  },
+  getCheckpoints: async (pageId: string) => {
+    const response = await api.get(`/validacao/checkpoints/${pageId}`);
+    return response.data;
+  },
+  criarCheckpoint: async (data: {
+    page_id: string;
+    checkpoint_label: string;
+    endpoint: string;
+    query_params: Record<string, string>;
+    expected_values: Record<string, unknown>;
+    tolerance_pct?: number;
+  }) => {
+    const response = await api.post('/validacao/checkpoints', data);
+    return response.data;
+  },
+  deletarCheckpoint: async (id: number) => {
+    const response = await api.delete(`/validacao/checkpoints/${id}`);
+    return response.data;
+  },
+  verificar: async (pageId?: string) => {
+    const response = await api.post('/validacao/verificar', pageId ? { page_id: pageId } : {});
+    return response.data;
+  },
+  getEndpointsDisponiveis: async () => {
+    const response = await api.get('/validacao/endpoints-disponiveis');
+    return response.data as Record<string, string[]>;
+  },
+  // Chama um endpoint de dados com parametros para capturar valores
+  capturarValores: async (endpoint: string, params: Record<string, string>) => {
+    const queryStr = new URLSearchParams(params).toString();
+    const url = endpoint.replace('/api/', '/') + (queryStr ? `?${queryStr}` : '');
+    const response = await api.get(url);
+    return response.data;
+  },
+};

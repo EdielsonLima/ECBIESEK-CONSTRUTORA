@@ -6815,6 +6815,55 @@ def init_configuracoes_tables():
                     "INSERT INTO empreendimentos_config (nome, codigo, centro_custo_id, metragem, fator, vgv_mock, status) VALUES (%s, %s, %s, %s, %s, %s, %s)",
                     (nome, codigo, cc_id, metragem, fator, vgv, status)
                 )
+        # Tabelas de validacao de paginas
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS validacao_paginas (
+                id {serial} PRIMARY KEY,
+                page_id VARCHAR(50) NOT NULL UNIQUE,
+                page_label VARCHAR(100) NOT NULL,
+                status VARCHAR(20) NOT NULL DEFAULT 'nao_validado',
+                validated_by VARCHAR(100),
+                validated_at TIMESTAMP,
+                last_check_at TIMESTAMP,
+                last_check_result VARCHAR(20),
+                notes TEXT,
+                created_at {ts}
+            )
+        """)
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS validacao_checkpoints (
+                id {serial} PRIMARY KEY,
+                page_id VARCHAR(50) NOT NULL,
+                checkpoint_label VARCHAR(200) NOT NULL,
+                endpoint VARCHAR(200) NOT NULL,
+                query_params TEXT NOT NULL,
+                expected_values TEXT NOT NULL,
+                tolerance_pct REAL NOT NULL DEFAULT 0.0,
+                last_check_at TIMESTAMP,
+                last_actual_values TEXT,
+                last_check_status VARCHAR(20),
+                active INTEGER NOT NULL DEFAULT 1,
+                created_at {ts}
+            )
+        """)
+        # Seed validacao_paginas
+        seed_pages = [
+            ('dashboard', 'Dashboard'),
+            ('contas-a-pagar', 'Contas a Pagar'),
+            ('contas-pagas', 'Contas Pagas'),
+            ('contas-atrasadas', 'Contas Atrasadas'),
+            ('contas-a-receber', 'Contas a Receber'),
+            ('contas-recebidas', 'Contas Recebidas'),
+            ('recebimentos-atrasados', 'Inadimplencia'),
+            ('painel-executivo', 'Painel Executivo'),
+            ('exposicao-caixa', 'Exposicao de Caixa'),
+            ('kpis', 'KPIs'),
+        ]
+        for page_id, page_label in seed_pages:
+            cursor.execute(
+                f"INSERT {unique_conflict} INTO validacao_paginas (page_id, page_label) VALUES (%s, %s)",
+                (page_id, page_label)
+            )
         conn.commit()
         backend = "PostgreSQL" if is_pg else f"SQLite ({CONFIG_SQLITE_PATH})"
         print(f"Tabelas de configurações criadas/verificadas em {backend}")
@@ -7004,6 +7053,56 @@ def _ensure_config_tables_in_postgres():
                 cursor.execute(
                     "INSERT INTO config_tipos_documento_excluidos (id_documento, nome_documento) VALUES (%s, %s) ON CONFLICT DO NOTHING",
                     (id_doc, nome_doc)
+                )
+
+            # Tabelas de validacao de paginas
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS validacao_paginas (
+                    id SERIAL PRIMARY KEY,
+                    page_id VARCHAR(50) NOT NULL UNIQUE,
+                    page_label VARCHAR(100) NOT NULL,
+                    status VARCHAR(20) NOT NULL DEFAULT 'nao_validado',
+                    validated_by VARCHAR(100),
+                    validated_at TIMESTAMP,
+                    last_check_at TIMESTAMP,
+                    last_check_result VARCHAR(20),
+                    notes TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS validacao_checkpoints (
+                    id SERIAL PRIMARY KEY,
+                    page_id VARCHAR(50) NOT NULL,
+                    checkpoint_label VARCHAR(200) NOT NULL,
+                    endpoint VARCHAR(200) NOT NULL,
+                    query_params TEXT NOT NULL,
+                    expected_values TEXT NOT NULL,
+                    tolerance_pct REAL NOT NULL DEFAULT 0.0,
+                    last_check_at TIMESTAMP,
+                    last_actual_values TEXT,
+                    last_check_status VARCHAR(20),
+                    active INTEGER NOT NULL DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            # Seed validacao_paginas
+            seed_pages = [
+                ('dashboard', 'Dashboard'),
+                ('contas-a-pagar', 'Contas a Pagar'),
+                ('contas-pagas', 'Contas Pagas'),
+                ('contas-atrasadas', 'Contas Atrasadas'),
+                ('contas-a-receber', 'Contas a Receber'),
+                ('contas-recebidas', 'Contas Recebidas'),
+                ('recebimentos-atrasados', 'Inadimplencia'),
+                ('painel-executivo', 'Painel Executivo'),
+                ('exposicao-caixa', 'Exposicao de Caixa'),
+                ('kpis', 'KPIs'),
+            ]
+            for page_id, page_label in seed_pages:
+                cursor.execute(
+                    "INSERT INTO validacao_paginas (page_id, page_label) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                    (page_id, page_label)
                 )
 
             conn.commit()
@@ -8955,6 +9054,249 @@ def update_cub_config(data: dict):
     finally:
         cursor.close()
         conn.close()
+
+# ============ VALIDACAO DE PAGINAS ============
+
+# Mapeamento de endpoints validaveis por pagina
+PAGE_ENDPOINTS = {
+    'dashboard': ['/api/metricas'],
+    'contas-a-pagar': ['/api/metricas', '/api/contas'],
+    'contas-pagas': ['/api/estatisticas-contas-pagas', '/api/contas-pagas-filtradas'],
+    'contas-atrasadas': ['/api/metricas'],
+    'contas-a-receber': ['/api/contas-receber-estatisticas', '/api/metricas-receber'],
+    'contas-recebidas': ['/api/contas-recebidas-totais'],
+    'recebimentos-atrasados': ['/api/contas-receber-estatisticas'],
+    'painel-executivo': ['/api/realizado-por-centro-custo'],
+    'exposicao-caixa': ['/api/estatisticas-contas-pagas', '/api/contas-receber-estatisticas'],
+    'kpis': ['/api/metricas'],
+}
+
+# Mapeamento endpoint -> funcao Python
+ENDPOINT_FUNCTIONS = {
+    '/api/metricas': get_metricas,
+    '/api/contas': get_contas,
+    '/api/estatisticas-contas-pagas': get_estatisticas_contas_pagas,
+    '/api/contas-pagas-filtradas': get_contas_pagas_filtradas,
+    '/api/contas-receber-estatisticas': get_contas_receber_estatisticas,
+    '/api/contas-recebidas-totais': get_contas_recebidas_totais,
+    '/api/metricas-receber': get_metricas_receber,
+    '/api/realizado-por-centro-custo': get_realizado_por_centro_custo,
+}
+
+def _run_checkpoint(checkpoint: dict) -> dict:
+    """Executa um checkpoint e compara valores esperados vs reais."""
+    import json as _json
+    endpoint = checkpoint['endpoint']
+    func = ENDPOINT_FUNCTIONS.get(endpoint)
+    if not func:
+        return {'status': 'error', 'message': f'Endpoint {endpoint} nao mapeado'}
+    try:
+        params = _json.loads(checkpoint['query_params']) if checkpoint['query_params'] else {}
+        result = func(**params)
+        # Converter resultado para dict se necessario
+        if hasattr(result, '__dict__'):
+            actual = result.__dict__ if not hasattr(result, 'dict') else result.dict()
+        elif isinstance(result, dict):
+            actual = result
+        elif isinstance(result, list):
+            actual = {'items': result, 'count': len(result)}
+        else:
+            actual = {'value': result}
+
+        expected = _json.loads(checkpoint['expected_values'])
+        tolerance = float(checkpoint.get('tolerance_pct', 0) or 0)
+
+        diffs = {}
+        all_pass = True
+        for key, exp_val in expected.items():
+            act_val = actual.get(key)
+            if act_val is None:
+                diffs[key] = {'expected': exp_val, 'actual': None, 'status': 'missing'}
+                all_pass = False
+                continue
+            try:
+                exp_num = float(exp_val)
+                act_num = float(act_val)
+                divisor = max(abs(exp_num), 1)
+                diff_pct = abs(act_num - exp_num) / divisor
+                if diff_pct > tolerance:
+                    diffs[key] = {'expected': exp_num, 'actual': act_num, 'diff_pct': round(diff_pct * 100, 4), 'status': 'fail'}
+                    all_pass = False
+                else:
+                    diffs[key] = {'expected': exp_num, 'actual': act_num, 'status': 'pass'}
+            except (ValueError, TypeError):
+                if str(exp_val) != str(act_val):
+                    diffs[key] = {'expected': exp_val, 'actual': act_val, 'status': 'fail'}
+                    all_pass = False
+                else:
+                    diffs[key] = {'expected': exp_val, 'actual': act_val, 'status': 'pass'}
+
+        return {
+            'status': 'pass' if all_pass else 'fail',
+            'expected': expected,
+            'actual': {k: actual.get(k) for k in expected},
+            'diffs': diffs
+        }
+    except Exception as e:
+        return {'status': 'error', 'message': str(e)}
+
+
+@app.get("/api/validacao/paginas")
+def get_validacao_paginas(current_user: dict = Depends(get_current_user)):
+    """Lista todas as paginas com seu status de validacao."""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT * FROM validacao_paginas ORDER BY page_label")
+        rows = cursor.fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.post("/api/validacao/paginas/{page_id}/validar")
+def validar_pagina(page_id: str, body: dict = None, admin: dict = Depends(require_admin)):
+    """Marca uma pagina como validada (admin only)."""
+    import json as _json
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        notes = (body or {}).get('notes', '')
+        cursor.execute(
+            "UPDATE validacao_paginas SET status = %s, validated_by = %s, validated_at = %s, notes = %s WHERE page_id = %s",
+            ('validado', admin.get('email', ''), datetime.now().isoformat(), notes, page_id)
+        )
+        conn.commit()
+        return {"ok": True, "page_id": page_id, "status": "validado"}
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.get("/api/validacao/checkpoints/{page_id}")
+def get_validacao_checkpoints(page_id: str, admin: dict = Depends(require_admin)):
+    """Lista checkpoints de uma pagina."""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT * FROM validacao_checkpoints WHERE page_id = %s ORDER BY id", (page_id,))
+        rows = cursor.fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.post("/api/validacao/checkpoints")
+def criar_validacao_checkpoint(body: dict, admin: dict = Depends(require_admin)):
+    """Cria um novo checkpoint."""
+    import json as _json
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """INSERT INTO validacao_checkpoints
+               (page_id, checkpoint_label, endpoint, query_params, expected_values, tolerance_pct)
+               VALUES (%s, %s, %s, %s, %s, %s)""",
+            (
+                body['page_id'],
+                body['checkpoint_label'],
+                body['endpoint'],
+                _json.dumps(body.get('query_params', {})),
+                _json.dumps(body.get('expected_values', {})),
+                float(body.get('tolerance_pct', 0))
+            )
+        )
+        conn.commit()
+        return {"ok": True, "id": cursor.lastrowid}
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.delete("/api/validacao/checkpoints/{checkpoint_id}")
+def deletar_validacao_checkpoint(checkpoint_id: int, admin: dict = Depends(require_admin)):
+    """Remove um checkpoint."""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM validacao_checkpoints WHERE id = %s", (checkpoint_id,))
+        conn.commit()
+        return {"ok": True}
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.post("/api/validacao/verificar")
+def verificar_validacao(body: dict = None, admin: dict = Depends(require_admin)):
+    """Executa todos os checkpoints ativos e atualiza status."""
+    import json as _json
+    page_id_filter = (body or {}).get('page_id')
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        if page_id_filter:
+            cursor.execute("SELECT * FROM validacao_checkpoints WHERE active = 1 AND page_id = %s", (page_id_filter,))
+        else:
+            cursor.execute("SELECT * FROM validacao_checkpoints WHERE active = 1")
+        checkpoints = [dict(r) for r in cursor.fetchall()]
+
+        results = []
+        page_results = {}  # page_id -> all_pass
+
+        for cp in checkpoints:
+            result = _run_checkpoint(cp)
+            now = datetime.now().isoformat()
+            cursor.execute(
+                "UPDATE validacao_checkpoints SET last_check_at = %s, last_actual_values = %s, last_check_status = %s WHERE id = %s",
+                (now, _json.dumps(result.get('actual', {})), result['status'], cp['id'])
+            )
+            results.append({
+                'checkpoint_id': cp['id'],
+                'page_id': cp['page_id'],
+                'label': cp['checkpoint_label'],
+                **result
+            })
+            if cp['page_id'] not in page_results:
+                page_results[cp['page_id']] = True
+            if result['status'] != 'pass':
+                page_results[cp['page_id']] = False
+
+        # Atualizar status das paginas
+        now = datetime.now().isoformat()
+        for pid, all_pass in page_results.items():
+            new_status = 'validado' if all_pass else 'drift'
+            check_result = 'ok' if all_pass else 'drift'
+            cursor.execute(
+                "UPDATE validacao_paginas SET last_check_at = %s, last_check_result = %s, status = %s WHERE page_id = %s AND status != 'nao_validado'",
+                (now, check_result, new_status, pid)
+            )
+
+        conn.commit()
+
+        passed = sum(1 for r in results if r['status'] == 'pass')
+        failed = sum(1 for r in results if r['status'] == 'fail')
+        errors = sum(1 for r in results if r['status'] == 'error')
+
+        return {
+            'total': len(results),
+            'passed': passed,
+            'failed': failed,
+            'errors': errors,
+            'details': results
+        }
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.get("/api/validacao/endpoints-disponiveis")
+def get_endpoints_disponiveis(admin: dict = Depends(require_admin)):
+    """Retorna mapeamento de endpoints disponiveis por pagina."""
+    return PAGE_ENDPOINTS
+
 
 _auto_snapshot_thread = threading.Thread(target=_auto_snapshot_loop, daemon=True)
 _auto_snapshot_thread.start()

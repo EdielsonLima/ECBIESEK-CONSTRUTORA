@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { apiService, User } from '../services/api';
+import { apiService, validacaoService, User } from '../services/api';
+import { ValidationBadge } from './ValidationBadge';
 
 interface SidebarProps {
   currentPage: string;
@@ -42,10 +43,19 @@ function formatarDataPt(dateStr: string): string {
 export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpen, setIsOpen, user, onLogout }) => {
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<string | null>(null);
   const [menuUsuarioAberto, setMenuUsuarioAberto] = useState(false);
+  const [validacaoStatus, setValidacaoStatus] = useState<Record<string, string>>({});
 
   useEffect(() => {
     apiService.getUltimaAtualizacao()
       .then(r => { if (r.data) setUltimaAtualizacao(formatarDataPt(r.data)); })
+      .catch(() => { });
+    // Carregar status de validacao das paginas
+    validacaoService.getPaginas()
+      .then(paginas => {
+        const map: Record<string, string> = {};
+        paginas.forEach((p: { page_id: string; status: string }) => { map[p.page_id] = p.status; });
+        setValidacaoStatus(map);
+      })
       .catch(() => { });
   }, []);
 
@@ -391,7 +401,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
                                     }`}
                                 >
                                   <span className="h-1.5 w-1.5 rounded-full bg-current mr-2 flex-shrink-0" />
-                                  {subItem.label}
+                                  <span className="flex-1">{subItem.label}</span>
+                                  {validacaoStatus[subItem.id] && validacaoStatus[subItem.id] !== 'nao_validado' && (
+                                    <ValidationBadge status={validacaoStatus[subItem.id]} />
+                                  )}
                                 </button>
                               ))}
                             </div>
@@ -463,6 +476,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                     Log de Atividades
+                  </button>
+                  <button
+                    onClick={() => { onNavigate('validacao'); setMenuUsuarioAberto(false); }}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+                  >
+                    <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Validacao
                   </button>
                   <div className="border-t border-slate-700 mx-3" />
                 </>
