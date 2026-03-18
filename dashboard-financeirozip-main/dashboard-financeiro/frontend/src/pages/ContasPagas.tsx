@@ -136,7 +136,7 @@ interface DadosPorOrigemTab {
   total_origens: number;
 }
 
-type AbaAtiva = 'fornecedor' | 'centro-custo' | 'origem' | 'analises' | 'configuracoes';
+type AbaAtiva = 'dados' | 'fornecedor' | 'centro-custo' | 'origem' | 'analises' | 'configuracoes';
 
 export const ContasPagas: React.FC = () => {
   const [abaAtiva, setAbaAtiva] = useState<AbaAtiva>('fornecedor');
@@ -225,6 +225,30 @@ export const ContasPagas: React.FC = () => {
         case 'nome_centrocusto':
           valorA = (a.nome_centrocusto || '').toLowerCase();
           valorB = (b.nome_centrocusto || '').toLowerCase();
+          break;
+        case 'data_vencimento':
+          valorA = (a.data_vencimento || '').split('T')[0];
+          valorB = (b.data_vencimento || '').split('T')[0];
+          break;
+        case 'nome_plano_financeiro':
+          valorA = ((a as any).nome_plano_financeiro || '').toLowerCase();
+          valorB = ((b as any).nome_plano_financeiro || '').toLowerCase();
+          break;
+        case 'dias_atraso':
+          valorA = (a as any).dias_atraso || 0;
+          valorB = (b as any).dias_atraso || 0;
+          break;
+        case 'valor_acrescimo':
+          valorA = (a as any).valor_acrescimo || 0;
+          valorB = (b as any).valor_acrescimo || 0;
+          break;
+        case 'valor_desconto':
+          valorA = (a as any).valor_desconto || 0;
+          valorB = (b as any).valor_desconto || 0;
+          break;
+        case 'valor_juros':
+          valorA = (a as any).valor_juros || 0;
+          valorB = (b as any).valor_juros || 0;
           break;
         default:
           return 0;
@@ -580,6 +604,7 @@ export const ContasPagas: React.FC = () => {
 
   const exportarPDF = () => {
     const abaLabels: Record<AbaAtiva, string> = {
+      'dados': 'Dados',
       'fornecedor': 'Por Fornecedor',
       'centro-custo': 'Por Centro de Custo',
       'origem': 'Por Origem',
@@ -2576,6 +2601,146 @@ export const ContasPagas: React.FC = () => {
     );
   };
 
+  const renderAbaDadosDetalhados = () => {
+    const contasOrdenadas = ordenarContas(contas);
+    const totalValorPago = contas.reduce((s, c) => s + (c.valor_total || 0), 0);
+    const totalAcrescimos = contas.reduce((s, c) => s + ((c as any).valor_acrescimo || 0), 0);
+    const totalDescontos = contas.reduce((s, c) => s + ((c as any).valor_desconto || 0), 0);
+    const totalJuros = contas.reduce((s, c) => s + ((c as any).valor_juros || 0), 0);
+
+    return (
+      <>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Detalhamento de Pagamentos</h2>
+            <p className="mt-1 text-sm text-gray-500">{contas.length} registro(s) encontrado(s)</p>
+          </div>
+          <div className="flex gap-3">
+            <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-2 text-center">
+              <div className="text-xs text-green-600 font-medium">Valor Pago</div>
+              <div className="text-sm font-bold text-green-700">{formatCurrency(totalValorPago)}</div>
+            </div>
+            {totalAcrescimos > 0 && (
+              <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-2 text-center">
+                <div className="text-xs text-red-600 font-medium">Acrescimos</div>
+                <div className="text-sm font-bold text-red-700">{formatCurrency(totalAcrescimos)}</div>
+              </div>
+            )}
+            {totalDescontos > 0 && (
+              <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-2 text-center">
+                <div className="text-xs text-blue-600 font-medium">Descontos</div>
+                <div className="text-sm font-bold text-blue-700">{formatCurrency(totalDescontos)}</div>
+              </div>
+            )}
+            {totalJuros > 0 && (
+              <div className="rounded-lg bg-orange-50 border border-orange-200 px-4 py-2 text-center">
+                <div className="text-xs text-orange-600 font-medium">Juros</div>
+                <div className="text-sm font-bold text-orange-700">{formatCurrency(totalJuros)}</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-lg bg-white shadow">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-green-50">
+                <tr>
+                  <th onClick={() => toggleOrdenacao('credor')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                    Credor{renderSortIcon('credor')}
+                  </th>
+                  <th onClick={() => toggleOrdenacao('data_vencimento')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                    Vencimento{renderSortIcon('data_vencimento')}
+                  </th>
+                  <th onClick={() => toggleOrdenacao('lancamento')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                    Titulo{renderSortIcon('lancamento')}
+                  </th>
+                  <th onClick={() => toggleOrdenacao('data_pagamento')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                    Pagamento{renderSortIcon('data_pagamento')}
+                  </th>
+                  <th onClick={() => toggleOrdenacao('dias_atraso')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                    Atraso{renderSortIcon('dias_atraso')}
+                  </th>
+                  <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                    Centro de Custo{renderSortIcon('nome_centrocusto')}
+                  </th>
+                  <th onClick={() => toggleOrdenacao('nome_plano_financeiro')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                    Plano Financeiro{renderSortIcon('nome_plano_financeiro')}
+                  </th>
+                  <th onClick={() => toggleOrdenacao('valor_total')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                    Valor Pago{renderSortIcon('valor_total')}
+                  </th>
+                  <th onClick={() => toggleOrdenacao('valor_juros')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                    Juros{renderSortIcon('valor_juros')}
+                  </th>
+                  <th onClick={() => toggleOrdenacao('valor_acrescimo')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                    Acrescimos{renderSortIcon('valor_acrescimo')}
+                  </th>
+                  <th onClick={() => toggleOrdenacao('valor_desconto')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                    Descontos{renderSortIcon('valor_desconto')}
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {contasOrdenadas.map((conta, index) => {
+                  const diasAtraso = (conta as any).dias_atraso;
+                  const corAtraso = diasAtraso == null ? 'text-gray-400' : diasAtraso > 0 ? 'text-red-600' : diasAtraso === 0 ? 'text-green-600' : 'text-green-600';
+
+                  return (
+                    <tr key={index} className="hover:bg-gray-50 transition-colors duration-150">
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 max-w-[250px] truncate" title={conta.credor || '-'}>
+                        {conta.credor || '-'}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                        {formatDate(conta.data_vencimento)}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 font-mono">
+                        {conta.lancamento ? conta.lancamento.split('/')[0] : '-'}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                        {formatDate(conta.data_pagamento)}
+                      </td>
+                      <td className={`whitespace-nowrap px-4 py-3 text-sm font-semibold ${corAtraso}`}>
+                        {diasAtraso == null ? '-' : diasAtraso > 0 ? `${diasAtraso}d` : diasAtraso === 0 ? 'No prazo' : `${Math.abs(diasAtraso)}d antecip.`}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 max-w-[180px] truncate" title={conta.nome_centrocusto || '-'}>
+                        {conta.nome_centrocusto || '-'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate" title={(conta as any).nome_plano_financeiro || '-'}>
+                        {(conta as any).nome_plano_financeiro || '-'}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-green-700 text-right font-mono">
+                        {formatCurrency(conta.valor_total)}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-right font-mono text-orange-600">
+                        {(conta as any).valor_juros ? formatCurrency((conta as any).valor_juros) : '-'}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-right font-mono text-red-600">
+                        {(conta as any).valor_acrescimo ? formatCurrency((conta as any).valor_acrescimo) : '-'}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-right font-mono text-blue-600">
+                        {(conta as any).valor_desconto ? formatCurrency((conta as any).valor_desconto) : '-'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot className="bg-green-50">
+                <tr>
+                  <td colSpan={7} className="px-4 py-3 text-sm font-bold text-gray-900">TOTAL</td>
+                  <td className="px-4 py-3 text-sm font-bold text-green-700 text-right font-mono">{formatCurrency(totalValorPago)}</td>
+                  <td className="px-4 py-3 text-sm font-bold text-orange-600 text-right font-mono">{totalJuros > 0 ? formatCurrency(totalJuros) : '-'}</td>
+                  <td className="px-4 py-3 text-sm font-bold text-red-600 text-right font-mono">{totalAcrescimos > 0 ? formatCurrency(totalAcrescimos) : '-'}</td>
+                  <td className="px-4 py-3 text-sm font-bold text-blue-600 text-right font-mono">{totalDescontos > 0 ? formatCurrency(totalDescontos) : '-'}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </>
+    );
+  };
+
   return (
     <div>
       {estatisticas && (() => {
@@ -2624,6 +2789,20 @@ export const ContasPagas: React.FC = () => {
       <div className="mb-6">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
+            <button
+              type="button"
+              onClick={() => setAbaAtiva('dados')}
+              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
+                abaAtiva === 'dados'
+                  ? 'border-green-500 text-green-600'
+                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+              }`}
+            >
+              <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Dados
+            </button>
             <button
               type="button"
               onClick={() => setAbaAtiva('fornecedor')}
@@ -2699,6 +2878,7 @@ export const ContasPagas: React.FC = () => {
         </div>
       </div>
 
+      {abaAtiva === 'dados' && renderAbaDadosDetalhados()}
       {abaAtiva === 'fornecedor' && renderAbaDados()}
       {abaAtiva === 'centro-custo' && renderAbaCentroCusto()}
       {abaAtiva === 'origem' && renderAbaOrigem()}

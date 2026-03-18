@@ -26,6 +26,11 @@ export interface ContaPagar {
   data_emissao?: string;
   flautorizacao?: string;
   nome_plano_financeiro?: string;
+  valor_acrescimo?: number;
+  valor_desconto?: number;
+  valor_baixa?: number;
+  valor_juros?: number;
+  dias_atraso?: number;
 }
 
 export interface TituloDetalhe {

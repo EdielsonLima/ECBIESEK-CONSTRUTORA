@@ -1498,6 +1498,16 @@ def get_contas_pagas_filtradas(
         where_clause = " AND ".join(conditions) if conditions else "1=1"
 
         query = f"""
+            WITH cp_base AS (
+                SELECT cp.*,
+                    CASE WHEN cp.lancamento ~ '^[0-9]+/[0-9]+$'
+                         THEN CAST(SPLIT_PART(cp.lancamento, '/', 1) AS INTEGER)
+                         ELSE NULL END as _titulo_id,
+                    CASE WHEN cp.lancamento ~ '^[0-9]+/[0-9]+$'
+                         THEN CAST(SPLIT_PART(cp.lancamento, '/', 2) AS INTEGER)
+                         ELSE NULL END as _parcela_num
+                FROM contas_pagas cp
+            )
             SELECT
                 TRIM(REGEXP_REPLACE(COALESCE(cp.credor, 'SEM CREDOR'), '^[0-9][0-9.\-/]+ ', '')) as credor,
                 (cp.data_pagamento + INTERVAL '1 day')::date as data_pagamento,
@@ -1509,9 +1519,21 @@ def get_contas_pagas_filtradas(
                 cp.id_interno_centro_custo,
                 cp.id_origem,
                 cc.nome_empresa,
-                cc.nome_centrocusto
-            FROM contas_pagas cp
+                cc.nome_centrocusto,
+                pp.data_vencimento,
+                COALESCE(pf.nome_plano_financeiro, '') as nome_plano_financeiro,
+                cp.valor_acrescimo,
+                cp.valor_desconto,
+                cp.valor_baixa,
+                COALESCE(pp.valor_juros, 0) as valor_juros,
+                CASE WHEN pp.data_vencimento IS NOT NULL
+                     THEN ((cp.data_pagamento + INTERVAL '1 day')::date - pp.data_vencimento)
+                     ELSE NULL END as dias_atraso,
+                TRIM(cp.id_documento) as id_documento
+            FROM cp_base cp
             LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
+            LEFT JOIN ecpgparcela pp ON cp._titulo_id = pp.id_pg_titulo AND cp._parcela_num = pp.numero_parcela
+            LEFT JOIN ecadplanofin pf ON cp.id_plano_financeiro = pf.id_plano_financeiro
             WHERE {where_clause}
             ORDER BY cp.data_pagamento DESC, cp.credor, cp.valor_liquido
             LIMIT %s
