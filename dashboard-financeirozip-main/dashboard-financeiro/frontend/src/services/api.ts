@@ -212,6 +212,7 @@ export const apiService = {
     id_documento?: string;
     origem_dado?: string;
     tipo_baixa?: string;
+    tipo_pagamento?: string;
     conta_corrente?: string;
     origem_titulo?: string;
     ano?: string;
@@ -228,6 +229,7 @@ export const apiService = {
     if (filtros.id_documento) params.append('id_documento', filtros.id_documento);
     if (filtros.origem_dado) params.append('origem_dado', filtros.origem_dado);
     if (filtros.tipo_baixa) params.append('tipo_baixa', filtros.tipo_baixa);
+    if (filtros.tipo_pagamento) params.append('tipo_pagamento', filtros.tipo_pagamento);
     if (filtros.conta_corrente) params.append('conta_corrente', filtros.conta_corrente);
     if (filtros.origem_titulo) params.append('origem_titulo', filtros.origem_titulo);
     if (filtros.ano) params.append('ano', filtros.ano);

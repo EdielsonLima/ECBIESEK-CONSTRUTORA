@@ -188,6 +188,8 @@ export const ContasPagas: React.FC = () => {
   const [filtroIdDocumento, setFiltroIdDocumento] = useState<string[]>([]);
   const [filtroOrigemDado, setFiltroOrigemDado] = useState<string[]>([]);
   const [filtroTipoBaixa, setFiltroTipoBaixa] = useState<number[]>([]);
+  const [filtroTipoPagamento, setFiltroTipoPagamento] = useState<number[]>([]);
+  const [tiposPagamento, setTiposPagamento] = useState<Array<{ id: number; nome: string }>>([]);
   const [filtroContaCorrente, setFiltroContaCorrente] = useState<string[]>([]);
   const [filtroOrigemTitulo, setFiltroOrigemTitulo] = useState<string[]>([]);
   const [filtroAno, setFiltroAno] = useState<number[]>([]);
@@ -332,7 +334,7 @@ export const ContasPagas: React.FC = () => {
   useEffect(() => {
     const carregarFiltros = async () => {
       try {
-        const [empData, ccData, credData, tiposDocData, origensData, tiposBaixaData, contasCorrentesData, origensTituloData] = await Promise.all([
+        const [empData, ccData, credData, tiposDocData, origensData, tiposBaixaData, contasCorrentesData, origensTituloData, tiposPagData] = await Promise.all([
           apiService.getEmpresas(),
           apiService.getCentrosCusto(),
           apiService.getCredores(),
@@ -341,6 +343,7 @@ export const ContasPagas: React.FC = () => {
           apiService.getTiposBaixa(),
           apiService.getContasCorrente(),
           apiService.getOrigensTitulo(),
+          apiService.getTiposPagamento().catch(() => []),
         ]);
         setEmpresas(empData);
         setCentrosCusto(ccData);
@@ -350,6 +353,7 @@ export const ContasPagas: React.FC = () => {
         setTiposBaixa(tiposBaixaData);
         setContasCorrentes(contasCorrentesData);
         setOrigensTitulo(origensTituloData);
+        setTiposPagamento(tiposPagData);
       } catch (err) {
         console.error('Erro ao carregar filtros:', err);
       }
@@ -501,6 +505,7 @@ export const ContasPagas: React.FC = () => {
         id_documento: filtroIdDocumento.length > 0 ? filtroIdDocumento.join(',') : undefined,
         origem_dado: filtroOrigemDado.length > 0 ? filtroOrigemDado.join(',') : undefined,
         tipo_baixa: filtroTipoBaixa.length > 0 ? filtroTipoBaixa.join(',') : undefined,
+        tipo_pagamento: filtroTipoPagamento.length > 0 ? filtroTipoPagamento.join(',') : undefined,
         conta_corrente: filtroContaCorrente.length > 0 ? filtroContaCorrente.join(',') : undefined,
         origem_titulo: filtroOrigemTitulo.length > 0 ? filtroOrigemTitulo.join(',') : undefined,
         ano: filtroAno.length > 0 ? filtroAno.join(',') : undefined,
@@ -535,7 +540,7 @@ export const ContasPagas: React.FC = () => {
 
   useEffect(() => {
     buscarContas();
-  }, [filtroEmpresa, filtroCentroCusto, filtroCredor, filtroIdDocumento, filtroOrigemDado, filtroTipoBaixa, filtroAno, filtroMes]);
+  }, [filtroEmpresa, filtroCentroCusto, filtroCredor, filtroIdDocumento, filtroOrigemDado, filtroTipoBaixa, filtroTipoPagamento, filtroAno, filtroMes]);
 
   const salvarMeta = async () => {
     try {
@@ -907,6 +912,14 @@ export const ContasPagas: React.FC = () => {
           value={filtroTipoBaixa}
           onChange={(value) => setFiltroTipoBaixa(value as number[])}
           label="Tipo de Baixa"
+          emptyText="Todos"
+        />
+
+        <SearchableMultiSelect
+          options={tiposPagamento.map(t => ({ id: t.id, nome: `${t.id} - ${t.nome}` }))}
+          value={filtroTipoPagamento}
+          onChange={(value) => setFiltroTipoPagamento(value as number[])}
+          label="Tipo Pagamento"
           emptyText="Todos"
         />
 
