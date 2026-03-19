@@ -144,8 +144,8 @@ export const ContasAPagar: React.FC = () => {
   const [centrosCusto, setCentrosCusto] = useState<CentroCustoOption[]>([]);
   const [filtroEmpresa, setFiltroEmpresa] = useState<number[]>([]);
   const [filtroCentroCusto, setFiltroCentroCusto] = useState<number[]>([]);
-  const [filtroClassificacao, setFiltroClassificacao] = useState<string[]>([]);
-  const [classificacoesCentrosCusto, setClassificacoesCentrosCusto] = useState<Map<number, string>>(new Map());
+  const classificacoesCentrosCusto = new Map<number, string>();
+  const filtroClassificacao: string[] = [];
   const [filtroPrazo, setFiltroPrazo] = useState<string>('todos');
   const [filtroAno, setFiltroAno] = useState<number[]>([]);
   const [filtroMes, setFiltroMes] = useState<number[]>([]);
@@ -170,7 +170,6 @@ export const ContasAPagar: React.FC = () => {
   const [detalheCarregando, setDetalheCarregando] = useState(false);
   const [detalheCache, setDetalheCache] = useState<Record<number, TituloDetalhe>>({});
   const [autorizacoesBulk, setAutorizacoesBulk] = useState<Record<string, string>>({});
-  const [classDropdownAberto, setClassDropdownAberto] = useState(false);
   const [anoDropdownAberto, setAnoDropdownAberto] = useState(false);
   const [snapshotsDisponiveis, setSnapshotsDisponiveis] = useState<Array<{ data_snapshot: string; created_at: string }>>([]);
   const [snapshotSelecionado, setSnapshotSelecionado] = useState<string>('');
@@ -376,21 +375,14 @@ export const ContasAPagar: React.FC = () => {
   useEffect(() => {
     const carregarFiltros = async () => {
       try {
-        const [empresasData, ccData, tiposDocData, classificacoesData] = await Promise.all([
+        const [empresasData, ccData, tiposDocData] = await Promise.all([
           apiService.getEmpresas().catch(() => []),
           apiService.getCentrosCusto().catch(() => []),
           apiService.getTiposDocumento().catch(() => []),
-          apiService.getClassificacoesCentrosCusto().catch(() => []),
         ]);
         setEmpresas(empresasData);
         setCentrosCusto(ccData);
         setTiposDocumento(tiposDocData);
-
-        const classMap = new Map<number, string>();
-        classificacoesData.forEach(c => {
-          classMap.set(c.id_interno_centrocusto, c.classificacao);
-        });
-        setClassificacoesCentrosCusto(classMap);
       } catch (err) {
         console.error('Erro ao carregar filtros:', err);
       }
@@ -628,7 +620,6 @@ export const ContasAPagar: React.FC = () => {
   const limparFiltros = () => {
     setFiltroEmpresa([]);
     setFiltroCentroCusto([]);
-    setFiltroClassificacao([]);
     setFiltroPrazo('todos');
     setFiltroAno([]);
     setFiltroMes([]);
@@ -684,7 +675,6 @@ export const ContasAPagar: React.FC = () => {
       { label: 'Empresa', valor: filtroEmpresa.length > 0 ? filtroEmpresa.map(id => empresas.find(e => e.id === id)?.nome).filter(Boolean).join(', ') : 'Todos' },
       { label: 'Centro de Custo', valor: filtroCentroCusto.length > 0 ? filtroCentroCusto.map(id => centrosCusto.find(c => c.id === id)?.nome).filter(Boolean).join(', ') : 'Todos' },
       { label: 'Credor', valor: filtroCredor.length > 0 ? (filtroCredor.length <= 3 ? filtroCredor.join(', ') : `${filtroCredor.length} credores`) : 'Todos' },
-      { label: 'Classificacao', valor: filtroClassificacao.length > 0 ? filtroClassificacao.join(', ') : 'Todos' },
       { label: 'Prazo', valor: filtroPrazo !== 'todos' ? (getPrazoNome(filtroPrazo) || filtroPrazo) : 'Todos' },
       { label: 'Ano', valor: filtroAno.length > 0 ? filtroAno.join(', ') : 'Todos' },
       { label: 'Mes', valor: filtroMes.length > 0 ? filtroMes.map(m => meses.find(mes => mes.valor === m)?.nome).filter(Boolean).join(', ') : 'Todos' },
@@ -944,11 +934,6 @@ export const ContasAPagar: React.FC = () => {
     );
   }
 
-  const classificacaoOptions = [
-    { id: 'ADM', nome: 'ADM' },
-    { id: 'OBRA', nome: 'OBRA' },
-  ];
-
   const renderFiltros = () => (
     <div className="mb-6 rounded-lg bg-gray-50 p-4 shadow">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
@@ -978,14 +963,6 @@ export const ContasAPagar: React.FC = () => {
           isOpen={credorDropdownAberto}
           setIsOpen={setCredorDropdownAberto}
           searchable={true}
-        />
-        <MultiSelectDropdown
-          label="Classificacao"
-          items={classificacaoOptions}
-          selected={filtroClassificacao}
-          setSelected={setFiltroClassificacao}
-          isOpen={classDropdownAberto}
-          setIsOpen={setClassDropdownAberto}
         />
         <MultiSelectDropdown
           label="Tipo Documento"
@@ -1107,10 +1084,6 @@ export const ContasAPagar: React.FC = () => {
 
     if (filtroPlanoFinanceiro.length > 0) {
       tags.push({ label: 'Plano Financeiro', value: filtroPlanoFinanceiro.length === 1 ? filtroPlanoFinanceiro[0] : `${filtroPlanoFinanceiro.length} planos`, onRemove: () => setFiltroPlanoFinanceiro([]) });
-    }
-
-    if (filtroClassificacao.length > 0) {
-      tags.push({ label: 'Classificacao', value: filtroClassificacao.join(', '), onRemove: () => setFiltroClassificacao([]) });
     }
 
     const prazoNome = getPrazoNome(filtroPrazo);
