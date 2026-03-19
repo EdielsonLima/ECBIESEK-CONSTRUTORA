@@ -190,6 +190,8 @@ export const ContasPagas: React.FC = () => {
   const [filtroTipoBaixa, setFiltroTipoBaixa] = useState<number[]>([]);
   const [filtroTipoPagamento, setFiltroTipoPagamento] = useState<number[]>([]);
   const [tiposPagamento, setTiposPagamento] = useState<Array<{ id: number; nome: string }>>([]);
+  const [filtroPlanoFinanceiro, setFiltroPlanoFinanceiro] = useState<string[]>([]);
+  const [planosFinanceiros, setPlanosFinanceiros] = useState<Array<{ id: string; nome: string }>>([]);
   const [filtroContaCorrente, setFiltroContaCorrente] = useState<string[]>([]);
   const [filtroOrigemTitulo, setFiltroOrigemTitulo] = useState<string[]>([]);
   const [filtroAno, setFiltroAno] = useState<number[]>([]);
@@ -334,7 +336,7 @@ export const ContasPagas: React.FC = () => {
   useEffect(() => {
     const carregarFiltros = async () => {
       try {
-        const [empData, ccData, credData, tiposDocData, origensData, tiposBaixaData, contasCorrentesData, origensTituloData, tiposPagData] = await Promise.all([
+        const [empData, ccData, credData, tiposDocData, origensData, tiposBaixaData, contasCorrentesData, origensTituloData, tiposPagData, planosFinData] = await Promise.all([
           apiService.getEmpresas(),
           apiService.getCentrosCusto(),
           apiService.getCredores(),
@@ -344,6 +346,7 @@ export const ContasPagas: React.FC = () => {
           apiService.getContasCorrente(),
           apiService.getOrigensTitulo(),
           apiService.getTiposPagamento().catch(() => []),
+          apiService.getPlanosFinanceiros().catch(() => []),
         ]);
         setEmpresas(empData);
         setCentrosCusto(ccData);
@@ -354,6 +357,7 @@ export const ContasPagas: React.FC = () => {
         setContasCorrentes(contasCorrentesData);
         setOrigensTitulo(origensTituloData);
         setTiposPagamento(tiposPagData);
+        setPlanosFinanceiros(planosFinData);
       } catch (err) {
         console.error('Erro ao carregar filtros:', err);
       }
@@ -387,8 +391,10 @@ export const ContasPagas: React.FC = () => {
         id_documento: filtroIdDocumento.length > 0 ? filtroIdDocumento.join(',') : undefined,
         origem_dado: filtroOrigemDado.length > 0 ? filtroOrigemDado.join(',') : undefined,
         tipo_baixa: filtroTipoBaixa.length > 0 ? filtroTipoBaixa.join(',') : undefined,
+        tipo_pagamento: filtroTipoPagamento.length > 0 ? filtroTipoPagamento.join(',') : undefined,
         conta_corrente: filtroContaCorrente.length > 0 ? filtroContaCorrente.join(',') : undefined,
         origem_titulo: filtroOrigemTitulo.length > 0 ? filtroOrigemTitulo.join(',') : undefined,
+        plano_financeiro: filtroPlanoFinanceiro.length > 0 ? filtroPlanoFinanceiro.join(',') : undefined,
         ano: filtroAno.length > 0 ? filtroAno.join(',') : undefined,
         mes: filtroMes.length > 0 ? filtroMes.join(',') : undefined,
         data_inicio: filtroDataInicio || undefined,
@@ -508,6 +514,7 @@ export const ContasPagas: React.FC = () => {
         tipo_pagamento: filtroTipoPagamento.length > 0 ? filtroTipoPagamento.join(',') : undefined,
         conta_corrente: filtroContaCorrente.length > 0 ? filtroContaCorrente.join(',') : undefined,
         origem_titulo: filtroOrigemTitulo.length > 0 ? filtroOrigemTitulo.join(',') : undefined,
+        plano_financeiro: filtroPlanoFinanceiro.length > 0 ? filtroPlanoFinanceiro.join(',') : undefined,
         ano: filtroAno.length > 0 ? filtroAno.join(',') : undefined,
         mes: filtroMes.length > 0 ? filtroMes.join(',') : undefined,
         data_inicio: filtroDataInicio || undefined,
@@ -540,7 +547,7 @@ export const ContasPagas: React.FC = () => {
 
   useEffect(() => {
     buscarContas();
-  }, [filtroEmpresa, filtroCentroCusto, filtroCredor, filtroIdDocumento, filtroOrigemDado, filtroTipoBaixa, filtroTipoPagamento, filtroAno, filtroMes]);
+  }, [filtroEmpresa, filtroCentroCusto, filtroCredor, filtroIdDocumento, filtroOrigemDado, filtroTipoBaixa, filtroTipoPagamento, filtroPlanoFinanceiro, filtroAno, filtroMes]);
 
   const salvarMeta = async () => {
     try {
@@ -606,6 +613,8 @@ export const ContasPagas: React.FC = () => {
     setFiltroIdDocumento([]);
     setFiltroOrigemDado([]);
     setFiltroTipoBaixa([]);
+    setFiltroTipoPagamento([]);
+    setFiltroPlanoFinanceiro([]);
     setFiltroContaCorrente([]);
     setFiltroOrigemTitulo([]);
     setFiltroAno([]);
@@ -920,6 +929,14 @@ export const ContasPagas: React.FC = () => {
           value={filtroTipoPagamento}
           onChange={(value) => setFiltroTipoPagamento(value as number[])}
           label="Tipo Pagamento"
+          emptyText="Todos"
+        />
+
+        <SearchableMultiSelect
+          options={planosFinanceiros.map(p => ({ id: p.id, nome: p.nome }))}
+          value={filtroPlanoFinanceiro}
+          onChange={(value) => setFiltroPlanoFinanceiro(value as string[])}
+          label="Plano Financeiro"
           emptyText="Todos"
         />
 
@@ -2673,6 +2690,31 @@ export const ContasPagas: React.FC = () => {
       return paginas;
     };
 
+    const filtrosAtivosDados: string[] = [];
+    if (filtroEmpresa.length > 0) {
+      const emp = empresas.find(e => filtroEmpresa.includes(e.id as number));
+      filtrosAtivosDados.push(`Empresa: ${filtroEmpresa.length > 1 ? filtroEmpresa.length + ' empresas' : (emp?.nome || '')}`);
+    }
+    if (filtroCentroCusto.length > 0) {
+      const cc = centrosCusto.find(c => filtroCentroCusto.includes(c.id as number));
+      filtrosAtivosDados.push(`Centro Custo: ${filtroCentroCusto.length > 1 ? filtroCentroCusto.length + ' centros' : (cc?.nome || '')}`);
+    }
+    if (filtroCredor.length > 0) filtrosAtivosDados.push(`Credor: ${filtroCredor.length > 1 ? filtroCredor.length + ' credores' : filtroCredor[0]}`);
+    if (filtroIdDocumento.length > 0) filtrosAtivosDados.push(`Docs: ${filtroIdDocumento.length} selecionado(s)`);
+    if (filtroOrigemDado.length > 0) filtrosAtivosDados.push(`Origem: ${filtroOrigemDado.length} selecionada(s)`);
+    if (filtroTipoBaixa.length > 0) filtrosAtivosDados.push(`Tipo Baixa: ${filtroTipoBaixa.length} tipo(s)`);
+    if (filtroTipoPagamento.length > 0) filtrosAtivosDados.push(`Tipo Pagamento: ${filtroTipoPagamento.length} tipo(s)`);
+    if (filtroPlanoFinanceiro.length > 0) filtrosAtivosDados.push(`Plano Financeiro: ${filtroPlanoFinanceiro.length} plano(s)`);
+    if (filtroContaCorrente.length > 0) filtrosAtivosDados.push(`Conta Corrente: ${filtroContaCorrente.length} conta(s)`);
+    if (filtroOrigemTitulo.length > 0) filtrosAtivosDados.push(`Origem Titulo: ${filtroOrigemTitulo.length} origem(ns)`);
+    if (filtroAno.length > 0) filtrosAtivosDados.push(`Anos: ${filtroAno.join(', ')}`);
+    if (filtroMes.length > 0) {
+      const mesesNomes = filtroMes.map(m => meses.find(mes => mes.valor === m)?.nome).filter(Boolean);
+      filtrosAtivosDados.push(`Meses: ${mesesNomes.join(', ')}`);
+    }
+    if (filtroDataInicio) filtrosAtivosDados.push(`Data Inicio: ${filtroDataInicio}`);
+    if (filtroDataFim) filtrosAtivosDados.push(`Data Fim: ${filtroDataFim}`);
+
     return (
       <>
         <div className="mb-4 flex items-center justify-between">
@@ -2682,7 +2724,47 @@ export const ContasPagas: React.FC = () => {
               {totalRegistros > 0 ? `${registroInicio} - ${registroFim} de ${totalRegistros.toLocaleString('pt-BR')} registro(s)` : '0 registros'}
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => setMostrarFiltros(!mostrarFiltros)}
+            className="flex items-center rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+          >
+            <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
+            {filtrosAtivosDados.length > 0 && (
+              <span className="ml-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-bold text-blue-600">
+                {filtrosAtivosDados.length}
+              </span>
+            )}
+          </button>
         </div>
+
+        {!mostrarFiltros && filtrosAtivosDados.length > 0 && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {filtrosAtivosDados.map((filtro, index) => (
+              <span
+                key={index}
+                className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800"
+              >
+                {filtro}
+              </span>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                limparFiltros();
+                setTimeout(buscarContas, 100);
+              }}
+              className="text-sm text-gray-500 hover:text-gray-700 underline"
+            >
+              Limpar todos
+            </button>
+          </div>
+        )}
+
+        {mostrarFiltros && renderFiltros()}
 
         <div className="rounded-lg bg-white shadow overflow-visible">
           <div>

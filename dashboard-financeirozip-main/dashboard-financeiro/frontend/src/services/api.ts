@@ -215,6 +215,7 @@ export const apiService = {
     tipo_pagamento?: string;
     conta_corrente?: string;
     origem_titulo?: string;
+    plano_financeiro?: string;
     ano?: string;
     mes?: string;
     data_inicio?: string;
@@ -232,6 +233,7 @@ export const apiService = {
     if (filtros.tipo_pagamento) params.append('tipo_pagamento', filtros.tipo_pagamento);
     if (filtros.conta_corrente) params.append('conta_corrente', filtros.conta_corrente);
     if (filtros.origem_titulo) params.append('origem_titulo', filtros.origem_titulo);
+    if (filtros.plano_financeiro) params.append('plano_financeiro', filtros.plano_financeiro);
     if (filtros.ano) params.append('ano', filtros.ano);
     if (filtros.mes) params.append('mes', filtros.mes);
     if (filtros.data_inicio) params.append('data_inicio', filtros.data_inicio);
@@ -403,6 +405,12 @@ export const apiService = {
   // Filtros - Tipos de Pagamento
   getTiposPagamento: async (): Promise<Array<{ id: number; nome: string }>> => {
     const response = await api.get<Array<{ id: number; nome: string }>>('/filtros/tipos-pagamento');
+    return response.data;
+  },
+
+  // Filtros - Planos Financeiros
+  getPlanosFinanceiros: async (): Promise<Array<{ id: string; nome: string }>> => {
+    const response = await api.get<Array<{ id: string; nome: string }>>('/filtros/planos-financeiros');
     return response.data;
   },
 

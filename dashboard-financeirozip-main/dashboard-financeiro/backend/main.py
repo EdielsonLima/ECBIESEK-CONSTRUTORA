@@ -1361,6 +1361,7 @@ def get_contas_pagas_filtradas(
     tipo_pagamento: Optional[str] = None,
     conta_corrente: Optional[str] = None,
     origem_titulo: Optional[str] = None,
+    plano_financeiro: Optional[str] = None,
     ano: Optional[str] = None,
     mes: Optional[str] = None,
     data_inicio: Optional[str] = None,
@@ -1492,6 +1493,13 @@ def get_contas_pagas_filtradas(
                 ot_placeholders = ', '.join(['%s'] * len(siglas))
                 conditions.append(f"TRIM(UPPER(cp.id_origem)) IN ({ot_placeholders})")
                 params.extend(siglas)
+
+        if plano_financeiro:
+            planos = [p.strip() for p in plano_financeiro.split(',') if p.strip()]
+            if planos:
+                pf_placeholders = ', '.join(['%s'] * len(planos))
+                conditions.append(f"cp.id_plano_financeiro IN ({pf_placeholders})")
+                params.extend(planos)
 
         if ano:
             # Suporta múltiplos anos separados por vírgula
@@ -2726,6 +2734,25 @@ def get_tipos_pagamento():
             SELECT id_tipo_pagamento as id, nome_tipo_pagamento as nome
             FROM ecadtipopagamento
             ORDER BY id_tipo_pagamento
+        """)
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/filtros/planos-financeiros")
+def get_planos_financeiros():
+    """Retorna lista de planos financeiros disponíveis"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            SELECT id_plano_financeiro as id, nome_plano_financeiro as nome
+            FROM ecadplanofin
+            ORDER BY nome_plano_financeiro
         """)
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
