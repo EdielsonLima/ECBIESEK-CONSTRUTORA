@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState, useRef } from 'react';
 import { apiService } from '../services/api';
 import { ContaPagar, TituloDetalhe, EmpresaOption, CentroCustoOption, TipoDocumentoOption } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList, Line, ComposedChart } from 'recharts';
@@ -16,9 +16,16 @@ interface MultiSelectDropdownProps {
 
 const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ label, items, selected, setSelected, isOpen, setIsOpen, searchable = false }) => {
   const [busca, setBusca] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const itensFiltrados = searchable && busca
     ? items.filter(i => i.nome.toLowerCase().includes(busca.toLowerCase()))
     : items;
+
+  useEffect(() => {
+    if (isOpen && searchable && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isOpen, searchable]);
 
   return (
     <div className="relative">
@@ -42,6 +49,18 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ label, items,
       </button>
       {isOpen && (
         <div className="absolute z-20 mt-1 w-full min-w-[250px] rounded-lg border border-gray-300 bg-white shadow-lg">
+          {searchable && (
+            <div className="border-b border-gray-200 p-2">
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar..."
+                className="w-full rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none"
+              />
+            </div>
+          )}
           <div className="border-b border-gray-200 p-2 flex gap-2">
             <button
               type="button"
@@ -52,23 +71,12 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ label, items,
             </button>
             <button
               type="button"
-              onClick={() => setSelected([])}
+              onClick={() => { setSelected([]); setBusca(''); if (searchInputRef.current) searchInputRef.current.focus(); }}
               className="text-xs text-gray-500 hover:underline"
             >
               Limpar
             </button>
           </div>
-          {searchable && (
-            <div className="border-b border-gray-200 p-2">
-              <input
-                type="text"
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                placeholder="Buscar..."
-                className="w-full rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none"
-              />
-            </div>
-          )}
           <div className="max-h-48 overflow-y-auto p-2">
             {itensFiltrados.map((item) => (
               <label key={item.id} className="flex cursor-pointer items-center gap-2 py-1 hover:bg-gray-50 rounded px-1">

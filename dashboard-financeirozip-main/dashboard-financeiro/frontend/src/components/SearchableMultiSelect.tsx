@@ -63,6 +63,10 @@ export const SearchableMultiSelect: React.FC<SearchableMultiSelectProps> = ({
 
   const clearAll = () => {
     onChange([]);
+    setSearchTerm('');
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
   };
 
   const displayText = () => {
