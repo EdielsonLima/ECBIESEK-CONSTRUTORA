@@ -1236,8 +1236,8 @@ export const ContasAPagar: React.FC = () => {
         );
       })()}
 
-      <div className="overflow-hidden rounded-lg bg-white shadow">
-        <div className="overflow-x-auto">
+      <div className="rounded-lg bg-white shadow overflow-visible">
+        <div>
           <table className="w-full divide-y divide-gray-200 table-fixed">
             <colgroup>
               <col className="w-[22%]" />
@@ -1252,7 +1252,7 @@ export const ContasAPagar: React.FC = () => {
               <col className="w-[16%]" />
               <col className="w-[8%]" />
             </colgroup>
-            <thead className="bg-blue-50">
+            <thead className="bg-blue-50 sticky top-[85px] z-30 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
               <tr>
                 <th onClick={() => toggleOrdenacao('credor')} className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Credor{renderSortIcon('credor')}
