@@ -398,6 +398,12 @@ export const apiService = {
     return response.data;
   },
 
+  // Filtros - Tipos de Pagamento
+  getTiposPagamento: async (): Promise<Array<{ id: number; nome: string }>> => {
+    const response = await api.get<Array<{ id: number; nome: string }>>('/filtros/tipos-pagamento');
+    return response.data;
+  },
+
   // Filtros - Tipos de Baixa
   getTiposBaixa: async (): Promise<TipoBaixaOption[]> => {
     const response = await api.get<TipoBaixaOption[]>('/filtros/tipos-baixa');

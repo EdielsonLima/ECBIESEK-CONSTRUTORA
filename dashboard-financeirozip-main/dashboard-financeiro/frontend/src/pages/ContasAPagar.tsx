@@ -157,6 +157,9 @@ export const ContasAPagar: React.FC = () => {
   const [diasDropdownAberto, setDiasDropdownAberto] = useState(false);
   const [filtroPlanoFinanceiro, setFiltroPlanoFinanceiro] = useState<string[]>([]);
   const [planoFinDropdownAberto, setPlanoFinDropdownAberto] = useState(false);
+  const [filtroTipoPagamento, setFiltroTipoPagamento] = useState<number[]>([]);
+  const [tipoPagDropdownAberto, setTipoPagDropdownAberto] = useState(false);
+  const [tiposPagamento, setTiposPagamento] = useState<Array<{ id: number; nome: string }>>([]);
   const [dataReferencia, setDataReferencia] = useState<string>('');
   const [linhaExpandida, setLinhaExpandida] = useState<number | null>(null);
   const [detalheCarregando, setDetalheCarregando] = useState(false);
@@ -368,15 +371,17 @@ export const ContasAPagar: React.FC = () => {
   useEffect(() => {
     const carregarFiltros = async () => {
       try {
-        const [empresasData, ccData, tiposDocData, classificacoesData] = await Promise.all([
+        const [empresasData, ccData, tiposDocData, classificacoesData, tiposPagData] = await Promise.all([
           apiService.getEmpresas().catch(() => []),
           apiService.getCentrosCusto().catch(() => []),
           apiService.getTiposDocumento().catch(() => []),
           apiService.getClassificacoesCentrosCusto().catch(() => []),
+          apiService.getTiposPagamento().catch(() => []),
         ]);
         setEmpresas(empresasData);
         setCentrosCusto(ccData);
         setTiposDocumento(tiposDocData);
+        setTiposPagamento(tiposPagData);
 
         const classMap = new Map<number, string>();
         classificacoesData.forEach(c => {
@@ -463,7 +468,8 @@ export const ContasAPagar: React.FC = () => {
     tiposDocSelecionados: string[],
     credoresSelecionados: string[],
     diasSelecionados: string[],
-    planosFinSelecionados?: string[]
+    planosFinSelecionados?: string[],
+    tiposPagSelecionados?: number[]
   ) => {
     let contasFiltradas = [...dados];
 
@@ -515,6 +521,11 @@ export const ContasAPagar: React.FC = () => {
         return planosFinSelecionados.includes(nome);
       });
     }
+    if (tiposPagSelecionados && tiposPagSelecionados.length > 0) {
+      contasFiltradas = contasFiltradas.filter(c => {
+        return (c as any).id_tipo_pagamento && tiposPagSelecionados.includes((c as any).id_tipo_pagamento);
+      });
+    }
     if (prazo !== 'todos') {
       contasFiltradas = contasFiltradas.filter(c => {
         const dias = calcularDiasAteVencimento(c.data_vencimento as any);
@@ -534,11 +545,11 @@ export const ContasAPagar: React.FC = () => {
   useEffect(() => {
     if (todasContas.length === 0) return;
 
-    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro);
+    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro, filtroTipoPagamento);
     setContas(contasFiltradas);
 
     // Card "Total a Pagar" usa TODAS as contas (vencidas + a vencer), mas com filtros locais aplicados
-    const completasFiltradas = aplicarFiltrosLocais(todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro);
+    const completasFiltradas = aplicarFiltrosLocais(todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro, filtroTipoPagamento);
     const stats: Estatisticas = {
       quantidade_titulos: calcularTitulosUnicos(completasFiltradas),
       valor_total: completasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0),
@@ -628,6 +639,7 @@ export const ContasAPagar: React.FC = () => {
     setFiltroCredor([]);
     setFiltroDias([]);
     setFiltroPlanoFinanceiro([]);
+    setFiltroTipoPagamento([]);
     setDataReferencia('');
   };
 
@@ -1036,6 +1048,15 @@ export const ContasAPagar: React.FC = () => {
           setIsOpen={setPlanoFinDropdownAberto}
           searchable={true}
         />
+        <MultiSelectDropdown
+          label="Tipo Pagamento"
+          items={tiposPagamento.map(t => ({ id: t.id, nome: `${t.id} - ${t.nome}` }))}
+          selected={filtroTipoPagamento}
+          setSelected={setFiltroTipoPagamento}
+          isOpen={tipoPagDropdownAberto}
+          setIsOpen={setTipoPagDropdownAberto}
+          searchable={true}
+        />
       </div>
       <div className="mt-4">
         <label className="mb-2 block text-sm font-medium text-gray-700">Destacar novos apos</label>
@@ -1099,6 +1120,14 @@ export const ContasAPagar: React.FC = () => {
 
     if (filtroPlanoFinanceiro.length > 0) {
       tags.push({ label: 'Plano Financeiro', value: filtroPlanoFinanceiro.length === 1 ? filtroPlanoFinanceiro[0] : `${filtroPlanoFinanceiro.length} planos`, onRemove: () => setFiltroPlanoFinanceiro([]) });
+    }
+
+    if (filtroTipoPagamento.length > 0) {
+      const nomes = filtroTipoPagamento.map(id => {
+        const tp = tiposPagamento.find(t => t.id === id);
+        return tp ? tp.nome : String(id);
+      });
+      tags.push({ label: 'Tipo Pagamento', value: nomes.length === 1 ? nomes[0] : `${nomes.length} tipos`, onRemove: () => setFiltroTipoPagamento([]) });
     }
 
     if (filtroClassificacao.length > 0) {
@@ -1566,7 +1595,7 @@ export const ContasAPagar: React.FC = () => {
         const contas7dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 7; });
         const contas15dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 15; });
         const contas30dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 30; });
-        const completasFiltradas = aplicarFiltrosLocais(todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro);
+        const completasFiltradas = aplicarFiltrosLocais(todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro, filtroTipoPagamento);
         const credoresTotal = new Set(completasFiltradas.map(c => c.credor)).size;
         const credoresHoje = new Set(contasHoje.map(c => c.credor)).size;
         const credores7dias = new Set(contas7dias.map(c => c.credor)).size;

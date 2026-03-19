@@ -844,12 +844,15 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                        cap.flautorizacao,
                        t.descricao_observacao,
                        t.data_emissao,
-                       pf.nome_plano_financeiro
+                       pf.nome_plano_financeiro,
+                       cap.id_tipo_pagamento,
+                       COALESCE(tp.nome_tipo_pagamento, '') as nome_tipo_pagamento
                 FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 LEFT JOIN ecpgtitulo t ON t.id_pg_titulo = CAST(SPLIT_PART(cap.lancamento, '/', 1) AS INTEGER)
                     AND t.id_credor = cap.id_credor
                 LEFT JOIN ecadplanofin pf ON cap.id_plano_financeiro = pf.id_plano_financeiro
+                LEFT JOIN ecadtipopagamento tp ON cap.id_tipo_pagamento = tp.id_tipo_pagamento
                 WHERE 1=1{excl_where}
                 ORDER BY cap.data_vencimento ASC
                 LIMIT %s
@@ -871,12 +874,15 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                        cap.flautorizacao,
                        t.descricao_observacao,
                        t.data_emissao,
-                       pf.nome_plano_financeiro
+                       pf.nome_plano_financeiro,
+                       cap.id_tipo_pagamento,
+                       COALESCE(tp.nome_tipo_pagamento, '') as nome_tipo_pagamento
                 FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 LEFT JOIN ecpgtitulo t ON t.id_pg_titulo = CAST(SPLIT_PART(cap.lancamento, '/', 1) AS INTEGER)
                     AND t.id_credor = cap.id_credor
                 LEFT JOIN ecadplanofin pf ON cap.id_plano_financeiro = pf.id_plano_financeiro
+                LEFT JOIN ecadtipopagamento tp ON cap.id_tipo_pagamento = tp.id_tipo_pagamento
                 WHERE cap.data_vencimento < %s{excl_where}
                 ORDER BY cap.data_vencimento ASC
                 LIMIT %s
@@ -895,12 +901,15 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                        cap.flautorizacao,
                        t.descricao_observacao,
                        t.data_emissao,
-                       pf.nome_plano_financeiro
+                       pf.nome_plano_financeiro,
+                       cap.id_tipo_pagamento,
+                       COALESCE(tp.nome_tipo_pagamento, '') as nome_tipo_pagamento
                 FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
                 LEFT JOIN ecpgtitulo t ON t.id_pg_titulo = CAST(SPLIT_PART(cap.lancamento, '/', 1) AS INTEGER)
                     AND t.id_credor = cap.id_credor
                 LEFT JOIN ecadplanofin pf ON cap.id_plano_financeiro = pf.id_plano_financeiro
+                LEFT JOIN ecadtipopagamento tp ON cap.id_tipo_pagamento = tp.id_tipo_pagamento
                 WHERE 1=1{excl_where}
                 ORDER BY cap.data_vencimento DESC
                 LIMIT %s
@@ -938,12 +947,15 @@ def get_contas_ano(ano: int = None):
                    cap.flautorizacao,
                    t.descricao_observacao,
                    t.data_emissao,
-                   pf.nome_plano_financeiro
+                   pf.nome_plano_financeiro,
+                   cap.id_tipo_pagamento,
+                   COALESCE(tp.nome_tipo_pagamento, '') as nome_tipo_pagamento
             FROM contas_a_pagar cap
             LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
             LEFT JOIN ecpgtitulo t ON t.id_pg_titulo = CAST(SPLIT_PART(cap.lancamento, '/', 1) AS INTEGER)
                 AND t.id_credor = cap.id_credor
             LEFT JOIN ecadplanofin pf ON cap.id_plano_financeiro = pf.id_plano_financeiro
+            LEFT JOIN ecadtipopagamento tp ON cap.id_tipo_pagamento = tp.id_tipo_pagamento
             WHERE cap.data_vencimento >= %s
               AND EXTRACT(YEAR FROM cap.data_vencimento) = %s{excl_where}
             ORDER BY cap.data_vencimento ASC
@@ -2691,6 +2703,25 @@ def get_origem_dado():
         """)
         rows = cursor.fetchall()
         return [{'id': row['id'], 'nome': row['id']} for row in rows]
+
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/filtros/tipos-pagamento")
+def get_tipos_pagamento():
+    """Retorna lista de tipos de pagamento disponíveis (da tabela ecadtipopagamento)"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            SELECT id_tipo_pagamento as id, nome_tipo_pagamento as nome
+            FROM ecadtipopagamento
+            ORDER BY id_tipo_pagamento
+        """)
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
 
     finally:
         cursor.close()
