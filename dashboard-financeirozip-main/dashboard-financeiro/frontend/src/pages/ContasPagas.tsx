@@ -1315,52 +1315,47 @@ export const ContasPagas: React.FC = () => {
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-lg bg-white shadow">
-          <div className="overflow-x-auto max-h-[700px] overflow-y-auto">
+        <div className="rounded-lg bg-white shadow overflow-visible">
+          <div>
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-green-700 sticky top-0 z-10">
+              <thead className="bg-green-50 sticky top-[85px] z-30 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
                 <tr>
-                  <th rowSpan={2} className="px-3 py-2 text-center text-xs font-bold text-white border border-green-600">#</th>
-                  <th rowSpan={2} className="px-3 py-2 text-left text-xs font-bold text-white border border-green-600">Fornecedor</th>
-                  <th colSpan={2} className="px-3 py-2 text-center text-xs font-bold text-white border border-green-600 bg-green-800">7 Dias</th>
-                  <th colSpan={2} className="px-3 py-2 text-center text-xs font-bold text-white border border-green-600 bg-green-800">15 Dias</th>
-                  <th colSpan={2} className="px-3 py-2 text-center text-xs font-bold text-white border border-green-600 bg-green-800">30 Dias</th>
-                  <th rowSpan={2} className="px-3 py-2 text-center text-xs font-bold text-white border border-green-600">Todo o Período</th>
-                </tr>
-                <tr>
-                  <th className="px-3 py-1 text-center text-xs font-medium text-green-100 border border-green-600 bg-green-600">Qtd</th>
-                  <th className="px-3 py-1 text-center text-xs font-medium text-green-100 border border-green-600 bg-green-600">Valor (R$)</th>
-                  <th className="px-3 py-1 text-center text-xs font-medium text-green-100 border border-green-600 bg-green-600">Qtd</th>
-                  <th className="px-3 py-1 text-center text-xs font-medium text-green-100 border border-green-600 bg-green-600">Valor (R$)</th>
-                  <th className="px-3 py-1 text-center text-xs font-medium text-green-100 border border-green-600 bg-green-600">Qtd</th>
-                  <th className="px-3 py-1 text-center text-xs font-medium text-green-100 border border-green-600 bg-green-600">Valor (R$)</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">#</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Fornecedor</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">7d Qtd</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">7d Valor</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">15d Qtd</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">15d Valor</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">30d Qtd</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">30d Valor</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Todo o Período</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
+              <tbody className="divide-y divide-gray-200 bg-white">
                 {fornecedoresFiltrados.map((f, index) => (
-                  <tr key={f.credor} className={`hover:bg-green-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                    <td className="px-3 py-2 text-center text-xs text-gray-500 border-r border-gray-100">{index + 1}</td>
-                    <td className="px-3 py-2 text-sm font-medium text-gray-900 border-r border-gray-100 max-w-xs truncate" title={f.credor}>{f.credor}</td>
-                    <td className="px-3 py-2 text-center text-xs text-gray-600 border-r border-gray-100">{f.titulos_7d || '-'}</td>
-                    <td className="px-3 py-2 text-right text-xs text-gray-700 border-r border-gray-100 font-mono">{f.valor_7d ? formatCurrency(f.valor_7d) : '-'}</td>
-                    <td className="px-3 py-2 text-center text-xs text-gray-600 border-r border-gray-100">{f.titulos_15d || '-'}</td>
-                    <td className="px-3 py-2 text-right text-xs text-gray-700 border-r border-gray-100 font-mono">{f.valor_15d ? formatCurrency(f.valor_15d) : '-'}</td>
-                    <td className="px-3 py-2 text-center text-xs text-gray-600 border-r border-gray-100">{f.titulos_30d || '-'}</td>
-                    <td className="px-3 py-2 text-right text-xs text-gray-700 border-r border-gray-100 font-mono">{f.valor_30d ? formatCurrency(f.valor_30d) : '-'}</td>
-                    <td className="px-3 py-2 text-right text-sm font-semibold text-green-700 font-mono">{formatCurrency(f.valor_total)}</td>
+                  <tr key={f.credor} className="hover:bg-gray-50 transition-colors duration-150">
+                    <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-500">{index + 1}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 max-w-[300px] truncate" title={f.credor}>{f.credor}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-500">{f.titulos_7d || '-'}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 font-mono">{f.valor_7d ? formatCurrency(f.valor_7d) : '-'}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-500">{f.titulos_15d || '-'}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 font-mono">{f.valor_15d ? formatCurrency(f.valor_15d) : '-'}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-500">{f.titulos_30d || '-'}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 font-mono">{f.valor_30d ? formatCurrency(f.valor_30d) : '-'}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-bold text-green-700 font-mono">{formatCurrency(f.valor_total)}</td>
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="bg-green-100 sticky bottom-0">
-                <tr className="font-bold">
-                  <td className="px-3 py-3 text-sm text-gray-900 border-t-2 border-green-300" colSpan={2}>TOTAL GERAL</td>
-                  <td className="px-3 py-3 text-center text-sm text-gray-900 border-t-2 border-green-300">{totais.titulos_7d}</td>
-                  <td className="px-3 py-3 text-right text-sm text-gray-900 border-t-2 border-green-300 font-mono">{formatCurrency(totais.valor_7d)}</td>
-                  <td className="px-3 py-3 text-center text-sm text-gray-900 border-t-2 border-green-300">{totais.titulos_15d}</td>
-                  <td className="px-3 py-3 text-right text-sm text-gray-900 border-t-2 border-green-300 font-mono">{formatCurrency(totais.valor_15d)}</td>
-                  <td className="px-3 py-3 text-center text-sm text-gray-900 border-t-2 border-green-300">{totais.titulos_30d}</td>
-                  <td className="px-3 py-3 text-right text-sm text-gray-900 border-t-2 border-green-300 font-mono">{formatCurrency(totais.valor_30d)}</td>
-                  <td className="px-3 py-3 text-right text-sm font-bold text-green-800 border-t-2 border-green-300 font-mono">{formatCurrency(totais.valor_total)}</td>
+              <tfoot className="bg-green-50">
+                <tr>
+                  <td colSpan={2} className="px-4 py-3 text-sm font-bold text-gray-900">TOTAL GERAL</td>
+                  <td className="px-4 py-3 text-center text-sm font-bold text-gray-900">{totais.titulos_7d}</td>
+                  <td className="px-4 py-3 text-right text-sm font-bold text-gray-900 font-mono">{formatCurrency(totais.valor_7d)}</td>
+                  <td className="px-4 py-3 text-center text-sm font-bold text-gray-900">{totais.titulos_15d}</td>
+                  <td className="px-4 py-3 text-right text-sm font-bold text-gray-900 font-mono">{formatCurrency(totais.valor_15d)}</td>
+                  <td className="px-4 py-3 text-center text-sm font-bold text-gray-900">{totais.titulos_30d}</td>
+                  <td className="px-4 py-3 text-right text-sm font-bold text-gray-900 font-mono">{formatCurrency(totais.valor_30d)}</td>
+                  <td className="px-4 py-3 text-right text-sm font-bold text-green-700 font-mono">{formatCurrency(totais.valor_total)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -1969,40 +1964,40 @@ export const ContasPagas: React.FC = () => {
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-lg bg-white shadow">
-          <div className="overflow-x-auto max-h-[700px] overflow-y-auto">
+        <div className="rounded-lg bg-white shadow overflow-visible">
+          <div>
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-green-700 sticky top-0 z-10">
+              <thead className="bg-green-50 sticky top-[85px] z-30 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
                 <tr>
-                  <th className="px-3 py-3 text-center text-xs font-bold text-white border border-green-600 w-12">#</th>
-                  <th className="px-3 py-3 text-center text-xs font-bold text-white border border-green-600 w-20">Código CC</th>
-                  <th className="px-3 py-3 text-left text-xs font-bold text-white border border-green-600">Nome Centro de Custo</th>
-                  <th className="px-3 py-3 text-center text-xs font-bold text-white border border-green-600 bg-green-800">Total 7 Dias</th>
-                  <th className="px-3 py-3 text-center text-xs font-bold text-white border border-green-600 bg-green-800">Total 15 Dias</th>
-                  <th className="px-3 py-3 text-center text-xs font-bold text-white border border-green-600 bg-green-800">Total 30 Dias</th>
-                  <th className="px-3 py-3 text-center text-xs font-bold text-white border border-green-600">Todo o Período</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">#</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">Código CC</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Centro de Custo</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">7 Dias</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">15 Dias</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">30 Dias</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Todo o Período</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
+              <tbody className="divide-y divide-gray-200 bg-white">
                 {centrosFiltrados.map((cc, index) => (
-                  <tr key={cc.codigo_cc || index} className={`hover:bg-green-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                    <td className="px-3 py-2 text-center text-xs text-gray-500 border-r border-gray-100">{index + 1}</td>
-                    <td className="px-3 py-2 text-center text-xs font-medium text-gray-700 border-r border-gray-100">{cc.codigo_cc}</td>
-                    <td className="px-3 py-2 text-sm font-medium text-gray-900 border-r border-gray-100 max-w-sm truncate" title={cc.nome_centrocusto}>{cc.nome_centrocusto}</td>
-                    <td className="px-3 py-2 text-right text-xs text-gray-700 border-r border-gray-100 font-mono">{cc.valor_7d ? formatCurrency(cc.valor_7d) : '-'}</td>
-                    <td className="px-3 py-2 text-right text-xs text-gray-700 border-r border-gray-100 font-mono">{cc.valor_15d ? formatCurrency(cc.valor_15d) : '-'}</td>
-                    <td className="px-3 py-2 text-right text-xs text-gray-700 border-r border-gray-100 font-mono">{cc.valor_30d ? formatCurrency(cc.valor_30d) : '-'}</td>
-                    <td className="px-3 py-2 text-right text-sm font-semibold text-green-700 font-mono">{formatCurrency(cc.valor_total)}</td>
+                  <tr key={cc.codigo_cc || index} className="hover:bg-gray-50 transition-colors duration-150">
+                    <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-500">{index + 1}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-center text-sm font-medium text-gray-700">{cc.codigo_cc}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 max-w-[300px] truncate" title={cc.nome_centrocusto}>{cc.nome_centrocusto}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 font-mono">{cc.valor_7d ? formatCurrency(cc.valor_7d) : '-'}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 font-mono">{cc.valor_15d ? formatCurrency(cc.valor_15d) : '-'}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 font-mono">{cc.valor_30d ? formatCurrency(cc.valor_30d) : '-'}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-bold text-green-700 font-mono">{formatCurrency(cc.valor_total)}</td>
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="bg-green-100 sticky bottom-0">
-                <tr className="font-bold">
-                  <td className="px-3 py-3 text-sm text-gray-900 border-t-2 border-green-300" colSpan={3}>TOTAL GERAL</td>
-                  <td className="px-3 py-3 text-right text-sm text-gray-900 border-t-2 border-green-300 font-mono">{formatCurrency(totais.valor_7d)}</td>
-                  <td className="px-3 py-3 text-right text-sm text-gray-900 border-t-2 border-green-300 font-mono">{formatCurrency(totais.valor_15d)}</td>
-                  <td className="px-3 py-3 text-right text-sm text-gray-900 border-t-2 border-green-300 font-mono">{formatCurrency(totais.valor_30d)}</td>
-                  <td className="px-3 py-3 text-right text-sm font-bold text-green-800 border-t-2 border-green-300 font-mono">{formatCurrency(totais.valor_total)}</td>
+              <tfoot className="bg-green-50">
+                <tr>
+                  <td colSpan={3} className="px-4 py-3 text-sm font-bold text-gray-900">TOTAL GERAL</td>
+                  <td className="px-4 py-3 text-right text-sm font-bold text-gray-900 font-mono">{formatCurrency(totais.valor_7d)}</td>
+                  <td className="px-4 py-3 text-right text-sm font-bold text-gray-900 font-mono">{formatCurrency(totais.valor_15d)}</td>
+                  <td className="px-4 py-3 text-right text-sm font-bold text-gray-900 font-mono">{formatCurrency(totais.valor_30d)}</td>
+                  <td className="px-4 py-3 text-right text-sm font-bold text-green-700 font-mono">{formatCurrency(totais.valor_total)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -2171,38 +2166,38 @@ export const ContasPagas: React.FC = () => {
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-lg bg-white shadow">
-          <div className="overflow-x-auto max-h-[700px] overflow-y-auto">
+        <div className="rounded-lg bg-white shadow overflow-visible">
+          <div>
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-green-700 sticky top-0 z-10">
+              <thead className="bg-green-50 sticky top-[85px] z-30 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
                 <tr>
-                  <th className="px-3 py-3 text-center text-xs font-bold text-white border border-green-600 w-12">#</th>
-                  <th className="px-3 py-3 text-left text-xs font-bold text-white border border-green-600">Origem</th>
-                  <th className="px-3 py-3 text-center text-xs font-bold text-white border border-green-600 bg-green-800">Total 7 Dias</th>
-                  <th className="px-3 py-3 text-center text-xs font-bold text-white border border-green-600 bg-green-800">Total 15 Dias</th>
-                  <th className="px-3 py-3 text-center text-xs font-bold text-white border border-green-600 bg-green-800">Total 30 Dias</th>
-                  <th className="px-3 py-3 text-center text-xs font-bold text-white border border-green-600">Todo o Período</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">#</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Origem</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">7 Dias</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">15 Dias</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">30 Dias</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Todo o Período</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
+              <tbody className="divide-y divide-gray-200 bg-white">
                 {origensFiltradas.map((o, index) => (
-                  <tr key={o.origem} className={`hover:bg-green-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                    <td className="px-3 py-2 text-center text-xs text-gray-500 border-r border-gray-100">{index + 1}</td>
-                    <td className="px-3 py-2 text-sm font-medium text-gray-900 border-r border-gray-100">{o.origem}</td>
-                    <td className="px-3 py-2 text-right text-xs text-gray-700 border-r border-gray-100 font-mono">{o.valor_7d ? formatCurrency(o.valor_7d) : '-'}</td>
-                    <td className="px-3 py-2 text-right text-xs text-gray-700 border-r border-gray-100 font-mono">{o.valor_15d ? formatCurrency(o.valor_15d) : '-'}</td>
-                    <td className="px-3 py-2 text-right text-xs text-gray-700 border-r border-gray-100 font-mono">{o.valor_30d ? formatCurrency(o.valor_30d) : '-'}</td>
-                    <td className="px-3 py-2 text-right text-sm font-semibold text-green-700 font-mono">{formatCurrency(o.valor_total)}</td>
+                  <tr key={o.origem} className="hover:bg-gray-50 transition-colors duration-150">
+                    <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-500">{index + 1}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">{o.origem}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 font-mono">{o.valor_7d ? formatCurrency(o.valor_7d) : '-'}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 font-mono">{o.valor_15d ? formatCurrency(o.valor_15d) : '-'}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 font-mono">{o.valor_30d ? formatCurrency(o.valor_30d) : '-'}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-bold text-green-700 font-mono">{formatCurrency(o.valor_total)}</td>
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="bg-green-100 sticky bottom-0">
-                <tr className="font-bold">
-                  <td className="px-3 py-3 text-sm text-gray-900 border-t-2 border-green-300" colSpan={2}>TOTAL GERAL</td>
-                  <td className="px-3 py-3 text-right text-sm text-gray-900 border-t-2 border-green-300 font-mono">{formatCurrency(totais.valor_7d)}</td>
-                  <td className="px-3 py-3 text-right text-sm text-gray-900 border-t-2 border-green-300 font-mono">{formatCurrency(totais.valor_15d)}</td>
-                  <td className="px-3 py-3 text-right text-sm text-gray-900 border-t-2 border-green-300 font-mono">{formatCurrency(totais.valor_30d)}</td>
-                  <td className="px-3 py-3 text-right text-sm font-bold text-green-800 border-t-2 border-green-300 font-mono">{formatCurrency(totais.valor_total)}</td>
+              <tfoot className="bg-green-50">
+                <tr>
+                  <td colSpan={2} className="px-4 py-3 text-sm font-bold text-gray-900">TOTAL GERAL</td>
+                  <td className="px-4 py-3 text-right text-sm font-bold text-gray-900 font-mono">{formatCurrency(totais.valor_7d)}</td>
+                  <td className="px-4 py-3 text-right text-sm font-bold text-gray-900 font-mono">{formatCurrency(totais.valor_15d)}</td>
+                  <td className="px-4 py-3 text-right text-sm font-bold text-gray-900 font-mono">{formatCurrency(totais.valor_30d)}</td>
+                  <td className="px-4 py-3 text-right text-sm font-bold text-green-700 font-mono">{formatCurrency(totais.valor_total)}</td>
                 </tr>
               </tfoot>
             </table>
