@@ -706,7 +706,7 @@ export const ContasAPagar: React.FC = () => {
     if (abaAtiva === 'dados') {
       const contasOrdenadas = ordenarContas(contas);
       y = adicionarTabela(doc, {
-        head: [['Credor', 'Vencimento', 'Dias', 'Valor', 'Titulo', 'Centro de Custo', 'Tipo Doc.']],
+        head: [['Credor', 'Vencimento', 'Dias', 'Titulo', 'Centro de Custo', 'Plano Financeiro', 'Tipo Doc.', 'Valor']],
         body: contasOrdenadas.map(c => {
           const dias = calcularDiasAteVencimento(c.data_vencimento as any);
           const diasStr = dias < 0 ? `${Math.abs(dias)}d atraso` : dias === 0 ? 'Hoje' : `${dias}d`;
@@ -714,14 +714,15 @@ export const ContasAPagar: React.FC = () => {
             c.credor || '-',
             formatDatePDF(c.data_vencimento),
             diasStr,
-            `R$ ${formatCurrencyPDF(c.valor_total || 0)}`,
             c.lancamento ? c.lancamento.split('/')[0] : '-',
             (c as any).nome_centrocusto || '-',
+            (c as any).nome_plano_financeiro || '-',
             c.id_documento || '-',
+            `R$ ${formatCurrencyPDF(c.valor_total || 0)}`,
           ];
         }),
-        foot: [['TOTAL', '', '', `R$ ${formatCurrencyPDF(contas.reduce((a, c) => a + (c.valor_total || 0), 0))}`, '', '', '']],
-        columnStyles: { 3: { halign: 'right' } },
+        foot: [['TOTAL', '', '', '', '', '', '', `R$ ${formatCurrencyPDF(contas.reduce((a, c) => a + (c.valor_total || 0), 0))}`]],
+        columnStyles: { 7: { halign: 'right' } },
       }, y, margin);
     } else if (abaAtiva === 'por-credor') {
       // Recalculate Pareto data for PDF
