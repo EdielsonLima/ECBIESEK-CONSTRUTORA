@@ -1855,6 +1855,23 @@ export const ContasPagas: React.FC = () => {
         })()
       : '-';
 
+    const filtrosAtivosCC: string[] = [];
+    if (filtroEmpresa.length > 0) {
+      const emp = empresas.find(e => filtroEmpresa.includes(e.id as number));
+      filtrosAtivosCC.push(`Empresa: ${filtroEmpresa.length > 1 ? filtroEmpresa.length + ' empresas' : (emp?.nome || '')}`);
+    }
+    if (filtroCentroCusto.length > 0) filtrosAtivosCC.push(`Centro Custo: ${filtroCentroCusto.length} centro(s)`);
+    if (filtroCredor.length > 0) filtrosAtivosCC.push(`Credor: ${filtroCredor.length > 1 ? filtroCredor.length + ' credores' : filtroCredor[0]}`);
+    if (filtroTipoPagamento.length > 0) filtrosAtivosCC.push(`Tipo Pagamento: ${filtroTipoPagamento.length} tipo(s)`);
+    if (filtroPlanoFinanceiro.length > 0) filtrosAtivosCC.push(`Plano Financeiro: ${filtroPlanoFinanceiro.length} plano(s)`);
+    if (filtroAno.length > 0) filtrosAtivosCC.push(`Anos: ${filtroAno.join(', ')}`);
+    if (filtroMes.length > 0) {
+      const mesesNomes = filtroMes.map(m => meses.find(mes => mes.valor === m)?.nome).filter(Boolean);
+      filtrosAtivosCC.push(`Meses: ${mesesNomes.join(', ')}`);
+    }
+    if (filtroDataInicio) filtrosAtivosCC.push(`Data Inicio: ${filtroDataInicio}`);
+    if (filtroDataFim) filtrosAtivosCC.push(`Data Fim: ${filtroDataFim}`);
+
     return (
       <>
         <div className="mb-6">
@@ -1891,8 +1908,34 @@ export const ContasPagas: React.FC = () => {
                 </svg>
                 Exportar CSV
               </button>
+              <button
+                type="button"
+                onClick={() => setMostrarFiltros(!mostrarFiltros)}
+                className="flex items-center rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+              >
+                <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+                {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
+                {filtrosAtivosCC.length > 0 && (
+                  <span className="ml-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-bold text-blue-600">
+                    {filtrosAtivosCC.length}
+                  </span>
+                )}
+              </button>
             </div>
           </div>
+
+          {!mostrarFiltros && filtrosAtivosCC.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {filtrosAtivosCC.map((filtro, index) => (
+                <span key={index} className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800">{filtro}</span>
+              ))}
+              <button type="button" onClick={() => { limparFiltros(); setTimeout(buscarContas, 100); }} className="text-sm text-gray-500 hover:text-gray-700 underline">Limpar todos</button>
+            </div>
+          )}
+
+          {mostrarFiltros && renderFiltros()}
         </div>
 
         <div className="mb-4 flex flex-wrap items-center gap-4">
@@ -2014,6 +2057,23 @@ export const ContasPagas: React.FC = () => {
         })()
       : '-';
 
+    const filtrosAtivosOrigem: string[] = [];
+    if (filtroEmpresa.length > 0) {
+      const emp = empresas.find(e => filtroEmpresa.includes(e.id as number));
+      filtrosAtivosOrigem.push(`Empresa: ${filtroEmpresa.length > 1 ? filtroEmpresa.length + ' empresas' : (emp?.nome || '')}`);
+    }
+    if (filtroCentroCusto.length > 0) filtrosAtivosOrigem.push(`Centro Custo: ${filtroCentroCusto.length} centro(s)`);
+    if (filtroCredor.length > 0) filtrosAtivosOrigem.push(`Credor: ${filtroCredor.length > 1 ? filtroCredor.length + ' credores' : filtroCredor[0]}`);
+    if (filtroTipoPagamento.length > 0) filtrosAtivosOrigem.push(`Tipo Pagamento: ${filtroTipoPagamento.length} tipo(s)`);
+    if (filtroPlanoFinanceiro.length > 0) filtrosAtivosOrigem.push(`Plano Financeiro: ${filtroPlanoFinanceiro.length} plano(s)`);
+    if (filtroAno.length > 0) filtrosAtivosOrigem.push(`Anos: ${filtroAno.join(', ')}`);
+    if (filtroMes.length > 0) {
+      const mesesNomes = filtroMes.map(m => meses.find(mes => mes.valor === m)?.nome).filter(Boolean);
+      filtrosAtivosOrigem.push(`Meses: ${mesesNomes.join(', ')}`);
+    }
+    if (filtroDataInicio) filtrosAtivosOrigem.push(`Data Inicio: ${filtroDataInicio}`);
+    if (filtroDataFim) filtrosAtivosOrigem.push(`Data Fim: ${filtroDataFim}`);
+
     return (
       <>
         <div className="mb-6">
@@ -2050,8 +2110,34 @@ export const ContasPagas: React.FC = () => {
                 </svg>
                 Exportar CSV
               </button>
+              <button
+                type="button"
+                onClick={() => setMostrarFiltros(!mostrarFiltros)}
+                className="flex items-center rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+              >
+                <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+                {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
+                {filtrosAtivosOrigem.length > 0 && (
+                  <span className="ml-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-bold text-blue-600">
+                    {filtrosAtivosOrigem.length}
+                  </span>
+                )}
+              </button>
             </div>
           </div>
+
+          {!mostrarFiltros && filtrosAtivosOrigem.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {filtrosAtivosOrigem.map((filtro, index) => (
+                <span key={index} className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800">{filtro}</span>
+              ))}
+              <button type="button" onClick={() => { limparFiltros(); setTimeout(buscarContas, 100); }} className="text-sm text-gray-500 hover:text-gray-700 underline">Limpar todos</button>
+            </div>
+          )}
+
+          {mostrarFiltros && renderFiltros()}
         </div>
 
         <div className="mb-4 flex flex-wrap items-center gap-4">
