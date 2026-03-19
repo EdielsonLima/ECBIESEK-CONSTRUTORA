@@ -1823,32 +1823,22 @@ export const ContasPagas: React.FC = () => {
   };
 
   const renderAbaCentroCusto = () => {
-    const centros = dadosCentroCusto?.centros_custo || [];
-    const centrosPorPeriodo = filtroPeriodoCC === 'todos'
-      ? centros
-      : centros.filter(cc => {
-          if (filtroPeriodoCC === '7d') return cc.valor_7d > 0;
-          if (filtroPeriodoCC === '15d') return cc.valor_15d > 0;
-          return cc.valor_30d > 0;
-        });
-    const centrosFiltrados = buscaCentroCusto
-      ? centrosPorPeriodo.filter(cc => cc.nome_centrocusto.toLowerCase().includes(buscaCentroCusto.toLowerCase()))
-      : centrosPorPeriodo;
+    const contasOrdenadas = ordenarContas(contas);
+    const totalPaginas = Math.ceil(totalRegistros / itensPorPagina);
+    const registroInicio = (paginaAtual - 1) * itensPorPagina + 1;
+    const registroFim = Math.min(paginaAtual * itensPorPagina, totalRegistros);
+    const totalValorOriginal = contas.reduce((s, c) => s + ((c as any).valor_baixa || 0), 0);
+    const totalValorPago = contas.reduce((s, c) => s + (c.valor_total || 0), 0);
 
-    const totais = centrosFiltrados.reduce((acc, cc) => ({
-      valor_7d: acc.valor_7d + cc.valor_7d,
-      valor_15d: acc.valor_15d + cc.valor_15d,
-      valor_30d: acc.valor_30d + cc.valor_30d,
-      valor_total: acc.valor_total + cc.valor_total,
-    }), { valor_7d: 0, valor_15d: 0, valor_30d: 0, valor_total: 0 });
-
-    const refDateFormatted = dadosCentroCusto?.ref_date
-      ? (() => {
-          const safe = dadosCentroCusto.ref_date!.includes('T') ? dadosCentroCusto.ref_date! : dadosCentroCusto.ref_date! + 'T12:00:00';
-          const d = new Date(safe);
-          return isNaN(d.getTime()) ? dadosCentroCusto.ref_date : `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-        })()
-      : '-';
+    const paginasVisiveis = () => {
+      const paginas: number[] = [];
+      const maxVisiveis = 7;
+      let inicio = Math.max(1, paginaAtual - Math.floor(maxVisiveis / 2));
+      const fim = Math.min(totalPaginas, inicio + maxVisiveis - 1);
+      inicio = Math.max(1, fim - maxVisiveis + 1);
+      for (let i = inicio; i <= fim; i++) paginas.push(i);
+      return paginas;
+    };
 
     const filtrosAtivosCC: string[] = [];
     if (filtroEmpresa.length > 0) {
@@ -1869,140 +1859,106 @@ export const ContasPagas: React.FC = () => {
 
     return (
       <>
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">
-                Pagamentos por Centro de Custo
-              </h2>
-              <p className="mt-1 text-sm text-gray-600">
-                Ref.: {refDateFormatted} &middot; {dadosCentroCusto?.total_centros || 0} centro(s) de custo
-                {(buscaCentroCusto || filtroPeriodoCC !== 'todos') && ` \u00b7 ${centrosFiltrados.length} exibido(s)`}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={exportarPDF}
-                disabled={centros.length === 0}
-                className="flex items-center rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50"
-              >
-                <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                Exportar PDF
-              </button>
-              <button
-                type="button"
-                onClick={exportarCSVCentroCusto}
-                disabled={centros.length === 0}
-                className="flex items-center rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
-              >
-                <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Exportar CSV
-              </button>
-              <button
-                type="button"
-                onClick={() => setMostrarFiltros(!mostrarFiltros)}
-                className="flex items-center rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-              >
-                <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                </svg>
-                {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
-                {filtrosAtivosCC.length > 0 && (
-                  <span className="ml-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-bold text-blue-600">
-                    {filtrosAtivosCC.length}
-                  </span>
-                )}
-              </button>
-            </div>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Pagamentos por Centro de Custo</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              {totalRegistros > 0 ? `${registroInicio} - ${registroFim} de ${totalRegistros.toLocaleString('pt-BR')} registro(s)` : '0 registros'}
+            </p>
           </div>
-
-          {!mostrarFiltros && filtrosAtivosCC.length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {filtrosAtivosCC.map((filtro, index) => (
-                <span key={index} className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800">{filtro}</span>
-              ))}
-              <button type="button" onClick={() => { limparFiltros(); setTimeout(buscarContas, 100); }} className="text-sm text-gray-500 hover:text-gray-700 underline">Limpar todos</button>
-            </div>
-          )}
-
-          {mostrarFiltros && renderFiltros()}
-        </div>
-
-        <div className="mb-4 flex flex-wrap items-center gap-4">
-          <input
-            type="text"
-            value={buscaCentroCusto}
-            onChange={(e) => setBuscaCentroCusto(e.target.value)}
-            placeholder="Buscar centro de custo..."
-            className="w-full max-w-md rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-green-500 focus:outline-none"
-          />
-          <div className="flex rounded-lg border border-gray-300 overflow-hidden">
-            {([
-              { key: 'todos' as const, label: 'Todos' },
-              { key: '7d' as const, label: '7 Dias' },
-              { key: '15d' as const, label: '15 Dias' },
-              { key: '30d' as const, label: '30 Dias' },
-            ]).map(({ key, label }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setFiltroPeriodoCC(key)}
-                className={`px-4 py-2 text-sm font-medium transition-colors ${
-                  filtroPeriodoCC === key
-                    ? 'bg-green-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-100'
-                } ${key !== 'todos' ? 'border-l border-gray-300' : ''}`}
-              >
-                {label}
-              </button>
-            ))}
+          <div className="flex gap-2">
+            <button type="button" onClick={exportarPDF} disabled={contas.length === 0} className="flex items-center rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50">
+              <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+              Exportar PDF
+            </button>
+            <button type="button" onClick={exportarCSVDados} disabled={contas.length === 0} className="flex items-center rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50">
+              <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+              Exportar CSV
+            </button>
+            <button type="button" onClick={() => setMostrarFiltros(!mostrarFiltros)} className="flex items-center rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+              <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+              {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
+              {filtrosAtivosCC.length > 0 && (<span className="ml-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-bold text-blue-600">{filtrosAtivosCC.length}</span>)}
+            </button>
           </div>
         </div>
+
+        {!mostrarFiltros && filtrosAtivosCC.length > 0 && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {filtrosAtivosCC.map((filtro, index) => (<span key={index} className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800">{filtro}</span>))}
+            <button type="button" onClick={() => { limparFiltros(); setTimeout(buscarContas, 100); }} className="text-sm text-gray-500 hover:text-gray-700 underline">Limpar todos</button>
+          </div>
+        )}
+
+        {mostrarFiltros && renderFiltros()}
 
         <div className="rounded-lg bg-white shadow overflow-visible">
           <div>
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-green-50 sticky top-[85px] z-30 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
                 <tr>
-                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">#</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">Código CC</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Centro de Custo</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">7 Dias</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">15 Dias</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">30 Dias</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Todo o Período</th>
+                  <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Centro de Custo{renderSortIcon('nome_centrocusto')}</th>
+                  <th onClick={() => toggleOrdenacao('data_vencimento')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Vencimento{renderSortIcon('data_vencimento')}</th>
+                  <th onClick={() => toggleOrdenacao('lancamento')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Titulo{renderSortIcon('lancamento')}</th>
+                  <th onClick={() => toggleOrdenacao('data_pagamento')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Pagamento{renderSortIcon('data_pagamento')}</th>
+                  <th onClick={() => toggleOrdenacao('dias_atraso')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Atraso{renderSortIcon('dias_atraso')}</th>
+                  <th onClick={() => toggleOrdenacao('credor')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Credor{renderSortIcon('credor')}</th>
+                  <th onClick={() => toggleOrdenacao('nome_plano_financeiro')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Plano Financeiro{renderSortIcon('nome_plano_financeiro')}</th>
+                  <th onClick={() => toggleOrdenacao('valor_baixa')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Valor Original{renderSortIcon('valor_baixa')}</th>
+                  <th onClick={() => toggleOrdenacao('valor_juros')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Juros{renderSortIcon('valor_juros')}</th>
+                  <th onClick={() => toggleOrdenacao('valor_acrescimo')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Acrescimos{renderSortIcon('valor_acrescimo')}</th>
+                  <th onClick={() => toggleOrdenacao('valor_desconto')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Descontos{renderSortIcon('valor_desconto')}</th>
+                  <th onClick={() => toggleOrdenacao('valor_total')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Valor Pago{renderSortIcon('valor_total')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
-                {centrosFiltrados.map((cc, index) => (
-                  <tr key={cc.codigo_cc || index} className="hover:bg-gray-50 transition-colors duration-150">
-                    <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-500">{index + 1}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-center text-sm font-medium text-gray-700">{cc.codigo_cc}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 max-w-[300px] truncate" title={cc.nome_centrocusto}>{cc.nome_centrocusto}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 font-mono">{cc.valor_7d ? formatCurrency(cc.valor_7d) : '-'}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 font-mono">{cc.valor_15d ? formatCurrency(cc.valor_15d) : '-'}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 font-mono">{cc.valor_30d ? formatCurrency(cc.valor_30d) : '-'}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-bold text-green-700 font-mono">{formatCurrency(cc.valor_total)}</td>
-                  </tr>
-                ))}
+                {contasOrdenadas.map((conta, index) => {
+                  const diasAtraso = (conta as any).dias_atraso;
+                  const corAtraso = diasAtraso == null ? 'text-gray-400' : diasAtraso > 0 ? 'text-red-600' : 'text-green-600';
+                  return (
+                    <tr key={index} className="hover:bg-gray-50 transition-colors duration-150">
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 max-w-[200px] truncate" title={conta.nome_centrocusto || '-'}>{conta.nome_centrocusto || '-'}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">{formatDate(conta.data_vencimento)}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 font-mono">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">{formatDate(conta.data_pagamento)}</td>
+                      <td className={`whitespace-nowrap px-4 py-3 text-sm font-semibold ${corAtraso}`}>{diasAtraso == null ? '-' : diasAtraso > 0 ? `${diasAtraso}d` : diasAtraso === 0 ? 'No prazo' : `${Math.abs(diasAtraso)}d antecip.`}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900 max-w-[200px] truncate" title={conta.credor || '-'}>{conta.credor || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-700 text-right font-mono">{formatCurrency((conta as any).valor_baixa || 0)}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-right font-mono text-orange-600">{(conta as any).valor_juros ? formatCurrency((conta as any).valor_juros) : '-'}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-right font-mono text-red-600">{(conta as any).valor_acrescimo ? formatCurrency((conta as any).valor_acrescimo) : '-'}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-right font-mono text-blue-600">{(conta as any).valor_desconto ? formatCurrency((conta as any).valor_desconto) : '-'}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-bold text-green-700 text-right font-mono">{formatCurrency(conta.valor_total || 0)}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
               <tfoot className="bg-green-50">
                 <tr>
-                  <td colSpan={3} className="px-4 py-3 text-sm font-bold text-gray-900">TOTAL GERAL</td>
-                  <td className="px-4 py-3 text-right text-sm font-bold text-gray-900 font-mono">{formatCurrency(totais.valor_7d)}</td>
-                  <td className="px-4 py-3 text-right text-sm font-bold text-gray-900 font-mono">{formatCurrency(totais.valor_15d)}</td>
-                  <td className="px-4 py-3 text-right text-sm font-bold text-gray-900 font-mono">{formatCurrency(totais.valor_30d)}</td>
-                  <td className="px-4 py-3 text-right text-sm font-bold text-green-700 font-mono">{formatCurrency(totais.valor_total)}</td>
+                  <td colSpan={7} className="px-4 py-3 text-sm font-bold text-gray-900">SUBTOTAL PAGINA</td>
+                  <td className="px-4 py-3 text-sm font-bold text-gray-700 text-right font-mono">{formatCurrency(totalValorOriginal)}</td>
+                  <td className="px-4 py-3 text-sm font-bold text-orange-600 text-right font-mono">-</td>
+                  <td className="px-4 py-3 text-sm font-bold text-red-600 text-right font-mono">-</td>
+                  <td className="px-4 py-3 text-sm font-bold text-blue-600 text-right font-mono">-</td>
+                  <td className="px-4 py-3 text-sm font-bold text-green-700 text-right font-mono">{formatCurrency(totalValorPago)}</td>
                 </tr>
               </tfoot>
             </table>
           </div>
         </div>
+
+        {totalPaginas > 1 && (
+          <div className="mt-4 flex items-center justify-between">
+            <p className="text-sm text-gray-500">Mostrando {registroInicio} - {registroFim} de {totalRegistros.toLocaleString('pt-BR')} registros</p>
+            <div className="flex items-center gap-1">
+              <button onClick={() => carregarPagina(1)} disabled={paginaAtual === 1} className="rounded px-3 py-1 text-sm disabled:opacity-50 hover:bg-gray-100">Primeira</button>
+              <button onClick={() => carregarPagina(paginaAtual - 1)} disabled={paginaAtual === 1} className="rounded px-3 py-1 text-sm disabled:opacity-50 hover:bg-gray-100">Anterior</button>
+              {paginasVisiveis().map(p => (<button key={p} onClick={() => carregarPagina(p)} className={`rounded px-3 py-1 text-sm ${paginaAtual === p ? 'bg-green-600 text-white' : 'hover:bg-gray-100'}`}>{p}</button>))}
+              <button onClick={() => carregarPagina(paginaAtual + 1)} disabled={paginaAtual === totalPaginas} className="rounded px-3 py-1 text-sm disabled:opacity-50 hover:bg-gray-100">Proxima</button>
+              <button onClick={() => carregarPagina(totalPaginas)} disabled={paginaAtual === totalPaginas} className="rounded px-3 py-1 text-sm disabled:opacity-50 hover:bg-gray-100">Ultima</button>
+            </div>
+          </div>
+        )}
       </>
     );
   };
