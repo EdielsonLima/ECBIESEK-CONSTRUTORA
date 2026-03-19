@@ -1021,7 +1021,7 @@ export const ContasPagas: React.FC = () => {
             {filtroAno.length > 0 ? `${filtroAno.length} ano(s) selecionado(s)` : 'Todos os anos'}
           </button>
           {mostrarDropdownAnos && (
-            <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-300 bg-white shadow-lg">
+            <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-300 bg-white shadow-lg">
               {anos.map((ano) => (
                 <label
                   key={ano}
@@ -1058,7 +1058,7 @@ export const ContasPagas: React.FC = () => {
             {filtroMes.length > 0 ? `${filtroMes.length} mês(es) selecionado(s)` : 'Todos os meses'}
           </button>
           {mostrarDropdownMeses && (
-            <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-300 bg-white shadow-lg">
+            <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-300 bg-white shadow-lg">
               {meses.map((mes) => (
                 <label
                   key={mes.valor}

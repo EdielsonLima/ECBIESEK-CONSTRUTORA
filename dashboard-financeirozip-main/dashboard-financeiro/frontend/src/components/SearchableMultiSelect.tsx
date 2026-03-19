@@ -101,7 +101,7 @@ export const SearchableMultiSelect: React.FC<SearchableMultiSelectProps> = ({
       </button>
 
       {isOpen && (
-        <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg">
+        <div className="absolute z-50 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg">
           <div className="border-b border-gray-200 p-2">
             <input
               ref={inputRef}
