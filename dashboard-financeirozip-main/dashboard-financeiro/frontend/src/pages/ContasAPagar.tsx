@@ -725,7 +725,18 @@ export const ContasAPagar: React.FC = () => {
           ];
         }),
         foot: [['TOTAL', '', '', '', '', '', '', '', `R$ ${formatCurrencyPDF(contas.reduce((a, c) => a + (c.valor_total || 0), 0))}`]],
-        columnStyles: { 8: { halign: 'right' } },
+        columnStyles: { 4: { halign: 'center' }, 8: { halign: 'right' } },
+        didParseCell: (data: any) => {
+          if (data.section === 'body' && data.column.index === 4) {
+            if (data.cell.raw === 'Sim') {
+              data.cell.styles.textColor = [22, 163, 74];
+              data.cell.styles.fontStyle = 'bold';
+            } else if (data.cell.raw === 'Nao') {
+              data.cell.styles.textColor = [220, 38, 38];
+              data.cell.styles.fontStyle = 'bold';
+            }
+          }
+        },
       }, y, margin);
     } else if (abaAtiva === 'por-credor') {
       // Recalculate Pareto data for PDF
