@@ -654,6 +654,39 @@ export const ContasPagas: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  const exportarCSVDados = () => {
+    if (contas.length === 0) return;
+    const contasOrdenadas = ordenarContas(contas);
+    const headers = ['Credor', 'Vencimento', 'Titulo', 'Pagamento', 'Atraso', 'Centro de Custo', 'Plano Financeiro', 'Valor Original', 'Juros', 'Acrescimos', 'Descontos', 'Valor Pago'];
+    const rows = contasOrdenadas.map(c => {
+      const d = (c as any).dias_atraso;
+      const atraso = d == null ? '-' : d > 0 ? `${d}d` : d === 0 ? 'No prazo' : `${Math.abs(d)}d antecip.`;
+      return [
+        c.credor || '-',
+        formatDate(c.data_vencimento),
+        c.lancamento ? c.lancamento.split('/')[0] : '-',
+        formatDate(c.data_pagamento),
+        atraso,
+        c.nome_centrocusto || '-',
+        (c as any).nome_plano_financeiro || '-',
+        ((c as any).valor_baixa || 0).toFixed(2).replace('.', ','),
+        ((c as any).valor_juros || 0).toFixed(2).replace('.', ','),
+        ((c as any).valor_acrescimo || 0).toFixed(2).replace('.', ','),
+        ((c as any).valor_desconto || 0).toFixed(2).replace('.', ','),
+        (c.valor_total || 0).toFixed(2).replace('.', ','),
+      ];
+    });
+    const csvContent = [headers.join(';'), ...rows.map(row => row.join(';'))].join('\n');
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `contas_pagas_dados_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const exportarPDF = () => {
     const abaLabels: Record<AbaAtiva, string> = {
       'dados': 'Dados',
@@ -829,6 +862,42 @@ export const ContasPagas: React.FC = () => {
           5: { halign: 'right', cellWidth: 30 },
           6: { halign: 'right', cellWidth: 18 },
           7: { halign: 'right', cellWidth: 25 },
+        },
+      }, y, margin);
+    } else if (abaAtiva === 'dados') {
+      const contasOrdenadas = ordenarContas(contas);
+      const body = contasOrdenadas.map(c => [
+        c.credor || '-',
+        formatDatePDF(c.data_vencimento),
+        c.lancamento ? c.lancamento.split('/')[0] : '-',
+        formatDatePDF(c.data_pagamento),
+        (() => {
+          const d = (c as any).dias_atraso;
+          return d == null ? '-' : d > 0 ? `${d}d` : d === 0 ? 'No prazo' : `${Math.abs(d)}d antecip.`;
+        })(),
+        c.nome_centrocusto || '-',
+        (c as any).nome_plano_financeiro || '-',
+        formatCurrencyPDF((c as any).valor_baixa),
+        formatCurrencyPDF(c.valor_total),
+      ]);
+
+      y = adicionarTabela(doc, {
+        head: [['Credor', 'Vencim.', 'Titulo', 'Pagam.', 'Atraso', 'Centro Custo', 'Plano Fin.', 'Vlr Original', 'Vlr Pago']],
+        body,
+        foot: [['', '', '', '', '', '', 'SUBTOTAL',
+          formatCurrencyPDF(contas.reduce((s, c) => s + ((c as any).valor_baixa || 0), 0)),
+          formatCurrencyPDF(contas.reduce((s, c) => s + (c.valor_total || 0), 0)),
+        ]],
+        columnStyles: {
+          0: { cellWidth: 45 },
+          1: { cellWidth: 22 },
+          2: { halign: 'center', cellWidth: 16 },
+          3: { cellWidth: 22 },
+          4: { halign: 'center', cellWidth: 22 },
+          5: { cellWidth: 40 },
+          6: { cellWidth: 40 },
+          7: { halign: 'right', cellWidth: 28 },
+          8: { halign: 'right', cellWidth: 28 },
         },
       }, y, margin);
     }
@@ -2724,21 +2793,45 @@ export const ContasPagas: React.FC = () => {
               {totalRegistros > 0 ? `${registroInicio} - ${registroFim} de ${totalRegistros.toLocaleString('pt-BR')} registro(s)` : '0 registros'}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setMostrarFiltros(!mostrarFiltros)}
-            className="flex items-center rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-          >
-            <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-            </svg>
-            {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
-            {filtrosAtivosDados.length > 0 && (
-              <span className="ml-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-bold text-blue-600">
-                {filtrosAtivosDados.length}
-              </span>
-            )}
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={exportarPDF}
+              disabled={contas.length === 0}
+              className="flex items-center rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              Exportar PDF
+            </button>
+            <button
+              type="button"
+              onClick={exportarCSVDados}
+              disabled={contas.length === 0}
+              className="flex items-center rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
+            >
+              <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Exportar CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => setMostrarFiltros(!mostrarFiltros)}
+              className="flex items-center rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+            >
+              <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
+              {filtrosAtivosDados.length > 0 && (
+                <span className="ml-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-bold text-blue-600">
+                  {filtrosAtivosDados.length}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
         {!mostrarFiltros && filtrosAtivosDados.length > 0 && (
