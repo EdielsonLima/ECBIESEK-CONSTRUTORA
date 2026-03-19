@@ -877,8 +877,8 @@ export const ContasPagas: React.FC = () => {
         })(),
         c.nome_centrocusto || '-',
         (c as any).nome_plano_financeiro || '-',
-        formatCurrencyPDF((c as any).valor_baixa),
-        formatCurrencyPDF(c.valor_total),
+        formatCurrencyPDF((c as any).valor_baixa || 0),
+        formatCurrencyPDF(c.valor_total || 0),
       ]);
 
       y = adicionarTabela(doc, {
