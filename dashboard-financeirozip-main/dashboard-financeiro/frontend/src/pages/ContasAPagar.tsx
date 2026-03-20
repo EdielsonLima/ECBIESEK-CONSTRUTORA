@@ -1243,56 +1243,57 @@ export const ContasAPagar: React.FC = () => {
 
       <div className="rounded-lg bg-white shadow overflow-visible">
         <div>
-          <table className="w-full divide-y divide-gray-200 table-fixed">
+          <table className="w-full divide-y divide-gray-200 table-fixed text-[11px]">
             <colgroup>
-              <col className="w-[22%]" />
-              <col className="w-[7%]" />
-              <col className="w-[7%]" />
-              <col className="w-[5%]" />
-              <col className="w-[5%]" />
-              <col className="w-[5%]" />
+              <col className="w-[15%]" />
+              <col className="w-[6%]" />
+              <col className="w-[6%]" />
               <col className="w-[4%]" />
               <col className="w-[5%]" />
-              <col className="w-[16%]" />
-              <col className="w-[16%]" />
-              <col className="w-[8%]" />
+              <col className="w-[4%]" />
+              <col className="w-[4%]" />
+              <col className="w-[3%]" />
+              <col className="w-[14%]" />
+              <col className="w-[14%]" />
+              <col className="w-[12%]" />
+              <col className="w-[7%]" />
             </colgroup>
             <thead className="bg-blue-50 sticky top-[85px] z-30 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
               <tr>
-                <th onClick={() => toggleOrdenacao('credor')} className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                <th onClick={() => toggleOrdenacao('credor')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Credor{renderSortIcon('credor')}
                 </th>
-                <th onClick={() => toggleOrdenacao('data_cadastro')} className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                <th onClick={() => toggleOrdenacao('data_cadastro')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Cadastro{renderSortIcon('data_cadastro')}
                 </th>
-                <th onClick={() => toggleOrdenacao('data_vencimento')} className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                <th onClick={() => toggleOrdenacao('data_vencimento')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Vencimento{renderSortIcon('data_vencimento')}
                 </th>
-                <th onClick={() => toggleOrdenacao('prazo_cadastro')} className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                <th onClick={() => toggleOrdenacao('prazo_cadastro')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Prazo{renderSortIcon('prazo_cadastro')}
                 </th>
-                <th onClick={() => toggleOrdenacao('dias')} className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                <th onClick={() => toggleOrdenacao('dias')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Dias{renderSortIcon('dias')}
                 </th>
-                <th onClick={() => toggleOrdenacao('lancamento')} className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                <th onClick={() => toggleOrdenacao('lancamento')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Titulo{renderSortIcon('lancamento')}
                 </th>
-                <th onClick={() => toggleOrdenacao('id_documento')} className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                <th onClick={() => toggleOrdenacao('id_documento')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Doc.{renderSortIcon('id_documento')}
                 </th>
-                <th onClick={() => toggleOrdenacao('flautorizacao')} className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                <th onClick={() => toggleOrdenacao('flautorizacao')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Aut.{renderSortIcon('flautorizacao')}
                 </th>
-                <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
-                  Centro de Custo{renderSortIcon('nome_centrocusto')}
+                <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                  C. Custo{renderSortIcon('nome_centrocusto')}
                 </th>
-                <th onClick={() => toggleOrdenacao('nome_plano_financeiro')} className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
-                  Plano Financeiro{renderSortIcon('nome_plano_financeiro')}
+                <th onClick={() => toggleOrdenacao('nome_plano_financeiro')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                  Plano Fin.{renderSortIcon('nome_plano_financeiro')}
                 </th>
-                <th onClick={() => toggleOrdenacao('nome_tipo_pagamento')} className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
-                  Tipo Pagamento{renderSortIcon('nome_tipo_pagamento')}
+                <th onClick={() => toggleOrdenacao('nome_tipo_pagamento')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                  Tipo Pag.{renderSortIcon('nome_tipo_pagamento')}
                 </th>
-                <th onClick={() => toggleOrdenacao('valor_total')} className="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                <th onClick={() => toggleOrdenacao('valor_total')} className="px-1.5 py-2 text-right text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Valor{renderSortIcon('valor_total')}
                 </th>
               </tr>
@@ -1329,43 +1330,43 @@ export const ContasAPagar: React.FC = () => {
                 return (
                   <React.Fragment key={index}>
                     <tr className={`${isExpanded ? 'bg-blue-100 border-l-4 border-l-blue-600' : isNovoAposRef ? 'bg-yellow-50 hover:bg-yellow-100' : 'hover:bg-gray-50'} cursor-pointer transition-colors duration-150`} onClick={handleExpand}>
-                      <td className="px-3 py-3 text-sm font-medium text-gray-900">
+                      <td className="px-1.5 py-2 font-medium text-gray-900">
                         <div className="flex items-center gap-1">
-                          <span className={`text-gray-400 text-xs transition-transform flex-shrink-0 ${isExpanded ? 'rotate-90' : ''}`}>&#9654;</span>
+                          <span className={`text-gray-400 text-[10px] transition-transform flex-shrink-0 ${isExpanded ? 'rotate-90' : ''}`}>&#9654;</span>
                           <span className="truncate" title={conta.credor || '-'}>{conta.credor || '-'}</span>
-                          {isNovoAposRef && <span className="inline-flex items-center rounded-full bg-yellow-200 px-1.5 py-0.5 text-xs font-semibold text-yellow-800 flex-shrink-0">NOVO</span>}
+                          {isNovoAposRef && <span className="inline-flex items-center rounded-full bg-yellow-200 px-1 py-0.5 text-[9px] font-semibold text-yellow-800 flex-shrink-0">NOVO</span>}
                         </div>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-3 text-sm text-gray-400">{conta.data_cadastro ? formatDate(conta.data_cadastro as any) : '-'}</td>
-                      <td className="whitespace-nowrap px-3 py-3 text-sm text-gray-500">{formatDate(conta.data_vencimento as any)}</td>
-                      <td className="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                      <td className="whitespace-nowrap px-1.5 py-2 text-gray-400">{conta.data_cadastro ? formatDate(conta.data_cadastro as any) : '-'}</td>
+                      <td className="whitespace-nowrap px-1.5 py-2 text-gray-500">{formatDate(conta.data_vencimento as any)}</td>
+                      <td className="whitespace-nowrap px-1.5 py-2 text-gray-500">
                         {conta.data_cadastro && conta.data_vencimento
                           ? (() => {
                               const prazoDias = Math.round((new Date(conta.data_vencimento as any).getTime() - new Date(conta.data_cadastro as any).getTime()) / (1000 * 60 * 60 * 24));
                               return prazoDias <= 2
-                                ? <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">{prazoDias}d</span>
+                                ? <span className="inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">{prazoDias}d</span>
                                 : `${prazoDias}d`;
                             })()
                           : '-'}
                       </td>
-                      <td className={`whitespace-nowrap px-3 py-3 text-sm font-semibold ${corDias}`}>
+                      <td className={`whitespace-nowrap px-1.5 py-2 font-semibold ${corDias}`}>
                         {dias < 0 ? `${Math.abs(dias)}d atraso` : dias === 0 ? 'Hoje' : `${dias}d`}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-3 text-sm text-gray-500">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
-                      <td className="whitespace-nowrap px-3 py-3 text-sm text-gray-500 font-mono">{conta.id_documento || '-'}</td>
-                      <td className="whitespace-nowrap px-3 py-3 text-sm text-center">
+                      <td className="whitespace-nowrap px-1.5 py-2 text-gray-500">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
+                      <td className="whitespace-nowrap px-1.5 py-2 text-gray-500 font-mono">{conta.id_documento || '-'}</td>
+                      <td className="whitespace-nowrap px-1.5 py-2 text-center">
                         {(() => {
                           const authApi = conta.lancamento ? autorizacoesBulk[conta.lancamento] : undefined;
                           const auth = authApi || (conta as any).flautorizacao;
                           return auth === 'S'
-                            ? <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">Sim</span>
-                            : <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">Nao</span>;
+                            ? <span className="inline-flex items-center rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-700">Sim</span>
+                            : <span className="inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">Nao</span>;
                         })()}
                       </td>
-                      <td className="px-3 py-3 text-sm text-gray-500 truncate" title={(conta as any).nome_centrocusto || '-'}>{(conta as any).nome_centrocusto || '-'}</td>
-                      <td className="px-3 py-3 text-sm text-gray-500 truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
-                      <td className="px-3 py-3 text-sm text-gray-500 truncate" title={(conta as any).nome_tipo_pagamento || '-'}>{(conta as any).nome_tipo_pagamento || '-'}</td>
-                      <td className="whitespace-nowrap px-3 py-3 text-sm font-semibold text-blue-600 text-right">{formatCurrency(conta.valor_total)}</td>
+                      <td className="px-1.5 py-2 text-gray-500 truncate" title={(conta as any).nome_centrocusto || '-'}>{(conta as any).nome_centrocusto || '-'}</td>
+                      <td className="px-1.5 py-2 text-gray-500 truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
+                      <td className="px-1.5 py-2 text-gray-500 truncate" title={(conta as any).nome_tipo_pagamento || '-'}>{(conta as any).nome_tipo_pagamento || '-'}</td>
+                      <td className="whitespace-nowrap px-1.5 py-2 font-semibold text-blue-600 text-right">{formatCurrency(conta.valor_total)}</td>
                     </tr>
                     {isExpanded && (
                       <tr>
