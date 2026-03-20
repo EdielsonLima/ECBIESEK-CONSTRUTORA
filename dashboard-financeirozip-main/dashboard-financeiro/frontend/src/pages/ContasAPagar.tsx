@@ -249,6 +249,10 @@ export const ContasAPagar: React.FC = () => {
           valorA = ((a as any).nome_plano_financeiro || '').toLowerCase();
           valorB = ((b as any).nome_plano_financeiro || '').toLowerCase();
           break;
+        case 'nome_tipo_pagamento':
+          valorA = ((a as any).nome_tipo_pagamento || '').toLowerCase();
+          valorB = ((b as any).nome_tipo_pagamento || '').toLowerCase();
+          break;
         case 'id_documento':
           valorA = (a.id_documento || '').toLowerCase();
           valorB = (b.id_documento || '').toLowerCase();
@@ -718,7 +722,7 @@ export const ContasAPagar: React.FC = () => {
     if (abaAtiva === 'dados') {
       const contasOrdenadas = ordenarContas(contas);
       y = adicionarTabela(doc, {
-        head: [['Credor', 'Vencimento', 'Dias', 'Titulo', 'Aut.', 'Centro de Custo', 'Plano Financeiro', 'Tipo Doc.', 'Valor']],
+        head: [['Credor', 'Vencimento', 'Dias', 'Titulo', 'Aut.', 'Centro de Custo', 'Tipo Doc.', 'Plano Financeiro', 'Tipo Pagamento', 'Valor']],
         body: contasOrdenadas.map(c => {
           const dias = calcularDiasAteVencimento(c.data_vencimento as any);
           const diasStr = dias < 0 ? `${Math.abs(dias)}d atraso` : dias === 0 ? 'Hoje' : `${dias}d`;
@@ -731,13 +735,14 @@ export const ContasAPagar: React.FC = () => {
             c.lancamento ? c.lancamento.split('/')[0] : '-',
             auth === 'S' ? 'Sim' : 'Nao',
             (c as any).nome_centrocusto || '-',
-            (c as any).nome_plano_financeiro || '-',
             c.id_documento || '-',
+            (c as any).nome_plano_financeiro || '-',
+            (c as any).nome_tipo_pagamento || '-',
             `R$ ${formatCurrencyPDF(c.valor_total || 0)}`,
           ];
         }),
-        foot: [['TOTAL', '', '', '', '', '', '', '', `R$ ${formatCurrencyPDF(contas.reduce((a, c) => a + (c.valor_total || 0), 0))}`]],
-        columnStyles: { 4: { halign: 'center' }, 8: { halign: 'right' } },
+        foot: [['TOTAL', '', '', '', '', '', '', '', '', `R$ ${formatCurrencyPDF(contas.reduce((a, c) => a + (c.valor_total || 0), 0))}`]],
+        columnStyles: { 4: { halign: 'center' }, 9: { halign: 'right' } },
         didParseCell: (data: any) => {
           if (data.section === 'body' && data.column.index === 4) {
             if (data.cell.raw === 'Sim') {
@@ -1284,6 +1289,9 @@ export const ContasAPagar: React.FC = () => {
                 <th onClick={() => toggleOrdenacao('nome_plano_financeiro')} className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Plano Financeiro{renderSortIcon('nome_plano_financeiro')}
                 </th>
+                <th onClick={() => toggleOrdenacao('nome_tipo_pagamento')} className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                  Tipo Pagamento{renderSortIcon('nome_tipo_pagamento')}
+                </th>
                 <th onClick={() => toggleOrdenacao('valor_total')} className="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Valor{renderSortIcon('valor_total')}
                 </th>
@@ -1356,11 +1364,12 @@ export const ContasAPagar: React.FC = () => {
                       </td>
                       <td className="px-3 py-3 text-sm text-gray-500 truncate" title={(conta as any).nome_centrocusto || '-'}>{(conta as any).nome_centrocusto || '-'}</td>
                       <td className="px-3 py-3 text-sm text-gray-500 truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
+                      <td className="px-3 py-3 text-sm text-gray-500 truncate" title={(conta as any).nome_tipo_pagamento || '-'}>{(conta as any).nome_tipo_pagamento || '-'}</td>
                       <td className="whitespace-nowrap px-3 py-3 text-sm font-semibold text-blue-600 text-right">{formatCurrency(conta.valor_total)}</td>
                     </tr>
                     {isExpanded && (
                       <tr>
-                        <td colSpan={11} className="p-0">
+                        <td colSpan={12} className="p-0">
                           <div className="bg-gradient-to-r from-blue-50 via-blue-50 to-indigo-50 border-l-4 border-l-blue-600 border-t-2 border-b-2 border-t-blue-300 border-b-blue-300 px-8 py-5 shadow-inner">
                             <div className="flex items-center justify-between mb-4 pb-3 border-b border-blue-200">
                               <div className="flex items-center gap-3">
