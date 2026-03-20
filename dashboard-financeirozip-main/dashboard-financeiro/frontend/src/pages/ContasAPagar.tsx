@@ -684,6 +684,43 @@ export const ContasAPagar: React.FC = () => {
     return Array.from(planoSet).sort((a, b) => a.localeCompare(b));
   }, [todasContas]);
 
+  const exportarCSV = () => {
+    const contasOrdenadas = ordenarContas(contas);
+    const headers = ['Credor', 'Cadastro', 'Vencimento', 'Prazo', 'Dias', 'Titulo', 'Doc.', 'Aut.', 'Centro de Custo', 'Plano Financeiro', 'Tipo Pagamento', 'Valor'];
+    const rows = contasOrdenadas.map(c => {
+      const dias = calcularDiasAteVencimento(c.data_vencimento as any);
+      const diasStr = dias < 0 ? `${Math.abs(dias)}d atraso` : dias === 0 ? 'Hoje' : `${dias}d`;
+      const prazoDias = c.data_cadastro && c.data_vencimento
+        ? Math.round((new Date(c.data_vencimento as any).getTime() - new Date(c.data_cadastro as any).getTime()) / (1000 * 60 * 60 * 24))
+        : 0;
+      const authApi = c.lancamento ? autorizacoesBulk[c.lancamento] : undefined;
+      const auth = (authApi || (c as any).flautorizacao) === 'S' ? 'Sim' : 'Nao';
+      return [
+        c.credor || '-',
+        c.data_cadastro ? formatDate(c.data_cadastro as any) : '-',
+        formatDate(c.data_vencimento as any),
+        `${prazoDias}d`,
+        diasStr,
+        c.lancamento ? c.lancamento.split('/')[0] : '-',
+        c.id_documento || '-',
+        auth,
+        (c as any).nome_centrocusto || '-',
+        (c as any).nome_plano_financeiro || '-',
+        (c as any).nome_tipo_pagamento || '-',
+        (c.valor_total || 0).toFixed(2).replace('.', ','),
+      ];
+    });
+    const csvContent = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\n');
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `contas_a_pagar_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const exportarPDF = () => {
     const abaLabels: Record<AbaAtiva, string> = {
       'dados': 'Dados',
@@ -1233,16 +1270,32 @@ export const ContasAPagar: React.FC = () => {
               {calcularTitulosUnicos(contas)} título(s) pendente(s)
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setMostrarFiltros(!mostrarFiltros)}
-            className="flex items-center rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-          >
-            <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-            </svg>
-            {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
-          </button>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={exportarPDF} disabled={contas.length === 0}
+              className="flex items-center rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-50">
+              <svg className="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              Exportar PDF
+            </button>
+            <button type="button" onClick={exportarCSV} disabled={contas.length === 0}
+              className="flex items-center rounded-lg bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700 disabled:opacity-50">
+              <svg className="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Exportar CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => setMostrarFiltros(!mostrarFiltros)}
+              className="flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+            >
+              <svg className="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
+            </button>
+          </div>
         </div>
         {mostrarFiltros && renderFiltros()}
         {!mostrarFiltros && renderFiltrosTags()}
@@ -1674,45 +1727,6 @@ export const ContasAPagar: React.FC = () => {
 
         return (
           <>
-            <div className="mb-3 flex items-center justify-end gap-3 flex-wrap">
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-600">Comparar com snapshot:</label>
-                <select
-                  value={snapshotSelecionado}
-                  onChange={(e) => setSnapshotSelecionado(e.target.value)}
-                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-                >
-                  <option value="">Nenhum</option>
-                  {snapshotsDisponiveis.map(s => (
-                    <option key={s.data_snapshot} value={s.data_snapshot}>
-                      {formatarDataSnapshot(s.data_snapshot)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <button
-                type="button"
-                onClick={handleSalvarSnapshot}
-                disabled={salvandoSnapshot}
-                className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-1.5 text-sm text-white hover:bg-green-700 disabled:opacity-50"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                {salvandoSnapshot ? 'Salvando...' : 'Salvar Snapshot'}
-              </button>
-              <button type="button" onClick={exportarPDF} disabled={contas.length === 0}
-                className="flex items-center rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50">
-                <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                Exportar PDF
-              </button>
-              {snapshotMsg && (
-                <span className={`text-sm ${snapshotMsg.includes('Erro') ? 'text-red-600' : 'text-green-600'}`}>{snapshotMsg}</span>
-              )}
-            </div>
             <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
               <div className="rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 p-5 text-white shadow-lg">
                 <div className="mb-1 text-xs font-medium opacity-90">Total a Pagar</div>
