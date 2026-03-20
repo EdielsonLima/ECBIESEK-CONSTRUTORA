@@ -168,6 +168,8 @@ export const ContasAPagar: React.FC = () => {
   const [filtroTipoPagamento, setFiltroTipoPagamento] = useState<number[]>([]);
   const [tipoPagDropdownAberto, setTipoPagDropdownAberto] = useState(false);
   const [tiposPagamento, setTiposPagamento] = useState<Array<{ id: number; nome: string }>>([]);
+  const [filtroAutorizacao, setFiltroAutorizacao] = useState<string[]>([]);
+  const [autorizacaoDropdownAberto, setAutorizacaoDropdownAberto] = useState(false);
   const [dataReferencia, setDataReferencia] = useState<string>('');
   const [linhaExpandida, setLinhaExpandida] = useState<number | null>(null);
   const [detalheCarregando, setDetalheCarregando] = useState(false);
@@ -473,7 +475,8 @@ export const ContasAPagar: React.FC = () => {
     credoresSelecionados: string[],
     diasSelecionados: string[],
     planosFinSelecionados?: string[],
-    tiposPagSelecionados?: number[]
+    tiposPagSelecionados?: number[],
+    autorizacaoSelecionada?: string[]
   ) => {
     let contasFiltradas = [...dados];
 
@@ -530,6 +533,12 @@ export const ContasAPagar: React.FC = () => {
         return (c as any).id_tipo_pagamento && tiposPagSelecionados.includes((c as any).id_tipo_pagamento);
       });
     }
+    if (autorizacaoSelecionada && autorizacaoSelecionada.length > 0) {
+      contasFiltradas = contasFiltradas.filter(c => {
+        const auth = (c as any).flautorizacao === 'S' ? 'S' : 'N';
+        return autorizacaoSelecionada.includes(auth);
+      });
+    }
     if (prazo !== 'todos') {
       contasFiltradas = contasFiltradas.filter(c => {
         const dias = calcularDiasAteVencimento(c.data_vencimento as any);
@@ -549,11 +558,11 @@ export const ContasAPagar: React.FC = () => {
   useEffect(() => {
     if (todasContas.length === 0) return;
 
-    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro, filtroTipoPagamento);
+    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro, filtroTipoPagamento, filtroAutorizacao);
     setContas(contasFiltradas);
 
     // Card "Total a Pagar" usa TODAS as contas (vencidas + a vencer), mas com filtros locais aplicados
-    const completasFiltradas = aplicarFiltrosLocais(todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro, filtroTipoPagamento);
+    const completasFiltradas = aplicarFiltrosLocais(todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro, filtroTipoPagamento, filtroAutorizacao);
     const stats: Estatisticas = {
       quantidade_titulos: calcularTitulosUnicos(completasFiltradas),
       valor_total: completasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0),
@@ -622,7 +631,7 @@ export const ContasAPagar: React.FC = () => {
       .filter(d => d.quantidade > 0)
       .sort((a, b) => a.ordem - b.ordem);
     setDadosPorVencimento(vencimentoArray);
-  }, [todasContas, todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro, filtroTipoPagamento]);
+  }, [todasContas, todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro, filtroTipoPagamento, filtroAutorizacao]);
 
   useEffect(() => {
     carregarDados();
@@ -643,6 +652,7 @@ export const ContasAPagar: React.FC = () => {
     setFiltroDias([]);
     setFiltroPlanoFinanceiro([]);
     setFiltroTipoPagamento([]);
+    setFiltroAutorizacao([]);
     setDataReferencia('');
   };
 
@@ -1062,6 +1072,15 @@ export const ContasAPagar: React.FC = () => {
           setIsOpen={setTipoPagDropdownAberto}
           searchable={true}
         />
+        <MultiSelectDropdown
+          label="Autorização"
+          items={[{ id: 'S', nome: 'Autorizado' }, { id: 'N', nome: 'Não Autorizado' }]}
+          selected={filtroAutorizacao}
+          setSelected={setFiltroAutorizacao}
+          isOpen={autorizacaoDropdownAberto}
+          setIsOpen={setAutorizacaoDropdownAberto}
+          searchable={true}
+        />
       </div>
       <div className="mt-4">
         <label className="mb-2 block text-sm font-medium text-gray-700">Destacar novos apos</label>
@@ -1160,6 +1179,11 @@ export const ContasAPagar: React.FC = () => {
         return tp ? tp.nome : String(id);
       });
       tags.push({ label: 'Tipo Pagamento', value: nomes.length === 1 ? nomes[0] : `${nomes.length} tipos`, onRemove: () => setFiltroTipoPagamento([]) });
+    }
+
+    if (filtroAutorizacao.length > 0) {
+      const nomes = filtroAutorizacao.map(v => v === 'S' ? 'Autorizado' : 'Não Autorizado');
+      tags.push({ label: 'Autorização', value: nomes.join(', '), onRemove: () => setFiltroAutorizacao([]) });
     }
 
     if (tags.length === 0) return null;
@@ -1614,7 +1638,7 @@ export const ContasAPagar: React.FC = () => {
         const contas7dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 7; });
         const contas15dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 15; });
         const contas30dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 30; });
-        const completasFiltradas = aplicarFiltrosLocais(todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro, filtroTipoPagamento);
+        const completasFiltradas = aplicarFiltrosLocais(todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro, filtroTipoPagamento, filtroAutorizacao);
         const credoresTotal = new Set(completasFiltradas.map(c => c.credor)).size;
         const credoresHoje = new Set(contasHoje.map(c => c.credor)).size;
         const credores7dias = new Set(contas7dias.map(c => c.credor)).size;
