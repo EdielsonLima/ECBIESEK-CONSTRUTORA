@@ -1870,7 +1870,7 @@ export const ContasAPagar: React.FC = () => {
         const renderMiniTooltip = (faixa: string, tipo: 'valor' | 'titulos' | 'credores', groupName: string) => {
           const doc = cardDocs[faixa][tipo];
           return (
-            <div className={`pointer-events-none absolute left-0 top-full z-50 mt-1 w-72 rounded-lg bg-gray-900 p-3 text-xs text-white opacity-0 shadow-xl transition-opacity duration-200 ${groupName === 'valor' ? 'group-hover/valor:opacity-100' : groupName === 'titulos' ? 'group-hover/titulos:opacity-100' : 'group-hover/credores:opacity-100'}`}>
+            <div className={`pointer-events-none absolute left-0 top-full z-50 mt-1 w-72 rounded-lg bg-black p-3 text-xs text-white shadow-xl transition-all duration-200 invisible ${groupName === 'valor' ? 'group-hover/valor:visible group-hover/valor:opacity-100' : groupName === 'titulos' ? 'group-hover/titulos:visible group-hover/titulos:opacity-100' : 'group-hover/credores:visible group-hover/credores:opacity-100'} opacity-0`}>
               <p className="mb-1.5 font-semibold text-white">{doc.titulo}</p>
               <p className="mb-2 text-gray-300">{doc.descricao}</p>
               <div className="mb-1">
