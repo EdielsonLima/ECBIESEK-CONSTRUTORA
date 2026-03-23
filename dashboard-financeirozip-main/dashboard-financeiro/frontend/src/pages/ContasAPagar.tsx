@@ -176,6 +176,7 @@ export const ContasAPagar: React.FC = () => {
   const [detalheCache, setDetalheCache] = useState<Record<number, TituloDetalhe>>({});
   const [autorizacoesBulk, setAutorizacoesBulk] = useState<Record<string, string>>({});
   const [anoDropdownAberto, setAnoDropdownAberto] = useState(false);
+  const [feriados, setFeriados] = useState<Set<string>>(new Set());
   const [snapshotsDisponiveis, setSnapshotsDisponiveis] = useState<Array<{ data_snapshot: string; created_at: string }>>([]);
   const [snapshotSelecionado, setSnapshotSelecionado] = useState<string>('');
   const [snapshotDados, setSnapshotDados] = useState<Record<string, { faixa: string; data_inicio: string | null; data_fim: string | null; valor_total: number; quantidade_titulos: number; quantidade_credores: number }> | null>(null);
@@ -381,38 +382,56 @@ export const ContasAPagar: React.FC = () => {
     return diffDays;
   };
 
-  // Verifica se uma conta vence "hoje" considerando fins de semana:
-  // Na segunda-feira, inclui contas de sábado e domingo
+  // Verifica se uma conta vence "hoje" considerando fins de semana e feriados:
+  // Inclui contas cujo vencimento cai em dias não-úteis consecutivos antes de hoje
   const isVenceHoje = (dataVencimento: string | undefined) => {
     if (!dataVencimento) return false;
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
-    const diaSemana = hoje.getDay(); // 0=dom, 1=seg, ..., 6=sab
     const [ano, mes, dia] = dataVencimento.split('T')[0].split('-').map(Number);
     const vencimento = new Date(ano, mes - 1, dia);
     vencimento.setHours(0, 0, 0, 0);
-    const diffTime = vencimento.getTime() - hoje.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     // Vence exatamente hoje
-    if (diffDays === 0) return true;
-    // Segunda-feira: incluir sábado (-2 dias) e domingo (-1 dia)
-    if (diaSemana === 1 && (diffDays === -1 || diffDays === -2)) return true;
+    if (vencimento.getTime() === hoje.getTime()) return true;
+    // Se o vencimento é no futuro, não é "hoje"
+    if (vencimento.getTime() > hoje.getTime()) return false;
+    // Verificar se o vencimento cai em dias não-úteis consecutivos antes de hoje
+    // (fins de semana ou feriados)
+    const check = new Date(hoje);
+    check.setDate(check.getDate() - 1);
+    while (check.getTime() >= vencimento.getTime()) {
+      const dow = check.getDay(); // 0=dom, 6=sab
+      const dateStr = check.toISOString().split('T')[0];
+      const isWeekend = dow === 0 || dow === 6;
+      const isFeriado = feriados.has(dateStr);
+      if (!isWeekend && !isFeriado) {
+        // Hit a normal business day that's before today — stop
+        return false;
+      }
+      if (check.getTime() === vencimento.getTime()) {
+        // The vencimento date is a weekend or feriado, and all days between it and today are non-business days
+        return true;
+      }
+      check.setDate(check.getDate() - 1);
+    }
     return false;
   };
 
   useEffect(() => {
     const carregarFiltros = async () => {
       try {
-        const [empresasData, ccData, tiposDocData, tiposPagData] = await Promise.all([
+        const [empresasData, ccData, tiposDocData, tiposPagData, feriadosData] = await Promise.all([
           apiService.getEmpresas().catch(() => []),
           apiService.getCentrosCusto().catch(() => []),
           apiService.getTiposDocumento().catch(() => []),
           apiService.getTiposPagamento().catch(() => []),
+          apiService.getFeriados().catch(() => []),
         ]);
         setEmpresas(empresasData);
         setCentrosCusto(ccData);
         setTiposDocumento(tiposDocData);
         setTiposPagamento(tiposPagData);
+        setFeriados(new Set(feriadosData.map((f: { data: string }) => f.data.split('T')[0])));
       } catch (err) {
         console.error('Erro ao carregar filtros:', err);
       }
@@ -658,7 +677,7 @@ export const ContasAPagar: React.FC = () => {
 
   useEffect(() => {
     carregarDados();
-  }, []);
+  }, [feriados]);
 
   const aplicarFiltros = () => {
     // Filtros ja sao aplicados automaticamente pelo useEffect

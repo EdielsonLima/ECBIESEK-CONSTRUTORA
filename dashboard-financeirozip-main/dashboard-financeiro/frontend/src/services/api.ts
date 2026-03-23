@@ -408,6 +408,13 @@ export const apiService = {
     return response.data;
   },
 
+  // Feriados
+  getFeriados: async (ano?: number): Promise<Array<{ id: number; data: string; descricao: string }>> => {
+    const params = ano ? { ano } : {};
+    const response = await api.get<Array<{ id: number; data: string; descricao: string }>>('/feriados', { params });
+    return response.data;
+  },
+
   // Filtros - Planos Financeiros
   getPlanosFinanceiros: async (): Promise<Array<{ id: string; nome: string }>> => {
     const response = await api.get<Array<{ id: string; nome: string }>>('/filtros/planos-financeiros');
