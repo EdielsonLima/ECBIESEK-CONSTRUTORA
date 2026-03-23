@@ -125,10 +125,12 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 horas
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
 IA_MODELO = os.environ.get('IA_MODELO', 'claude-3-haiku-20240307')
 
+anthropic_client = None
 if ANTHROPIC_API_KEY:
-    anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-else:
-    anthropic_client = None
+    try:
+        anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    except Exception as e:
+        print(f"[WARN] Falha ao inicializar Anthropic client: {e}")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
@@ -153,6 +155,13 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
+# Utilitário para conversão segura de int
+def _safe_int(val, default):
+    try:
+        return int(val) if val else default
+    except (ValueError, TypeError):
+        return default
+
 # ==================== RATE LIMITING NO LOGIN ====================
 _login_attempts: dict = defaultdict(list)  # ip -> [timestamps]
 LOGIN_RATE_LIMIT = _safe_int(os.environ.get('LOGIN_RATE_LIMIT'), 10)
@@ -161,22 +170,13 @@ LOGIN_RATE_WINDOW = _safe_int(os.environ.get('LOGIN_RATE_WINDOW'), 300)
 def check_rate_limit(ip: str) -> bool:
     """Retorna True se o IP excedeu o limite de tentativas de login."""
     now = time.time()
-    # Limpar tentativas antigas
     _login_attempts[ip] = [t for t in _login_attempts[ip] if now - t < LOGIN_RATE_WINDOW]
     if len(_login_attempts[ip]) >= LOGIN_RATE_LIMIT:
         return True
     _login_attempts[ip].append(now)
     return False
 
-
-
-
 # Configuração do banco de dados externo (dados financeiros) — via variáveis de ambiente
-def _safe_int(val, default):
-    try:
-        return int(val) if val else default
-    except (ValueError, TypeError):
-        return default
 
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST') or 'localhost',
