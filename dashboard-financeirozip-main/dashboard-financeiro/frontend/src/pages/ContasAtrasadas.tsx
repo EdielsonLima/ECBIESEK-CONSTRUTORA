@@ -61,6 +61,8 @@ export const ContasAtrasadas: React.FC = () => {
   const [todasContas, setTodasContas] = useState<ContaPagar[]>([]);
   const [tiposDocumento, setTiposDocumento] = useState<TipoDocumentoOption[]>([]);
   const [filtroTipoDocumento, setFiltroTipoDocumento] = useState<(number | string)[]>([]);
+  const [tiposPagamento, setTiposPagamento] = useState<Array<{ id: number; nome: string }>>([]);
+  const [filtroTipoPagamento, setFiltroTipoPagamento] = useState<(number | string)[]>([]);
 
   // Expandable rows and sorting states
   const [expandido, setExpandido] = useState<string | null>(null);
@@ -145,14 +147,16 @@ export const ContasAtrasadas: React.FC = () => {
   useEffect(() => {
     const carregarFiltros = async () => {
       try {
-        const [empresasData, ccData, tiposDocData] = await Promise.all([
+        const [empresasData, ccData, tiposDocData, tiposPagData] = await Promise.all([
           apiService.getEmpresas(),
           apiService.getCentrosCusto(),
           apiService.getTiposDocumento(),
+          apiService.getTiposPagamento(),
         ]);
         setEmpresas(empresasData);
         setCentrosCusto(ccData);
         setTiposDocumento(tiposDocData);
+        setTiposPagamento(tiposPagData);
       } catch (err) {
         console.error('Erro ao carregar filtros:', err);
       }
@@ -179,7 +183,8 @@ export const ContasAtrasadas: React.FC = () => {
     ccSel: (number | string)[],
     anosSel: (number | string)[],
     mesesSelecionados: (number | string)[],
-    tiposDocSelecionados: (number | string)[]
+    tiposDocSelecionados: (number | string)[],
+    tiposPagSelecionados: (number | string)[] = []
   ) => {
     let contasFiltradas = [...dados];
 
@@ -208,6 +213,11 @@ export const ContasAtrasadas: React.FC = () => {
         return c.id_documento && tiposDocSelecionados.includes(c.id_documento);
       });
     }
+    if (tiposPagSelecionados.length > 0) {
+      contasFiltradas = contasFiltradas.filter(c => {
+        return (c as any).id_tipo_pagamento && tiposPagSelecionados.includes((c as any).id_tipo_pagamento);
+      });
+    }
 
     return contasFiltradas;
   };
@@ -215,7 +225,7 @@ export const ContasAtrasadas: React.FC = () => {
   useEffect(() => {
     if (todasContas.length === 0) return;
 
-    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroAno, filtroMes, filtroTipoDocumento);
+    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroAno, filtroMes, filtroTipoDocumento, filtroTipoPagamento);
     setContas(contasFiltradas);
 
     const totalDiasAtraso = contasFiltradas.reduce((acc, c) => acc + calcularDiasAtraso(c.data_vencimento as any), 0);
@@ -290,7 +300,7 @@ export const ContasAtrasadas: React.FC = () => {
       .filter(d => d.quantidade > 0)
       .sort((a, b) => a.ordem - b.ordem);
     setDadosPorFaixaAtraso(faixaArray);
-  }, [todasContas, filtroEmpresa, filtroCentroCusto, filtroAno, filtroMes, filtroTipoDocumento]);
+  }, [todasContas, filtroEmpresa, filtroCentroCusto, filtroAno, filtroMes, filtroTipoDocumento, filtroTipoPagamento]);
 
   useEffect(() => {
     carregarDados();
@@ -302,6 +312,7 @@ export const ContasAtrasadas: React.FC = () => {
     setFiltroAno([]);
     setFiltroMes([]);
     setFiltroTipoDocumento([]);
+    setFiltroTipoPagamento([]);
   };
 
   if (loading) {
@@ -328,7 +339,7 @@ export const ContasAtrasadas: React.FC = () => {
 
   const renderFiltros = () => (
     <div className="mb-6 rounded-lg bg-gray-50 p-4 shadow">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
         <SearchableMultiSelect
           options={empresas}
           value={filtroEmpresa}
@@ -366,6 +377,14 @@ export const ContasAtrasadas: React.FC = () => {
           value={filtroTipoDocumento}
           onChange={setFiltroTipoDocumento}
           label="Tipo Documento"
+          placeholder="Selecione tipos..."
+          emptyText="Todos"
+        />
+        <SearchableMultiSelect
+          options={tiposPagamento}
+          value={filtroTipoPagamento}
+          onChange={setFiltroTipoPagamento}
+          label="Tipo Pagamento"
           placeholder="Selecione tipos..."
           emptyText="Todos"
         />
@@ -410,6 +429,11 @@ export const ContasAtrasadas: React.FC = () => {
         return tipo ? `${tipo.id}` : '';
       }).filter(Boolean).join(', ');
       tags.push({ label: 'Tipo Documento', value: tiposNomes, onRemove: () => setFiltroTipoDocumento([]) });
+    }
+
+    if (filtroTipoPagamento.length > 0) {
+      const nomes = filtroTipoPagamento.map(id => tiposPagamento.find(t => t.id === id)?.nome || String(id)).join(', ');
+      tags.push({ label: 'Tipo Pagamento', value: filtroTipoPagamento.length > 2 ? `${filtroTipoPagamento.length} selecionado(s)` : nomes, onRemove: () => setFiltroTipoPagamento([]) });
     }
 
     if (tags.length === 0) return null;
@@ -963,6 +987,7 @@ export const ContasAtrasadas: React.FC = () => {
         case 'dias_atraso': va = calcularDiasAtraso(a.data_vencimento as any); vb = calcularDiasAtraso(b.data_vencimento as any); break;
         case 'nome_centrocusto': va = (a.nome_centrocusto || '').toLowerCase(); vb = (b.nome_centrocusto || '').toLowerCase(); break;
         case 'nome_plano_financeiro': va = (a.nome_plano_financeiro || '').toLowerCase(); vb = (b.nome_plano_financeiro || '').toLowerCase(); break;
+        case 'nome_tipo_pagamento': va = ((a as any).nome_tipo_pagamento || '').toLowerCase(); vb = ((b as any).nome_tipo_pagamento || '').toLowerCase(); break;
         case 'valor_total': va = a.valor_total || 0; vb = b.valor_total || 0; break;
         default: va = a.data_vencimento || ''; vb = b.data_vencimento || '';
       }
@@ -1055,6 +1080,7 @@ export const ContasAtrasadas: React.FC = () => {
                     <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 cursor-pointer select-none" onClick={() => toggleSortDados('dias_atraso')}>Dias Atraso{sortIconDados('dias_atraso')}</th>
                     <th className="px-3 py-3 text-left text-xs font-bold text-white border border-red-600 cursor-pointer select-none" onClick={() => toggleSortDados('nome_centrocusto')}>Centro de Custo{sortIconDados('nome_centrocusto')}</th>
                     <th className="px-3 py-3 text-left text-xs font-bold text-white border border-red-600 cursor-pointer select-none" onClick={() => toggleSortDados('nome_plano_financeiro')}>Plano Financeiro{sortIconDados('nome_plano_financeiro')}</th>
+                    <th className="px-3 py-3 text-left text-xs font-bold text-white border border-red-600 cursor-pointer select-none" onClick={() => toggleSortDados('nome_tipo_pagamento')}>Tipo Pag.{sortIconDados('nome_tipo_pagamento')}</th>
                     <th className="px-3 py-3 text-right text-xs font-bold text-white border border-red-600 cursor-pointer select-none" onClick={() => toggleSortDados('valor_total')}>Valor{sortIconDados('valor_total')}</th>
                   </tr>
                 </thead>
@@ -1074,6 +1100,7 @@ export const ContasAtrasadas: React.FC = () => {
                         </td>
                         <td className="px-3 py-2 text-xs text-gray-700 max-w-[200px] truncate" title={c.nome_centrocusto || '-'}>{c.nome_centrocusto || '-'}</td>
                         <td className="px-3 py-2 text-xs text-gray-700 max-w-[200px] truncate" title={c.nome_plano_financeiro || '-'}>{c.nome_plano_financeiro || '-'}</td>
+                        <td className="px-3 py-2 text-xs text-gray-700 max-w-[150px] truncate" title={(c as any).nome_tipo_pagamento || '-'}>{(c as any).nome_tipo_pagamento || '-'}</td>
                         <td className="px-3 py-2 text-right text-sm font-semibold text-red-700 font-mono">{formatCurrency(c.valor_total)}</td>
                       </tr>
                     );
@@ -1081,7 +1108,7 @@ export const ContasAtrasadas: React.FC = () => {
                 </tbody>
                 <tfoot className="bg-red-100 sticky bottom-0">
                   <tr className="font-bold">
-                    <td className="px-3 py-3 text-sm text-gray-900 border-t-2 border-red-300" colSpan={7}>TOTAL ({dadosOrdenados.length} titulos)</td>
+                    <td className="px-3 py-3 text-sm text-gray-900 border-t-2 border-red-300" colSpan={8}>TOTAL ({dadosOrdenados.length} titulos)</td>
                     <td className="px-3 py-3 text-right text-sm font-bold text-red-800 border-t-2 border-red-300 font-mono">{formatCurrency(totalValor)}</td>
                   </tr>
                 </tfoot>
