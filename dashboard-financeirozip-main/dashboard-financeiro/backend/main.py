@@ -7222,6 +7222,51 @@ def _ensure_config_tables_in_postgres():
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+            # Seed feriados nacionais + Porto Velho/RO (2025 e 2026)
+            cursor.execute("SELECT COUNT(*) as cnt FROM config_feriados")
+            row_fer = cursor.fetchone()
+            if row_fer and int(row_fer['cnt']) == 0:
+                seed_feriados = [
+                    # 2025 - Nacionais
+                    ('2025-01-01', 'Confraternização Universal'),
+                    ('2025-03-03', 'Carnaval'),
+                    ('2025-03-04', 'Carnaval'),
+                    ('2025-04-18', 'Sexta-feira Santa'),
+                    ('2025-04-21', 'Tiradentes'),
+                    ('2025-05-01', 'Dia do Trabalho'),
+                    ('2025-06-19', 'Corpus Christi'),
+                    ('2025-09-07', 'Independência do Brasil'),
+                    ('2025-10-12', 'Nossa Senhora Aparecida'),
+                    ('2025-11-02', 'Finados'),
+                    ('2025-11-15', 'Proclamação da República'),
+                    ('2025-11-20', 'Dia da Consciência Negra'),
+                    ('2025-12-25', 'Natal'),
+                    # 2025 - Porto Velho / Rondônia
+                    ('2025-01-04', 'Criação do Estado de Rondônia'),
+                    ('2025-10-02', 'Aniversário de Porto Velho'),
+                    # 2026 - Nacionais
+                    ('2026-01-01', 'Confraternização Universal'),
+                    ('2026-02-16', 'Carnaval'),
+                    ('2026-02-17', 'Carnaval'),
+                    ('2026-04-03', 'Sexta-feira Santa'),
+                    ('2026-04-21', 'Tiradentes'),
+                    ('2026-05-01', 'Dia do Trabalho'),
+                    ('2026-06-04', 'Corpus Christi'),
+                    ('2026-09-07', 'Independência do Brasil'),
+                    ('2026-10-12', 'Nossa Senhora Aparecida'),
+                    ('2026-11-02', 'Finados'),
+                    ('2026-11-15', 'Proclamação da República'),
+                    ('2026-11-20', 'Dia da Consciência Negra'),
+                    ('2026-12-25', 'Natal'),
+                    # 2026 - Porto Velho / Rondônia
+                    ('2026-01-04', 'Criação do Estado de Rondônia'),
+                    ('2026-10-02', 'Aniversário de Porto Velho'),
+                ]
+                for dt, desc in seed_feriados:
+                    cursor.execute(
+                        "INSERT INTO config_feriados (data, descricao) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                        (dt, desc)
+                    )
 
             cursor.execute("SELECT COUNT(*) as cnt FROM empreendimentos_config")
             row_emp = cursor.fetchone()

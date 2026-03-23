@@ -415,6 +415,16 @@ export const apiService = {
     return response.data;
   },
 
+  addFeriado: async (data: string, descricao: string): Promise<{ success: boolean }> => {
+    const response = await api.post<{ success: boolean }>('/feriados', { data, descricao });
+    return response.data;
+  },
+
+  deleteFeriado: async (id: number): Promise<{ success: boolean }> => {
+    const response = await api.delete<{ success: boolean }>(`/feriados/${id}`);
+    return response.data;
+  },
+
   // Filtros - Planos Financeiros
   getPlanosFinanceiros: async (): Promise<Array<{ id: string; nome: string }>> => {
     const response = await api.get<Array<{ id: string; nome: string }>>('/filtros/planos-financeiros');

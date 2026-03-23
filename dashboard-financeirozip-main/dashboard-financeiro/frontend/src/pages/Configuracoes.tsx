@@ -67,7 +67,7 @@ const PAGINAS_DISPONIVEIS = [
 ];
 
 export const Configuracoes: React.FC = () => {
-  const [abaAtiva, setAbaAtiva] = useState<'empresas' | 'centros' | 'documentos' | 'contas_correntes' | 'origens' | 'tipos_baixa' | 'snapshots' | 'diagnostico' | 'orcamentos'>('empresas');
+  const [abaAtiva, setAbaAtiva] = useState<'empresas' | 'centros' | 'documentos' | 'contas_correntes' | 'origens' | 'tipos_baixa' | 'snapshots' | 'diagnostico' | 'orcamentos' | 'feriados'>('empresas');
   const [empresas, setEmpresas] = useState<EmpresaItem[]>([]);
   const [centrosCusto, setCentrosCusto] = useState<CentroCustoItem[]>([]);
   const [empresasCentros, setEmpresasCentros] = useState<EmpresaCentros[]>([]);
@@ -90,6 +90,11 @@ export const Configuracoes: React.FC = () => {
   const [orcamentosMsg, setOrcamentosMsg] = useState<string | null>(null);
   const [cubValor, setCubValor] = useState(2334.56);
   const [cubReferencia, setCubReferencia] = useState('Fev/2026');
+  const [feriadosList, setFeriadosList] = useState<Array<{ id: number; data: string; descricao: string }>>([]);
+  const [novoFeriadoData, setNovoFeriadoData] = useState('');
+  const [novoFeriadoDescricao, setNovoFeriadoDescricao] = useState('');
+  const [feriadosSalvando, setFeriadosSalvando] = useState(false);
+  const [feriadosMsg, setFeriadosMsg] = useState<string | null>(null);
 
   useEffect(() => {
     carregarDados();
@@ -104,6 +109,46 @@ export const Configuracoes: React.FC = () => {
       console.error('Erro ao carregar diagnóstico:', err);
     } finally {
       setLoadingDiagnostico(false);
+    }
+  };
+
+  const carregarFeriados = async () => {
+    try {
+      const data = await apiService.getFeriados();
+      setFeriadosList(data);
+    } catch (err) {
+      console.error('Erro ao carregar feriados:', err);
+    }
+  };
+
+  const adicionarFeriado = async () => {
+    if (!novoFeriadoData || !novoFeriadoDescricao.trim()) {
+      setFeriadosMsg('Preencha data e descrição');
+      return;
+    }
+    setFeriadosSalvando(true);
+    setFeriadosMsg(null);
+    try {
+      await apiService.addFeriado(novoFeriadoData, novoFeriadoDescricao.trim());
+      setNovoFeriadoData('');
+      setNovoFeriadoDescricao('');
+      await carregarFeriados();
+      setFeriadosMsg('Feriado adicionado!');
+    } catch (err) {
+      console.error('Erro ao adicionar feriado:', err);
+      setFeriadosMsg('Erro ao adicionar feriado');
+    } finally {
+      setFeriadosSalvando(false);
+      setTimeout(() => setFeriadosMsg(null), 3000);
+    }
+  };
+
+  const removerFeriado = async (id: number) => {
+    try {
+      await apiService.deleteFeriado(id);
+      await carregarFeriados();
+    } catch (err) {
+      console.error('Erro ao remover feriado:', err);
     }
   };
 
@@ -692,6 +737,17 @@ export const Configuracoes: React.FC = () => {
         >
           Orcamentos
         </button>
+        <button
+          type="button"
+          onClick={() => { setAbaAtiva('feriados'); setBusca(''); if (feriadosList.length === 0) carregarFeriados(); }}
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            abaAtiva === 'feriados'
+              ? 'bg-green-600 text-white'
+              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+          }`}
+        >
+          Feriados
+        </button>
       </div>
 
       <div className="mb-4">
@@ -1202,6 +1258,79 @@ export const Configuracoes: React.FC = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {abaAtiva === 'feriados' && (
+          <div>
+            <div className="bg-blue-50 px-6 py-4 border-b border-gray-200">
+              <p className="text-sm text-gray-600 mb-3">
+                Cadastre feriados nacionais, estaduais e municipais. No dia seguinte a um feriado, contas com vencimento no feriado aparecem como "Vence Hoje" nas telas de Contas a Pagar.
+              </p>
+              <div className="flex items-center gap-3 flex-wrap">
+                <input
+                  type="date"
+                  value={novoFeriadoData}
+                  onChange={(e) => setNovoFeriadoData(e.target.value)}
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                />
+                <input
+                  type="text"
+                  value={novoFeriadoDescricao}
+                  onChange={(e) => setNovoFeriadoDescricao(e.target.value)}
+                  placeholder="Ex: Tiradentes, Aniversário de Porto Velho..."
+                  className="flex-1 min-w-[200px] rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                  onKeyDown={(e) => { if (e.key === 'Enter') adicionarFeriado(); }}
+                />
+                <button
+                  type="button"
+                  onClick={adicionarFeriado}
+                  disabled={feriadosSalvando}
+                  className="rounded-lg bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700 disabled:opacity-50"
+                >
+                  {feriadosSalvando ? 'Salvando...' : '+ Adicionar'}
+                </button>
+                {feriadosMsg && (
+                  <span className={`text-sm ${feriadosMsg.includes('Erro') ? 'text-red-600' : 'text-green-600'}`}>
+                    {feriadosMsg}
+                  </span>
+                )}
+              </div>
+            </div>
+            {feriadosList.length === 0 ? (
+              <div className="px-6 py-8 text-center text-gray-500">Nenhum feriado cadastrado</div>
+            ) : (
+              <div className="divide-y divide-gray-200">
+                {feriadosList
+                  .filter(f => !busca || f.descricao.toLowerCase().includes(busca.toLowerCase()) || f.data.includes(busca))
+                  .sort((a, b) => a.data.localeCompare(b.data))
+                  .map(f => {
+                    const [ano, mes, dia] = f.data.split('T')[0].split('-');
+                    const dataFormatada = `${dia}/${mes}/${ano}`;
+                    const d = new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia));
+                    const diaSemana = d.toLocaleDateString('pt-BR', { weekday: 'long' });
+                    return (
+                      <div key={f.id} className="flex items-center justify-between px-6 py-3 hover:bg-gray-50">
+                        <div className="flex items-center gap-4">
+                          <span className="text-sm font-mono font-medium text-gray-700 w-24">{dataFormatada}</span>
+                          <span className="text-xs text-gray-400 w-24 capitalize">{diaSemana}</span>
+                          <span className="text-sm text-gray-900">{f.descricao}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removerFeriado(f.id)}
+                          className="text-red-400 hover:text-red-600 transition-colors"
+                          title="Remover feriado"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </div>
+                    );
+                  })}
               </div>
             )}
           </div>
