@@ -1764,126 +1764,256 @@ export const ContasAPagar: React.FC = () => {
         const valor15dias = contas15dias.reduce((acc, c) => acc + (c.valor_total || 0), 0);
         const valor30dias = contas30dias.reduce((acc, c) => acc + (c.valor_total || 0), 0);
 
-        const cardDocs: Record<string, { descricao: string; fonte: string; endpoint: string; filtros: string[] }> = {
+        const cardDocs: Record<string, Record<string, { titulo: string; descricao: string; fonte: string; filtros: string[] }>> = {
           total: {
-            descricao: 'Soma de todos os titulos pendentes (hoje + futuro). Inclui feriados/fins de semana no proximo dia util.',
-            fonte: 'SUM(contas_a_pagar.valor_total)',
-            endpoint: 'GET /api/contas?status=a_pagar',
-            filtros: ['Exclusoes gerais (empresas, CCs, docs)', 'Filtros locais da pagina', 'Logica Vence Hoje (feriados + fins de semana)'],
+            valor: {
+              titulo: 'Valor Total a Pagar',
+              descricao: 'Soma de todos os titulos pendentes (hoje + futuro). Inclui feriados/fins de semana no proximo dia util.',
+              fonte: 'SUM(contas_a_pagar.valor_total) WHERE vencimento >= hoje',
+              filtros: ['Exclusoes gerais (empresas, CCs, docs)', 'Filtros locais da pagina', 'Logica Vence Hoje (feriados + fds)'],
+            },
+            titulos: {
+              titulo: 'Quantidade de Titulos',
+              descricao: 'Total de titulos unicos pendentes. Cada numero de titulo (SPLIT_PART) e contado uma unica vez.',
+              fonte: 'COUNT(DISTINCT SPLIT_PART(numero_titulo, \'/\', 1))',
+              filtros: ['Exclusoes gerais', 'Filtros locais'],
+            },
+            credores: {
+              titulo: 'Quantidade de Credores',
+              descricao: 'Numero de credores distintos com titulos pendentes no periodo.',
+              fonte: 'COUNT(DISTINCT credor)',
+              filtros: ['Exclusoes gerais', 'Filtros locais'],
+            },
           },
           hoje: {
-            descricao: 'Contas com vencimento hoje. Na segunda-feira inclui sabado e domingo. Apos feriados, inclui os dias de feriado.',
-            fonte: 'SUM(valor_total) WHERE vencimento = hoje (+ feriados/fds)',
-            endpoint: 'GET /api/contas?status=a_pagar',
-            filtros: ['isVenceHoje()', 'Feriados cadastrados (config_feriados)'],
+            valor: {
+              titulo: 'Valor Vencendo Hoje',
+              descricao: 'Soma dos titulos que vencem hoje. Na segunda inclui sabado/domingo. Apos feriados, inclui dias de feriado (cascata).',
+              fonte: 'SUM(valor_total) WHERE isVenceHoje(vencimento)',
+              filtros: ['isVenceHoje()', 'Feriados (config_feriados)', 'Fins de semana (sabado/domingo)'],
+            },
+            titulos: {
+              titulo: 'Titulos Vencendo Hoje',
+              descricao: 'Titulos unicos com vencimento hoje (inclui logica feriados/fds).',
+              fonte: 'COUNT(DISTINCT SPLIT_PART(numero_titulo, \'/\', 1)) WHERE isVenceHoje()',
+              filtros: ['isVenceHoje()', 'Percentual sobre total de titulos'],
+            },
+            credores: {
+              titulo: 'Credores Vencendo Hoje',
+              descricao: 'Credores distintos com titulos vencendo hoje.',
+              fonte: 'COUNT(DISTINCT credor) WHERE isVenceHoje()',
+              filtros: ['isVenceHoje()', 'Percentual sobre total de credores'],
+            },
           },
           '7dias': {
-            descricao: 'Contas com vencimento nos proximos 7 dias (exclui hoje).',
-            fonte: 'SUM(valor_total) WHERE vencimento BETWEEN amanha AND +7d',
-            endpoint: 'GET /api/contas?status=a_pagar',
-            filtros: ['Exclusoes gerais', 'Filtros locais'],
+            valor: {
+              titulo: 'Valor Proximos 7 Dias',
+              descricao: 'Soma dos titulos com vencimento entre amanha e +7 dias.',
+              fonte: 'SUM(valor_total) WHERE vencimento BETWEEN amanha AND +7d',
+              filtros: ['Exclusoes gerais', 'Filtros locais'],
+            },
+            titulos: {
+              titulo: 'Titulos Proximos 7 Dias',
+              descricao: 'Titulos unicos com vencimento nos proximos 7 dias (exclui hoje).',
+              fonte: 'COUNT(DISTINCT SPLIT_PART(numero_titulo, \'/\', 1))',
+              filtros: ['Percentual sobre total de titulos'],
+            },
+            credores: {
+              titulo: 'Credores Proximos 7 Dias',
+              descricao: 'Credores distintos com titulos nos proximos 7 dias.',
+              fonte: 'COUNT(DISTINCT credor)',
+              filtros: ['Percentual sobre total de credores'],
+            },
           },
           '15dias': {
-            descricao: 'Contas com vencimento nos proximos 15 dias (exclui hoje).',
-            fonte: 'SUM(valor_total) WHERE vencimento BETWEEN amanha AND +15d',
-            endpoint: 'GET /api/contas?status=a_pagar',
-            filtros: ['Exclusoes gerais', 'Filtros locais'],
+            valor: {
+              titulo: 'Valor Proximos 15 Dias',
+              descricao: 'Soma dos titulos com vencimento entre amanha e +15 dias.',
+              fonte: 'SUM(valor_total) WHERE vencimento BETWEEN amanha AND +15d',
+              filtros: ['Exclusoes gerais', 'Filtros locais'],
+            },
+            titulos: {
+              titulo: 'Titulos Proximos 15 Dias',
+              descricao: 'Titulos unicos com vencimento nos proximos 15 dias (exclui hoje).',
+              fonte: 'COUNT(DISTINCT SPLIT_PART(numero_titulo, \'/\', 1))',
+              filtros: ['Percentual sobre total de titulos'],
+            },
+            credores: {
+              titulo: 'Credores Proximos 15 Dias',
+              descricao: 'Credores distintos com titulos nos proximos 15 dias.',
+              fonte: 'COUNT(DISTINCT credor)',
+              filtros: ['Percentual sobre total de credores'],
+            },
           },
           '30dias': {
-            descricao: 'Contas com vencimento nos proximos 30 dias (exclui hoje).',
-            fonte: 'SUM(valor_total) WHERE vencimento BETWEEN amanha AND +30d',
-            endpoint: 'GET /api/contas?status=a_pagar',
-            filtros: ['Exclusoes gerais', 'Filtros locais'],
+            valor: {
+              titulo: 'Valor Proximos 30 Dias',
+              descricao: 'Soma dos titulos com vencimento entre amanha e +30 dias.',
+              fonte: 'SUM(valor_total) WHERE vencimento BETWEEN amanha AND +30d',
+              filtros: ['Exclusoes gerais', 'Filtros locais'],
+            },
+            titulos: {
+              titulo: 'Titulos Proximos 30 Dias',
+              descricao: 'Titulos unicos com vencimento nos proximos 30 dias (exclui hoje).',
+              fonte: 'COUNT(DISTINCT SPLIT_PART(numero_titulo, \'/\', 1))',
+              filtros: ['Percentual sobre total de titulos'],
+            },
+            credores: {
+              titulo: 'Credores Proximos 30 Dias',
+              descricao: 'Credores distintos com titulos nos proximos 30 dias.',
+              fonte: 'COUNT(DISTINCT credor)',
+              filtros: ['Percentual sobre total de credores'],
+            },
           },
         };
 
-        const renderTooltip = (faixa: string) => (
-          <div className="pointer-events-none absolute left-0 top-full z-50 mt-2 w-80 rounded-lg bg-gray-900 p-4 text-xs text-white opacity-0 shadow-xl transition-opacity duration-200 group-hover:opacity-100">
-            <p className="mb-2 text-gray-300">{cardDocs[faixa].descricao}</p>
-            <div className="mb-1">
-              <span className="text-gray-400">Fonte:</span>
-              <span className="ml-1 font-mono text-blue-300">{cardDocs[faixa].fonte}</span>
+        const renderMiniTooltip = (faixa: string, tipo: 'valor' | 'titulos' | 'credores', groupName: string) => {
+          const doc = cardDocs[faixa][tipo];
+          return (
+            <div className={`pointer-events-none absolute left-1/2 -translate-x-1/2 top-full z-50 mt-1 w-72 rounded-lg bg-gray-900 p-3 text-xs text-white opacity-0 shadow-xl transition-opacity duration-200 ${groupName === 'valor' ? 'group-hover/valor:opacity-100' : groupName === 'titulos' ? 'group-hover/titulos:opacity-100' : 'group-hover/credores:opacity-100'}`}>
+              <p className="mb-1.5 font-semibold text-white">{doc.titulo}</p>
+              <p className="mb-2 text-gray-300">{doc.descricao}</p>
+              <div className="mb-1">
+                <span className="text-gray-400">Fonte:</span>
+                <span className="ml-1 font-mono text-blue-300">{doc.fonte}</span>
+              </div>
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {doc.filtros.map(f => (
+                  <span key={f} className="rounded bg-gray-700 px-1.5 py-0.5 text-amber-300">{f}</span>
+                ))}
+              </div>
             </div>
-            <div className="mb-2">
-              <span className="text-gray-400">Endpoint:</span>
-              <span className="ml-1 font-mono text-green-300">{cardDocs[faixa].endpoint}</span>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {cardDocs[faixa].filtros.map(f => (
-                <span key={f} className="rounded bg-gray-700 px-1.5 py-0.5 text-amber-300">{f}</span>
-              ))}
-            </div>
-          </div>
-        );
+          );
+        };
 
         return (
           <>
             <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-              <div className="group relative rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 p-5 text-white shadow-lg cursor-help">
+              <div className="relative rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 p-5 text-white shadow-lg">
                 <div className="mb-1 text-xs font-medium opacity-90">Total a Pagar</div>
-                <div className="text-xl font-bold">{formatCurrency(estatisticas.valor_total)}</div>
-                <div className="mt-1 text-xs opacity-75">{estatisticas.quantidade_titulos.toLocaleString('pt-BR')} titulos | {credoresTotal} credores</div>
+                <div className="group/valor relative cursor-help">
+                  <div className="text-xl font-bold underline decoration-dotted decoration-white/40 underline-offset-4">{formatCurrency(estatisticas.valor_total)}</div>
+                  {renderMiniTooltip('total', 'valor', 'valor')}
+                </div>
+                <div className="mt-1 text-xs opacity-75 flex items-center gap-1">
+                  <span className="group/titulos relative cursor-help">
+                    <span className="underline decoration-dotted decoration-white/30 underline-offset-2">{estatisticas.quantidade_titulos.toLocaleString('pt-BR')} titulos</span>
+                    {renderMiniTooltip('total', 'titulos', 'titulos')}
+                  </span>
+                  <span>|</span>
+                  <span className="group/credores relative cursor-help">
+                    <span className="underline decoration-dotted decoration-white/30 underline-offset-2">{credoresTotal} credores</span>
+                    {renderMiniTooltip('total', 'credores', 'credores')}
+                  </span>
+                </div>
                 {renderComparacao('total', estatisticas.valor_total)}
-                {renderTooltip('total')}
               </div>
 
-              <div className="group relative rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 p-5 text-white shadow-lg cursor-help">
+              <div className="relative rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 p-5 text-white shadow-lg">
                 <div className="mb-1 text-xs font-medium opacity-90">Vencendo Hoje</div>
-                <div className="text-xl font-bold">{formatCurrency(valorHoje)}</div>
-                <div className="mt-1 text-xs opacity-75">
-                  {calcularTitulosUnicos(contasHoje)} titulo(s)
-                  <span className="ml-1 font-semibold opacity-90">({pct(calcularTitulosUnicos(contasHoje), totalTitulos)})</span>
-                  {' | '}
-                  {credoresHoje} credores
-                  <span className="ml-1 font-semibold opacity-90">({pct(credoresHoje, credoresTotal)})</span>
+                <div className="group/valor relative cursor-help">
+                  <div className="text-xl font-bold underline decoration-dotted decoration-white/40 underline-offset-4">{formatCurrency(valorHoje)}</div>
+                  {renderMiniTooltip('hoje', 'valor', 'valor')}
+                </div>
+                <div className="mt-1 text-xs opacity-75 flex items-center gap-1">
+                  <span className="group/titulos relative cursor-help">
+                    <span className="underline decoration-dotted decoration-white/30 underline-offset-2">
+                      {calcularTitulosUnicos(contasHoje)} titulo(s)
+                      <span className="ml-1 font-semibold opacity-90">({pct(calcularTitulosUnicos(contasHoje), totalTitulos)})</span>
+                    </span>
+                    {renderMiniTooltip('hoje', 'titulos', 'titulos')}
+                  </span>
+                  <span>|</span>
+                  <span className="group/credores relative cursor-help">
+                    <span className="underline decoration-dotted decoration-white/30 underline-offset-2">
+                      {credoresHoje} credores
+                      <span className="ml-1 font-semibold opacity-90">({pct(credoresHoje, credoresTotal)})</span>
+                    </span>
+                    {renderMiniTooltip('hoje', 'credores', 'credores')}
+                  </span>
                 </div>
                 {renderComparacao('hoje', valorHoje)}
-                {renderTooltip('hoje')}
               </div>
 
-              <div className="group relative rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 p-5 text-white shadow-lg cursor-help">
+              <div className="relative rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 p-5 text-white shadow-lg">
                 <div className="mb-1 text-xs font-medium opacity-90">Proximos 7 dias</div>
                 <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(amanha)} ate {formatarDataCurta(fim7)}</div>
-                <div className="text-xl font-bold">{formatCurrency(valor7dias)}</div>
-                <div className="mt-1 text-xs opacity-75">
-                  {calcularTitulosUnicos(contas7dias)} titulo(s)
-                  <span className="ml-1 font-semibold opacity-90">({pct(calcularTitulosUnicos(contas7dias), totalTitulos)})</span>
-                  {' | '}
-                  {credores7dias} credores
-                  <span className="ml-1 font-semibold opacity-90">({pct(credores7dias, credoresTotal)})</span>
+                <div className="group/valor relative cursor-help">
+                  <div className="text-xl font-bold underline decoration-dotted decoration-white/40 underline-offset-4">{formatCurrency(valor7dias)}</div>
+                  {renderMiniTooltip('7dias', 'valor', 'valor')}
+                </div>
+                <div className="mt-1 text-xs opacity-75 flex items-center gap-1">
+                  <span className="group/titulos relative cursor-help">
+                    <span className="underline decoration-dotted decoration-white/30 underline-offset-2">
+                      {calcularTitulosUnicos(contas7dias)} titulo(s)
+                      <span className="ml-1 font-semibold opacity-90">({pct(calcularTitulosUnicos(contas7dias), totalTitulos)})</span>
+                    </span>
+                    {renderMiniTooltip('7dias', 'titulos', 'titulos')}
+                  </span>
+                  <span>|</span>
+                  <span className="group/credores relative cursor-help">
+                    <span className="underline decoration-dotted decoration-white/30 underline-offset-2">
+                      {credores7dias} credores
+                      <span className="ml-1 font-semibold opacity-90">({pct(credores7dias, credoresTotal)})</span>
+                    </span>
+                    {renderMiniTooltip('7dias', 'credores', 'credores')}
+                  </span>
                 </div>
                 {renderComparacao('7dias', valor7dias)}
-                {renderTooltip('7dias')}
               </div>
 
-              <div className="group relative rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 p-5 text-white shadow-lg cursor-help">
+              <div className="relative rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 p-5 text-white shadow-lg">
                 <div className="mb-1 text-xs font-medium opacity-90">Proximos 15 dias</div>
                 <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(amanha)} ate {formatarDataCurta(fim15)}</div>
-                <div className="text-xl font-bold">{formatCurrency(valor15dias)}</div>
-                <div className="mt-1 text-xs opacity-75">
-                  {calcularTitulosUnicos(contas15dias)} titulo(s)
-                  <span className="ml-1 font-semibold opacity-90">({pct(calcularTitulosUnicos(contas15dias), totalTitulos)})</span>
-                  {' | '}
-                  {credores15dias} credores
-                  <span className="ml-1 font-semibold opacity-90">({pct(credores15dias, credoresTotal)})</span>
+                <div className="group/valor relative cursor-help">
+                  <div className="text-xl font-bold underline decoration-dotted decoration-white/40 underline-offset-4">{formatCurrency(valor15dias)}</div>
+                  {renderMiniTooltip('15dias', 'valor', 'valor')}
+                </div>
+                <div className="mt-1 text-xs opacity-75 flex items-center gap-1">
+                  <span className="group/titulos relative cursor-help">
+                    <span className="underline decoration-dotted decoration-white/30 underline-offset-2">
+                      {calcularTitulosUnicos(contas15dias)} titulo(s)
+                      <span className="ml-1 font-semibold opacity-90">({pct(calcularTitulosUnicos(contas15dias), totalTitulos)})</span>
+                    </span>
+                    {renderMiniTooltip('15dias', 'titulos', 'titulos')}
+                  </span>
+                  <span>|</span>
+                  <span className="group/credores relative cursor-help">
+                    <span className="underline decoration-dotted decoration-white/30 underline-offset-2">
+                      {credores15dias} credores
+                      <span className="ml-1 font-semibold opacity-90">({pct(credores15dias, credoresTotal)})</span>
+                    </span>
+                    {renderMiniTooltip('15dias', 'credores', 'credores')}
+                  </span>
                 </div>
                 {renderComparacao('15dias', valor15dias)}
-                {renderTooltip('15dias')}
               </div>
 
-              <div className="group relative rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 p-5 text-white shadow-lg cursor-help">
+              <div className="relative rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 p-5 text-white shadow-lg">
                 <div className="mb-1 text-xs font-medium opacity-90">Proximos 30 dias</div>
                 <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(amanha)} ate {formatarDataCurta(fim30)}</div>
-                <div className="text-xl font-bold">{formatCurrency(valor30dias)}</div>
-                <div className="mt-1 text-xs opacity-75">
-                  {calcularTitulosUnicos(contas30dias)} titulo(s)
-                  <span className="ml-1 font-semibold opacity-90">({pct(calcularTitulosUnicos(contas30dias), totalTitulos)})</span>
-                  {' | '}
-                  {credores30dias} credores
-                  <span className="ml-1 font-semibold opacity-90">({pct(credores30dias, credoresTotal)})</span>
+                <div className="group/valor relative cursor-help">
+                  <div className="text-xl font-bold underline decoration-dotted decoration-white/40 underline-offset-4">{formatCurrency(valor30dias)}</div>
+                  {renderMiniTooltip('30dias', 'valor', 'valor')}
+                </div>
+                <div className="mt-1 text-xs opacity-75 flex items-center gap-1">
+                  <span className="group/titulos relative cursor-help">
+                    <span className="underline decoration-dotted decoration-white/30 underline-offset-2">
+                      {calcularTitulosUnicos(contas30dias)} titulo(s)
+                      <span className="ml-1 font-semibold opacity-90">({pct(calcularTitulosUnicos(contas30dias), totalTitulos)})</span>
+                    </span>
+                    {renderMiniTooltip('30dias', 'titulos', 'titulos')}
+                  </span>
+                  <span>|</span>
+                  <span className="group/credores relative cursor-help">
+                    <span className="underline decoration-dotted decoration-white/30 underline-offset-2">
+                      {credores30dias} credores
+                      <span className="ml-1 font-semibold opacity-90">({pct(credores30dias, credoresTotal)})</span>
+                    </span>
+                    {renderMiniTooltip('30dias', 'credores', 'credores')}
+                  </span>
                 </div>
                 {renderComparacao('30dias', valor30dias)}
-                {renderTooltip('30dias')}
               </div>
             </div>
           </>
