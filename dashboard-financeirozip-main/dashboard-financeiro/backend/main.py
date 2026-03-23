@@ -138,8 +138,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=Fals
 async def health_check():
     return {"status": "ok"}
 
-print(f"[STARTUP] DB_HOST={DB_CONFIG['host']}, DB_PORT={DB_CONFIG['port']}, DB_USER={'***' if DB_CONFIG['user'] else 'NÃO DEFINIDO'}")
-
 # Configurar CORS — domínios permitidos via env var ou padrões seguros
 _allowed_origins_env = os.environ.get('ALLOWED_ORIGINS', '')
 ALLOWED_ORIGINS = [o.strip() for o in _allowed_origins_env.split(',') if o.strip()] if _allowed_origins_env else [
@@ -187,6 +185,7 @@ DB_CONFIG = {
 }
 if not DB_CONFIG['user'] or not DB_CONFIG['password']:
     print("[SECURITY] ATENÇÃO: DB_USER e DB_PASSWORD devem ser definidos como variáveis de ambiente!")
+print(f"[STARTUP] DB_HOST={DB_CONFIG['host']}, DB_PORT={DB_CONFIG['port']}, DB_USER={'***' if DB_CONFIG['user'] else 'NÃO DEFINIDO'}")
 
 # Configuração do banco de dados Replit (metas e configurações)
 REPLIT_DB_URL = os.environ.get('DATABASE_URL')
