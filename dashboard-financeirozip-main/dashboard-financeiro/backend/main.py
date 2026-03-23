@@ -136,6 +136,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=Fals
 async def health_check():
     return {"status": "ok"}
 
+print(f"[STARTUP] DB_HOST={DB_CONFIG['host']}, DB_PORT={DB_CONFIG['port']}, DB_USER={'***' if DB_CONFIG['user'] else 'NÃO DEFINIDO'}")
+
 # Configurar CORS — domínios permitidos via env var ou padrões seguros
 _allowed_origins_env = os.environ.get('ALLOWED_ORIGINS', '')
 ALLOWED_ORIGINS = [o.strip() for o in _allowed_origins_env.split(',') if o.strip()] if _allowed_origins_env else [
@@ -187,8 +189,8 @@ async def auth_middleware(request: Request, call_next):
 
 # ==================== RATE LIMITING NO LOGIN ====================
 _login_attempts: dict = defaultdict(list)  # ip -> [timestamps]
-LOGIN_RATE_LIMIT = int(os.environ.get('LOGIN_RATE_LIMIT', '10'))  # max tentativas
-LOGIN_RATE_WINDOW = int(os.environ.get('LOGIN_RATE_WINDOW', '300'))  # janela em segundos (5min)
+LOGIN_RATE_LIMIT = _safe_int(os.environ.get('LOGIN_RATE_LIMIT'), 10)
+LOGIN_RATE_WINDOW = _safe_int(os.environ.get('LOGIN_RATE_WINDOW'), 300)
 
 def check_rate_limit(ip: str) -> bool:
     """Retorna True se o IP excedeu o limite de tentativas de login."""
@@ -212,12 +214,18 @@ async def security_headers_middleware(request: Request, call_next):
     return response
 
 # Configuração do banco de dados externo (dados financeiros) — via variáveis de ambiente
+def _safe_int(val, default):
+    try:
+        return int(val) if val else default
+    except (ValueError, TypeError):
+        return default
+
 DB_CONFIG = {
-    'host': os.environ.get('DB_HOST', 'localhost'),
-    'port': int(os.environ.get('DB_PORT', '5432')),
-    'database': os.environ.get('DB_NAME', 'ecbiesek'),
-    'user': os.environ.get('DB_USER', ''),
-    'password': os.environ.get('DB_PASSWORD', ''),
+    'host': os.environ.get('DB_HOST') or 'localhost',
+    'port': _safe_int(os.environ.get('DB_PORT'), 5432),
+    'database': os.environ.get('DB_NAME') or 'ecbiesek',
+    'user': os.environ.get('DB_USER') or '',
+    'password': os.environ.get('DB_PASSWORD') or '',
 }
 if not DB_CONFIG['user'] or not DB_CONFIG['password']:
     print("[SECURITY] ATENÇÃO: DB_USER e DB_PASSWORD devem ser definidos como variáveis de ambiente!")
