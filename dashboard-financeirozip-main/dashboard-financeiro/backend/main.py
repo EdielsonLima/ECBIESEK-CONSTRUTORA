@@ -3,7 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime, date, timedelta
@@ -159,34 +158,32 @@ AUTH_EXEMPT_PREFIXES = (
     '/assets/', '/favicon.ico',
 )
 
-class AuthMiddleware(BaseHTTPMiddleware):
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
     """Exige JWT válido em todas as rotas /api/ (exceto auth e health)."""
-    async def dispatch(self, request: Request, call_next):
-        path = request.url.path
-        # Rotas isentas
-        if any(path.startswith(p) for p in AUTH_EXEMPT_PREFIXES):
-            return await call_next(request)
-        # SPA — rotas não-API servem o frontend
-        if not path.startswith('/api/'):
-            return await call_next(request)
-        # OPTIONS (preflight CORS) — liberar
-        if request.method == 'OPTIONS':
-            return await call_next(request)
-        # Verificar token JWT
-        auth_header = request.headers.get('Authorization', '')
-        if not auth_header.startswith('Bearer '):
-            return JSONResponse(status_code=401, content={"detail": "Não autenticado"})
-        token = auth_header[7:]
-        try:
-            payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
-            email = payload.get("sub")
-            if not email:
-                return JSONResponse(status_code=401, content={"detail": "Token inválido"})
-        except JWTError:
-            return JSONResponse(status_code=401, content={"detail": "Token inválido ou expirado"})
+    path = request.url.path
+    # Rotas isentas
+    if any(path.startswith(p) for p in AUTH_EXEMPT_PREFIXES):
         return await call_next(request)
-
-app.add_middleware(AuthMiddleware)
+    # SPA — rotas não-API servem o frontend
+    if not path.startswith('/api/'):
+        return await call_next(request)
+    # OPTIONS (preflight CORS) — liberar
+    if request.method == 'OPTIONS':
+        return await call_next(request)
+    # Verificar token JWT
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        return JSONResponse(status_code=401, content={"detail": "Não autenticado"})
+    token = auth_header[7:]
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        email = payload.get("sub")
+        if not email:
+            return JSONResponse(status_code=401, content={"detail": "Token inválido"})
+    except JWTError:
+        return JSONResponse(status_code=401, content={"detail": "Token inválido ou expirado"})
+    return await call_next(request)
 
 # ==================== RATE LIMITING NO LOGIN ====================
 _login_attempts: dict = defaultdict(list)  # ip -> [timestamps]
@@ -204,17 +201,15 @@ def check_rate_limit(ip: str) -> bool:
     return False
 
 # ==================== HEADERS DE SEGURANÇA ====================
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        response = await call_next(request)
-        response.headers['X-Content-Type-Options'] = 'nosniff'
-        response.headers['X-Frame-Options'] = 'DENY'
-        response.headers['X-XSS-Protection'] = '1; mode=block'
-        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-        response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
-        return response
-
-app.add_middleware(SecurityHeadersMiddleware)
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
+    return response
 
 # Configuração do banco de dados externo (dados financeiros) — via variáveis de ambiente
 DB_CONFIG = {
