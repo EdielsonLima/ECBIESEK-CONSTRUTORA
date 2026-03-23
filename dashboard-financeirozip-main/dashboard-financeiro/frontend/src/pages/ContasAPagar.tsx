@@ -585,13 +585,12 @@ export const ContasAPagar: React.FC = () => {
     const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro, filtroTipoPagamento, filtroAutorizacao, autorizacoesBulk);
     setContas(contasFiltradas);
 
-    // Card "Total a Pagar" usa TODAS as contas (vencidas + a vencer), mas com filtros locais aplicados
-    const completasFiltradas = aplicarFiltrosLocais(todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro, filtroTipoPagamento, filtroAutorizacao, autorizacoesBulk);
+    // Card "Total a Pagar" usa as contas filtradas (hoje + futuro, com lógica de segunda-feira)
     const stats: Estatisticas = {
-      quantidade_titulos: calcularTitulosUnicos(completasFiltradas),
-      valor_total: completasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0),
-      valor_medio: completasFiltradas.length > 0
-        ? completasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0) / completasFiltradas.length
+      quantidade_titulos: calcularTitulosUnicos(contasFiltradas),
+      valor_total: contasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0),
+      valor_medio: contasFiltradas.length > 0
+        ? contasFiltradas.reduce((acc, c) => acc + (c.valor_total || 0), 0) / contasFiltradas.length
         : 0,
     };
     setEstatisticas(stats);
@@ -1711,12 +1710,11 @@ export const ContasAPagar: React.FC = () => {
   return (
     <div>
       {estatisticas && (() => {
-        const contasHoje = contas.filter(c => calcularDiasAteVencimento(c.data_vencimento as any) === 0);
+        const contasHoje = contas.filter(c => isVenceHoje(c.data_vencimento));
         const contas7dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 7; });
         const contas15dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 15; });
         const contas30dias = contas.filter(c => { const dias = calcularDiasAteVencimento(c.data_vencimento as any); return dias >= 1 && dias <= 30; });
-        const completasFiltradas = aplicarFiltrosLocais(todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro, filtroTipoPagamento, filtroAutorizacao, autorizacoesBulk);
-        const credoresTotal = new Set(completasFiltradas.map(c => c.credor)).size;
+        const credoresTotal = new Set(contas.map(c => c.credor)).size;
         const credoresHoje = new Set(contasHoje.map(c => c.credor)).size;
         const credores7dias = new Set(contas7dias.map(c => c.credor)).size;
         const credores15dias = new Set(contas15dias.map(c => c.credor)).size;
