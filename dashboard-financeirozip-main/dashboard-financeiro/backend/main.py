@@ -1,15 +1,18 @@
 from fastapi import FastAPI, HTTPException, Depends, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime, date, timedelta
+from collections import defaultdict
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from decimal import Decimal
 import os
+import secrets
 import sqlite3
 from pathlib import Path
 import bcrypt
@@ -63,13 +66,17 @@ def init_users_db():
             )
         """)
         conn.commit()
-        # Criar usuario padrao se nao existir
-        senha_hash = bcrypt.hashpw(b'Darlene1321@', bcrypt.gensalt()).decode('utf-8')
-        conn.execute(
-            "INSERT OR IGNORE INTO usuarios (email, nome, senha_hash, permissao) VALUES (?, ?, ?, ?)",
-            ('edielson@dtconsultorias.com', 'Edielson Lima', senha_hash, 'admin')
-        )
-        conn.commit()
+        # Criar usuario padrao se nao existir — senha via variável de ambiente
+        _default_admin_email = os.environ.get('DEFAULT_ADMIN_EMAIL', '')
+        _default_admin_password = os.environ.get('DEFAULT_ADMIN_PASSWORD', '')
+        _default_admin_name = os.environ.get('DEFAULT_ADMIN_NAME', 'Admin')
+        if _default_admin_email and _default_admin_password:
+            senha_hash = bcrypt.hashpw(_default_admin_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            conn.execute(
+                "INSERT OR IGNORE INTO usuarios (email, nome, senha_hash, permissao) VALUES (?, ?, ?, ?)",
+                (_default_admin_email, _default_admin_name, senha_hash, 'admin')
+            )
+            conn.commit()
         print("Banco de usuarios (SQLite) inicializado com sucesso")
     except Exception as e:
         print(f"Erro ao inicializar banco de usuarios: {e}")
@@ -107,7 +114,11 @@ async def startup_event():
         print(f"[STARTUP] Erro ao garantir tabelas de config: {e}")
 
 # Configuração de segurança JWT
-JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'fallback-secret-key-change-in-production')
+_jwt_from_env = os.environ.get('JWT_SECRET_KEY', '')
+if not _jwt_from_env:
+    _jwt_from_env = secrets.token_urlsafe(64)
+    print("[SECURITY] JWT_SECRET_KEY não definida — gerada automaticamente (tokens invalidam ao reiniciar)")
+JWT_SECRET_KEY = _jwt_from_env
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 horas
 
@@ -126,23 +137,95 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=Fals
 async def health_check():
     return {"status": "ok"}
 
-# Configurar CORS
+# Configurar CORS — domínios permitidos via env var ou padrões seguros
+_allowed_origins_env = os.environ.get('ALLOWED_ORIGINS', '')
+ALLOWED_ORIGINS = [o.strip() for o in _allowed_origins_env.split(',') if o.strip()] if _allowed_origins_env else [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://localhost:8000",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Em produção, especifique os domínios permitidos
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
-# Configuração do banco de dados externo (dados financeiros)
+# ==================== MIDDLEWARE DE AUTENTICAÇÃO GLOBAL ====================
+# Rotas que NÃO precisam de autenticação
+AUTH_EXEMPT_PREFIXES = (
+    '/health', '/api/health', '/api/auth/',
+    '/assets/', '/favicon.ico',
+)
+
+class AuthMiddleware(BaseHTTPMiddleware):
+    """Exige JWT válido em todas as rotas /api/ (exceto auth e health)."""
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        # Rotas isentas
+        if any(path.startswith(p) for p in AUTH_EXEMPT_PREFIXES):
+            return await call_next(request)
+        # SPA — rotas não-API servem o frontend
+        if not path.startswith('/api/'):
+            return await call_next(request)
+        # OPTIONS (preflight CORS) — liberar
+        if request.method == 'OPTIONS':
+            return await call_next(request)
+        # Verificar token JWT
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return JSONResponse(status_code=401, content={"detail": "Não autenticado"})
+        token = auth_header[7:]
+        try:
+            payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+            email = payload.get("sub")
+            if not email:
+                return JSONResponse(status_code=401, content={"detail": "Token inválido"})
+        except JWTError:
+            return JSONResponse(status_code=401, content={"detail": "Token inválido ou expirado"})
+        return await call_next(request)
+
+app.add_middleware(AuthMiddleware)
+
+# ==================== RATE LIMITING NO LOGIN ====================
+_login_attempts: dict = defaultdict(list)  # ip -> [timestamps]
+LOGIN_RATE_LIMIT = int(os.environ.get('LOGIN_RATE_LIMIT', '10'))  # max tentativas
+LOGIN_RATE_WINDOW = int(os.environ.get('LOGIN_RATE_WINDOW', '300'))  # janela em segundos (5min)
+
+def check_rate_limit(ip: str) -> bool:
+    """Retorna True se o IP excedeu o limite de tentativas de login."""
+    now = time.time()
+    # Limpar tentativas antigas
+    _login_attempts[ip] = [t for t in _login_attempts[ip] if now - t < LOGIN_RATE_WINDOW]
+    if len(_login_attempts[ip]) >= LOGIN_RATE_LIMIT:
+        return True
+    _login_attempts[ip].append(now)
+    return False
+
+# ==================== HEADERS DE SEGURANÇA ====================
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Configuração do banco de dados externo (dados financeiros) — via variáveis de ambiente
 DB_CONFIG = {
-    'host': '8iv70o.easypanel.host',
-    'port': 42128,
-    'database': 'ecbiesek',
-    'user': 'dtKJdFrDX5dt',
-    'password': 'dtM7gvwVaDaieR0xqNNGRGnJeo6fYhOnCTdt'
+    'host': os.environ.get('DB_HOST', 'localhost'),
+    'port': int(os.environ.get('DB_PORT', '5432')),
+    'database': os.environ.get('DB_NAME', 'ecbiesek'),
+    'user': os.environ.get('DB_USER', ''),
+    'password': os.environ.get('DB_PASSWORD', ''),
 }
+if not DB_CONFIG['user'] or not DB_CONFIG['password']:
+    print("[SECURITY] ATENÇÃO: DB_USER e DB_PASSWORD devem ser definidos como variáveis de ambiente!")
 
 # Configuração do banco de dados Replit (metas e configurações)
 REPLIT_DB_URL = os.environ.get('DATABASE_URL')
@@ -487,8 +570,8 @@ def register_user(user: UserCreate):
     if existing_user:
         raise HTTPException(status_code=400, detail="Email já cadastrado")
     
-    if len(user.senha) < 6:
-        raise HTTPException(status_code=400, detail="Senha deve ter pelo menos 6 caracteres")
+    if len(user.senha) < 8:
+        raise HTTPException(status_code=400, detail="Senha deve ter pelo menos 8 caracteres")
     
     senha_hash = get_password_hash(user.senha)
 
@@ -510,8 +593,10 @@ def register_user(user: UserCreate):
 @app.post("/api/auth/login")
 def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
     """Login de usuário"""
+    ip = request.client.host if request.client else 'unknown'
+    if check_rate_limit(ip):
+        raise HTTPException(status_code=429, detail="Muitas tentativas de login. Tente novamente em alguns minutos.")
     user = get_user_by_email(form_data.username.lower())
-    ip = request.client.host if request.client else None
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email ou senha incorretos", headers={"WWW-Authenticate": "Bearer"})
     if not verify_password(form_data.password, user['senha_hash']):
@@ -525,8 +610,10 @@ def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
 @app.post("/api/auth/login-json")
 def login_json(request: Request, user_login: UserLogin):
     """Login de usuário via JSON"""
+    ip = request.client.host if request.client else 'unknown'
+    if check_rate_limit(ip):
+        raise HTTPException(status_code=429, detail="Muitas tentativas de login. Tente novamente em alguns minutos.")
     user = get_user_by_email(user_login.email.lower())
-    ip = request.client.host if request.client else None
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email ou senha incorretos")
     if not verify_password(user_login.senha, user['senha_hash']):
@@ -556,8 +643,8 @@ async def alterar_senha(dados: dict, request: Request, current_user: dict = Depe
     nova_senha = dados.get('nova_senha', '')
     if not verify_password(senha_atual, current_user['senha_hash']):
         raise HTTPException(status_code=400, detail="Senha atual incorreta")
-    if len(nova_senha) < 6:
-        raise HTTPException(status_code=400, detail="Nova senha deve ter pelo menos 6 caracteres")
+    if len(nova_senha) < 8:
+        raise HTTPException(status_code=400, detail="Nova senha deve ter pelo menos 8 caracteres")
     nova_hash = get_password_hash(nova_senha)
     conn = get_users_db()
     try:
@@ -7285,7 +7372,7 @@ def build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', has_
     return conditions, params
 
 @app.get("/api/debug/tipos-previsao")
-def debug_tipos_previsao():
+def debug_tipos_previsao(admin: dict = Depends(require_admin)):
     """Lista todos tipos de documento que podem ser previsão"""
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -7312,7 +7399,7 @@ def debug_tipos_previsao():
         conn.close()
 
 @app.get("/api/debug/empresa-detalhe")
-def debug_empresa_detalhe(empresa: str = "LAGOA"):
+def debug_empresa_detalhe(empresa: str = "LAGOA", admin: dict = Depends(require_admin)):
     """Analisa títulos de uma empresa específica para identificar diferenças com PBI"""
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -7487,7 +7574,7 @@ def debug_empresa_detalhe(empresa: str = "LAGOA"):
         conn.close()
 
 @app.get("/api/debug/diferenca-pbi")
-def debug_diferenca_pbi():
+def debug_diferenca_pbi(admin: dict = Depends(require_admin)):
     """Endpoint de debug para investigar diferença entre dashboard e Power BI no Total a Pagar"""
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -7558,7 +7645,7 @@ def debug_diferenca_pbi():
         conn.close()
 
 @app.get("/api/debug/exclusoes")
-def debug_exclusoes():
+def debug_exclusoes(admin: dict = Depends(require_admin)):
     """Endpoint de debug para verificar exclusões ativas e qual banco de config está sendo usado"""
     exclusoes = get_exclusoes()
     # Testa conexão config e identifica o tipo

@@ -13,8 +13,8 @@ export const AlterarSenha: React.FC = () => {
     e.preventDefault();
     setErro('');
     setSucesso('');
-    if (novaSenha.length < 6) {
-      setErro('A nova senha deve ter pelo menos 6 caracteres.');
+    if (novaSenha.length < 8) {
+      setErro('A nova senha deve ter pelo menos 8 caracteres.');
       return;
     }
     if (novaSenha !== confirmar) {

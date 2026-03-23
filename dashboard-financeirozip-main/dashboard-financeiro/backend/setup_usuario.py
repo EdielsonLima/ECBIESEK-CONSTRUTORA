@@ -2,22 +2,25 @@
 Script para criar/resetar usuario no banco de dados.
 Execute: python setup_usuario.py
 """
+import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import bcrypt
-import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 DB_CONFIG = {
-    'host': '8iv70o.easypanel.host',
-    'port': 42128,
-    'database': 'ecbiesek',
-    'user': 'dtKJdFrDX5dt',
-    'password': 'dtM7gvwVaDaieR0xqNNGRGnJeo6fYhOnCTdt'
+    'host': os.environ.get('DB_HOST', 'localhost'),
+    'port': int(os.environ.get('DB_PORT', '5432')),
+    'database': os.environ.get('DB_NAME', 'ecbiesek'),
+    'user': os.environ.get('DB_USER', ''),
+    'password': os.environ.get('DB_PASSWORD', ''),
 }
 
-EMAIL = 'edielson@dtconsultorias.com'
-NOME  = 'Edielson Lima'
-SENHA = 'Darlene1321@'
+EMAIL = os.environ.get('DEFAULT_ADMIN_EMAIL', 'edielson@dtconsultorias.com')
+NOME  = os.environ.get('DEFAULT_ADMIN_NAME', 'Edielson Lima')
+SENHA = os.environ.get('DEFAULT_ADMIN_PASSWORD', '')
 
 def main():
     print("Conectando ao banco de dados...")

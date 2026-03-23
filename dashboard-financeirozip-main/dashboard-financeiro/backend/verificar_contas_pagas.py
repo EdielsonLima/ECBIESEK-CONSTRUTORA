@@ -2,15 +2,19 @@
 Script para verificar a estrutura da tabela contas_pagas
 """
 
+import os
 import psycopg2
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Configuração do banco
 DB_CONFIG = {
-    'host': '8iv70o.easypanel.host',
-    'port': 42128,
-    'database': 'ecbiesek',
-    'user': 'dtKJdFrDX5dt',
-    'password': 'dtM7gvwVaDaieR0xqNNGRGnJeo6fYhOnCTdt'
+    'host': os.environ.get('DB_HOST', 'localhost'),
+    'port': int(os.environ.get('DB_PORT', '5432')),
+    'database': os.environ.get('DB_NAME', 'ecbiesek'),
+    'user': os.environ.get('DB_USER', ''),
+    'password': os.environ.get('DB_PASSWORD', ''),
 }
 
 def verificar_contas_pagas():
