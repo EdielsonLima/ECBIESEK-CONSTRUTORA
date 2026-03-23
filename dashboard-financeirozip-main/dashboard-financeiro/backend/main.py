@@ -4361,6 +4361,18 @@ def registrar_valor_kpi(kpi_id: int, dados: KPIHistoricoCreate):
         cursor.close()
         conn.close()
 
+def _get_vence_hoje_range(hoje, feriados_set):
+    """Retorna (data_inicio, data_fim) para o range de 'vence hoje'.
+    Inclui dias anteriores consecutivos que foram feriados ou fins de semana."""
+    data_inicio = hoje
+    check = hoje - timedelta(days=1)
+    while check.weekday() >= 5 or check in feriados_set:  # 5=sab, 6=dom
+        data_inicio = check
+        check = check - timedelta(days=1)
+    if data_inicio == hoje:
+        return None  # Só hoje, sem range
+    return (data_inicio, hoje)
+
 def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optional[str] = None) -> dict:
     """Calcula valor de KPI automático baseado no identificador
 
@@ -4374,6 +4386,17 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
     try:
         hoje = datetime.now().date()
         valor = None
+
+        # Buscar feriados para lógica de "vence hoje"
+        try:
+            config_conn = get_config_db_connection()
+            config_cursor = config_conn.cursor()
+            config_cursor.execute("SELECT data FROM config_feriados")
+            feriados_set = {row['data'] if isinstance(row['data'], date) else datetime.strptime(str(row['data']), '%Y-%m-%d').date() for row in config_cursor.fetchall()}
+            config_cursor.close()
+            config_conn.close()
+        except:
+            feriados_set = set()
 
         # Aplica exclusões configuradas (mesmas usadas nas páginas de Atrasadas, A Pagar, etc.)
         exclusoes = get_exclusoes()
@@ -4477,10 +4500,11 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
             valor = decimal_to_float(result['valor']) if result else 0
 
         elif calculo_automatico == 'contas_a_pagar_hoje_qtd':
-            # Na segunda-feira (weekday=0), incluir sábado e domingo
-            if hoje.weekday() == 0:  # Segunda-feira
+            # Inclui dias anteriores consecutivos que foram feriados ou fins de semana
+            vence_hoje_range = _get_vence_hoje_range(hoje, feriados_set)
+            if vence_hoje_range:
                 hoje_cond = "cap.data_vencimento BETWEEN %s AND %s"
-                hoje_params = [hoje - timedelta(days=2), hoje]
+                hoje_params = [vence_hoje_range[0], vence_hoje_range[1]]
             else:
                 hoje_cond = "cap.data_vencimento = %s"
                 hoje_params = [hoje]
@@ -4493,9 +4517,10 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
             valor = result['valor'] if result else 0
 
         elif calculo_automatico == 'contas_a_pagar_hoje_valor':
-            if hoje.weekday() == 0:
+            vence_hoje_range = _get_vence_hoje_range(hoje, feriados_set)
+            if vence_hoje_range:
                 hoje_cond = "cap.data_vencimento BETWEEN %s AND %s"
-                hoje_params = [hoje - timedelta(days=2), hoje]
+                hoje_params = [vence_hoje_range[0], vence_hoje_range[1]]
             else:
                 hoje_cond = "cap.data_vencimento = %s"
                 hoje_params = [hoje]
@@ -7188,6 +7213,16 @@ def _ensure_config_tables_in_postgres():
                     (2334.56, 'Fev/2026', datetime.now().isoformat())
                 )
 
+            # Tabela config_feriados
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS config_feriados (
+                    id SERIAL PRIMARY KEY,
+                    data DATE NOT NULL UNIQUE,
+                    descricao VARCHAR(255) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
             cursor.execute("SELECT COUNT(*) as cnt FROM empreendimentos_config")
             row_emp = cursor.fetchone()
             if row_emp and int(row_emp['cnt']) == 0:
@@ -7711,6 +7746,68 @@ def toggle_empresa_exclusao(data: dict):
     except Exception as e:
         print(f"[ERRO] toggle_empresa_exclusao: {e}")
         raise HTTPException(status_code=500, detail=f"Erro ao salvar configuração: {str(e)}")
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/feriados")
+def get_feriados(ano: int = None):
+    """Retorna lista de feriados cadastrados. Se ano informado, filtra por ano."""
+    try:
+        conn = get_config_db_connection()
+        cursor = conn.cursor()
+        try:
+            if ano:
+                cursor.execute("SELECT id, data, descricao FROM config_feriados WHERE EXTRACT(YEAR FROM data) = %s ORDER BY data", (ano,))
+            else:
+                cursor.execute("SELECT id, data, descricao FROM config_feriados ORDER BY data")
+            feriados = cursor.fetchall()
+            return [dict(r) for r in feriados]
+        except Exception as e:
+            print(f"[WARN] Tabela config_feriados não encontrada: {e}")
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+    except Exception as e:
+        print(f"[ERRO] get_feriados: {e}")
+        return []
+
+@app.post("/api/feriados")
+def add_feriado(data: dict):
+    """Adiciona um feriado."""
+    data_feriado = data.get('data')
+    descricao = data.get('descricao', '')
+    if not data_feriado or not descricao:
+        raise HTTPException(status_code=400, detail="data e descricao são obrigatórios")
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO config_feriados (data, descricao) VALUES (%s, %s) ON CONFLICT (data) DO UPDATE SET descricao = %s",
+            (data_feriado, descricao, descricao)
+        )
+        conn.commit()
+        return {"success": True}
+    except Exception as e:
+        print(f"[ERRO] add_feriado: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro ao salvar feriado: {str(e)}")
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.delete("/api/feriados/{feriado_id}")
+def delete_feriado(feriado_id: int):
+    """Remove um feriado."""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM config_feriados WHERE id = %s", (feriado_id,))
+        conn.commit()
+        return {"success": True}
+    except Exception as e:
+        print(f"[ERRO] delete_feriado: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro ao remover feriado: {str(e)}")
     finally:
         cursor.close()
         conn.close()
