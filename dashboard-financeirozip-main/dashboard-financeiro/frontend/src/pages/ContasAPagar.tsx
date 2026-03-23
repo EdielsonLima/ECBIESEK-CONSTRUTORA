@@ -1764,17 +1764,70 @@ export const ContasAPagar: React.FC = () => {
         const valor15dias = contas15dias.reduce((acc, c) => acc + (c.valor_total || 0), 0);
         const valor30dias = contas30dias.reduce((acc, c) => acc + (c.valor_total || 0), 0);
 
+        const cardDocs: Record<string, { descricao: string; fonte: string; endpoint: string; filtros: string[] }> = {
+          total: {
+            descricao: 'Soma de todos os titulos pendentes (hoje + futuro). Inclui feriados/fins de semana no proximo dia util.',
+            fonte: 'SUM(contas_a_pagar.valor_total)',
+            endpoint: 'GET /api/contas?status=a_pagar',
+            filtros: ['Exclusoes gerais (empresas, CCs, docs)', 'Filtros locais da pagina', 'Logica Vence Hoje (feriados + fins de semana)'],
+          },
+          hoje: {
+            descricao: 'Contas com vencimento hoje. Na segunda-feira inclui sabado e domingo. Apos feriados, inclui os dias de feriado.',
+            fonte: 'SUM(valor_total) WHERE vencimento = hoje (+ feriados/fds)',
+            endpoint: 'GET /api/contas?status=a_pagar',
+            filtros: ['isVenceHoje()', 'Feriados cadastrados (config_feriados)'],
+          },
+          '7dias': {
+            descricao: 'Contas com vencimento nos proximos 7 dias (exclui hoje).',
+            fonte: 'SUM(valor_total) WHERE vencimento BETWEEN amanha AND +7d',
+            endpoint: 'GET /api/contas?status=a_pagar',
+            filtros: ['Exclusoes gerais', 'Filtros locais'],
+          },
+          '15dias': {
+            descricao: 'Contas com vencimento nos proximos 15 dias (exclui hoje).',
+            fonte: 'SUM(valor_total) WHERE vencimento BETWEEN amanha AND +15d',
+            endpoint: 'GET /api/contas?status=a_pagar',
+            filtros: ['Exclusoes gerais', 'Filtros locais'],
+          },
+          '30dias': {
+            descricao: 'Contas com vencimento nos proximos 30 dias (exclui hoje).',
+            fonte: 'SUM(valor_total) WHERE vencimento BETWEEN amanha AND +30d',
+            endpoint: 'GET /api/contas?status=a_pagar',
+            filtros: ['Exclusoes gerais', 'Filtros locais'],
+          },
+        };
+
+        const renderTooltip = (faixa: string) => (
+          <div className="pointer-events-none absolute left-0 top-full z-50 mt-2 w-80 rounded-lg bg-gray-900 p-4 text-xs text-white opacity-0 shadow-xl transition-opacity duration-200 group-hover:opacity-100">
+            <p className="mb-2 text-gray-300">{cardDocs[faixa].descricao}</p>
+            <div className="mb-1">
+              <span className="text-gray-400">Fonte:</span>
+              <span className="ml-1 font-mono text-blue-300">{cardDocs[faixa].fonte}</span>
+            </div>
+            <div className="mb-2">
+              <span className="text-gray-400">Endpoint:</span>
+              <span className="ml-1 font-mono text-green-300">{cardDocs[faixa].endpoint}</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {cardDocs[faixa].filtros.map(f => (
+                <span key={f} className="rounded bg-gray-700 px-1.5 py-0.5 text-amber-300">{f}</span>
+              ))}
+            </div>
+          </div>
+        );
+
         return (
           <>
             <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-              <div className="rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 p-5 text-white shadow-lg">
+              <div className="group relative rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 p-5 text-white shadow-lg cursor-help">
                 <div className="mb-1 text-xs font-medium opacity-90">Total a Pagar</div>
                 <div className="text-xl font-bold">{formatCurrency(estatisticas.valor_total)}</div>
                 <div className="mt-1 text-xs opacity-75">{estatisticas.quantidade_titulos.toLocaleString('pt-BR')} titulos | {credoresTotal} credores</div>
                 {renderComparacao('total', estatisticas.valor_total)}
+                {renderTooltip('total')}
               </div>
 
-              <div className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 p-5 text-white shadow-lg">
+              <div className="group relative rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 p-5 text-white shadow-lg cursor-help">
                 <div className="mb-1 text-xs font-medium opacity-90">Vencendo Hoje</div>
                 <div className="text-xl font-bold">{formatCurrency(valorHoje)}</div>
                 <div className="mt-1 text-xs opacity-75">
@@ -1785,9 +1838,10 @@ export const ContasAPagar: React.FC = () => {
                   <span className="ml-1 font-semibold opacity-90">({pct(credoresHoje, credoresTotal)})</span>
                 </div>
                 {renderComparacao('hoje', valorHoje)}
+                {renderTooltip('hoje')}
               </div>
 
-              <div className="rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 p-5 text-white shadow-lg">
+              <div className="group relative rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 p-5 text-white shadow-lg cursor-help">
                 <div className="mb-1 text-xs font-medium opacity-90">Proximos 7 dias</div>
                 <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(amanha)} ate {formatarDataCurta(fim7)}</div>
                 <div className="text-xl font-bold">{formatCurrency(valor7dias)}</div>
@@ -1799,9 +1853,10 @@ export const ContasAPagar: React.FC = () => {
                   <span className="ml-1 font-semibold opacity-90">({pct(credores7dias, credoresTotal)})</span>
                 </div>
                 {renderComparacao('7dias', valor7dias)}
+                {renderTooltip('7dias')}
               </div>
 
-              <div className="rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 p-5 text-white shadow-lg">
+              <div className="group relative rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 p-5 text-white shadow-lg cursor-help">
                 <div className="mb-1 text-xs font-medium opacity-90">Proximos 15 dias</div>
                 <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(amanha)} ate {formatarDataCurta(fim15)}</div>
                 <div className="text-xl font-bold">{formatCurrency(valor15dias)}</div>
@@ -1813,9 +1868,10 @@ export const ContasAPagar: React.FC = () => {
                   <span className="ml-1 font-semibold opacity-90">({pct(credores15dias, credoresTotal)})</span>
                 </div>
                 {renderComparacao('15dias', valor15dias)}
+                {renderTooltip('15dias')}
               </div>
 
-              <div className="rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 p-5 text-white shadow-lg">
+              <div className="group relative rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 p-5 text-white shadow-lg cursor-help">
                 <div className="mb-1 text-xs font-medium opacity-90">Proximos 30 dias</div>
                 <div className="text-xs opacity-75 mb-1">de {formatarDataCurta(amanha)} ate {formatarDataCurta(fim30)}</div>
                 <div className="text-xl font-bold">{formatCurrency(valor30dias)}</div>
@@ -1827,6 +1883,7 @@ export const ContasAPagar: React.FC = () => {
                   <span className="ml-1 font-semibold opacity-90">({pct(credores30dias, credoresTotal)})</span>
                 </div>
                 {renderComparacao('30dias', valor30dias)}
+                {renderTooltip('30dias')}
               </div>
             </div>
           </>
