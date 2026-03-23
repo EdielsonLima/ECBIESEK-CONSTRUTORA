@@ -202,6 +202,8 @@ export const ContasPagas: React.FC = () => {
   const [fornecedorExpandido, setFornecedorExpandido] = useState<string | null>(null);
   const [fornecedorDetalhe, setFornecedorDetalhe] = useState<Record<string, ContaPagar[]>>({});
   const [fornecedorDetalheLoading, setFornecedorDetalheLoading] = useState<string | null>(null);
+  const [ordenacaoFornecedor, setOrdenacaoFornecedor] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'valor_total', direcao: 'desc' });
+  const [ordenacaoDetalhe, setOrdenacaoDetalhe] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'data_pagamento', direcao: 'desc' });
 
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [mostrarDropdownAnos, setMostrarDropdownAnos] = useState(false);
@@ -1321,175 +1323,230 @@ export const ContasPagas: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-lg bg-white shadow overflow-visible">
-          <div>
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-green-50 sticky top-[85px] z-30 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
-                <tr>
-                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-8"></th>
-                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">#</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Fornecedor</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">Qtd Titulos</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Valor Pago</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">% do Total</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">% Acumulado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
-                {(() => {
-                  let acumulado = 0;
-                  return fornecedoresFiltrados.map((f, index) => {
-                    const isExpanded = fornecedorExpandido === f.credor;
-                    const pctDoTotal = totais.valor_total > 0 ? (f.valor_total / totais.valor_total) * 100 : 0;
-                    acumulado += pctDoTotal;
-                    const classePareto = acumulado <= 80 ? 'bg-green-50/30' : acumulado <= 95 ? 'bg-yellow-50/30' : 'bg-red-50/30';
+        {(() => {
+          const toggleOrdFornecedor = (campo: string) => {
+            setOrdenacaoFornecedor(prev => ({ campo, direcao: prev.campo === campo && prev.direcao === 'asc' ? 'desc' : 'asc' }));
+          };
+          const sortIconFornecedor = (campo: string) => (
+            <span className="ml-1 inline-block">{ordenacaoFornecedor.campo === campo ? (ordenacaoFornecedor.direcao === 'asc' ? '▲' : '▼') : <span className="text-gray-300">▼</span>}</span>
+          );
+          const toggleOrdDetalhe = (campo: string) => {
+            setOrdenacaoDetalhe(prev => ({ campo, direcao: prev.campo === campo && prev.direcao === 'asc' ? 'desc' : 'asc' }));
+          };
+          const sortIconDetalhe = (campo: string) => (
+            <span className="ml-1 inline-block">{ordenacaoDetalhe.campo === campo ? (ordenacaoDetalhe.direcao === 'asc' ? '▲' : '▼') : <span className="text-gray-300">▼</span>}</span>
+          );
 
-                    const handleExpandFornecedor = async () => {
-                      if (isExpanded) {
-                        setFornecedorExpandido(null);
-                        return;
-                      }
-                      setFornecedorExpandido(f.credor);
-                      if (fornecedorDetalhe[f.credor]) return;
-                      setFornecedorDetalheLoading(f.credor);
-                      try {
-                        const resp = await apiService.getContasPagasFiltradas({
-                          credor: f.credor,
-                          empresa: filtroEmpresa.length > 0 ? filtroEmpresa.join(',') : undefined,
-                          centro_custo: filtroCentroCusto.length > 0 ? filtroCentroCusto.join(',') : undefined,
-                          id_documento: filtroIdDocumento.length > 0 ? filtroIdDocumento.join(',') : undefined,
-                          origem_dado: filtroOrigemDado.length > 0 ? filtroOrigemDado.join(',') : undefined,
-                          tipo_baixa: filtroTipoBaixa.length > 0 ? filtroTipoBaixa.join(',') : undefined,
-                          ano: filtroAno.length > 0 ? filtroAno.join(',') : undefined,
-                          mes: filtroMes.length > 0 ? filtroMes.join(',') : undefined,
-                          data_inicio: filtroDataInicio || undefined,
-                          data_fim: filtroDataFim || undefined,
-                          limite: 5000,
-                          offset: 0,
-                        });
-                        setFornecedorDetalhe(prev => ({ ...prev, [f.credor]: resp.data }));
-                      } catch (err) {
-                        console.error('Erro ao carregar detalhe fornecedor:', err);
-                      } finally {
-                        setFornecedorDetalheLoading(null);
-                      }
-                    };
+          const fornecedoresOrdenados = [...fornecedoresFiltrados].sort((a, b) => {
+            let vA: any, vB: any;
+            switch (ordenacaoFornecedor.campo) {
+              case 'credor': vA = a.credor.toLowerCase(); vB = b.credor.toLowerCase(); break;
+              case 'titulos_total': vA = a.titulos_total; vB = b.titulos_total; break;
+              case 'valor_total': vA = a.valor_total; vB = b.valor_total; break;
+              default: return 0;
+            }
+            if (vA < vB) return ordenacaoFornecedor.direcao === 'asc' ? -1 : 1;
+            if (vA > vB) return ordenacaoFornecedor.direcao === 'asc' ? 1 : -1;
+            return 0;
+          });
 
-                    return (
-                      <React.Fragment key={f.credor}>
-                        <tr
-                          onClick={handleExpandFornecedor}
-                          className={`cursor-pointer transition-colors duration-150 ${isExpanded ? 'bg-green-100 border-l-4 border-l-green-600' : `${classePareto} hover:bg-gray-50`}`}
-                        >
-                          <td className="px-2 py-3 text-center text-sm text-gray-400">
-                            <span className={`inline-block transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>&#9654;</span>
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-500">{index + 1}</td>
-                          <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 max-w-[400px] truncate" title={f.credor}>{f.credor}</td>
-                          <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-700 font-semibold">{f.titulos_total}</td>
-                          <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-bold text-green-700 font-mono">{formatCurrency(f.valor_total)}</td>
-                          <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-600">
-                            <div className="flex items-center justify-end gap-2">
-                              <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                <div className="h-full bg-green-500 rounded-full" style={{ width: `${Math.min(pctDoTotal, 100)}%` }}></div>
-                              </div>
-                              <span className="font-mono">{pctDoTotal.toFixed(2)}%</span>
-                            </div>
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-mono text-gray-600">{acumulado.toFixed(2)}%</td>
-                        </tr>
-                        {isExpanded && (
-                          <tr>
-                            <td colSpan={7} className="p-0">
-                              <div className="bg-gradient-to-r from-green-50 via-green-50 to-emerald-50 border-l-4 border-l-green-600 px-6 py-4">
-                                {fornecedorDetalheLoading === f.credor ? (
-                                  <div className="flex items-center justify-center py-6">
-                                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-green-600 border-t-transparent"></div>
-                                    <span className="ml-2 text-sm text-gray-500">Carregando pagamentos...</span>
-                                  </div>
-                                ) : fornecedorDetalhe[f.credor] ? (
-                                  <>
-                                    <div className="mb-3 flex items-center justify-between">
-                                      <h4 className="text-sm font-semibold text-gray-900">
-                                        Pagamentos de <span className="text-green-700">{f.credor}</span>
-                                        <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">{fornecedorDetalhe[f.credor].length} registro(s)</span>
-                                      </h4>
-                                    </div>
-                                    <div className="max-h-[400px] overflow-y-auto rounded-lg border border-gray-200">
-                                      <table className="min-w-full divide-y divide-gray-200">
-                                        <thead className="bg-gray-100 sticky top-0">
-                                          <tr>
-                                            <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Vencimento</th>
-                                            <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Titulo</th>
-                                            <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Pagamento</th>
-                                            <th className="px-3 py-2 text-center text-xs font-medium uppercase text-gray-500">Atraso</th>
-                                            <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Centro de Custo</th>
-                                            <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Plano Financeiro</th>
-                                            <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">Valor Original</th>
-                                            <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">Juros</th>
-                                            <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">Acrescimos</th>
-                                            <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">Descontos</th>
-                                            <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">Valor Pago</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-100 bg-white">
-                                          {fornecedorDetalhe[f.credor].map((conta, ci) => {
-                                            const diasAtraso = conta.dias_atraso;
-                                            const corAtraso = diasAtraso == null ? 'text-gray-400' : diasAtraso > 0 ? 'text-red-600' : 'text-green-600';
-                                            return (
-                                              <tr key={ci} className="hover:bg-gray-50">
-                                                <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-500">{formatDate(conta.data_vencimento)}</td>
-                                                <td className="whitespace-nowrap px-3 py-2 text-xs font-semibold text-gray-700 font-mono">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
-                                                <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-500">{formatDate(conta.data_pagamento)}</td>
-                                                <td className={`whitespace-nowrap px-3 py-2 text-xs font-semibold text-center ${corAtraso}`}>
-                                                  {diasAtraso == null ? '-' : diasAtraso > 0 ? `${diasAtraso}d` : diasAtraso === 0 ? 'No prazo' : `${Math.abs(diasAtraso)}d antecip.`}
-                                                </td>
-                                                <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600 max-w-[150px] truncate" title={conta.nome_centrocusto || '-'}>{conta.nome_centrocusto || '-'}</td>
-                                                <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600 max-w-[150px] truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
-                                                <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-gray-700">{formatCurrency((conta as any).valor_baixa || 0)}</td>
-                                                <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-orange-600">{(conta as any).valor_juros ? formatCurrency((conta as any).valor_juros) : '-'}</td>
-                                                <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-red-600">{(conta as any).valor_acrescimo ? formatCurrency((conta as any).valor_acrescimo) : '-'}</td>
-                                                <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-blue-600">{(conta as any).valor_desconto ? formatCurrency((conta as any).valor_desconto) : '-'}</td>
-                                                <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono font-bold text-green-700">{formatCurrency(conta.valor_total || 0)}</td>
-                                              </tr>
-                                            );
-                                          })}
-                                        </tbody>
-                                        <tfoot className="bg-gray-100">
-                                          <tr>
-                                            <td colSpan={6} className="px-3 py-2 text-xs font-bold text-gray-700">SUBTOTAL</td>
-                                            <td className="px-3 py-2 text-xs text-right font-mono font-bold text-gray-700">{formatCurrency(fornecedorDetalhe[f.credor].reduce((s, c) => s + ((c as any).valor_baixa || 0), 0))}</td>
-                                            <td className="px-3 py-2 text-xs text-right font-mono font-bold text-orange-600">{formatCurrency(fornecedorDetalhe[f.credor].reduce((s, c) => s + ((c as any).valor_juros || 0), 0))}</td>
-                                            <td className="px-3 py-2 text-xs text-right font-mono font-bold text-red-600">{formatCurrency(fornecedorDetalhe[f.credor].reduce((s, c) => s + ((c as any).valor_acrescimo || 0), 0))}</td>
-                                            <td className="px-3 py-2 text-xs text-right font-mono font-bold text-blue-600">{formatCurrency(fornecedorDetalhe[f.credor].reduce((s, c) => s + ((c as any).valor_desconto || 0), 0))}</td>
-                                            <td className="px-3 py-2 text-xs text-right font-mono font-bold text-green-700">{formatCurrency(fornecedorDetalhe[f.credor].reduce((s, c) => s + (c.valor_total || 0), 0))}</td>
-                                          </tr>
-                                        </tfoot>
-                                      </table>
-                                    </div>
-                                  </>
-                                ) : null}
+          const ordenarDetalheContas = (contasDetalhe: ContaPagar[]) => {
+            return [...contasDetalhe].sort((a, b) => {
+              let vA: any, vB: any;
+              switch (ordenacaoDetalhe.campo) {
+                case 'data_vencimento': vA = (a.data_vencimento || '').split('T')[0]; vB = (b.data_vencimento || '').split('T')[0]; break;
+                case 'lancamento': vA = (a.lancamento || '').toLowerCase(); vB = (b.lancamento || '').toLowerCase(); break;
+                case 'data_pagamento': vA = (a.data_pagamento || '').split('T')[0]; vB = (b.data_pagamento || '').split('T')[0]; break;
+                case 'dias_atraso': vA = a.dias_atraso || 0; vB = b.dias_atraso || 0; break;
+                case 'nome_centrocusto': vA = (a.nome_centrocusto || '').toLowerCase(); vB = (b.nome_centrocusto || '').toLowerCase(); break;
+                case 'nome_plano_financeiro': vA = ((a as any).nome_plano_financeiro || '').toLowerCase(); vB = ((b as any).nome_plano_financeiro || '').toLowerCase(); break;
+                case 'valor_baixa': vA = (a as any).valor_baixa || 0; vB = (b as any).valor_baixa || 0; break;
+                case 'valor_juros': vA = (a as any).valor_juros || 0; vB = (b as any).valor_juros || 0; break;
+                case 'valor_acrescimo': vA = (a as any).valor_acrescimo || 0; vB = (b as any).valor_acrescimo || 0; break;
+                case 'valor_desconto': vA = (a as any).valor_desconto || 0; vB = (b as any).valor_desconto || 0; break;
+                case 'valor_total': vA = a.valor_total || 0; vB = b.valor_total || 0; break;
+                default: return 0;
+              }
+              if (vA < vB) return ordenacaoDetalhe.direcao === 'asc' ? -1 : 1;
+              if (vA > vB) return ordenacaoDetalhe.direcao === 'asc' ? 1 : -1;
+              return 0;
+            });
+          };
+
+          const thClsFornecedor = "px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100";
+          const thClsDetalhe = "px-3 py-2 text-xs font-medium uppercase text-gray-500 cursor-pointer hover:bg-gray-200";
+
+          let acumulado = 0;
+
+          return (
+            <div className="rounded-lg bg-white shadow overflow-visible">
+              <div>
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-green-50 sticky top-[85px] z-30 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
+                    <tr>
+                      <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-8"></th>
+                      <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">#</th>
+                      <th onClick={() => toggleOrdFornecedor('credor')} className={`${thClsFornecedor} text-left`}>Fornecedor{sortIconFornecedor('credor')}</th>
+                      <th onClick={() => toggleOrdFornecedor('titulos_total')} className={`${thClsFornecedor} text-center`}>Qtd Titulos{sortIconFornecedor('titulos_total')}</th>
+                      <th onClick={() => toggleOrdFornecedor('valor_total')} className={`${thClsFornecedor} text-right`}>Valor Pago{sortIconFornecedor('valor_total')}</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">% do Total</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">% Acumulado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {fornecedoresOrdenados.map((f, index) => {
+                      const isExpanded = fornecedorExpandido === f.credor;
+                      const pctDoTotal = totais.valor_total > 0 ? (f.valor_total / totais.valor_total) * 100 : 0;
+                      acumulado += pctDoTotal;
+                      const classePareto = acumulado <= 80 ? 'bg-green-50/30' : acumulado <= 95 ? 'bg-yellow-50/30' : 'bg-red-50/30';
+
+                      const handleExpandFornecedor = async () => {
+                        if (isExpanded) {
+                          setFornecedorExpandido(null);
+                          return;
+                        }
+                        setFornecedorExpandido(f.credor);
+                        if (fornecedorDetalhe[f.credor]) return;
+                        setFornecedorDetalheLoading(f.credor);
+                        try {
+                          const resp = await apiService.getContasPagasFiltradas({
+                            credor: f.credor,
+                            empresa: filtroEmpresa.length > 0 ? filtroEmpresa.join(',') : undefined,
+                            centro_custo: filtroCentroCusto.length > 0 ? filtroCentroCusto.join(',') : undefined,
+                            id_documento: filtroIdDocumento.length > 0 ? filtroIdDocumento.join(',') : undefined,
+                            origem_dado: filtroOrigemDado.length > 0 ? filtroOrigemDado.join(',') : undefined,
+                            tipo_baixa: filtroTipoBaixa.length > 0 ? filtroTipoBaixa.join(',') : undefined,
+                            ano: filtroAno.length > 0 ? filtroAno.join(',') : undefined,
+                            mes: filtroMes.length > 0 ? filtroMes.join(',') : undefined,
+                            data_inicio: filtroDataInicio || undefined,
+                            data_fim: filtroDataFim || undefined,
+                            limite: 5000,
+                            offset: 0,
+                          });
+                          setFornecedorDetalhe(prev => ({ ...prev, [f.credor]: resp.data }));
+                        } catch (err) {
+                          console.error('Erro ao carregar detalhe fornecedor:', err);
+                        } finally {
+                          setFornecedorDetalheLoading(null);
+                        }
+                      };
+
+                      return (
+                        <React.Fragment key={f.credor}>
+                          <tr
+                            onClick={handleExpandFornecedor}
+                            className={`cursor-pointer transition-colors duration-150 ${isExpanded ? 'bg-green-100 border-l-4 border-l-green-600' : `${classePareto} hover:bg-gray-50`}`}
+                          >
+                            <td className="px-2 py-3 text-center text-sm text-gray-400">
+                              <span className={`inline-block transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>&#9654;</span>
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-500">{index + 1}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 max-w-[400px] truncate" title={f.credor}>{f.credor}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-700 font-semibold">{f.titulos_total}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-bold text-green-700 font-mono">{formatCurrency(f.valor_total)}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-600">
+                              <div className="flex items-center justify-end gap-2">
+                                <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                  <div className="h-full bg-green-500 rounded-full" style={{ width: `${Math.min(pctDoTotal, 100)}%` }}></div>
+                                </div>
+                                <span className="font-mono">{pctDoTotal.toFixed(2)}%</span>
                               </div>
                             </td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-mono text-gray-600">{acumulado.toFixed(2)}%</td>
                           </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  });
-                })()}
-              </tbody>
-              <tfoot className="bg-green-50">
-                <tr>
-                  <td colSpan={3} className="px-4 py-3 text-sm font-bold text-gray-900">TOTAL GERAL</td>
-                  <td className="px-4 py-3 text-center text-sm font-bold text-gray-900">{totais.titulos_total}</td>
-                  <td className="px-4 py-3 text-right text-sm font-bold text-green-700 font-mono">{formatCurrency(totais.valor_total)}</td>
-                  <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">100%</td>
-                  <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">-</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
+                          {isExpanded && (
+                            <tr>
+                              <td colSpan={7} className="p-0">
+                                <div className="bg-gradient-to-r from-green-50 via-green-50 to-emerald-50 border-l-4 border-l-green-600 px-6 py-4">
+                                  {fornecedorDetalheLoading === f.credor ? (
+                                    <div className="flex items-center justify-center py-6">
+                                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-green-600 border-t-transparent"></div>
+                                      <span className="ml-2 text-sm text-gray-500">Carregando pagamentos...</span>
+                                    </div>
+                                  ) : fornecedorDetalhe[f.credor] ? (
+                                    <>
+                                      <div className="mb-3 flex items-center justify-between">
+                                        <h4 className="text-sm font-semibold text-gray-900">
+                                          Pagamentos de <span className="text-green-700">{f.credor}</span>
+                                          <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">{fornecedorDetalhe[f.credor].length} registro(s)</span>
+                                        </h4>
+                                      </div>
+                                      <div className="max-h-[400px] overflow-y-auto rounded-lg border border-gray-200">
+                                        <table className="min-w-full divide-y divide-gray-200">
+                                          <thead className="bg-gray-100 sticky top-0">
+                                            <tr>
+                                              <th onClick={() => toggleOrdDetalhe('data_vencimento')} className={`${thClsDetalhe} text-left`}>Vencimento{sortIconDetalhe('data_vencimento')}</th>
+                                              <th onClick={() => toggleOrdDetalhe('lancamento')} className={`${thClsDetalhe} text-left`}>Titulo{sortIconDetalhe('lancamento')}</th>
+                                              <th onClick={() => toggleOrdDetalhe('data_pagamento')} className={`${thClsDetalhe} text-left`}>Pagamento{sortIconDetalhe('data_pagamento')}</th>
+                                              <th onClick={() => toggleOrdDetalhe('dias_atraso')} className={`${thClsDetalhe} text-center`}>Atraso{sortIconDetalhe('dias_atraso')}</th>
+                                              <th onClick={() => toggleOrdDetalhe('nome_centrocusto')} className={`${thClsDetalhe} text-left`}>Centro de Custo{sortIconDetalhe('nome_centrocusto')}</th>
+                                              <th onClick={() => toggleOrdDetalhe('nome_plano_financeiro')} className={`${thClsDetalhe} text-left`}>Plano Financeiro{sortIconDetalhe('nome_plano_financeiro')}</th>
+                                              <th onClick={() => toggleOrdDetalhe('valor_baixa')} className={`${thClsDetalhe} text-right`}>Valor Original{sortIconDetalhe('valor_baixa')}</th>
+                                              <th onClick={() => toggleOrdDetalhe('valor_juros')} className={`${thClsDetalhe} text-right`}>Juros{sortIconDetalhe('valor_juros')}</th>
+                                              <th onClick={() => toggleOrdDetalhe('valor_acrescimo')} className={`${thClsDetalhe} text-right`}>Acrescimos{sortIconDetalhe('valor_acrescimo')}</th>
+                                              <th onClick={() => toggleOrdDetalhe('valor_desconto')} className={`${thClsDetalhe} text-right`}>Descontos{sortIconDetalhe('valor_desconto')}</th>
+                                              <th onClick={() => toggleOrdDetalhe('valor_total')} className={`${thClsDetalhe} text-right`}>Valor Pago{sortIconDetalhe('valor_total')}</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody className="divide-y divide-gray-100 bg-white">
+                                            {ordenarDetalheContas(fornecedorDetalhe[f.credor]).map((conta, ci) => {
+                                              const diasAtraso = conta.dias_atraso;
+                                              const corAtraso = diasAtraso == null ? 'text-gray-400' : diasAtraso > 0 ? 'text-red-600' : 'text-green-600';
+                                              return (
+                                                <tr key={ci} className="hover:bg-gray-50">
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-500">{formatDate(conta.data_vencimento)}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs font-semibold text-gray-700 font-mono">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-500">{formatDate(conta.data_pagamento)}</td>
+                                                  <td className={`whitespace-nowrap px-3 py-2 text-xs font-semibold text-center ${corAtraso}`}>
+                                                    {diasAtraso == null ? '-' : diasAtraso > 0 ? `${diasAtraso}d` : diasAtraso === 0 ? 'No prazo' : `${Math.abs(diasAtraso)}d antecip.`}
+                                                  </td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600 max-w-[150px] truncate" title={conta.nome_centrocusto || '-'}>{conta.nome_centrocusto || '-'}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600 max-w-[150px] truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-gray-700">{formatCurrency((conta as any).valor_baixa || 0)}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-orange-600">{(conta as any).valor_juros ? formatCurrency((conta as any).valor_juros) : '-'}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-red-600">{(conta as any).valor_acrescimo ? formatCurrency((conta as any).valor_acrescimo) : '-'}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-blue-600">{(conta as any).valor_desconto ? formatCurrency((conta as any).valor_desconto) : '-'}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono font-bold text-green-700">{formatCurrency(conta.valor_total || 0)}</td>
+                                                </tr>
+                                              );
+                                            })}
+                                          </tbody>
+                                          <tfoot className="bg-gray-100">
+                                            <tr>
+                                              <td colSpan={6} className="px-3 py-2 text-xs font-bold text-gray-700">SUBTOTAL</td>
+                                              <td className="px-3 py-2 text-xs text-right font-mono font-bold text-gray-700">{formatCurrency(fornecedorDetalhe[f.credor].reduce((s, c) => s + ((c as any).valor_baixa || 0), 0))}</td>
+                                              <td className="px-3 py-2 text-xs text-right font-mono font-bold text-orange-600">{formatCurrency(fornecedorDetalhe[f.credor].reduce((s, c) => s + ((c as any).valor_juros || 0), 0))}</td>
+                                              <td className="px-3 py-2 text-xs text-right font-mono font-bold text-red-600">{formatCurrency(fornecedorDetalhe[f.credor].reduce((s, c) => s + ((c as any).valor_acrescimo || 0), 0))}</td>
+                                              <td className="px-3 py-2 text-xs text-right font-mono font-bold text-blue-600">{formatCurrency(fornecedorDetalhe[f.credor].reduce((s, c) => s + ((c as any).valor_desconto || 0), 0))}</td>
+                                              <td className="px-3 py-2 text-xs text-right font-mono font-bold text-green-700">{formatCurrency(fornecedorDetalhe[f.credor].reduce((s, c) => s + (c.valor_total || 0), 0))}</td>
+                                            </tr>
+                                          </tfoot>
+                                        </table>
+                                      </div>
+                                    </>
+                                  ) : null}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot className="bg-green-50">
+                    <tr>
+                      <td colSpan={3} className="px-4 py-3 text-sm font-bold text-gray-900">TOTAL GERAL</td>
+                      <td className="px-4 py-3 text-center text-sm font-bold text-gray-900">{totais.titulos_total}</td>
+                      <td className="px-4 py-3 text-right text-sm font-bold text-green-700 font-mono">{formatCurrency(totais.valor_total)}</td>
+                      <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">100%</td>
+                      <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">-</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          );
+        })()}
       </>
     );
   };
