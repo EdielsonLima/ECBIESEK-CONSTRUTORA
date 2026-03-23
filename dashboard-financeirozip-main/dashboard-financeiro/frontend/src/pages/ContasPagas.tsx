@@ -199,6 +199,10 @@ export const ContasPagas: React.FC = () => {
   const [filtroDataInicio, setFiltroDataInicio] = useState<string>('');
   const [filtroDataFim, setFiltroDataFim] = useState<string>('');
 
+  const [fornecedorExpandido, setFornecedorExpandido] = useState<string | null>(null);
+  const [fornecedorDetalhe, setFornecedorDetalhe] = useState<Record<string, ContaPagar[]>>({});
+  const [fornecedorDetalheLoading, setFornecedorDetalheLoading] = useState<string | null>(null);
+
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [mostrarDropdownAnos, setMostrarDropdownAnos] = useState(false);
   const [mostrarDropdownMeses, setMostrarDropdownMeses] = useState(false);
@@ -473,6 +477,8 @@ export const ContasPagas: React.FC = () => {
       setContas(contasResp.data);
       setTotalRegistros(contasResp.total);
       setPaginaAtual(1);
+      setFornecedorExpandido(null);
+      setFornecedorDetalhe({});
       setEstatisticas(estatData);
       setDadosFornecedores(fornecedoresData);
       setDadosCentroCusto(centroCustoData);
@@ -1320,42 +1326,165 @@ export const ContasPagas: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-green-50 sticky top-[85px] z-30 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
                 <tr>
+                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-8"></th>
                   <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">#</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Fornecedor</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">7d Qtd</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">7d Valor</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">15d Qtd</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">15d Valor</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">30d Qtd</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">30d Valor</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Todo o Período</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">Qtd Titulos</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Valor Pago</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">% do Total</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">% Acumulado</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
-                {fornecedoresFiltrados.map((f, index) => (
-                  <tr key={f.credor} className="hover:bg-gray-50 transition-colors duration-150">
-                    <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-500">{index + 1}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 max-w-[300px] truncate" title={f.credor}>{f.credor}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-500">{f.titulos_7d || '-'}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 font-mono">{f.valor_7d ? formatCurrency(f.valor_7d) : '-'}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-500">{f.titulos_15d || '-'}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 font-mono">{f.valor_15d ? formatCurrency(f.valor_15d) : '-'}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-500">{f.titulos_30d || '-'}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 font-mono">{f.valor_30d ? formatCurrency(f.valor_30d) : '-'}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-bold text-green-700 font-mono">{formatCurrency(f.valor_total)}</td>
-                  </tr>
-                ))}
+                {(() => {
+                  let acumulado = 0;
+                  return fornecedoresFiltrados.map((f, index) => {
+                    const isExpanded = fornecedorExpandido === f.credor;
+                    const pctDoTotal = totais.valor_total > 0 ? (f.valor_total / totais.valor_total) * 100 : 0;
+                    acumulado += pctDoTotal;
+                    const classePareto = acumulado <= 80 ? 'bg-green-50/30' : acumulado <= 95 ? 'bg-yellow-50/30' : 'bg-red-50/30';
+
+                    const handleExpandFornecedor = async () => {
+                      if (isExpanded) {
+                        setFornecedorExpandido(null);
+                        return;
+                      }
+                      setFornecedorExpandido(f.credor);
+                      if (fornecedorDetalhe[f.credor]) return;
+                      setFornecedorDetalheLoading(f.credor);
+                      try {
+                        const resp = await apiService.getContasPagasFiltradas({
+                          credor: f.credor,
+                          empresa: filtroEmpresa.length > 0 ? filtroEmpresa.join(',') : undefined,
+                          centro_custo: filtroCentroCusto.length > 0 ? filtroCentroCusto.join(',') : undefined,
+                          id_documento: filtroIdDocumento.length > 0 ? filtroIdDocumento.join(',') : undefined,
+                          origem_dado: filtroOrigemDado.length > 0 ? filtroOrigemDado.join(',') : undefined,
+                          tipo_baixa: filtroTipoBaixa.length > 0 ? filtroTipoBaixa.join(',') : undefined,
+                          ano: filtroAno.length > 0 ? filtroAno.join(',') : undefined,
+                          mes: filtroMes.length > 0 ? filtroMes.join(',') : undefined,
+                          data_inicio: filtroDataInicio || undefined,
+                          data_fim: filtroDataFim || undefined,
+                          limite: 5000,
+                          offset: 0,
+                        });
+                        setFornecedorDetalhe(prev => ({ ...prev, [f.credor]: resp.data }));
+                      } catch (err) {
+                        console.error('Erro ao carregar detalhe fornecedor:', err);
+                      } finally {
+                        setFornecedorDetalheLoading(null);
+                      }
+                    };
+
+                    return (
+                      <React.Fragment key={f.credor}>
+                        <tr
+                          onClick={handleExpandFornecedor}
+                          className={`cursor-pointer transition-colors duration-150 ${isExpanded ? 'bg-green-100 border-l-4 border-l-green-600' : `${classePareto} hover:bg-gray-50`}`}
+                        >
+                          <td className="px-2 py-3 text-center text-sm text-gray-400">
+                            <span className={`inline-block transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>&#9654;</span>
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-500">{index + 1}</td>
+                          <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 max-w-[400px] truncate" title={f.credor}>{f.credor}</td>
+                          <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-700 font-semibold">{f.titulos_total}</td>
+                          <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-bold text-green-700 font-mono">{formatCurrency(f.valor_total)}</td>
+                          <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-600">
+                            <div className="flex items-center justify-end gap-2">
+                              <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div className="h-full bg-green-500 rounded-full" style={{ width: `${Math.min(pctDoTotal, 100)}%` }}></div>
+                              </div>
+                              <span className="font-mono">{pctDoTotal.toFixed(2)}%</span>
+                            </div>
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-mono text-gray-600">{acumulado.toFixed(2)}%</td>
+                        </tr>
+                        {isExpanded && (
+                          <tr>
+                            <td colSpan={7} className="p-0">
+                              <div className="bg-gradient-to-r from-green-50 via-green-50 to-emerald-50 border-l-4 border-l-green-600 px-6 py-4">
+                                {fornecedorDetalheLoading === f.credor ? (
+                                  <div className="flex items-center justify-center py-6">
+                                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-green-600 border-t-transparent"></div>
+                                    <span className="ml-2 text-sm text-gray-500">Carregando pagamentos...</span>
+                                  </div>
+                                ) : fornecedorDetalhe[f.credor] ? (
+                                  <>
+                                    <div className="mb-3 flex items-center justify-between">
+                                      <h4 className="text-sm font-semibold text-gray-900">
+                                        Pagamentos de <span className="text-green-700">{f.credor}</span>
+                                        <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">{fornecedorDetalhe[f.credor].length} registro(s)</span>
+                                      </h4>
+                                    </div>
+                                    <div className="max-h-[400px] overflow-y-auto rounded-lg border border-gray-200">
+                                      <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-100 sticky top-0">
+                                          <tr>
+                                            <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Vencimento</th>
+                                            <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Titulo</th>
+                                            <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Pagamento</th>
+                                            <th className="px-3 py-2 text-center text-xs font-medium uppercase text-gray-500">Atraso</th>
+                                            <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Centro de Custo</th>
+                                            <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">Plano Financeiro</th>
+                                            <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">Valor Original</th>
+                                            <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">Juros</th>
+                                            <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">Acrescimos</th>
+                                            <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">Descontos</th>
+                                            <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">Valor Pago</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100 bg-white">
+                                          {fornecedorDetalhe[f.credor].map((conta, ci) => {
+                                            const diasAtraso = conta.dias_atraso;
+                                            const corAtraso = diasAtraso == null ? 'text-gray-400' : diasAtraso > 0 ? 'text-red-600' : 'text-green-600';
+                                            return (
+                                              <tr key={ci} className="hover:bg-gray-50">
+                                                <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-500">{formatDate(conta.data_vencimento)}</td>
+                                                <td className="whitespace-nowrap px-3 py-2 text-xs font-semibold text-gray-700 font-mono">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
+                                                <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-500">{formatDate(conta.data_pagamento)}</td>
+                                                <td className={`whitespace-nowrap px-3 py-2 text-xs font-semibold text-center ${corAtraso}`}>
+                                                  {diasAtraso == null ? '-' : diasAtraso > 0 ? `${diasAtraso}d` : diasAtraso === 0 ? 'No prazo' : `${Math.abs(diasAtraso)}d antecip.`}
+                                                </td>
+                                                <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600 max-w-[150px] truncate" title={conta.nome_centrocusto || '-'}>{conta.nome_centrocusto || '-'}</td>
+                                                <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600 max-w-[150px] truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
+                                                <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-gray-700">{formatCurrency((conta as any).valor_baixa || 0)}</td>
+                                                <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-orange-600">{(conta as any).valor_juros ? formatCurrency((conta as any).valor_juros) : '-'}</td>
+                                                <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-red-600">{(conta as any).valor_acrescimo ? formatCurrency((conta as any).valor_acrescimo) : '-'}</td>
+                                                <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-blue-600">{(conta as any).valor_desconto ? formatCurrency((conta as any).valor_desconto) : '-'}</td>
+                                                <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono font-bold text-green-700">{formatCurrency(conta.valor_total || 0)}</td>
+                                              </tr>
+                                            );
+                                          })}
+                                        </tbody>
+                                        <tfoot className="bg-gray-100">
+                                          <tr>
+                                            <td colSpan={6} className="px-3 py-2 text-xs font-bold text-gray-700">SUBTOTAL</td>
+                                            <td className="px-3 py-2 text-xs text-right font-mono font-bold text-gray-700">{formatCurrency(fornecedorDetalhe[f.credor].reduce((s, c) => s + ((c as any).valor_baixa || 0), 0))}</td>
+                                            <td className="px-3 py-2 text-xs text-right font-mono font-bold text-orange-600">{formatCurrency(fornecedorDetalhe[f.credor].reduce((s, c) => s + ((c as any).valor_juros || 0), 0))}</td>
+                                            <td className="px-3 py-2 text-xs text-right font-mono font-bold text-red-600">{formatCurrency(fornecedorDetalhe[f.credor].reduce((s, c) => s + ((c as any).valor_acrescimo || 0), 0))}</td>
+                                            <td className="px-3 py-2 text-xs text-right font-mono font-bold text-blue-600">{formatCurrency(fornecedorDetalhe[f.credor].reduce((s, c) => s + ((c as any).valor_desconto || 0), 0))}</td>
+                                            <td className="px-3 py-2 text-xs text-right font-mono font-bold text-green-700">{formatCurrency(fornecedorDetalhe[f.credor].reduce((s, c) => s + (c.valor_total || 0), 0))}</td>
+                                          </tr>
+                                        </tfoot>
+                                      </table>
+                                    </div>
+                                  </>
+                                ) : null}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  });
+                })()}
               </tbody>
               <tfoot className="bg-green-50">
                 <tr>
-                  <td colSpan={2} className="px-4 py-3 text-sm font-bold text-gray-900">TOTAL GERAL</td>
-                  <td className="px-4 py-3 text-center text-sm font-bold text-gray-900">{totais.titulos_7d}</td>
-                  <td className="px-4 py-3 text-right text-sm font-bold text-gray-900 font-mono">{formatCurrency(totais.valor_7d)}</td>
-                  <td className="px-4 py-3 text-center text-sm font-bold text-gray-900">{totais.titulos_15d}</td>
-                  <td className="px-4 py-3 text-right text-sm font-bold text-gray-900 font-mono">{formatCurrency(totais.valor_15d)}</td>
-                  <td className="px-4 py-3 text-center text-sm font-bold text-gray-900">{totais.titulos_30d}</td>
-                  <td className="px-4 py-3 text-right text-sm font-bold text-gray-900 font-mono">{formatCurrency(totais.valor_30d)}</td>
+                  <td colSpan={3} className="px-4 py-3 text-sm font-bold text-gray-900">TOTAL GERAL</td>
+                  <td className="px-4 py-3 text-center text-sm font-bold text-gray-900">{totais.titulos_total}</td>
                   <td className="px-4 py-3 text-right text-sm font-bold text-green-700 font-mono">{formatCurrency(totais.valor_total)}</td>
+                  <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">100%</td>
+                  <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">-</td>
                 </tr>
               </tfoot>
             </table>
