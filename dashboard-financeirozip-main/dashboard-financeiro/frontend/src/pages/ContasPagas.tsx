@@ -204,6 +204,11 @@ export const ContasPagas: React.FC = () => {
   const [fornecedorDetalheLoading, setFornecedorDetalheLoading] = useState<string | null>(null);
   const [ordenacaoFornecedor, setOrdenacaoFornecedor] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'valor_total', direcao: 'desc' });
   const [ordenacaoDetalhe, setOrdenacaoDetalhe] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'data_pagamento', direcao: 'desc' });
+  const [origemExpandida, setOrigemExpandida] = useState<string | null>(null);
+  const [origemDetalhe, setOrigemDetalhe] = useState<Record<string, ContaPagar[]>>({});
+  const [origemDetalheLoading, setOrigemDetalheLoading] = useState<string | null>(null);
+  const [ordenacaoOrigem, setOrdenacaoOrigem] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'valor_total', direcao: 'desc' });
+  const [ordenacaoOrigemDetalhe, setOrdenacaoOrigemDetalhe] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'data_pagamento', direcao: 'desc' });
 
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [mostrarDropdownAnos, setMostrarDropdownAnos] = useState(false);
@@ -481,6 +486,8 @@ export const ContasPagas: React.FC = () => {
       setPaginaAtual(1);
       setFornecedorExpandido(null);
       setFornecedorDetalhe({});
+      setOrigemExpandida(null);
+      setOrigemDetalhe({});
       setEstatisticas(estatData);
       setDadosFornecedores(fornecedoresData);
       setDadosCentroCusto(centroCustoData);
@@ -2308,43 +2315,229 @@ export const ContasPagas: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-lg bg-white shadow overflow-visible">
-          <div>
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-green-50 sticky top-[85px] z-30 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
-                <tr>
-                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">#</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Origem</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">7 Dias</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">15 Dias</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">30 Dias</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Todo o Período</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
-                {origensFiltradas.map((o, index) => (
-                  <tr key={o.origem} className="hover:bg-gray-50 transition-colors duration-150">
-                    <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-500">{index + 1}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">{o.origem}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 font-mono">{o.valor_7d ? formatCurrency(o.valor_7d) : '-'}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 font-mono">{o.valor_15d ? formatCurrency(o.valor_15d) : '-'}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 font-mono">{o.valor_30d ? formatCurrency(o.valor_30d) : '-'}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-bold text-green-700 font-mono">{formatCurrency(o.valor_total)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="bg-green-50">
-                <tr>
-                  <td colSpan={2} className="px-4 py-3 text-sm font-bold text-gray-900">TOTAL GERAL</td>
-                  <td className="px-4 py-3 text-right text-sm font-bold text-gray-900 font-mono">{formatCurrency(totais.valor_7d)}</td>
-                  <td className="px-4 py-3 text-right text-sm font-bold text-gray-900 font-mono">{formatCurrency(totais.valor_15d)}</td>
-                  <td className="px-4 py-3 text-right text-sm font-bold text-gray-900 font-mono">{formatCurrency(totais.valor_30d)}</td>
-                  <td className="px-4 py-3 text-right text-sm font-bold text-green-700 font-mono">{formatCurrency(totais.valor_total)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
+        {(() => {
+          const toggleOrdOrigem = (campo: string) => {
+            setOrdenacaoOrigem(prev => ({ campo, direcao: prev.campo === campo && prev.direcao === 'asc' ? 'desc' : 'asc' }));
+          };
+          const sortIconOrigem = (campo: string) => (
+            <span className="ml-1 inline-block">{ordenacaoOrigem.campo === campo ? (ordenacaoOrigem.direcao === 'asc' ? '▲' : '▼') : <span className="text-gray-300">▼</span>}</span>
+          );
+          const toggleOrdOrigDetalhe = (campo: string) => {
+            setOrdenacaoOrigemDetalhe(prev => ({ campo, direcao: prev.campo === campo && prev.direcao === 'asc' ? 'desc' : 'asc' }));
+          };
+          const sortIconOrigDetalhe = (campo: string) => (
+            <span className="ml-1 inline-block">{ordenacaoOrigemDetalhe.campo === campo ? (ordenacaoOrigemDetalhe.direcao === 'asc' ? '▲' : '▼') : <span className="text-gray-300">▼</span>}</span>
+          );
+
+          const origensOrdenadas = [...origensFiltradas].sort((a, b) => {
+            let vA: any, vB: any;
+            switch (ordenacaoOrigem.campo) {
+              case 'origem': vA = a.origem.toLowerCase(); vB = b.origem.toLowerCase(); break;
+              case 'valor_total': vA = a.valor_total; vB = b.valor_total; break;
+              default: return 0;
+            }
+            if (vA < vB) return ordenacaoOrigem.direcao === 'asc' ? -1 : 1;
+            if (vA > vB) return ordenacaoOrigem.direcao === 'asc' ? 1 : -1;
+            return 0;
+          });
+
+          const ordenarOrigDetalhe = (contasDetalhe: ContaPagar[]) => {
+            return [...contasDetalhe].sort((a, b) => {
+              let vA: any, vB: any;
+              switch (ordenacaoOrigemDetalhe.campo) {
+                case 'data_vencimento': vA = (a.data_vencimento || '').split('T')[0]; vB = (b.data_vencimento || '').split('T')[0]; break;
+                case 'lancamento': vA = (a.lancamento || '').toLowerCase(); vB = (b.lancamento || '').toLowerCase(); break;
+                case 'data_pagamento': vA = (a.data_pagamento || '').split('T')[0]; vB = (b.data_pagamento || '').split('T')[0]; break;
+                case 'dias_atraso': vA = a.dias_atraso || 0; vB = b.dias_atraso || 0; break;
+                case 'credor': vA = (a.credor || '').toLowerCase(); vB = (b.credor || '').toLowerCase(); break;
+                case 'nome_centrocusto': vA = (a.nome_centrocusto || '').toLowerCase(); vB = (b.nome_centrocusto || '').toLowerCase(); break;
+                case 'nome_plano_financeiro': vA = ((a as any).nome_plano_financeiro || '').toLowerCase(); vB = ((b as any).nome_plano_financeiro || '').toLowerCase(); break;
+                case 'valor_baixa': vA = (a as any).valor_baixa || 0; vB = (b as any).valor_baixa || 0; break;
+                case 'valor_juros': vA = (a as any).valor_juros || 0; vB = (b as any).valor_juros || 0; break;
+                case 'valor_acrescimo': vA = (a as any).valor_acrescimo || 0; vB = (b as any).valor_acrescimo || 0; break;
+                case 'valor_desconto': vA = (a as any).valor_desconto || 0; vB = (b as any).valor_desconto || 0; break;
+                case 'valor_total': vA = a.valor_total || 0; vB = b.valor_total || 0; break;
+                default: return 0;
+              }
+              if (vA < vB) return ordenacaoOrigemDetalhe.direcao === 'asc' ? -1 : 1;
+              if (vA > vB) return ordenacaoOrigemDetalhe.direcao === 'asc' ? 1 : -1;
+              return 0;
+            });
+          };
+
+          const thClsOrig = "px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100";
+          const thClsOrigDet = "px-3 py-2 text-xs font-medium uppercase text-gray-500 cursor-pointer hover:bg-gray-200";
+
+          let acumulado = 0;
+
+          return (
+            <div className="rounded-lg bg-white shadow overflow-visible">
+              <div>
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-green-50 sticky top-[85px] z-30 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
+                    <tr>
+                      <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-8"></th>
+                      <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">#</th>
+                      <th onClick={() => toggleOrdOrigem('origem')} className={`${thClsOrig} text-left`}>Origem{sortIconOrigem('origem')}</th>
+                      <th onClick={() => toggleOrdOrigem('valor_total')} className={`${thClsOrig} text-right`}>Valor Pago{sortIconOrigem('valor_total')}</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">% do Total</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">% Acumulado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {origensOrdenadas.map((o, index) => {
+                      const isExpanded = origemExpandida === o.origem;
+                      const pctDoTotal = totais.valor_total > 0 ? (o.valor_total / totais.valor_total) * 100 : 0;
+                      acumulado += pctDoTotal;
+                      const classePareto = acumulado <= 80 ? 'bg-green-50/30' : acumulado <= 95 ? 'bg-yellow-50/30' : 'bg-red-50/30';
+
+                      const handleExpandOrigem = async () => {
+                        if (isExpanded) {
+                          setOrigemExpandida(null);
+                          return;
+                        }
+                        setOrigemExpandida(o.origem);
+                        if (origemDetalhe[o.origem]) return;
+                        setOrigemDetalheLoading(o.origem);
+                        try {
+                          const resp = await apiService.getContasPagasFiltradas({
+                            origem_dado: o.origem,
+                            empresa: filtroEmpresa.length > 0 ? filtroEmpresa.join(',') : undefined,
+                            centro_custo: filtroCentroCusto.length > 0 ? filtroCentroCusto.join(',') : undefined,
+                            credor: filtroCredor.length > 0 ? filtroCredor.join(',') : undefined,
+                            id_documento: filtroIdDocumento.length > 0 ? filtroIdDocumento.join(',') : undefined,
+                            tipo_baixa: filtroTipoBaixa.length > 0 ? filtroTipoBaixa.join(',') : undefined,
+                            ano: filtroAno.length > 0 ? filtroAno.join(',') : undefined,
+                            mes: filtroMes.length > 0 ? filtroMes.join(',') : undefined,
+                            data_inicio: filtroDataInicio || undefined,
+                            data_fim: filtroDataFim || undefined,
+                            limite: 5000,
+                            offset: 0,
+                          });
+                          setOrigemDetalhe(prev => ({ ...prev, [o.origem]: resp.data }));
+                        } catch (err) {
+                          console.error('Erro ao carregar detalhe origem:', err);
+                        } finally {
+                          setOrigemDetalheLoading(null);
+                        }
+                      };
+
+                      return (
+                        <React.Fragment key={o.origem}>
+                          <tr
+                            onClick={handleExpandOrigem}
+                            className={`cursor-pointer transition-colors duration-150 ${isExpanded ? 'bg-green-100 border-l-4 border-l-green-600' : `${classePareto} hover:bg-gray-50`}`}
+                          >
+                            <td className="px-2 py-3 text-center text-sm text-gray-400">
+                              <span className={`inline-block transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>&#9654;</span>
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-500">{index + 1}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">{o.origem}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-bold text-green-700 font-mono">{formatCurrency(o.valor_total)}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-600">
+                              <div className="flex items-center justify-end gap-2">
+                                <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                  <div className="h-full bg-green-500 rounded-full" style={{ width: `${Math.min(pctDoTotal, 100)}%` }}></div>
+                                </div>
+                                <span className="font-mono">{pctDoTotal.toFixed(2)}%</span>
+                              </div>
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-mono text-gray-600">{acumulado.toFixed(2)}%</td>
+                          </tr>
+                          {isExpanded && (
+                            <tr>
+                              <td colSpan={6} className="p-0">
+                                <div className="bg-gradient-to-r from-green-50 via-green-50 to-emerald-50 border-l-4 border-l-green-600 px-6 py-4">
+                                  {origemDetalheLoading === o.origem ? (
+                                    <div className="flex items-center justify-center py-6">
+                                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-green-600 border-t-transparent"></div>
+                                      <span className="ml-2 text-sm text-gray-500">Carregando pagamentos...</span>
+                                    </div>
+                                  ) : origemDetalhe[o.origem] ? (
+                                    <>
+                                      <div className="mb-3 flex items-center justify-between">
+                                        <h4 className="text-sm font-semibold text-gray-900">
+                                          Pagamentos - Origem <span className="text-green-700">{o.origem}</span>
+                                          <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">{origemDetalhe[o.origem].length} registro(s)</span>
+                                        </h4>
+                                      </div>
+                                      <div className="max-h-[400px] overflow-y-auto rounded-lg border border-gray-200">
+                                        <table className="min-w-full divide-y divide-gray-200">
+                                          <thead className="bg-gray-100 sticky top-0">
+                                            <tr>
+                                              <th onClick={() => toggleOrdOrigDetalhe('data_vencimento')} className={`${thClsOrigDet} text-left`}>Vencimento{sortIconOrigDetalhe('data_vencimento')}</th>
+                                              <th onClick={() => toggleOrdOrigDetalhe('lancamento')} className={`${thClsOrigDet} text-left`}>Titulo{sortIconOrigDetalhe('lancamento')}</th>
+                                              <th onClick={() => toggleOrdOrigDetalhe('data_pagamento')} className={`${thClsOrigDet} text-left`}>Pagamento{sortIconOrigDetalhe('data_pagamento')}</th>
+                                              <th onClick={() => toggleOrdOrigDetalhe('dias_atraso')} className={`${thClsOrigDet} text-center`}>Atraso{sortIconOrigDetalhe('dias_atraso')}</th>
+                                              <th onClick={() => toggleOrdOrigDetalhe('credor')} className={`${thClsOrigDet} text-left`}>Credor{sortIconOrigDetalhe('credor')}</th>
+                                              <th onClick={() => toggleOrdOrigDetalhe('nome_centrocusto')} className={`${thClsOrigDet} text-left`}>Centro de Custo{sortIconOrigDetalhe('nome_centrocusto')}</th>
+                                              <th onClick={() => toggleOrdOrigDetalhe('nome_plano_financeiro')} className={`${thClsOrigDet} text-left`}>Plano Financeiro{sortIconOrigDetalhe('nome_plano_financeiro')}</th>
+                                              <th onClick={() => toggleOrdOrigDetalhe('valor_baixa')} className={`${thClsOrigDet} text-right`}>Valor Original{sortIconOrigDetalhe('valor_baixa')}</th>
+                                              <th onClick={() => toggleOrdOrigDetalhe('valor_juros')} className={`${thClsOrigDet} text-right`}>Juros{sortIconOrigDetalhe('valor_juros')}</th>
+                                              <th onClick={() => toggleOrdOrigDetalhe('valor_acrescimo')} className={`${thClsOrigDet} text-right`}>Acrescimos{sortIconOrigDetalhe('valor_acrescimo')}</th>
+                                              <th onClick={() => toggleOrdOrigDetalhe('valor_desconto')} className={`${thClsOrigDet} text-right`}>Descontos{sortIconOrigDetalhe('valor_desconto')}</th>
+                                              <th onClick={() => toggleOrdOrigDetalhe('valor_total')} className={`${thClsOrigDet} text-right`}>Valor Pago{sortIconOrigDetalhe('valor_total')}</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody className="divide-y divide-gray-100 bg-white">
+                                            {ordenarOrigDetalhe(origemDetalhe[o.origem]).map((conta, ci) => {
+                                              const diasAtraso = conta.dias_atraso;
+                                              const corAtraso = diasAtraso == null ? 'text-gray-400' : diasAtraso > 0 ? 'text-red-600' : 'text-green-600';
+                                              return (
+                                                <tr key={ci} className="hover:bg-gray-50">
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-500">{formatDate(conta.data_vencimento)}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs font-semibold text-gray-700 font-mono">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-500">{formatDate(conta.data_pagamento)}</td>
+                                                  <td className={`whitespace-nowrap px-3 py-2 text-xs font-semibold text-center ${corAtraso}`}>
+                                                    {diasAtraso == null ? '-' : diasAtraso > 0 ? `${diasAtraso}d` : diasAtraso === 0 ? 'No prazo' : `${Math.abs(diasAtraso)}d antecip.`}
+                                                  </td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-900 max-w-[150px] truncate" title={conta.credor || '-'}>{conta.credor || '-'}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600 max-w-[150px] truncate" title={conta.nome_centrocusto || '-'}>{conta.nome_centrocusto || '-'}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600 max-w-[150px] truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-gray-700">{formatCurrency((conta as any).valor_baixa || 0)}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-orange-600">{(conta as any).valor_juros ? formatCurrency((conta as any).valor_juros) : '-'}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-red-600">{(conta as any).valor_acrescimo ? formatCurrency((conta as any).valor_acrescimo) : '-'}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-blue-600">{(conta as any).valor_desconto ? formatCurrency((conta as any).valor_desconto) : '-'}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono font-bold text-green-700">{formatCurrency(conta.valor_total || 0)}</td>
+                                                </tr>
+                                              );
+                                            })}
+                                          </tbody>
+                                          <tfoot className="bg-gray-100">
+                                            <tr>
+                                              <td colSpan={7} className="px-3 py-2 text-xs font-bold text-gray-700">SUBTOTAL</td>
+                                              <td className="px-3 py-2 text-xs text-right font-mono font-bold text-gray-700">{formatCurrency(origemDetalhe[o.origem].reduce((s, c) => s + ((c as any).valor_baixa || 0), 0))}</td>
+                                              <td className="px-3 py-2 text-xs text-right font-mono font-bold text-orange-600">{formatCurrency(origemDetalhe[o.origem].reduce((s, c) => s + ((c as any).valor_juros || 0), 0))}</td>
+                                              <td className="px-3 py-2 text-xs text-right font-mono font-bold text-red-600">{formatCurrency(origemDetalhe[o.origem].reduce((s, c) => s + ((c as any).valor_acrescimo || 0), 0))}</td>
+                                              <td className="px-3 py-2 text-xs text-right font-mono font-bold text-blue-600">{formatCurrency(origemDetalhe[o.origem].reduce((s, c) => s + ((c as any).valor_desconto || 0), 0))}</td>
+                                              <td className="px-3 py-2 text-xs text-right font-mono font-bold text-green-700">{formatCurrency(origemDetalhe[o.origem].reduce((s, c) => s + (c.valor_total || 0), 0))}</td>
+                                            </tr>
+                                          </tfoot>
+                                        </table>
+                                      </div>
+                                    </>
+                                  ) : null}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot className="bg-green-50">
+                    <tr>
+                      <td colSpan={3} className="px-4 py-3 text-sm font-bold text-gray-900">TOTAL GERAL</td>
+                      <td className="px-4 py-3 text-right text-sm font-bold text-green-700 font-mono">{formatCurrency(totais.valor_total)}</td>
+                      <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">100%</td>
+                      <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">-</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          );
+        })()}
       </>
     );
   };
