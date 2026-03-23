@@ -84,6 +84,24 @@ O frontend estará disponível em: **http://localhost:3000**
 - **Tabela de Contas em Atraso**: Lista das contas vencidas
 - **Tabela de Próximos Vencimentos**: Contas que vencem nos próximos 30 dias
 
+### Contas a Pagar - Lógica de "Vence Hoje"
+
+O sistema possui uma lógica inteligente para tratar fins de semana e feriados na tela de Contas a Pagar:
+
+- **Fins de semana**: Na segunda-feira, contas com vencimento no sábado e domingo aparecem como "Vence Hoje" na tabela e nos cards (Total a Pagar, Vencendo Hoje).
+- **Feriados**: No dia seguinte a um feriado, contas com vencimento no feriado aparecem como "Vence Hoje". Isso funciona em cascata — se quinta é feriado e sexta também, na segunda aparecem as contas de quinta, sexta, sábado e domingo.
+- **Card "Total a Pagar"**: Soma apenas contas com vencimento hoje ou futuro (incluindo a lógica de fins de semana e feriados acima). Contas vencidas em dias normais NÃO entram nesse total.
+
+#### Gerenciamento de Feriados
+
+Feriados são configuráveis via API:
+
+- `GET /api/feriados?ano={ano}` - Lista feriados cadastrados (opcionalmente filtrado por ano)
+- `POST /api/feriados` - Cadastra um feriado (`{ "data": "2026-04-21", "descricao": "Tiradentes" }`)
+- `DELETE /api/feriados/{id}` - Remove um feriado
+
+Os feriados são armazenados na tabela `config_feriados` no PostgreSQL.
+
 ### API Endpoints Disponíveis
 
 - `GET /api/metricas` - Retorna métricas principais (totais e quantidades)
@@ -91,6 +109,9 @@ O frontend estará disponível em: **http://localhost:3000**
 - `GET /api/grafico-mensal` - Dados para gráfico de evolução mensal
 - `GET /api/grafico-categoria` - Dados para gráfico por categoria
 - `GET /api/proximos-vencimentos?dias={n}` - Contas que vencem nos próximos N dias
+- `GET /api/feriados?ano={ano}` - Lista feriados cadastrados
+- `POST /api/feriados` - Cadastra feriado
+- `DELETE /api/feriados/{id}` - Remove feriado
 
 ## 🎨 Estrutura da Tabela PostgreSQL
 
@@ -124,16 +145,14 @@ WHERE table_name = 'contas_a_pagar';
 
 ### Ajustar conexão do banco de dados
 
-Edite as credenciais em `backend/main.py`:
+Configure as variáveis de ambiente (no Railway, EasyPanel ou arquivo `.env`):
 
-```python
-DB_CONFIG = {
-    'host': 'seu_host',
-    'port': sua_porta,
-    'database': 'seu_banco',
-    'user': 'seu_usuario',
-    'password': 'sua_senha'
-}
+```
+DB_HOST=seu_host
+DB_PORT=5432
+DB_NAME=seu_banco
+DB_USER=seu_usuario
+DB_PASSWORD=sua_senha
 ```
 
 ### Modificar porta do backend
