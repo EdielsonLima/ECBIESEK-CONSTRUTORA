@@ -48,7 +48,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ label, items,
         </svg>
       </button>
       {isOpen && (
-        <div className="absolute z-20 mt-1 w-full min-w-[250px] rounded-lg border border-gray-300 bg-white shadow-lg">
+        <div className="absolute z-50 mt-1 w-full min-w-[250px] rounded-lg border border-gray-300 bg-white shadow-lg">
           {searchable && (
             <div className="border-b border-gray-200 p-2">
               <input
@@ -381,6 +381,25 @@ export const ContasAPagar: React.FC = () => {
     return diffDays;
   };
 
+  // Verifica se uma conta vence "hoje" considerando fins de semana:
+  // Na segunda-feira, inclui contas de sábado e domingo
+  const isVenceHoje = (dataVencimento: string | undefined) => {
+    if (!dataVencimento) return false;
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const diaSemana = hoje.getDay(); // 0=dom, 1=seg, ..., 6=sab
+    const [ano, mes, dia] = dataVencimento.split('T')[0].split('-').map(Number);
+    const vencimento = new Date(ano, mes - 1, dia);
+    vencimento.setHours(0, 0, 0, 0);
+    const diffTime = vencimento.getTime() - hoje.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    // Vence exatamente hoje
+    if (diffDays === 0) return true;
+    // Segunda-feira: incluir sábado (-2 dias) e domingo (-1 dia)
+    if (diaSemana === 1 && (diffDays === -1 || diffDays === -2)) return true;
+    return false;
+  };
+
   useEffect(() => {
     const carregarFiltros = async () => {
       try {
@@ -448,9 +467,12 @@ export const ContasAPagar: React.FC = () => {
 
       setTodasContasCompletas(data);
 
+      // Incluir contas não vencidas + contas de fim de semana (na segunda-feira)
       const contasNaoVencidas = data.filter(c => {
         const dias = calcularDiasAteVencimento(c.data_vencimento as any);
-        return dias >= 0;
+        if (dias >= 0) return true;
+        // Na segunda-feira, incluir contas de sábado (-2) e domingo (-1)
+        return isVenceHoje(c.data_vencimento as any);
       });
 
       setTodasContas(contasNaoVencidas);
@@ -545,7 +567,7 @@ export const ContasAPagar: React.FC = () => {
       contasFiltradas = contasFiltradas.filter(c => {
         const dias = calcularDiasAteVencimento(c.data_vencimento as any);
         switch (prazo) {
-          case 'hoje': return dias === 0;
+          case 'hoje': return isVenceHoje(c.data_vencimento as any);
           case '7dias': return dias >= 1 && dias <= 7;
           case '15dias': return dias >= 1 && dias <= 15;
           case '30dias': return dias >= 1 && dias <= 30;

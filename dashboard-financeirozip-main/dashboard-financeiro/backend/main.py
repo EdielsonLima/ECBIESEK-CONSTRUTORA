@@ -4477,20 +4477,33 @@ def calcular_kpi_automatico(calculo_automatico: str, documentos_excluidos: Optio
             valor = decimal_to_float(result['valor']) if result else 0
 
         elif calculo_automatico == 'contas_a_pagar_hoje_qtd':
+            # Na segunda-feira (weekday=0), incluir sábado e domingo
+            if hoje.weekday() == 0:  # Segunda-feira
+                hoje_cond = "cap.data_vencimento BETWEEN %s AND %s"
+                hoje_params = [hoje - timedelta(days=2), hoje]
+            else:
+                hoje_cond = "cap.data_vencimento = %s"
+                hoje_params = [hoje]
             cursor.execute(f"""
                 SELECT COUNT(DISTINCT SPLIT_PART(cap.lancamento, '/', 1)) as valor FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
-                WHERE cap.data_vencimento = %s{cap_where_extra}{filtro_previsao}
-            """, [hoje] + excl_params_cap)
+                WHERE {hoje_cond}{cap_where_extra}{filtro_previsao}
+            """, hoje_params + excl_params_cap)
             result = cursor.fetchone()
             valor = result['valor'] if result else 0
 
         elif calculo_automatico == 'contas_a_pagar_hoje_valor':
+            if hoje.weekday() == 0:
+                hoje_cond = "cap.data_vencimento BETWEEN %s AND %s"
+                hoje_params = [hoje - timedelta(days=2), hoje]
+            else:
+                hoje_cond = "cap.data_vencimento = %s"
+                hoje_params = [hoje]
             cursor.execute(f"""
                 SELECT COALESCE(SUM(cap.valor_total), 0) as valor FROM contas_a_pagar cap
                 LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
-                WHERE cap.data_vencimento = %s{cap_where_extra}{filtro_previsao}
-            """, [hoje] + excl_params_cap)
+                WHERE {hoje_cond}{cap_where_extra}{filtro_previsao}
+            """, hoje_params + excl_params_cap)
             result = cursor.fetchone()
             valor = decimal_to_float(result['valor']) if result else 0
 
