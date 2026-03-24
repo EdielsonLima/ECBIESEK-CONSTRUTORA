@@ -74,7 +74,7 @@ export const SearchableMultiSelect: React.FC<SearchableMultiSelectProps> = ({
     if (value.length === options.length) return emptyText;
     if (value.length === 1) {
       const opt = options.find(o => o.id === value[0]);
-      return opt ? (opt.id !== opt.nome ? `${opt.id} - ${opt.nome}` : opt.nome) : '1 selecionado';
+      return opt ? opt.nome : '1 selecionado';
     }
     return `${value.length} selecionado(s)`;
   };
@@ -131,9 +131,6 @@ export const SearchableMultiSelect: React.FC<SearchableMultiSelectProps> = ({
                     className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
                   />
                   <span className="text-sm text-gray-700">
-                    {option.id !== option.nome && (
-                      <span className="font-semibold text-red-600 mr-1">{option.id}</span>
-                    )}
                     {option.nome}
                   </span>
                 </label>
