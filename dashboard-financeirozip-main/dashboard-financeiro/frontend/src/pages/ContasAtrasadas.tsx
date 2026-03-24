@@ -37,7 +37,7 @@ type AbaAtiva = 'dados' | 'credor' | 'empresa' | 'centro-custo' | 'origem' | 'an
 const COLORS = ['#EF4444', '#F97316', '#F59E0B', '#EAB308', '#84CC16', '#10B981', '#06B6D4', '#3B82F6', '#8B5CF6', '#EC4899'];
 
 export const ContasAtrasadas: React.FC = () => {
-  const [abaAtiva, setAbaAtiva] = useState<AbaAtiva>('credor');
+  const [abaAtiva, setAbaAtiva] = useState<AbaAtiva>('dados');
   const [buscaCredor, setBuscaCredor] = useState('');
   const [buscaEmpresa, setBuscaEmpresa] = useState('');
   const [buscaCentroCusto, setBuscaCentroCusto] = useState('');
