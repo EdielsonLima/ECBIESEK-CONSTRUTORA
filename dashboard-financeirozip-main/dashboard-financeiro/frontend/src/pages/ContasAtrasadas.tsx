@@ -996,18 +996,24 @@ export const ContasAtrasadas: React.FC = () => {
     ], y, pageWidth, margin);
 
     adicionarTabela(doc, {
-      head: [['#', 'Credor', 'Vencimento', 'Titulo', 'Dias', 'Centro de Custo', 'Valor']],
-      body: dados.map((c, i) => [
-        String(i + 1),
-        c.credor || '-',
-        formatDate(c.data_vencimento),
-        c.lancamento ? String(c.lancamento).split('/')[0] : '-',
-        String(calcularDiasAtraso(c.data_vencimento as any)) + 'd',
-        c.nome_centrocusto || '-',
-        `R$ ${formatCurrencyPDF(c.valor_total || 0)}`,
-      ]),
-      foot: [['', 'TOTAL', '', '', '', '', `R$ ${formatCurrencyPDF(totalVal)}`]],
-      columnStyles: { 0: { halign: 'center', cellWidth: 8 }, 4: { halign: 'center' }, 6: { halign: 'right' } },
+      head: [['#', 'Credor', 'Venc.', 'Titulo', 'Dias', 'Centro de Custo', 'Plano Financeiro', 'Aut.', 'Valor']],
+      body: dados.map((c, i) => {
+        const authApi = c.lancamento ? autorizacoesBulk[c.lancamento] : undefined;
+        const auth = (authApi || (c as any).flautorizacao) === 'S' ? 'Sim' : 'Não';
+        return [
+          String(i + 1),
+          c.credor || '-',
+          formatDate(c.data_vencimento),
+          c.lancamento ? String(c.lancamento).split('/')[0] : '-',
+          String(calcularDiasAtraso(c.data_vencimento as any)) + 'd',
+          c.nome_centrocusto || '-',
+          c.nome_plano_financeiro || '-',
+          auth,
+          `R$ ${formatCurrencyPDF(c.valor_total || 0)}`,
+        ];
+      }),
+      foot: [['', 'TOTAL', '', '', '', '', '', '', `R$ ${formatCurrencyPDF(totalVal)}`]],
+      columnStyles: { 0: { halign: 'center', cellWidth: 8 }, 4: { halign: 'center' }, 7: { halign: 'center' }, 8: { halign: 'right' } },
     }, y, margin);
 
     finalizarPDF(doc, gerarNomeArquivo('contas_atrasadas', 'Dados'), dataGeracao);
