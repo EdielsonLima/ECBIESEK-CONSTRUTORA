@@ -978,6 +978,59 @@ export const ContasAtrasadas: React.FC = () => {
     );
   };
 
+  const exportarPDFDados = (dados: ContaPagar[]) => {
+    if (dados.length === 0) return;
+    const { doc, pageWidth, margin, dataGeracao } = criarPDFBase('Contas em Atraso', 'Aba: Dados Detalhados');
+    let y = 34;
+
+    const filtros = [];
+    if (filtroEmpresa.length > 0) filtros.push({ label: 'Empresa', valor: `${filtroEmpresa.length} selecionada(s)` });
+    if (filtroCentroCusto.length > 0) filtros.push({ label: 'Centro Custo', valor: `${filtroCentroCusto.length} selecionado(s)` });
+    if (filtroAno.length > 0) filtros.push({ label: 'Ano', valor: filtroAno.join(', ') });
+    y = adicionarFiltrosAtivos(doc, filtros, y, pageWidth, margin);
+
+    const totalVal = dados.reduce((s, c) => s + (c.valor_total || 0), 0);
+    y = adicionarResumoCards(doc, [
+      { label: 'Total em Atraso', valor: totalVal, cor: [239, 68, 68] },
+      { label: 'Títulos', valor: String(dados.length), cor: [249, 115, 22] },
+    ], y, pageWidth, margin);
+
+    adicionarTabela(doc, {
+      head: [['#', 'Credor', 'Vencimento', 'Titulo', 'Dias', 'Centro de Custo', 'Valor']],
+      body: dados.map((c, i) => [
+        String(i + 1),
+        c.credor || '-',
+        formatDate(c.data_vencimento),
+        c.lancamento ? String(c.lancamento).split('/')[0] : '-',
+        String(calcularDiasAtraso(c.data_vencimento as any)) + 'd',
+        c.nome_centrocusto || '-',
+        `R$ ${formatCurrencyPDF(c.valor_total)}`,
+      ]),
+      foot: [['', 'TOTAL', '', '', '', '', `R$ ${formatCurrencyPDF(totalVal)}`]],
+      columnStyles: { 0: { halign: 'center', cellWidth: 8 }, 4: { halign: 'center' }, 6: { halign: 'right' } },
+    }, y, margin);
+
+    finalizarPDF(doc, gerarNomeArquivo('contas_atrasadas', 'Dados'), dataGeracao);
+  };
+
+  const exportarCSVDados = (dados: ContaPagar[]) => {
+    if (dados.length === 0) return;
+    const header = '#;Credor;Vencimento;Titulo;Dias Atraso;Centro de Custo;Plano Financeiro;Tipo Pagamento;Autorizacao;Valor';
+    const rows = dados.map((c, i) => {
+      const authApi = c.lancamento ? autorizacoesBulk[c.lancamento] : undefined;
+      const auth = (authApi || (c as any).flautorizacao) === 'S' ? 'Sim' : 'Nao';
+      return `${i + 1};${c.credor || '-'};${formatDate(c.data_vencimento)};${c.lancamento ? String(c.lancamento).split('/')[0] : '-'};${calcularDiasAtraso(c.data_vencimento as any)};${c.nome_centrocusto || '-'};${c.nome_plano_financeiro || '-'};${(c as any).nome_tipo_pagamento || '-'};${auth};${(c.valor_total || 0).toFixed(2).replace('.', ',')}`;
+    });
+    const csv = [header, ...rows].join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `contas_atrasadas_dados_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const renderAbaDados = () => {
     const contasFiltradas = (() => {
       let resultado = [...contas];
@@ -1055,6 +1108,28 @@ export const ContasAtrasadas: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                 </svg>
                 {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
+              </button>
+              <button
+                type="button"
+                onClick={() => exportarPDFDados(dadosOrdenados)}
+                disabled={dadosOrdenados.length === 0}
+                className="flex items-center rounded-lg bg-red-700 px-4 py-2 text-white hover:bg-red-800 disabled:opacity-50"
+              >
+                <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                Exportar PDF
+              </button>
+              <button
+                type="button"
+                onClick={() => exportarCSVDados(dadosOrdenados)}
+                disabled={dadosOrdenados.length === 0}
+                className="flex items-center rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Exportar CSV
               </button>
             </div>
           </div>
