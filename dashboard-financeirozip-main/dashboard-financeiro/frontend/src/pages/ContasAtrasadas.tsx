@@ -1004,7 +1004,7 @@ export const ContasAtrasadas: React.FC = () => {
         c.lancamento ? String(c.lancamento).split('/')[0] : '-',
         String(calcularDiasAtraso(c.data_vencimento as any)) + 'd',
         c.nome_centrocusto || '-',
-        `R$ ${formatCurrencyPDF(c.valor_total)}`,
+        `R$ ${formatCurrencyPDF(c.valor_total || 0)}`,
       ]),
       foot: [['', 'TOTAL', '', '', '', '', `R$ ${formatCurrencyPDF(totalVal)}`]],
       columnStyles: { 0: { halign: 'center', cellWidth: 8 }, 4: { halign: 'center' }, 6: { halign: 'right' } },
