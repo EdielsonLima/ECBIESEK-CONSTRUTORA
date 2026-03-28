@@ -385,7 +385,24 @@ export const ContasReceberAtrasadas: React.FC = () => {
     setDadosPorFaixaAtraso(Array.from(faixaMap.entries()).map(([faixa, data]) => ({ faixa, ...data })).filter(d => d.quantidade > 0).sort((a, b) => a.ordem - b.ordem));
   }, [todasContas, filtroEmpresa, filtroCentroCusto, filtroTipoDocumento, filtroCliente, filtroTipoCondicao]);
 
-  useEffect(() => { carregarDados(); }, []);
+  useEffect(() => {
+    carregarDados();
+    // Carregar filtros padrão salvos
+    const filtrosSalvos = localStorage.getItem('contas_receber_atrasadas_filtros_padrao');
+    if (filtrosSalvos) {
+      try {
+        const f = JSON.parse(filtrosSalvos);
+        if (f.filtroEmpresa != null) setFiltroEmpresa(f.filtroEmpresa);
+        if (f.filtroCentroCusto != null) setFiltroCentroCusto(f.filtroCentroCusto);
+        if (f.filtroTipoDocumento?.length) setFiltroTipoDocumento(f.filtroTipoDocumento);
+        if (f.filtroCliente != null) setFiltroCliente(f.filtroCliente);
+        if (f.filtroTipoCondicao?.length) setFiltroTipoCondicao(f.filtroTipoCondicao);
+        if (f.filtroUnidades?.length) setFiltroUnidades(f.filtroUnidades);
+      } catch (err) {
+        console.error('Erro ao carregar filtros padrão:', err);
+      }
+    }
+  }, []);
 
   const limparFiltros = () => {
     setFiltroEmpresa(null);
@@ -394,6 +411,30 @@ export const ContasReceberAtrasadas: React.FC = () => {
     setFiltroCliente(null);
     setFiltroTipoCondicao([]);
     setFiltroUnidades([]);
+  };
+
+  const FILTROS_PADRAO_KEY = 'contas_receber_atrasadas_filtros_padrao';
+
+  const salvarFiltrosPadrao = () => {
+    const filtros = {
+      filtroEmpresa,
+      filtroCentroCusto,
+      filtroTipoDocumento,
+      filtroCliente,
+      filtroTipoCondicao,
+      filtroUnidades,
+    };
+    localStorage.setItem(FILTROS_PADRAO_KEY, JSON.stringify(filtros));
+    alert('Filtros salvos como padrão! Serão aplicados automaticamente ao abrir a página.');
+  };
+
+  const removerFiltrosPadrao = () => {
+    localStorage.removeItem(FILTROS_PADRAO_KEY);
+    alert('Filtros padrão removidos.');
+  };
+
+  const temFiltrosPadrao = () => {
+    return localStorage.getItem(FILTROS_PADRAO_KEY) !== null;
   };
 
   // Tipo condicao options from data
@@ -548,8 +589,30 @@ export const ContasReceberAtrasadas: React.FC = () => {
             <MultiSelectDropdown label="Tipo Documento" items={tiposDocumento.map(t => ({ id: t.id, nome: t.nome }))} selected={filtroTipoDocumento} setSelected={setFiltroTipoDocumento} isOpen={tipoDocDropdownAberto} setIsOpen={setTipoDocDropdownAberto} searchable={true} />
             <MultiSelectDropdown label="Tipo Condicao" items={tipoCondicaoOptions} selected={filtroTipoCondicao} setSelected={setFiltroTipoCondicao} isOpen={tipoCondicaoDropdownAberto} setIsOpen={setTipoCondicaoDropdownAberto} searchable={true} />
           </div>
-          <div className="mt-4 flex gap-3">
+          <div className="mt-4 flex flex-wrap gap-3">
             <button type="button" onClick={limparFiltros} className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50">Limpar Filtros</button>
+            <button
+              type="button"
+              onClick={salvarFiltrosPadrao}
+              className="flex items-center rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"
+            >
+              <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+              </svg>
+              Salvar Padrão
+            </button>
+            {temFiltrosPadrao() && (
+              <button
+                type="button"
+                onClick={removerFiltrosPadrao}
+                className="flex items-center rounded-lg border border-red-300 px-4 py-2 text-red-600 hover:bg-red-50"
+              >
+                <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Remover Padrão
+              </button>
+            )}
           </div>
         </div>
       )}
