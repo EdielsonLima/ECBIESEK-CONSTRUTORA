@@ -170,6 +170,8 @@ export const ContasAPagar: React.FC = () => {
   const [tiposPagamento, setTiposPagamento] = useState<Array<{ id: number; nome: string }>>([]);
   const [filtroAutorizacao, setFiltroAutorizacao] = useState<string[]>([]);
   const [autorizacaoDropdownAberto, setAutorizacaoDropdownAberto] = useState(false);
+  const [filtroTitulo, setFiltroTitulo] = useState<string[]>([]);
+  const [tituloDropdownAberto, setTituloDropdownAberto] = useState(false);
   const [dataReferencia, setDataReferencia] = useState<string>('');
   const [linhaExpandida, setLinhaExpandida] = useState<number | null>(null);
   const [detalheCarregando, setDetalheCarregando] = useState(false);
@@ -454,6 +456,7 @@ export const ContasAPagar: React.FC = () => {
         if (f.filtroPlanoFinanceiro?.length) setFiltroPlanoFinanceiro(f.filtroPlanoFinanceiro);
         if (f.filtroTipoPagamento?.length) setFiltroTipoPagamento(f.filtroTipoPagamento);
         if (f.filtroAutorizacao?.length) setFiltroAutorizacao(f.filtroAutorizacao);
+        if (f.filtroTitulo?.length) setFiltroTitulo(f.filtroTitulo);
         if (f.dataReferencia) setDataReferencia(f.dataReferencia);
       } catch (err) {
         console.error('Erro ao carregar filtros padrão:', err);
@@ -540,7 +543,8 @@ export const ContasAPagar: React.FC = () => {
     planosFinSelecionados?: string[],
     tiposPagSelecionados?: number[],
     autorizacaoSelecionada?: string[],
-    autorizacoesBulkMap?: Record<string, string>
+    autorizacoesBulkMap?: Record<string, string>,
+    titulosSelecionados?: string[]
   ) => {
     let contasFiltradas = [...dados];
 
@@ -604,6 +608,12 @@ export const ContasAPagar: React.FC = () => {
         return autorizacaoSelecionada.includes(auth);
       });
     }
+    if (titulosSelecionados && titulosSelecionados.length > 0) {
+      contasFiltradas = contasFiltradas.filter(c => {
+        const titulo = c.lancamento ? c.lancamento.split('/')[0] : '';
+        return titulosSelecionados.includes(titulo);
+      });
+    }
     if (prazo !== 'todos') {
       contasFiltradas = contasFiltradas.filter(c => {
         const dias = calcularDiasAteVencimento(c.data_vencimento as any);
@@ -623,7 +633,7 @@ export const ContasAPagar: React.FC = () => {
   useEffect(() => {
     if (todasContas.length === 0) return;
 
-    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro, filtroTipoPagamento, filtroAutorizacao, autorizacoesBulk);
+    const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro, filtroTipoPagamento, filtroAutorizacao, autorizacoesBulk, filtroTitulo);
     setContas(contasFiltradas);
 
     // Card "Total a Pagar" usa as contas filtradas (hoje + futuro, com lógica de segunda-feira)
@@ -695,7 +705,7 @@ export const ContasAPagar: React.FC = () => {
       .filter(d => d.quantidade > 0)
       .sort((a, b) => a.ordem - b.ordem);
     setDadosPorVencimento(vencimentoArray);
-  }, [todasContas, todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro, filtroTipoPagamento, filtroAutorizacao, autorizacoesBulk]);
+  }, [todasContas, todasContasCompletas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro, filtroTipoPagamento, filtroAutorizacao, autorizacoesBulk, filtroTitulo]);
 
   useEffect(() => {
     carregarDados();
@@ -717,6 +727,7 @@ export const ContasAPagar: React.FC = () => {
     setFiltroPlanoFinanceiro([]);
     setFiltroTipoPagamento([]);
     setFiltroAutorizacao([]);
+    setFiltroTitulo([]);
     setDataReferencia('');
   };
 
@@ -735,6 +746,7 @@ export const ContasAPagar: React.FC = () => {
       filtroPlanoFinanceiro,
       filtroTipoPagamento,
       filtroAutorizacao,
+      filtroTitulo,
       dataReferencia,
     };
     localStorage.setItem(FILTROS_PADRAO_KEY, JSON.stringify(filtros));
@@ -774,6 +786,17 @@ export const ContasAPagar: React.FC = () => {
       if (nome) planoSet.add(nome);
     });
     return Array.from(planoSet).sort((a, b) => a.localeCompare(b));
+  }, [todasContas]);
+
+  const titulosDisponiveis = React.useMemo(() => {
+    const tituloSet = new Set<string>();
+    todasContas.forEach(c => {
+      if (c.lancamento) {
+        const titulo = c.lancamento.split('/')[0];
+        if (titulo) tituloSet.add(titulo);
+      }
+    });
+    return Array.from(tituloSet).sort((a, b) => parseInt(a) - parseInt(b));
   }, [todasContas]);
 
   const exportarCSV = () => {
@@ -1212,6 +1235,15 @@ export const ContasAPagar: React.FC = () => {
           setIsOpen={setAutorizacaoDropdownAberto}
           searchable={true}
         />
+        <MultiSelectDropdown
+          label="Titulo"
+          items={titulosDisponiveis.map(t => ({ id: t, nome: t }))}
+          selected={filtroTitulo}
+          setSelected={setFiltroTitulo}
+          isOpen={tituloDropdownAberto}
+          setIsOpen={setTituloDropdownAberto}
+          searchable={true}
+        />
       </div>
       <div className="mt-4">
         <label className="mb-2 block text-sm font-medium text-gray-700">Destacar novos apos</label>
@@ -1337,6 +1369,10 @@ export const ContasAPagar: React.FC = () => {
     if (filtroAutorizacao.length > 0) {
       const nomes = filtroAutorizacao.map(v => v === 'S' ? 'Autorizado' : 'Não Autorizado');
       tags.push({ label: 'Autorização', value: nomes.join(', '), onRemove: () => setFiltroAutorizacao([]) });
+    }
+
+    if (filtroTitulo.length > 0) {
+      tags.push({ label: 'Titulo', value: filtroTitulo.length > 3 ? `${filtroTitulo.length} titulo(s)` : filtroTitulo.join(', '), onRemove: () => setFiltroTitulo([]) });
     }
 
     if (tags.length === 0) return null;
