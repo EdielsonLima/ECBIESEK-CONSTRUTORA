@@ -2622,10 +2622,6 @@ def get_centros_custo_recebidas():
     try:
         conditions = ["id_interno_centrocusto IS NOT NULL"]
         params = []
-        if exclusoes['empresas']:
-            placeholders = ','.join(['%s'] * len(exclusoes['empresas']))
-            conditions.append(f"id_sienge_empresa NOT IN ({placeholders})")
-            params.extend(exclusoes['empresas'])
         if exclusoes['centros_custo']:
             placeholders = ','.join(['%s'] * len(exclusoes['centros_custo']))
             conditions.append(f"id_interno_centrocusto NOT IN ({placeholders})")
@@ -2703,10 +2699,6 @@ def get_centros_custo():
     try:
         conditions = ["id_interno_centrocusto IS NOT NULL"]
         params = []
-        if exclusoes['empresas']:
-            placeholders = ','.join(['%s'] * len(exclusoes['empresas']))
-            conditions.append(f"id_sienge_empresa NOT IN ({placeholders})")
-            params.extend(exclusoes['empresas'])
         if exclusoes['centros_custo']:
             placeholders = ','.join(['%s'] * len(exclusoes['centros_custo']))
             conditions.append(f"id_interno_centrocusto NOT IN ({placeholders})")
