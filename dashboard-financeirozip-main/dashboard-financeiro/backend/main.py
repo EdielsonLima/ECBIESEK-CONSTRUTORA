@@ -2674,6 +2674,44 @@ def get_empresas_centros():
         cursor.close()
         conn.close()
 
+@app.get("/api/diagnostico/titulo/{titulo_id}")
+def diagnostico_titulo(titulo_id: int):
+    """Busca um título em contas_a_pagar e contas_pagas para diagnóstico"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        resultados = {}
+        # Buscar em contas_a_pagar
+        cursor.execute("""
+            SELECT cap.lancamento, cap.credor, cap.data_vencimento, cap.valor_total,
+                   cap.id_interno_centro_custo, cap.id_interno_empresa,
+                   cc.nome_centrocusto, cc.nome_empresa, cc.id_sienge_empresa
+            FROM contas_a_pagar cap
+            LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE SPLIT_PART(cap.lancamento, '/', 1) = %s
+        """, (str(titulo_id),))
+        rows_cap = cursor.fetchall()
+        resultados['contas_a_pagar'] = [dict(r) for r in rows_cap]
+
+        # Buscar em contas_pagas
+        cursor.execute("""
+            SELECT cp.lancamento, cp.credor, cp.data_pagamento, cp.valor_liquido,
+                   cp.id_interno_centro_custo, cp.id_interno_empresa,
+                   cc.nome_centrocusto, cc.nome_empresa, cc.id_sienge_empresa
+            FROM contas_pagas cp
+            LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE SPLIT_PART(cp.lancamento, '/', 1) = %s
+        """, (str(titulo_id),))
+        rows_cp = cursor.fetchall()
+        resultados['contas_pagas'] = [dict(r) for r in rows_cp]
+
+        resultados['total_a_pagar'] = len(rows_cap)
+        resultados['total_pagas'] = len(rows_cp)
+        return resultados
+    finally:
+        cursor.close()
+        conn.close()
+
 @app.get("/api/ultima-atualizacao")
 def get_ultima_atualizacao():
     """Retorna a data da última carga de dados a partir de fulldump_log (dump_date)."""
