@@ -2712,6 +2712,17 @@ def diagnostico_titulo(titulo_id: int):
         cursor.close()
         conn.close()
 
+@app.get("/api/diagnostico/exclusoes")
+def diagnostico_exclusoes():
+    """Retorna todas as exclusões configuradas atualmente"""
+    exclusoes = get_exclusoes()
+    return {
+        'empresas_excluidas': exclusoes['empresas'],
+        'centros_custo_excluidos': exclusoes['centros_custo'],
+        'tipos_documento_excluidos': exclusoes['tipos_documento'],
+        'contas_correntes_excluidas': exclusoes.get('contas_correntes', []),
+    }
+
 @app.get("/api/ultima-atualizacao")
 def get_ultima_atualizacao():
     """Retorna a data da última carga de dados a partir de fulldump_log (dump_date)."""
