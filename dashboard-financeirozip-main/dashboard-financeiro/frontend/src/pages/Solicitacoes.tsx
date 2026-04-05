@@ -316,7 +316,7 @@ export const Solicitacoes: React.FC = () => {
       )}
 
       {/* Kanban Board */}
-      <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: '60vh' }}>
+      <div className="grid grid-cols-5 gap-3 pb-4" style={{ minHeight: '65vh' }}>
         {KANBAN_COLUNAS.map(col => {
           const cards = solicitacoes.filter(s => s.status === col.status);
           const isDragOver = dragOverCol === col.status;
@@ -324,24 +324,24 @@ export const Solicitacoes: React.FC = () => {
           return (
             <div
               key={col.status}
-              className={`flex-shrink-0 w-64 rounded-xl bg-gray-50 border-t-4 ${col.cor} transition-all ${isDragOver ? 'ring-2 ring-blue-400 bg-blue-50/50' : ''}`}
+              className={`rounded-xl bg-gray-50 border-t-4 ${col.cor} transition-all ${isDragOver ? 'ring-2 ring-blue-400 bg-blue-50/50' : ''}`}
               onDragOver={(e) => handleDragOver(e, col.status)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, col.status)}
             >
               {/* Header da coluna */}
-              <div className={`px-3 py-2.5 ${col.bgHeader} rounded-t-lg`}>
+              <div className={`px-4 py-3 ${col.bgHeader} rounded-t-lg`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className={`h-2.5 w-2.5 rounded-full ${col.dot}`}></div>
-                    <span className={`text-xs font-bold ${col.textCor}`}>{col.label}</span>
+                    <div className={`h-3 w-3 rounded-full ${col.dot}`}></div>
+                    <span className={`text-sm font-bold ${col.textCor}`}>{col.label}</span>
                   </div>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${col.bgHeader} ${col.textCor}`}>{cards.length}</span>
+                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${col.bgHeader} ${col.textCor} border border-current/20`}>{cards.length}</span>
                 </div>
               </div>
 
               {/* Cards */}
-              <div className="p-2 space-y-2 min-h-[200px]">
+              <div className="p-3 space-y-3 min-h-[300px]">
                 {cards.map(s => {
                   const prioInfo = PRIORIDADES.find(p => p.value === s.prioridade) || PRIORIDADES[1];
                   const editando = editandoId === s.id;
@@ -352,10 +352,10 @@ export const Solicitacoes: React.FC = () => {
                       draggable={isAdmin}
                       onDragStart={(e) => handleDragStart(e, s.id)}
                       onDragEnd={handleDragEnd}
-                      className={`rounded-lg bg-white p-3 shadow-sm border border-gray-100 border-l-4 ${prioInfo.borda} ${isAdmin ? 'cursor-grab active:cursor-grabbing' : ''} hover:shadow-md transition-shadow`}
+                      className={`rounded-lg bg-white p-4 shadow-sm border border-gray-100 border-l-4 ${prioInfo.borda} ${isAdmin ? 'cursor-grab active:cursor-grabbing' : ''} hover:shadow-md transition-shadow`}
                     >
                       <div className="flex items-start justify-between gap-1">
-                        <h4 className="text-xs font-bold text-gray-900 leading-tight flex-1">{s.titulo}</h4>
+                        <h4 className="text-sm font-bold text-gray-900 leading-tight flex-1">{s.titulo}</h4>
                         {isAdmin && (
                           <div className="flex gap-0.5 flex-shrink-0">
                             <button type="button" onClick={() => { setEditandoId(editando ? null : s.id); setEditResposta(s.resposta_dev || ''); setEditVersao(s.versao_implementada || ''); }} className="rounded p-0.5 text-gray-300 hover:text-blue-600" title="Editar">
@@ -367,7 +367,7 @@ export const Solicitacoes: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      <p className="mt-1 text-[11px] text-gray-500 line-clamp-2">{s.descricao}</p>
+                      <p className="mt-1.5 text-xs text-gray-500 line-clamp-3">{s.descricao}</p>
 
                       {s.imagem && (
                         <img
@@ -378,16 +378,16 @@ export const Solicitacoes: React.FC = () => {
                         />
                       )}
 
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        <span className={`rounded px-1.5 py-0.5 text-[9px] font-semibold ${prioInfo.cor}`}>{prioInfo.label}</span>
-                        <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[9px] text-gray-500">{s.secao}</span>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        <span className={`rounded px-2 py-0.5 text-[10px] font-semibold ${prioInfo.cor}`}>{prioInfo.label}</span>
+                        <span className="rounded bg-gray-100 px-2 py-0.5 text-[10px] text-gray-500">{s.secao}</span>
                         {s.versao_implementada && (
                           <span className="rounded bg-green-50 px-1.5 py-0.5 text-[9px] text-green-700 font-medium">v{s.versao_implementada}</span>
                         )}
                       </div>
 
-                      <div className="mt-1.5 flex items-center gap-1 text-[9px] text-gray-400">
-                        <span>{s.usuario_nome}</span>
+                      <div className="mt-2 flex items-center gap-1.5 text-[10px] text-gray-400">
+                        <span className="font-medium">{s.usuario_nome}</span>
                         <span>&middot;</span>
                         <span>{s.created_at ? new Date(s.created_at).toLocaleDateString('pt-BR') : ''}</span>
                       </div>
@@ -411,8 +411,9 @@ export const Solicitacoes: React.FC = () => {
                 })}
 
                 {cards.length === 0 && (
-                  <div className={`rounded-lg border-2 border-dashed p-4 text-center ${isDragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-200'}`}>
-                    <p className="text-[10px] text-gray-400">{isAdmin ? 'Arraste cards aqui' : 'Nenhuma solicitacao'}</p>
+                  <div className={`rounded-lg border-2 border-dashed p-6 text-center ${isDragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-200'}`}>
+                    <svg className="mx-auto h-8 w-8 text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                    <p className="text-xs text-gray-400">{isAdmin ? 'Arraste cards aqui' : 'Nenhuma solicitacao'}</p>
                   </div>
                 )}
               </div>
