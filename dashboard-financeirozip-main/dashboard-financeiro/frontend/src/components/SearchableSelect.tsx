@@ -76,19 +76,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-blue-500 focus:outline-none"
         >
           <span className={selectedOption ? 'text-gray-900' : 'text-gray-500'}>
-            {selectedOption ? (
-              <span>
-                {selectedOption.id !== selectedOption.nome && (
-                  <>
-                    <span className="font-semibold text-blue-600">{selectedOption.id}</span>
-                    {' - '}
-                  </>
-                )}
-                {selectedOption.nome}
-              </span>
-            ) : (
-              placeholder
-            )}
+            {selectedOption ? selectedOption.nome : placeholder}
           </span>
           <svg
             className={`absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 transition-transform ${
@@ -140,9 +128,6 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                       value === option.id ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-900'
                     }`}
                   >
-                    {option.id !== option.nome && (
-                      <span className="font-semibold text-blue-600 mr-2">{option.id}</span>
-                    )}
                     <span className="flex-1">{option.nome}</span>
                   </button>
                 ))
