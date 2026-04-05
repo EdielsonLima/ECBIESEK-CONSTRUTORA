@@ -2760,6 +2760,88 @@ def deletar_solicitacao(id: int):
         cursor.close()
         conn.close()
 
+@app.get("/api/diagnostico/realizado-detalhado")
+def diagnostico_realizado_detalhado():
+    """Detalha o valor Realizado: por tipo de baixa e por centro de custo (top 15)"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Total geral sem filtro
+        cursor.execute("SELECT COALESCE(SUM(valor_liquido), 0) as total FROM contas_pagas")
+        total_sem_filtro = float(cursor.fetchone()['total'])
+
+        # Por tipo de baixa
+        cursor.execute("""
+            SELECT cp.id_tipo_baixa, tb.nome_tipo_baixa, tb.flag_sistema_uso,
+                   COALESCE(SUM(cp.valor_liquido), 0) as total,
+                   COUNT(*) as qtd
+            FROM contas_pagas cp
+            LEFT JOIN ecadtipobaixa tb ON cp.id_tipo_baixa = tb.id_tipo_baixa
+            GROUP BY cp.id_tipo_baixa, tb.nome_tipo_baixa, tb.flag_sistema_uso
+            ORDER BY total DESC
+        """)
+        por_tipo_baixa = [dict(r) for r in cursor.fetchall()]
+
+        # Por centro de custo (top 15)
+        cursor.execute("""
+            SELECT cc.id_sienge_centrocusto, cc.nome_centrocusto,
+                   COALESCE(SUM(cp.valor_liquido), 0) as total,
+                   COUNT(*) as qtd
+            FROM contas_pagas cp
+            LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
+            GROUP BY cc.id_sienge_centrocusto, cc.nome_centrocusto
+            ORDER BY total DESC
+            LIMIT 15
+        """)
+        por_centro_custo = [dict(r) for r in cursor.fetchall()]
+
+        # Tipos de baixa configurados como incluídos
+        tipos_config = []
+        try:
+            cfg_conn = get_config_db_connection()
+            cfg_cursor = cfg_conn.cursor()
+            cfg_cursor.execute("SELECT * FROM config_tipos_baixa_exposicao_caixa WHERE incluir = 1 AND paginas LIKE '%contas_pagas%'")
+            tipos_config = [dict(r) for r in cfg_cursor.fetchall()]
+            cfg_cursor.close()
+            cfg_conn.close()
+        except Exception:
+            pass
+
+        # Total filtrado (mesmo calculo do endpoint realizado-por-centro-custo)
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp', has_conta_corrente=True)
+        conditions = list(excl_conds)
+        params = list(excl_params)
+        if tipos_config:
+            ids = [t['id_tipo_baixa'] for t in tipos_config]
+            tb_ph = ', '.join(['%s'] * len(ids))
+            conditions.append(f"cp.id_tipo_baixa IN ({tb_ph})")
+            params.extend(ids)
+        where_clause = (" AND " + " AND ".join(conditions)) if conditions else ""
+        cursor.execute(f"""
+            SELECT COALESCE(SUM(cp.valor_liquido), 0) as total
+            FROM contas_pagas cp
+            INNER JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE cp.id_interno_centro_custo IS NOT NULL {where_clause}
+        """, tuple(params))
+        total_com_filtro = float(cursor.fetchone()['total'])
+
+        return {
+            "total_sem_filtro": total_sem_filtro,
+            "total_com_filtro": total_com_filtro,
+            "diferenca": total_sem_filtro - total_com_filtro,
+            "por_tipo_baixa": por_tipo_baixa,
+            "por_centro_custo": por_centro_custo,
+            "tipos_baixa_configurados": tipos_config,
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"erro": str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
 @app.get("/api/diagnostico/empresas-centros")
 def get_empresas_centros():
     """Retorna todas as empresas com seus centros de custo aninhados (para diagnóstico)"""
