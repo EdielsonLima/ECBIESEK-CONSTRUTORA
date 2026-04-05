@@ -2936,6 +2936,40 @@ def diagnostico_realizado_detalhado():
         cursor.close()
         conn.close()
 
+@app.get("/api/diagnostico/cc-ids")
+def diagnostico_cc_ids():
+    """Mostra mapeamento id_interno vs id_sienge dos centros de custo"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT id_interno_centrocusto, id_sienge_centrocusto, nome_centrocusto
+            FROM dim_centrocusto
+            WHERE nome_centrocusto ILIKE '%lake%' OR nome_centrocusto ILIKE '%buenos%'
+            ORDER BY nome_centrocusto
+        """)
+        centros = [dict(r) for r in cursor.fetchall()]
+
+        # Verificar quais id_interno_centro_custo existem em contas_recebidas para Lake
+        cursor.execute("""
+            SELECT DISTINCT cr.id_interno_centro_custo, cc.id_sienge_centrocusto, cc.nome_centrocusto
+            FROM contas_recebidas cr
+            LEFT JOIN dim_centrocusto cc ON cr.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE cc.nome_centrocusto ILIKE '%lake%'
+            LIMIT 5
+        """)
+        recebidas_lake = [dict(r) for r in cursor.fetchall()]
+
+        return {
+            "centros_dim": centros,
+            "recebidas_lake_sample": recebidas_lake,
+        }
+    except Exception as e:
+        return {"erro": str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
 @app.get("/api/diagnostico/empresas-centros")
 def get_empresas_centros():
     """Retorna todas as empresas com seus centros de custo aninhados (para diagnóstico)"""
