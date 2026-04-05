@@ -318,26 +318,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
           }`}
       >
         {/* Logo e Toggle */}
-        <div className="flex h-16 flex-shrink-0 items-center justify-between border-b border-slate-800 px-4">
-          {isOpen && (
-            <span className="text-lg font-bold tracking-widest text-white flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/30">
-                <span className="text-white text-sm">ECB</span>
+        <div className="flex h-16 flex-shrink-0 items-center justify-between border-b border-slate-800 px-3">
+          {isOpen ? (
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <img src="/logo-ecbiesek-icon.svg" alt="ECB" className="h-9 w-9 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm font-extrabold text-white tracking-wide leading-tight">ECBIESEK</p>
+                <p className="text-[9px] text-slate-500 tracking-widest uppercase">Construtora</p>
               </div>
-            </span>
+            </div>
+          ) : (
+            <img src="/logo-ecbiesek-icon.svg" alt="ECB" className="h-9 w-9 mx-auto" />
           )}
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="rounded-lg p-2 hover:bg-slate-800 transition-colors"
-          >
-            <svg className="h-6 w-6 text-slate-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              {isOpen ? (
+          {isOpen && (
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="rounded-lg p-1.5 hover:bg-slate-800 transition-colors flex-shrink-0"
+            >
+              <svg className="h-5 w-5 text-slate-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-              )}
-            </svg>
-          </button>
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* Menu com grupos */}
