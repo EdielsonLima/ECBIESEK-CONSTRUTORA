@@ -1,6 +1,51 @@
 {
-  "versao_atual": "1.1.0",
+  "versao_atual": "1.2.0",
   "historico": [
+    {
+      "versao": "1.2.0",
+      "data": "2026-04-05",
+      "titulo": "Novidades da Versao 1.2.0",
+      "secoes": [
+        {
+          "titulo": "Contas a Pagar",
+          "icone": "wallet",
+          "itens": [
+            "Novo filtro por Titulo para buscar contas especificas",
+            "Centros de custo ativos agora aparecem corretamente nos filtros"
+          ]
+        },
+        {
+          "titulo": "Contas Atrasadas",
+          "icone": "alert",
+          "itens": [
+            "Filtro e coluna Tipo Pagamento adicionados na aba Dados",
+            "Coluna e filtro de Autorizacao (Sim/Nao) na tabela",
+            "Aba Dados agora e a padrao ao entrar na pagina",
+            "Botoes Exportar PDF e CSV na aba Dados",
+            "PDF agora inclui colunas Plano Financeiro e Autorizacao",
+            "Botao Ocultar Filtros agora aparece em primeiro",
+            "Linhas expansiveis com analise Pareto nas abas Por Credor, Empresa, Centro de Custo e Origem",
+            "Ordenacao em todas as colunas das tabelas"
+          ]
+        },
+        {
+          "titulo": "Contas a Receber",
+          "icone": "download",
+          "itens": [
+            "Botao Salvar Padrao nos filtros em todas as paginas de recebimentos"
+          ]
+        },
+        {
+          "titulo": "Geral",
+          "icone": "settings",
+          "itens": [
+            "Botao Salvar Padrao nos filtros - seus filtros favoritos ficam salvos ao reabrir a pagina",
+            "Sistema de versionamento - voce sera notificado sobre novidades a cada atualizacao",
+            "Correcao nos filtros de centros de custo que nao apareciam corretamente"
+          ]
+        }
+      ]
+    },
     {
       "versao": "1.1.0",
       "data": "2026-04-05",
@@ -10,7 +55,6 @@
           "titulo": "Contas a Pagar",
           "icone": "wallet",
           "itens": [
-            "Novo filtro por Titulo para buscar contas especificas",
             "Filtro de Tipo Pagamento e Autorizacao adicionados",
             "Tooltips detalhados nos cards com informacoes dos dados",
             "Botao Salvar Padrao nos filtros - seus filtros favoritos ficam salvos"
