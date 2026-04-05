@@ -2664,12 +2664,28 @@ def criar_solicitacao(data: dict):
     conn = get_config_db_connection()
     cursor = conn.cursor()
     try:
-        # Garantir que coluna imagem existe
+        # Garantir que tabela existe
         try:
-            cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS imagem TEXT")
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS solicitacoes_melhorias (
+                    id SERIAL PRIMARY KEY,
+                    titulo VARCHAR(255) NOT NULL,
+                    descricao TEXT NOT NULL,
+                    secao VARCHAR(100) NOT NULL DEFAULT 'Geral',
+                    prioridade VARCHAR(20) NOT NULL DEFAULT 'media',
+                    status VARCHAR(20) NOT NULL DEFAULT 'pendente',
+                    usuario_nome VARCHAR(255),
+                    usuario_email VARCHAR(255),
+                    resposta_dev TEXT,
+                    versao_implementada VARCHAR(20),
+                    imagem TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
             conn.commit()
-        except Exception as alter_err:
-            print(f"[WARN] ALTER TABLE imagem: {alter_err}")
+        except Exception as create_err:
+            print(f"[WARN] CREATE TABLE solicitacoes: {create_err}")
             try:
                 conn.rollback()
             except Exception:
