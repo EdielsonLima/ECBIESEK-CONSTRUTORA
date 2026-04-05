@@ -2668,14 +2668,30 @@ def criar_solicitacao(data: dict):
         try:
             cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS imagem TEXT")
             conn.commit()
-        except Exception:
+        except Exception as alter_err:
+            print(f"[WARN] ALTER TABLE imagem: {alter_err}")
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+
+        imagem = data.get('imagem') or None
+        try:
+            cursor.execute(
+                """INSERT INTO solicitacoes_melhorias (titulo, descricao, secao, prioridade, usuario_nome, usuario_email, imagem)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+                (data.get('titulo', ''), data.get('descricao', ''), data.get('secao', 'Geral'),
+                 data.get('prioridade', 'media'), data.get('usuario_nome', ''), data.get('usuario_email', ''), imagem)
+            )
+        except Exception as insert_err:
+            print(f"[WARN] INSERT com imagem falhou: {insert_err}, tentando sem imagem...")
             conn.rollback()
-        cursor.execute(
-            """INSERT INTO solicitacoes_melhorias (titulo, descricao, secao, prioridade, usuario_nome, usuario_email, imagem)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)""",
-            (data['titulo'], data['descricao'], data.get('secao', 'Geral'),
-             data.get('prioridade', 'media'), data.get('usuario_nome', ''), data.get('usuario_email', ''), data.get('imagem'))
-        )
+            cursor.execute(
+                """INSERT INTO solicitacoes_melhorias (titulo, descricao, secao, prioridade, usuario_nome, usuario_email)
+                VALUES (%s, %s, %s, %s, %s, %s)""",
+                (data.get('titulo', ''), data.get('descricao', ''), data.get('secao', 'Geral'),
+                 data.get('prioridade', 'media'), data.get('usuario_nome', ''), data.get('usuario_email', ''))
+            )
         conn.commit()
         return {"success": True}
     except Exception as e:
