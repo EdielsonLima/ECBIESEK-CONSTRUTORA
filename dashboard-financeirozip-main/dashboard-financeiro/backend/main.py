@@ -867,7 +867,8 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                 SELECT cp.credor, cp.data_pagamento as data_vencimento, cp.valor_liquido as valor_total,
                        cp.lancamento, cp.numero_documento, cp.id_plano_financeiro,
                        cp.id_interno_empresa, cp.id_interno_centro_custo,
-                       cc.nome_empresa, cc.nome_centrocusto
+                       cc.nome_empresa, cc.nome_centrocusto,
+                       cc.id_sienge_centrocusto as codigo_centrocusto
                 FROM contas_pagas cp
                 LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
                 WHERE 1=1{excl_where}
@@ -945,6 +946,7 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                        cap.lancamento, cap.numero_documento, cap.id_plano_financeiro,
                        cap.id_interno_empresa, cap.id_interno_centro_custo,
                        cc.nome_empresa, cc.nome_centrocusto,
+                       cc.id_sienge_centrocusto as codigo_centrocusto,
                        cap.numero_parcela,
                        cap.data_cadastro,
                        cap.flautorizacao,
@@ -989,6 +991,7 @@ def get_contas_ano(ano: int = None):
                    cap.lancamento, cap.numero_documento, cap.id_plano_financeiro,
                    cap.id_interno_empresa, cap.id_interno_centro_custo,
                    cc.nome_empresa, cc.nome_centrocusto,
+                   cc.id_sienge_centrocusto as codigo_centrocusto,
                    cc.id_sienge_empresa,
                    TRIM(cap.id_documento) as id_documento,
                    TRIM(cap.id_origem) as id_origem,
@@ -5482,6 +5485,7 @@ def get_contas_receber(status: Optional[str] = None, limite: int = 100):
                        car.lancamento, car.numero_documento, car.id_plano_financeiro,
                        cc.id_sienge_empresa as id_interno_empresa, car.id_interno_centro_custo,
                        cc.nome_empresa, cc.nome_centrocusto,
+                       cc.id_sienge_centrocusto as codigo_centrocusto,
                        TRIM(car.id_documento) as id_documento,
                        car.lancamento as titulo, car.numero_parcela,
                        CASE TRIM(car.tc)
@@ -5639,6 +5643,7 @@ def get_contas_recebidas_filtradas(
                 cc.nome_empresa,
                 cr.id_interno_centro_custo AS id_interno_centrocusto,
                 cc.nome_centrocusto,
+                cc.id_sienge_centrocusto as codigo_centrocusto,
                 TRIM(cr.id_documento) as id_documento,
                 cr.parcela as numero_parcela,
                 cr.id_tipo_baixa,
