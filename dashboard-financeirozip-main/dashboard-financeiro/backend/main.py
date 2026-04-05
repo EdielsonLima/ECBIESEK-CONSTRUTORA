@@ -2665,10 +2665,10 @@ def criar_solicitacao(data: dict):
     cursor = conn.cursor()
     try:
         cursor.execute(
-            """INSERT INTO solicitacoes_melhorias (titulo, descricao, secao, prioridade, usuario_nome, usuario_email)
-            VALUES (%s, %s, %s, %s, %s, %s)""",
+            """INSERT INTO solicitacoes_melhorias (titulo, descricao, secao, prioridade, usuario_nome, usuario_email, imagem)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)""",
             (data['titulo'], data['descricao'], data.get('secao', 'Geral'),
-             data.get('prioridade', 'media'), data.get('usuario_nome', ''), data.get('usuario_email', ''))
+             data.get('prioridade', 'media'), data.get('usuario_nome', ''), data.get('usuario_email', ''), data.get('imagem'))
         )
         conn.commit()
         return {"success": True}
@@ -7487,10 +7487,17 @@ def _ensure_config_tables_in_postgres():
                     usuario_email VARCHAR(255),
                     resposta_dev TEXT,
                     versao_implementada VARCHAR(20),
+                    imagem TEXT,
                     created_at {ts},
                     updated_at {ts}
                 )
             """)
+
+            # Migração: adicionar coluna imagem se não existir
+            try:
+                cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS imagem TEXT")
+            except Exception:
+                pass
 
             conn.commit()
             cursor.close()

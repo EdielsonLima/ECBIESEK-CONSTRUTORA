@@ -12,6 +12,7 @@ interface Solicitacao {
   usuario_email: string;
   resposta_dev: string | null;
   versao_implementada: string | null;
+  imagem: string | null;
   created_at: string;
   updated_at: string | null;
 }
@@ -46,6 +47,8 @@ export const Solicitacoes: React.FC = () => {
   const [editStatus, setEditStatus] = useState('');
   const [editResposta, setEditResposta] = useState('');
   const [editVersao, setEditVersao] = useState('');
+  const [imagem, setImagem] = useState<string | null>(null);
+  const [imagemExpandida, setImagemExpandida] = useState<string | null>(null);
 
   const user = authService.getStoredUser();
   const isAdmin = user?.permissao === 'admin';
@@ -78,8 +81,9 @@ export const Solicitacoes: React.FC = () => {
         prioridade,
         usuario_nome: user?.nome || '',
         usuario_email: user?.email || '',
+        imagem,
       });
-      setTitulo(''); setDescricao(''); setSecao('Geral'); setPrioridade('media');
+      setTitulo(''); setDescricao(''); setSecao('Geral'); setPrioridade('media'); setImagem(null);
       setMostrarForm(false);
       setMsg({ tipo: 'ok', texto: 'Solicitacao enviada com sucesso!' });
       carregarDados();
@@ -230,11 +234,77 @@ export const Solicitacoes: React.FC = () => {
               </select>
             </div>
           </div>
+          {/* Área de imagem - upload ou colar (Ctrl+V) */}
+          <div className="mt-4">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Print da tela (opcional)</label>
+            <div
+              className={`relative rounded-lg border-2 border-dashed p-4 text-center transition-colors ${imagem ? 'border-blue-300 bg-blue-50' : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'}`}
+              onPaste={(e) => {
+                const items = e.clipboardData?.items;
+                if (!items) return;
+                for (let i = 0; i < items.length; i++) {
+                  if (items[i].type.startsWith('image/')) {
+                    const file = items[i].getAsFile();
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (ev) => setImagem(ev.target?.result as string);
+                      reader.readAsDataURL(file);
+                    }
+                    e.preventDefault();
+                    break;
+                  }
+                }
+              }}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const file = e.dataTransfer.files[0];
+                if (file && file.type.startsWith('image/')) {
+                  const reader = new FileReader();
+                  reader.onload = (ev) => setImagem(ev.target?.result as string);
+                  reader.readAsDataURL(file);
+                }
+              }}
+              tabIndex={0}
+            >
+              {imagem ? (
+                <div className="relative inline-block">
+                  <img src={imagem} alt="Print" className="max-h-48 rounded-lg shadow-sm mx-auto" />
+                  <button
+                    type="button"
+                    onClick={() => setImagem(null)}
+                    className="absolute -top-2 -right-2 rounded-full bg-red-500 p-1 text-white shadow hover:bg-red-600"
+                  >
+                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+              ) : (
+                <div className="py-4">
+                  <svg className="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p className="mt-2 text-sm text-gray-500">Cole um print aqui (<span className="font-semibold">Ctrl+V</span>) ou arraste uma imagem</p>
+                  <label className="mt-2 inline-flex cursor-pointer items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-200">
+                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                    Ou selecione um arquivo
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => setImagem(ev.target?.result as string);
+                        reader.readAsDataURL(file);
+                      }
+                    }} />
+                  </label>
+                </div>
+              )}
+            </div>
+          </div>
           <div className="mt-4 flex gap-3">
             <button type="button" onClick={enviar} disabled={enviando} className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
               {enviando ? 'Enviando...' : 'Enviar Solicitacao'}
             </button>
-            <button type="button" onClick={() => setMostrarForm(false)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+            <button type="button" onClick={() => { setMostrarForm(false); setImagem(null); }} className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
               Cancelar
             </button>
           </div>
@@ -274,6 +344,16 @@ export const Solicitacoes: React.FC = () => {
                         <span className="rounded bg-green-50 px-1.5 py-0.5 text-green-700 font-medium">v{s.versao_implementada}</span>
                       )}
                     </div>
+                    {s.imagem && (
+                      <div className="mt-2">
+                        <img
+                          src={s.imagem}
+                          alt="Print"
+                          className="max-h-32 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={() => setImagemExpandida(s.imagem)}
+                        />
+                      </div>
+                    )}
                     {s.resposta_dev && (
                       <div className="mt-2 rounded-lg bg-blue-50 p-3 text-sm text-blue-800 border border-blue-100">
                         <span className="font-semibold">Resposta:</span> {s.resposta_dev}
@@ -319,6 +399,18 @@ export const Solicitacoes: React.FC = () => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Modal imagem expandida */}
+      {imagemExpandida && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4" onClick={() => setImagemExpandida(null)}>
+          <div className="relative max-w-4xl max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <button type="button" onClick={() => setImagemExpandida(null)} className="absolute -top-3 -right-3 rounded-full bg-white p-1.5 shadow-lg hover:bg-gray-100 z-10">
+              <svg className="h-5 w-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <img src={imagemExpandida} alt="Print expandido" className="max-h-[85vh] rounded-lg shadow-2xl" />
+          </div>
         </div>
       )}
     </div>
