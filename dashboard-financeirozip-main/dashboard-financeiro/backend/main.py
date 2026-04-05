@@ -8458,6 +8458,38 @@ def toggle_tipo_baixa_exposicao(data: dict):
         cursor.close()
         conn.close()
 
+@app.post("/api/configuracoes/tipos-baixa-seed-contas-pagas")
+def seed_tipos_baixa_contas_pagas():
+    """Configura tipos de baixa para contas_pagas: inclui Pagamento(1) e Adiantamento(10)"""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        tipos = [
+            (1, 'Pagamento', 'P', True, 'contas_pagas'),
+            (10, 'Adiantamento', 'A', True, 'contas_pagas'),
+        ]
+        for t in tipos:
+            cursor.execute("SELECT id FROM config_tipos_baixa_exposicao_caixa WHERE id_tipo_baixa = %s", (t[0],))
+            row = cursor.fetchone()
+            if row:
+                cursor.execute(
+                    "UPDATE config_tipos_baixa_exposicao_caixa SET incluir = %s, paginas = %s WHERE id_tipo_baixa = %s",
+                    (True, t[4], t[0])
+                )
+            else:
+                cursor.execute(
+                    "INSERT INTO config_tipos_baixa_exposicao_caixa (id_tipo_baixa, nome_tipo_baixa, flag_sistema_uso, incluir, paginas) VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+                    t
+                )
+        conn.commit()
+        return {"success": True, "configurados": ["1-Pagamento", "10-Adiantamento"]}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
 @app.get("/api/configuracoes/tipos-baixa-exposicao-caixa-ids")
 def get_tipos_baixa_exposicao_caixa_ids():
     """Retorna os IDs dos tipos de baixa marcados como incluir=true para exposicao_caixa.
