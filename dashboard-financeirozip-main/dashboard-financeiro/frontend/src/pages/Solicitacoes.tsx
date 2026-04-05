@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { apiService, authService } from '../services/api';
 
 const comprimirImagem = (dataUrl: string, maxWidth = 800, quality = 0.6): Promise<string> => {
@@ -8,10 +8,7 @@ const comprimirImagem = (dataUrl: string, maxWidth = 800, quality = 0.6): Promis
       const canvas = document.createElement('canvas');
       let w = img.width;
       let h = img.height;
-      if (w > maxWidth) {
-        h = (h * maxWidth) / w;
-        w = maxWidth;
-      }
+      if (w > maxWidth) { h = (h * maxWidth) / w; w = maxWidth; }
       canvas.width = w;
       canvas.height = h;
       const ctx = canvas.getContext('2d');
@@ -40,18 +37,19 @@ interface Solicitacao {
 
 const SECOES = ['Painel Executivo', 'Contas a Pagar', 'Contas Pagas', 'Contas Atrasadas', 'Contas a Receber', 'Contas Recebidas', 'Inadimplencia', 'Dashboard', 'KPIs', 'Centros de Custo', 'Exposicao de Caixa', 'Extrato Cliente', 'Geral'];
 const PRIORIDADES = [
-  { value: 'baixa', label: 'Baixa', cor: 'bg-gray-100 text-gray-700' },
-  { value: 'media', label: 'Media', cor: 'bg-blue-100 text-blue-700' },
-  { value: 'alta', label: 'Alta', cor: 'bg-orange-100 text-orange-700' },
-  { value: 'urgente', label: 'Urgente', cor: 'bg-red-100 text-red-700' },
+  { value: 'baixa', label: 'Baixa', cor: 'bg-gray-100 text-gray-700', borda: 'border-l-gray-400' },
+  { value: 'media', label: 'Media', cor: 'bg-blue-100 text-blue-700', borda: 'border-l-blue-400' },
+  { value: 'alta', label: 'Alta', cor: 'bg-orange-100 text-orange-700', borda: 'border-l-orange-400' },
+  { value: 'urgente', label: 'Urgente', cor: 'bg-red-100 text-red-700', borda: 'border-l-red-500' },
 ];
-const STATUS_MAP: Record<string, { label: string; cor: string }> = {
-  pendente: { label: 'Pendente', cor: 'bg-yellow-100 text-yellow-800' },
-  em_analise: { label: 'Em Analise', cor: 'bg-blue-100 text-blue-800' },
-  em_desenvolvimento: { label: 'Em Desenvolvimento', cor: 'bg-purple-100 text-purple-800' },
-  implementado: { label: 'Implementado', cor: 'bg-green-100 text-green-800' },
-  rejeitado: { label: 'Rejeitado', cor: 'bg-red-100 text-red-800' },
-};
+
+const KANBAN_COLUNAS = [
+  { status: 'pendente', label: 'Pendente', cor: 'border-t-yellow-400', bgHeader: 'bg-yellow-50', textCor: 'text-yellow-700', dot: 'bg-yellow-400' },
+  { status: 'em_analise', label: 'Em Analise', cor: 'border-t-blue-400', bgHeader: 'bg-blue-50', textCor: 'text-blue-700', dot: 'bg-blue-400' },
+  { status: 'em_desenvolvimento', label: 'Em Desenvolvimento', cor: 'border-t-purple-400', bgHeader: 'bg-purple-50', textCor: 'text-purple-700', dot: 'bg-purple-400' },
+  { status: 'implementado', label: 'Implementado', cor: 'border-t-green-400', bgHeader: 'bg-green-50', textCor: 'text-green-700', dot: 'bg-green-400' },
+  { status: 'rejeitado', label: 'Rejeitado', cor: 'border-t-red-400', bgHeader: 'bg-red-50', textCor: 'text-red-700', dot: 'bg-red-400' },
+];
 
 export const Solicitacoes: React.FC = () => {
   const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
@@ -63,13 +61,13 @@ export const Solicitacoes: React.FC = () => {
   const [prioridade, setPrioridade] = useState('media');
   const [enviando, setEnviando] = useState(false);
   const [msg, setMsg] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
-  const [filtroStatus, setFiltroStatus] = useState<string>('todos');
-  const [editandoId, setEditandoId] = useState<number | null>(null);
-  const [editStatus, setEditStatus] = useState('');
-  const [editResposta, setEditResposta] = useState('');
-  const [editVersao, setEditVersao] = useState('');
   const [imagem, setImagem] = useState<string | null>(null);
   const [imagemExpandida, setImagemExpandida] = useState<string | null>(null);
+  const [dragId, setDragId] = useState<number | null>(null);
+  const [dragOverCol, setDragOverCol] = useState<string | null>(null);
+  const [editandoId, setEditandoId] = useState<number | null>(null);
+  const [editResposta, setEditResposta] = useState('');
+  const [editVersao, setEditVersao] = useState('');
 
   const user = authService.getStoredUser();
   const isAdmin = user?.permissao === 'admin';
@@ -116,14 +114,25 @@ export const Solicitacoes: React.FC = () => {
     }
   };
 
+  const moverParaStatus = async (id: number, novoStatus: string) => {
+    try {
+      await apiService.atualizarSolicitacao(id, { status: novoStatus });
+      setSolicitacoes(prev => prev.map(s => s.id === id ? { ...s, status: novoStatus } : s));
+    } catch {
+      setMsg({ tipo: 'erro', texto: 'Erro ao mover.' });
+    }
+  };
+
   const salvarEdicao = async (id: number) => {
     try {
-      const data: Record<string, string> = { status: editStatus };
+      const data: Record<string, string> = {};
       if (editResposta) data.resposta_dev = editResposta;
       if (editVersao) data.versao_implementada = editVersao;
-      await apiService.atualizarSolicitacao(id, data);
+      if (Object.keys(data).length > 0) {
+        await apiService.atualizarSolicitacao(id, data);
+        carregarDados();
+      }
       setEditandoId(null);
-      carregarDados();
     } catch {
       setMsg({ tipo: 'erro', texto: 'Erro ao atualizar.' });
     }
@@ -139,15 +148,40 @@ export const Solicitacoes: React.FC = () => {
     }
   };
 
-  const solicitacoesFiltradas = filtroStatus === 'todos'
-    ? solicitacoes
-    : solicitacoes.filter(s => s.status === filtroStatus);
+  // Drag handlers
+  const handleDragStart = (e: React.DragEvent, id: number) => {
+    if (!isAdmin) return;
+    setDragId(id);
+    e.dataTransfer.effectAllowed = 'move';
+    (e.target as HTMLElement).style.opacity = '0.5';
+  };
 
-  const contadores = {
-    total: solicitacoes.length,
-    pendente: solicitacoes.filter(s => s.status === 'pendente').length,
-    em_desenvolvimento: solicitacoes.filter(s => s.status === 'em_desenvolvimento' || s.status === 'em_analise').length,
-    implementado: solicitacoes.filter(s => s.status === 'implementado').length,
+  const handleDragEnd = (e: React.DragEvent) => {
+    (e.target as HTMLElement).style.opacity = '1';
+    setDragId(null);
+    setDragOverCol(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent, status: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverCol(status);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverCol(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, novoStatus: string) => {
+    e.preventDefault();
+    setDragOverCol(null);
+    if (dragId !== null) {
+      const sol = solicitacoes.find(s => s.id === dragId);
+      if (sol && sol.status !== novoStatus) {
+        moverParaStatus(dragId, novoStatus);
+      }
+    }
+    setDragId(null);
   };
 
   if (loading) {
@@ -161,48 +195,41 @@ export const Solicitacoes: React.FC = () => {
     );
   }
 
+  const contadores = {
+    total: solicitacoes.length,
+    pendente: solicitacoes.filter(s => s.status === 'pendente').length,
+    em_andamento: solicitacoes.filter(s => s.status === 'em_desenvolvimento' || s.status === 'em_analise').length,
+    implementado: solicitacoes.filter(s => s.status === 'implementado').length,
+  };
+
   return (
     <div>
       {/* Cards resumo */}
-      <div className="mb-6 grid gap-4 md:grid-cols-4">
-        <div className="rounded-xl bg-white p-4 shadow border-l-4 border-blue-500">
-          <p className="text-xs font-medium text-gray-500 uppercase">Total</p>
-          <p className="text-2xl font-bold text-gray-900">{contadores.total}</p>
+      <div className="mb-5 grid gap-3 md:grid-cols-4">
+        <div className="rounded-xl bg-white p-3 shadow-sm border-l-4 border-blue-500">
+          <p className="text-[10px] font-medium text-gray-500 uppercase">Total</p>
+          <p className="text-xl font-bold text-gray-900">{contadores.total}</p>
         </div>
-        <div className="rounded-xl bg-white p-4 shadow border-l-4 border-yellow-500">
-          <p className="text-xs font-medium text-gray-500 uppercase">Pendentes</p>
-          <p className="text-2xl font-bold text-yellow-600">{contadores.pendente}</p>
+        <div className="rounded-xl bg-white p-3 shadow-sm border-l-4 border-yellow-500">
+          <p className="text-[10px] font-medium text-gray-500 uppercase">Pendentes</p>
+          <p className="text-xl font-bold text-yellow-600">{contadores.pendente}</p>
         </div>
-        <div className="rounded-xl bg-white p-4 shadow border-l-4 border-purple-500">
-          <p className="text-xs font-medium text-gray-500 uppercase">Em Andamento</p>
-          <p className="text-2xl font-bold text-purple-600">{contadores.em_desenvolvimento}</p>
+        <div className="rounded-xl bg-white p-3 shadow-sm border-l-4 border-purple-500">
+          <p className="text-[10px] font-medium text-gray-500 uppercase">Em Andamento</p>
+          <p className="text-xl font-bold text-purple-600">{contadores.em_andamento}</p>
         </div>
-        <div className="rounded-xl bg-white p-4 shadow border-l-4 border-green-500">
-          <p className="text-xs font-medium text-gray-500 uppercase">Implementados</p>
-          <p className="text-2xl font-bold text-green-600">{contadores.implementado}</p>
+        <div className="rounded-xl bg-white p-3 shadow-sm border-l-4 border-green-500">
+          <p className="text-[10px] font-medium text-gray-500 uppercase">Implementados</p>
+          <p className="text-xl font-bold text-green-600">{contadores.implementado}</p>
         </div>
       </div>
 
-      {/* Header + Filtros */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          {['todos', 'pendente', 'em_analise', 'em_desenvolvimento', 'implementado', 'rejeitado'].map(s => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setFiltroStatus(s)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                filtroStatus === s ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {s === 'todos' ? 'Todos' : STATUS_MAP[s]?.label || s}
-            </button>
-          ))}
-        </div>
+      {/* Botão Nova Solicitação */}
+      <div className="mb-4 flex justify-end">
         <button
           type="button"
           onClick={() => setMostrarForm(!mostrarForm)}
-          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm"
         >
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -219,111 +246,67 @@ export const Solicitacoes: React.FC = () => {
 
       {/* Formulário */}
       {mostrarForm && (
-        <div className="mb-6 rounded-xl bg-white p-6 shadow-lg border border-gray-100">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">Nova Solicitacao de Melhoria</h3>
-          <div className="grid gap-4 md:grid-cols-2">
+        <div className="mb-5 rounded-xl bg-white p-5 shadow-lg border border-gray-100">
+          <h3 className="text-base font-bold text-gray-900 mb-3">Nova Solicitacao de Melhoria</h3>
+          <div className="grid gap-3 md:grid-cols-2">
             <div className="md:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-700">Titulo</label>
-              <input
-                type="text"
-                value={titulo}
-                onChange={e => setTitulo(e.target.value)}
-                placeholder="Ex: Adicionar filtro de data no relatorio..."
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-              />
+              <label className="mb-1 block text-xs font-medium text-gray-700">Titulo</label>
+              <input type="text" value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Ex: Adicionar filtro de data no relatorio..." className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
             </div>
             <div className="md:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-700">Descricao</label>
-              <textarea
-                value={descricao}
-                onChange={e => setDescricao(e.target.value)}
-                placeholder="Descreva o que voce gostaria que fosse melhorado ou adicionado..."
-                rows={4}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-              />
+              <label className="mb-1 block text-xs font-medium text-gray-700">Descricao</label>
+              <textarea value={descricao} onChange={e => setDescricao(e.target.value)} placeholder="Descreva o que voce gostaria que fosse melhorado..." rows={3} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Secao</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">Secao</label>
               <select value={secao} onChange={e => setSecao(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
                 {SECOES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Prioridade</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">Prioridade</label>
               <select value={prioridade} onChange={e => setPrioridade(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
                 {PRIORIDADES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
               </select>
             </div>
           </div>
-          {/* Área de imagem - upload ou colar (Ctrl+V) */}
-          <div className="mt-4">
-            <label className="mb-1 block text-sm font-medium text-gray-700">Print da tela (opcional)</label>
+          {/* Área de imagem */}
+          <div className="mt-3">
+            <label className="mb-1 block text-xs font-medium text-gray-700">Print da tela (opcional)</label>
             <div
-              className={`relative rounded-lg border-2 border-dashed p-4 text-center transition-colors ${imagem ? 'border-blue-300 bg-blue-50' : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'}`}
+              className={`relative rounded-lg border-2 border-dashed p-3 text-center transition-colors ${imagem ? 'border-blue-300 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}
               onPaste={(e) => {
                 const items = e.clipboardData?.items;
                 if (!items) return;
                 for (let i = 0; i < items.length; i++) {
                   if (items[i].type.startsWith('image/')) {
                     const file = items[i].getAsFile();
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onload = async (ev) => { const compressed = await comprimirImagem(ev.target?.result as string); setImagem(compressed); };
-                      reader.readAsDataURL(file);
-                    }
-                    e.preventDefault();
-                    break;
+                    if (file) { const reader = new FileReader(); reader.onload = async (ev) => { setImagem(await comprimirImagem(ev.target?.result as string)); }; reader.readAsDataURL(file); }
+                    e.preventDefault(); break;
                   }
                 }
               }}
               onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                const file = e.dataTransfer.files[0];
-                if (file && file.type.startsWith('image/')) {
-                  const reader = new FileReader();
-                  reader.onload = async (ev) => { const compressed = await comprimirImagem(ev.target?.result as string); setImagem(compressed); };
-                  reader.readAsDataURL(file);
-                }
-              }}
+              onDrop={(e) => { e.preventDefault(); const file = e.dataTransfer.files[0]; if (file?.type.startsWith('image/')) { const reader = new FileReader(); reader.onload = async (ev) => { setImagem(await comprimirImagem(ev.target?.result as string)); }; reader.readAsDataURL(file); } }}
               tabIndex={0}
             >
               {imagem ? (
                 <div className="relative inline-block">
-                  <img src={imagem} alt="Print" className="max-h-48 rounded-lg shadow-sm mx-auto" />
-                  <button
-                    type="button"
-                    onClick={() => setImagem(null)}
-                    className="absolute -top-2 -right-2 rounded-full bg-red-500 p-1 text-white shadow hover:bg-red-600"
-                  >
-                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  <img src={imagem} alt="Print" className="max-h-36 rounded-lg shadow-sm mx-auto" />
+                  <button type="button" onClick={() => setImagem(null)} className="absolute -top-2 -right-2 rounded-full bg-red-500 p-1 text-white shadow hover:bg-red-600">
+                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                   </button>
                 </div>
               ) : (
-                <div className="py-4">
-                  <svg className="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <p className="mt-2 text-sm text-gray-500">Cole um print aqui (<span className="font-semibold">Ctrl+V</span>) ou arraste uma imagem</p>
-                  <label className="mt-2 inline-flex cursor-pointer items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-200">
-                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                    Ou selecione um arquivo
-                    <input type="file" accept="image/*" className="hidden" onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onload = async (ev) => { const compressed = await comprimirImagem(ev.target?.result as string); setImagem(compressed); };
-                        reader.readAsDataURL(file);
-                      }
-                    }} />
-                  </label>
+                <div className="py-2">
+                  <p className="text-xs text-gray-500">Cole (<span className="font-semibold">Ctrl+V</span>), arraste ou <label className="cursor-pointer text-blue-600 hover:underline">selecione<input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) { const reader = new FileReader(); reader.onload = async (ev) => { setImagem(await comprimirImagem(ev.target?.result as string)); }; reader.readAsDataURL(file); } }} /></label> uma imagem</p>
                 </div>
               )}
             </div>
           </div>
-          <div className="mt-4 flex gap-3">
-            <button type="button" onClick={enviar} disabled={enviando} className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
-              {enviando ? 'Enviando...' : 'Enviar Solicitacao'}
+          <div className="mt-3 flex gap-3">
+            <button type="button" onClick={enviar} disabled={enviando} className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+              {enviando ? 'Enviando...' : 'Enviar'}
             </button>
             <button type="button" onClick={() => { setMostrarForm(false); setImagem(null); }} className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
               Cancelar
@@ -332,96 +315,111 @@ export const Solicitacoes: React.FC = () => {
         </div>
       )}
 
-      {/* Lista */}
-      {solicitacoesFiltradas.length === 0 ? (
-        <div className="rounded-xl bg-white p-12 text-center shadow">
-          <svg className="mx-auto h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
-          <p className="mt-3 text-gray-500">Nenhuma solicitacao encontrada</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {solicitacoesFiltradas.map(s => {
-            const statusInfo = STATUS_MAP[s.status] || { label: s.status, cor: 'bg-gray-100 text-gray-700' };
-            const prioInfo = PRIORIDADES.find(p => p.value === s.prioridade) || PRIORIDADES[1];
-            const editando = editandoId === s.id;
+      {/* Kanban Board */}
+      <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: '60vh' }}>
+        {KANBAN_COLUNAS.map(col => {
+          const cards = solicitacoes.filter(s => s.status === col.status);
+          const isDragOver = dragOverCol === col.status;
 
-            return (
-              <div key={s.id} className="rounded-xl bg-white p-5 shadow hover:shadow-md transition-shadow border border-gray-100">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <h4 className="text-sm font-bold text-gray-900">{s.titulo}</h4>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusInfo.cor}`}>{statusInfo.label}</span>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${prioInfo.cor}`}>{prioInfo.label}</span>
-                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600">{s.secao}</span>
-                    </div>
-                    <p className="text-sm text-gray-600 whitespace-pre-wrap">{s.descricao}</p>
-                    <div className="mt-2 flex items-center gap-3 text-xs text-gray-400">
-                      <span>{s.usuario_nome}</span>
-                      <span>{s.created_at ? new Date(s.created_at).toLocaleDateString('pt-BR') : ''}</span>
-                      {s.versao_implementada && (
-                        <span className="rounded bg-green-50 px-1.5 py-0.5 text-green-700 font-medium">v{s.versao_implementada}</span>
-                      )}
-                    </div>
-                    {s.imagem && (
-                      <div className="mt-2">
+          return (
+            <div
+              key={col.status}
+              className={`flex-shrink-0 w-64 rounded-xl bg-gray-50 border-t-4 ${col.cor} transition-all ${isDragOver ? 'ring-2 ring-blue-400 bg-blue-50/50' : ''}`}
+              onDragOver={(e) => handleDragOver(e, col.status)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, col.status)}
+            >
+              {/* Header da coluna */}
+              <div className={`px-3 py-2.5 ${col.bgHeader} rounded-t-lg`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`h-2.5 w-2.5 rounded-full ${col.dot}`}></div>
+                    <span className={`text-xs font-bold ${col.textCor}`}>{col.label}</span>
+                  </div>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${col.bgHeader} ${col.textCor}`}>{cards.length}</span>
+                </div>
+              </div>
+
+              {/* Cards */}
+              <div className="p-2 space-y-2 min-h-[200px]">
+                {cards.map(s => {
+                  const prioInfo = PRIORIDADES.find(p => p.value === s.prioridade) || PRIORIDADES[1];
+                  const editando = editandoId === s.id;
+
+                  return (
+                    <div
+                      key={s.id}
+                      draggable={isAdmin}
+                      onDragStart={(e) => handleDragStart(e, s.id)}
+                      onDragEnd={handleDragEnd}
+                      className={`rounded-lg bg-white p-3 shadow-sm border border-gray-100 border-l-4 ${prioInfo.borda} ${isAdmin ? 'cursor-grab active:cursor-grabbing' : ''} hover:shadow-md transition-shadow`}
+                    >
+                      <div className="flex items-start justify-between gap-1">
+                        <h4 className="text-xs font-bold text-gray-900 leading-tight flex-1">{s.titulo}</h4>
+                        {isAdmin && (
+                          <div className="flex gap-0.5 flex-shrink-0">
+                            <button type="button" onClick={() => { setEditandoId(editando ? null : s.id); setEditResposta(s.resposta_dev || ''); setEditVersao(s.versao_implementada || ''); }} className="rounded p-0.5 text-gray-300 hover:text-blue-600" title="Editar">
+                              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                            </button>
+                            <button type="button" onClick={() => deletar(s.id)} className="rounded p-0.5 text-gray-300 hover:text-red-600" title="Remover">
+                              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <p className="mt-1 text-[11px] text-gray-500 line-clamp-2">{s.descricao}</p>
+
+                      {s.imagem && (
                         <img
                           src={s.imagem}
                           alt="Print"
-                          className="max-h-32 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                          className="mt-2 max-h-20 rounded border border-gray-100 cursor-pointer hover:opacity-80"
                           onClick={() => setImagemExpandida(s.imagem)}
                         />
-                      </div>
-                    )}
-                    {s.resposta_dev && (
-                      <div className="mt-2 rounded-lg bg-blue-50 p-3 text-sm text-blue-800 border border-blue-100">
-                        <span className="font-semibold">Resposta:</span> {s.resposta_dev}
-                      </div>
-                    )}
-                  </div>
-                  {isAdmin && (
-                    <div className="flex gap-1 flex-shrink-0">
-                      <button type="button" onClick={() => { setEditandoId(editando ? null : s.id); setEditStatus(s.status); setEditResposta(s.resposta_dev || ''); setEditVersao(s.versao_implementada || ''); }} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-blue-600" title="Editar">
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                      </button>
-                      <button type="button" onClick={() => deletar(s.id)} className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600" title="Remover">
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                      </button>
-                    </div>
-                  )}
-                </div>
+                      )}
 
-                {/* Admin edit panel */}
-                {editando && isAdmin && (
-                  <div className="mt-3 rounded-lg bg-gray-50 p-4 border border-gray-200">
-                    <div className="grid gap-3 md:grid-cols-3">
-                      <div>
-                        <label className="mb-1 block text-xs font-medium text-gray-600">Status</label>
-                        <select value={editStatus} onChange={e => setEditStatus(e.target.value)} className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm">
-                          {Object.entries(STATUS_MAP).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                        </select>
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        <span className={`rounded px-1.5 py-0.5 text-[9px] font-semibold ${prioInfo.cor}`}>{prioInfo.label}</span>
+                        <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[9px] text-gray-500">{s.secao}</span>
+                        {s.versao_implementada && (
+                          <span className="rounded bg-green-50 px-1.5 py-0.5 text-[9px] text-green-700 font-medium">v{s.versao_implementada}</span>
+                        )}
                       </div>
-                      <div>
-                        <label className="mb-1 block text-xs font-medium text-gray-600">Versao Implementada</label>
-                        <input type="text" value={editVersao} onChange={e => setEditVersao(e.target.value)} placeholder="Ex: 1.4.0" className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm" />
+
+                      <div className="mt-1.5 flex items-center gap-1 text-[9px] text-gray-400">
+                        <span>{s.usuario_nome}</span>
+                        <span>&middot;</span>
+                        <span>{s.created_at ? new Date(s.created_at).toLocaleDateString('pt-BR') : ''}</span>
                       </div>
-                      <div className="flex items-end">
-                        <button type="button" onClick={() => salvarEdicao(s.id)} className="rounded bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700">Salvar</button>
-                      </div>
+
+                      {s.resposta_dev && (
+                        <div className="mt-1.5 rounded bg-blue-50 p-1.5 text-[10px] text-blue-700 border border-blue-100">
+                          <span className="font-semibold">Dev:</span> {s.resposta_dev}
+                        </div>
+                      )}
+
+                      {/* Admin edit inline */}
+                      {editando && isAdmin && (
+                        <div className="mt-2 space-y-1.5 border-t border-gray-100 pt-2">
+                          <input type="text" value={editVersao} onChange={e => setEditVersao(e.target.value)} placeholder="Versao (ex: 1.6.0)" className="w-full rounded border border-gray-200 px-2 py-1 text-[10px]" />
+                          <textarea value={editResposta} onChange={e => setEditResposta(e.target.value)} rows={2} placeholder="Resposta..." className="w-full rounded border border-gray-200 px-2 py-1 text-[10px]" />
+                          <button type="button" onClick={() => salvarEdicao(s.id)} className="rounded bg-blue-600 px-2 py-1 text-[10px] font-medium text-white hover:bg-blue-700">Salvar</button>
+                        </div>
+                      )}
                     </div>
-                    <div className="mt-2">
-                      <label className="mb-1 block text-xs font-medium text-gray-600">Resposta ao usuario</label>
-                      <textarea value={editResposta} onChange={e => setEditResposta(e.target.value)} rows={2} placeholder="Opcional: responder ao usuario sobre esta solicitacao..." className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm" />
-                    </div>
+                  );
+                })}
+
+                {cards.length === 0 && (
+                  <div className={`rounded-lg border-2 border-dashed p-4 text-center ${isDragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-200'}`}>
+                    <p className="text-[10px] text-gray-400">{isAdmin ? 'Arraste cards aqui' : 'Nenhuma solicitacao'}</p>
                   </div>
                 )}
               </div>
-            );
-          })}
-        </div>
-      )}
+            </div>
+          );
+        })}
+      </div>
 
       {/* Modal imagem expandida */}
       {imagemExpandida && (
