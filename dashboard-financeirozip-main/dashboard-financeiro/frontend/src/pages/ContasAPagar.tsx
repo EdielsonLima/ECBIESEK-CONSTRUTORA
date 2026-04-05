@@ -246,6 +246,10 @@ export const ContasAPagar: React.FC = () => {
           valorA = (a.nome_empresa || '').toLowerCase();
           valorB = (b.nome_empresa || '').toLowerCase();
           break;
+        case 'codigo_centrocusto':
+          valorA = (a as any).codigo_centrocusto || 0;
+          valorB = (b as any).codigo_centrocusto || 0;
+          break;
         case 'nome_centrocusto':
           valorA = ((a as any).nome_centrocusto || '').toLowerCase();
           valorB = ((b as any).nome_centrocusto || '').toLowerCase();
@@ -801,7 +805,7 @@ export const ContasAPagar: React.FC = () => {
 
   const exportarCSV = () => {
     const contasOrdenadas = ordenarContas(contas);
-    const headers = ['Credor', 'Cadastro', 'Vencimento', 'Prazo', 'Dias', 'Titulo', 'Doc.', 'Aut.', 'Centro de Custo', 'Plano Financeiro', 'Tipo Pagamento', 'Valor'];
+    const headers = ['Credor', 'Cadastro', 'Vencimento', 'Prazo', 'Dias', 'Titulo', 'Doc.', 'Aut.', 'Cod. CC', 'Centro de Custo', 'Plano Financeiro', 'Tipo Pagamento', 'Valor'];
     const rows = contasOrdenadas.map(c => {
       const dias = calcularDiasAteVencimento(c.data_vencimento as any);
       const diasStr = dias < 0 ? `${Math.abs(dias)}d atraso` : dias === 0 ? 'Hoje' : `${dias}d`;
@@ -819,6 +823,7 @@ export const ContasAPagar: React.FC = () => {
         c.lancamento ? c.lancamento.split('/')[0] : '-',
         c.id_documento || '-',
         auth,
+        (c as any).codigo_centrocusto ? String((c as any).codigo_centrocusto) : '-',
         (c as any).nome_centrocusto || '-',
         (c as any).nome_plano_financeiro || '-',
         (c as any).nome_tipo_pagamento || '-',
@@ -886,7 +891,7 @@ export const ContasAPagar: React.FC = () => {
     if (abaAtiva === 'dados') {
       const contasOrdenadas = ordenarContas(contas);
       y = adicionarTabela(doc, {
-        head: [['Credor', 'Vencimento', 'Dias', 'Titulo', 'Aut.', 'Centro de Custo', 'Tipo Doc.', 'Plano Financeiro', 'Tipo Pagamento', 'Valor']],
+        head: [['Credor', 'Venc.', 'Dias', 'Titulo', 'Aut.', 'Cod.', 'Centro de Custo', 'Tipo Doc.', 'Plano Fin.', 'Tipo Pag.', 'Valor']],
         body: contasOrdenadas.map(c => {
           const dias = calcularDiasAteVencimento(c.data_vencimento as any);
           const diasStr = dias < 0 ? `${Math.abs(dias)}d atraso` : dias === 0 ? 'Hoje' : `${dias}d`;
@@ -898,6 +903,7 @@ export const ContasAPagar: React.FC = () => {
             diasStr,
             c.lancamento ? c.lancamento.split('/')[0] : '-',
             auth === 'S' ? 'Sim' : 'Nao',
+            (c as any).codigo_centrocusto ? String((c as any).codigo_centrocusto) : '-',
             (c as any).nome_centrocusto || '-',
             c.id_documento || '-',
             (c as any).nome_plano_financeiro || '-',
@@ -905,8 +911,8 @@ export const ContasAPagar: React.FC = () => {
             `R$ ${formatCurrencyPDF(c.valor_total || 0)}`,
           ];
         }),
-        foot: [['TOTAL', '', '', '', '', '', '', '', '', `R$ ${formatCurrencyPDF(contas.reduce((a, c) => a + (c.valor_total || 0), 0))}`]],
-        columnStyles: { 4: { halign: 'center' }, 9: { halign: 'right' } },
+        foot: [['TOTAL', '', '', '', '', '', '', '', '', '', `R$ ${formatCurrencyPDF(contas.reduce((a, c) => a + (c.valor_total || 0), 0))}`]],
+        columnStyles: { 4: { halign: 'center' }, 5: { halign: 'center' }, 10: { halign: 'right' } },
         didParseCell: (data: any) => {
           if (data.section === 'body' && data.column.index === 4) {
             if (data.cell.raw === 'Sim') {
@@ -1144,7 +1150,7 @@ export const ContasAPagar: React.FC = () => {
         />
         <MultiSelectDropdown
           label="Centro de Custo"
-          items={centrosCusto.map(c => ({ id: c.id, nome: c.nome }))}
+          items={centrosCusto.map(c => ({ id: c.id, nome: c.codigo ? `${c.codigo} - ${c.nome}` : c.nome }))}
           selected={filtroCentroCusto}
           setSelected={setFiltroCentroCusto}
           isOpen={ccDropdownAberto}
@@ -1513,6 +1519,9 @@ export const ContasAPagar: React.FC = () => {
                 <th onClick={() => toggleOrdenacao('flautorizacao')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Aut.{renderSortIcon('flautorizacao')}
                 </th>
+                <th onClick={() => toggleOrdenacao('codigo_centrocusto')} className="px-1.5 py-2 text-center text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                  Cod.{renderSortIcon('codigo_centrocusto')}
+                </th>
                 <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   C. Custo{renderSortIcon('nome_centrocusto')}
                 </th>
@@ -1592,6 +1601,7 @@ export const ContasAPagar: React.FC = () => {
                             : <span className="inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">Nao</span>;
                         })()}
                       </td>
+                      <td className="whitespace-nowrap px-1.5 py-2 text-center text-gray-400 font-mono text-[10px]">{(conta as any).codigo_centrocusto || '-'}</td>
                       <td className="px-1.5 py-2 text-gray-500 truncate" title={(conta as any).nome_centrocusto || '-'}>{(conta as any).nome_centrocusto || '-'}</td>
                       <td className="px-1.5 py-2 text-gray-500 truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
                       <td className="px-1.5 py-2 text-gray-500 truncate" title={(conta as any).nome_tipo_pagamento || '-'}>{(conta as any).nome_tipo_pagamento || '-'}</td>
@@ -1599,7 +1609,7 @@ export const ContasAPagar: React.FC = () => {
                     </tr>
                     {isExpanded && (
                       <tr>
-                        <td colSpan={12} className="p-0">
+                        <td colSpan={13} className="p-0">
                           <div className="bg-gradient-to-r from-blue-50 via-blue-50 to-indigo-50 border-l-4 border-l-blue-600 border-t-2 border-b-2 border-t-blue-300 border-b-blue-300 px-8 py-5 shadow-inner">
                             <div className="flex items-center justify-between mb-4 pb-3 border-b border-blue-200">
                               <div className="flex items-center gap-3">

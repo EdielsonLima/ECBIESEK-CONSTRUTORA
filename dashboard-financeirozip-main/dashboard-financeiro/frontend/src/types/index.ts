@@ -65,6 +65,7 @@ export interface CentroCustoOption {
   id: number;
   nome: string;
   id_empresa?: number;
+  codigo?: number;
 }
 
 export interface TipoDocumentoOption {
