@@ -1,5 +1,26 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { apiService, authService } from '../services/api';
+
+const comprimirImagem = (dataUrl: string, maxWidth = 800, quality = 0.6): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let w = img.width;
+      let h = img.height;
+      if (w > maxWidth) {
+        h = (h * maxWidth) / w;
+        w = maxWidth;
+      }
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.src = dataUrl;
+  });
+};
 
 interface Solicitacao {
   id: number;
@@ -247,7 +268,7 @@ export const Solicitacoes: React.FC = () => {
                     const file = items[i].getAsFile();
                     if (file) {
                       const reader = new FileReader();
-                      reader.onload = (ev) => setImagem(ev.target?.result as string);
+                      reader.onload = async (ev) => { const compressed = await comprimirImagem(ev.target?.result as string); setImagem(compressed); };
                       reader.readAsDataURL(file);
                     }
                     e.preventDefault();
@@ -261,7 +282,7 @@ export const Solicitacoes: React.FC = () => {
                 const file = e.dataTransfer.files[0];
                 if (file && file.type.startsWith('image/')) {
                   const reader = new FileReader();
-                  reader.onload = (ev) => setImagem(ev.target?.result as string);
+                  reader.onload = async (ev) => { const compressed = await comprimirImagem(ev.target?.result as string); setImagem(compressed); };
                   reader.readAsDataURL(file);
                 }
               }}
@@ -291,7 +312,7 @@ export const Solicitacoes: React.FC = () => {
                       const file = e.target.files?.[0];
                       if (file) {
                         const reader = new FileReader();
-                        reader.onload = (ev) => setImagem(ev.target?.result as string);
+                        reader.onload = async (ev) => { const compressed = await comprimirImagem(ev.target?.result as string); setImagem(compressed); };
                         reader.readAsDataURL(file);
                       }
                     }} />
