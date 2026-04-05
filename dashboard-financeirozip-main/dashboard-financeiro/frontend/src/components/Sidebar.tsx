@@ -436,21 +436,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
           })}
         </nav>
 
-        {/* Data de atualização do banco */}
-        {ultimaAtualizacao && isOpen && (
-          <div className="flex-shrink-0 px-4 pb-2">
-            <div className="rounded-lg bg-gray-800 px-3 py-2">
-              <p className="text-xs text-gray-500 uppercase tracking-wider mb-0.5">Base atualizada</p>
-              <p className="text-xs font-semibold text-green-400">{ultimaAtualizacao}</p>
-            </div>
-          </div>
-        )}
-        {isOpen && (
-          <div className="flex-shrink-0 px-4 pb-1">
-            <p className="text-[10px] text-center text-slate-600">Desenvolvido por <span className="text-slate-400 font-medium">DT Consultorias</span></p>
-          </div>
-        )}
-
         {/* User Menu no rodapé */}
         <div className="flex-shrink-0 border-t border-slate-800 px-2 py-3 relative">
           {/* Overlay para fechar o menu */}

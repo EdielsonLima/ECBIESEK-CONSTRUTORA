@@ -20,8 +20,16 @@ import { GerenciarUsuarios } from './pages/GerenciarUsuarios';
 import { LogAtividades } from './pages/LogAtividades';
 import { AlterarSenha } from './pages/AlterarSenha';
 import { Validacao } from './pages/Validacao';
-import { authService, User } from './services/api';
+import { authService, apiService, User } from './services/api';
 import { ChangelogModal } from './components/ChangelogModal';
+
+const DIAS_PT = ['dom.', 'seg.', 'ter.', 'qua.', 'qui.', 'sex.', 'sab.'];
+const MESES_PT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+function formatarDataPt(dateStr: string) {
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d.getTime())) return dateStr;
+  return `${DIAS_PT[d.getDay()]} ${d.getDate()} ${MESES_PT[d.getMonth()]} ${d.getFullYear()}`;
+}
 
 function App() {
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -29,9 +37,13 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [ultimaAtualizacao, setUltimaAtualizacao] = useState<string | null>(null);
 
   useEffect(() => {
     checkAuth();
+    apiService.getUltimaAtualizacao()
+      .then(r => { if (r.data) setUltimaAtualizacao(formatarDataPt(r.data)); })
+      .catch(() => {});
   }, []);
 
   const checkAuth = async () => {
@@ -179,27 +191,16 @@ function App() {
               <p className="mt-1 text-sm font-medium text-gray-500">Gestão Financeira - Construtora</p>
             </div>
             <div className="flex items-center gap-4">
-              {user && (
-                <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-full border border-gray-100 shadow-sm">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold shadow-md">
-                    {user.nome.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="text-gray-700">
-                    <p className="text-sm font-semibold leading-tight">{user.nome}</p>
-                    <p className="text-xs text-gray-500">{user.email}</p>
+              {ultimaAtualizacao && (
+                <div className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-1.5 border border-gray-100">
+                  <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-gray-400 leading-none">Base atualizada</p>
+                    <p className="text-xs font-semibold text-gray-700">{ultimaAtualizacao}</p>
                   </div>
                 </div>
               )}
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="rounded-full bg-red-50 p-2.5 text-red-600 hover:bg-red-100 hover:text-red-700 transition-colors shadow-sm"
-                title="Sair"
-              >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-              </button>
+              <span className="text-[10px] text-gray-400">Desenvolvido por <span className="font-medium text-gray-500">DT Consultorias</span></span>
               <button
                 type="button"
                 onClick={() => setSidebarOpen(!sidebarOpen)}
