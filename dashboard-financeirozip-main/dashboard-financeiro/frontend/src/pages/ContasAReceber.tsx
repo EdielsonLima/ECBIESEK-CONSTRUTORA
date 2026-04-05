@@ -1152,8 +1152,9 @@ export const ContasAReceber: React.FC = () => {
                         <td className="whitespace-nowrap px-2 py-2 text-xs text-gray-500">
                           {conta.numero_documento || conta.id_documento || '-'}
                         </td>
-                        <td className="whitespace-nowrap px-2 py-2 text-xs text-gray-500 max-w-[120px] truncate">
-                          {conta.nome_centrocusto || '-'}
+                        <td className="whitespace-nowrap px-2 py-2 text-xs text-gray-500 max-w-[120px] truncate" title={`${(conta as any).codigo_centrocusto || ''} - ${conta.nome_centrocusto || ''}`}>
+                          {(conta as any).codigo_centrocusto ? <span className="text-gray-400 font-mono text-[10px]">{(conta as any).codigo_centrocusto}</span> : null}
+                          {(conta as any).codigo_centrocusto ? ' ' : ''}{conta.nome_centrocusto || '-'}
                         </td>
                         <td className="whitespace-nowrap px-2 py-2 text-xs text-gray-500 max-w-[100px] truncate">
                           {conta.tipo_condicao || '-'}
@@ -1697,7 +1698,7 @@ export const ContasAReceber: React.FC = () => {
                                             <td className={`whitespace-nowrap px-4 py-2 text-sm font-semibold ${corDias}`}>
                                               {dias < 0 ? `${Math.abs(dias)}d atraso` : dias === 0 ? 'Hoje' : `${dias}d`}
                                             </td>
-                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.nome_centrocusto || '-'}</td>
+                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500" title={`${(conta as any).codigo_centrocusto || ''} - ${conta.nome_centrocusto || ''}`}>{(conta as any).codigo_centrocusto ? <span className="text-gray-400 font-mono text-[10px]">{(conta as any).codigo_centrocusto}</span> : null}{(conta as any).codigo_centrocusto ? ' ' : ''}{conta.nome_centrocusto || '-'}</td>
                                             <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.tipo_condicao || '-'}</td>
                                             <td className="whitespace-nowrap px-4 py-2 text-sm text-green-600 font-semibold text-right">{formatCurrency(conta.valor_total || 0)}</td>
                                           </tr>

@@ -1588,7 +1588,7 @@ export const ContasPagas: React.FC = () => {
                                                   <td className={`whitespace-nowrap px-3 py-2 text-xs font-semibold text-center ${corAtraso}`}>
                                                     {diasAtraso == null ? '-' : diasAtraso > 0 ? `${diasAtraso}d` : diasAtraso === 0 ? 'No prazo' : `${Math.abs(diasAtraso)}d antecip.`}
                                                   </td>
-                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600 max-w-[150px] truncate" title={conta.nome_centrocusto || '-'}>{conta.nome_centrocusto || '-'}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600 max-w-[150px] truncate" title={`${(conta as any).codigo_centrocusto || ''} - ${conta.nome_centrocusto || ''}`}>{(conta as any).codigo_centrocusto ? <span className="text-gray-400 font-mono text-[10px]">{(conta as any).codigo_centrocusto}</span> : null}{(conta as any).codigo_centrocusto ? ' ' : ''}{conta.nome_centrocusto || '-'}</td>
                                                   <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600 max-w-[150px] truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
                                                   <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-gray-700">{formatCurrency((conta as any).valor_baixa || 0)}</td>
                                                   <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-orange-600">{(conta as any).valor_juros ? formatCurrency((conta as any).valor_juros) : '-'}</td>
@@ -2191,7 +2191,7 @@ export const ContasPagas: React.FC = () => {
                   const corAtraso = diasAtraso == null ? 'text-gray-400' : diasAtraso > 0 ? 'text-red-600' : 'text-green-600';
                   return (
                     <tr key={index} className="hover:bg-gray-50 transition-colors duration-150">
-                      <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 max-w-[200px] truncate" title={conta.nome_centrocusto || '-'}>{conta.nome_centrocusto || '-'}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 max-w-[200px] truncate" title={`${(conta as any).codigo_centrocusto || ''} - ${conta.nome_centrocusto || ''}`}>{(conta as any).codigo_centrocusto ? <span className="text-gray-400 font-mono text-[10px]">{(conta as any).codigo_centrocusto}</span> : null}{(conta as any).codigo_centrocusto ? ' ' : ''}{conta.nome_centrocusto || '-'}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">{formatDate(conta.data_vencimento)}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 font-mono">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">{formatDate(conta.data_pagamento)}</td>
@@ -2573,7 +2573,7 @@ export const ContasPagas: React.FC = () => {
                                                     {diasAtraso == null ? '-' : diasAtraso > 0 ? `${diasAtraso}d` : diasAtraso === 0 ? 'No prazo' : `${Math.abs(diasAtraso)}d antecip.`}
                                                   </td>
                                                   <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-900 max-w-[150px] truncate" title={conta.credor || '-'}>{conta.credor || '-'}</td>
-                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600 max-w-[150px] truncate" title={conta.nome_centrocusto || '-'}>{conta.nome_centrocusto || '-'}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600 max-w-[150px] truncate" title={`${(conta as any).codigo_centrocusto || ''} - ${conta.nome_centrocusto || ''}`}>{(conta as any).codigo_centrocusto ? <span className="text-gray-400 font-mono text-[10px]">{(conta as any).codigo_centrocusto}</span> : null}{(conta as any).codigo_centrocusto ? ' ' : ''}{conta.nome_centrocusto || '-'}</td>
                                                   <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600 max-w-[150px] truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
                                                   <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-gray-700">{formatCurrency((conta as any).valor_baixa || 0)}</td>
                                                   <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-orange-600">{(conta as any).valor_juros ? formatCurrency((conta as any).valor_juros) : '-'}</td>
@@ -3421,8 +3421,9 @@ export const ContasPagas: React.FC = () => {
                       <td className={`whitespace-nowrap px-4 py-3 text-sm font-semibold ${corAtraso}`}>
                         {diasAtraso == null ? '-' : diasAtraso > 0 ? `${diasAtraso}d` : diasAtraso === 0 ? 'No prazo' : `${Math.abs(diasAtraso)}d antecip.`}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 max-w-[180px] truncate" title={conta.nome_centrocusto || '-'}>
-                        {conta.nome_centrocusto || '-'}
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 max-w-[180px] truncate" title={`${(conta as any).codigo_centrocusto || ''} - ${conta.nome_centrocusto || ''}`}>
+                        {(conta as any).codigo_centrocusto ? <span className="text-gray-400 font-mono text-[10px]">{(conta as any).codigo_centrocusto}</span> : null}
+                        {(conta as any).codigo_centrocusto ? ' ' : ''}{conta.nome_centrocusto || '-'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate" title={(conta as any).nome_plano_financeiro || '-'}>
                         {(conta as any).nome_plano_financeiro || '-'}
