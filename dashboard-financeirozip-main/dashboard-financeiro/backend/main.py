@@ -2664,6 +2664,12 @@ def criar_solicitacao(data: dict):
     conn = get_config_db_connection()
     cursor = conn.cursor()
     try:
+        # Garantir que coluna imagem existe
+        try:
+            cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS imagem TEXT")
+            conn.commit()
+        except Exception:
+            conn.rollback()
         cursor.execute(
             """INSERT INTO solicitacoes_melhorias (titulo, descricao, secao, prioridade, usuario_nome, usuario_email, imagem)
             VALUES (%s, %s, %s, %s, %s, %s, %s)""",

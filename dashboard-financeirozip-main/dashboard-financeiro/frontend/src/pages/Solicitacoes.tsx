@@ -17,7 +17,7 @@ interface Solicitacao {
   updated_at: string | null;
 }
 
-const SECOES = ['Contas a Pagar', 'Contas Pagas', 'Contas Atrasadas', 'Contas a Receber', 'Contas Recebidas', 'Inadimplencia', 'Dashboard', 'KPIs', 'Exposicao de Caixa', 'Geral'];
+const SECOES = ['Painel Executivo', 'Contas a Pagar', 'Contas Pagas', 'Contas Atrasadas', 'Contas a Receber', 'Contas Recebidas', 'Inadimplencia', 'Dashboard', 'KPIs', 'Centros de Custo', 'Exposicao de Caixa', 'Extrato Cliente', 'Geral'];
 const PRIORIDADES = [
   { value: 'baixa', label: 'Baixa', cor: 'bg-gray-100 text-gray-700' },
   { value: 'media', label: 'Media', cor: 'bg-blue-100 text-blue-700' },
