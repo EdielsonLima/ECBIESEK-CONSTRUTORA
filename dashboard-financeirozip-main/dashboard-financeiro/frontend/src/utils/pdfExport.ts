@@ -1,6 +1,31 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+let _logoCache: string | null = null;
+
+export async function carregarLogoPDF(): Promise<string | null> {
+  if (_logoCache) return _logoCache;
+  try {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    return new Promise((resolve) => {
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0);
+        _logoCache = canvas.toDataURL('image/png');
+        resolve(_logoCache);
+      };
+      img.onerror = () => resolve(null);
+      img.src = '/logo-ecbiesek-full.svg';
+    });
+  } catch {
+    return null;
+  }
+}
+
 export interface CardResumo {
   label: string;
   valor: number | string;
@@ -34,7 +59,8 @@ export function formatDatePDF(dateStr: string | null | undefined): string {
 export function criarPDFBase(
   titulo: string,
   subtitulo: string,
-  orientation: 'landscape' | 'portrait' = 'landscape'
+  orientation: 'landscape' | 'portrait' = 'landscape',
+  logoDataUrl?: string | null
 ): { doc: jsPDF; pageWidth: number; margin: number; y: number; dataGeracao: string } {
   const doc = new jsPDF({ orientation, unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -43,10 +69,18 @@ export function criarPDFBase(
   // Header
   doc.setFillColor(30, 41, 59);
   doc.rect(0, 0, pageWidth, 28, 'F');
+
+  // Logo
+  if (logoDataUrl) {
+    try {
+      doc.addImage(logoDataUrl, 'PNG', margin, 3, 45, 13);
+    } catch { /* fallback to text */ }
+  }
+  const textX = logoDataUrl ? margin + 48 : margin;
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text('ECBIESEK CONSTRUTORA', margin, 12);
+  doc.text('ECBIESEK CONSTRUTORA', textX, 12);
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   doc.text(titulo, margin, 19);

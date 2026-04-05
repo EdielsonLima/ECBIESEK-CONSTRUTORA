@@ -320,16 +320,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
         {/* Logo e Toggle */}
         <div className="flex h-16 flex-shrink-0 items-center justify-between border-b border-slate-800 px-3">
           {isOpen ? (
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <img src="/logo-ecbiesek-icon.svg" alt="ECB" className="h-9 w-9 flex-shrink-0" />
-              <div className="min-w-0">
-                <p className="text-sm font-extrabold text-white tracking-wide leading-tight">ECBIESEK</p>
-                <p className="text-[9px] text-slate-500 tracking-widest uppercase">Construtora</p>
-              </div>
+            <div className="flex items-center flex-1 min-w-0">
+              <img src="/logo-ecbiesek-dark.svg" alt="ECBIESEK Construtora" className="h-10 object-contain" />
             </div>
           ) : (
             <button onClick={() => setIsOpen(true)} className="mx-auto rounded-lg p-1 hover:bg-slate-800 transition-colors" title="Expandir menu">
-              <img src="/logo-ecbiesek-icon.svg" alt="ECB" className="h-9 w-9" />
+              <img src="/logo-ecbiesek-full.svg" alt="ECB" className="h-9 w-9 object-cover object-left rounded" />
             </button>
           )}
           {isOpen && (
