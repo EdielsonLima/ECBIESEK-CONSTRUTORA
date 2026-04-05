@@ -1012,7 +1012,7 @@ export const ContasPagas: React.FC = () => {
         />
 
         <SearchableMultiSelect
-          options={centrosCusto}
+          options={centrosCusto.map(cc => ({ ...cc, nome: cc.codigo ? `${cc.codigo} - ${cc.nome}` : cc.nome }))}
           value={filtroCentroCusto}
           onChange={(value) => setFiltroCentroCusto(value as number[])}
           label="Centro de Custo"

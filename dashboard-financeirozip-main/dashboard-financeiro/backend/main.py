@@ -2634,13 +2634,13 @@ def get_centros_custo_recebidas():
             params.extend(exclusoes['centros_custo'])
         where_clause = " AND ".join(conditions)
         cursor.execute(f"""
-            SELECT id_interno_centrocusto, nome_centrocusto, id_sienge_empresa
+            SELECT id_interno_centrocusto, nome_centrocusto, id_sienge_empresa, id_sienge_centrocusto
             FROM dim_centrocusto
             WHERE {where_clause}
             ORDER BY nome_centrocusto
         """, params)
         rows = cursor.fetchall()
-        return [{'id': row['id_interno_centrocusto'], 'nome': row['nome_centrocusto'], 'id_empresa': row['id_sienge_empresa']} for row in rows]
+        return [{'id': row['id_interno_centrocusto'], 'nome': row['nome_centrocusto'], 'id_empresa': row['id_sienge_empresa'], 'codigo': row['id_sienge_centrocusto']} for row in rows]
     finally:
         cursor.close()
         conn.close()

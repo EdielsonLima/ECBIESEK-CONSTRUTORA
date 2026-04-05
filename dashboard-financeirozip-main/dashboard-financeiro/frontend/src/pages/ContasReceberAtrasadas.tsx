@@ -584,7 +584,7 @@ export const ContasReceberAtrasadas: React.FC = () => {
         <div className="rounded-lg bg-gray-50 p-4 shadow">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <SearchableSelect options={empresas} value={filtroEmpresa ?? undefined} onChange={(value) => setFiltroEmpresa(value as number | null)} label="Empresa" placeholder="Selecione uma empresa..." emptyText="Todas" />
-            <SearchableSelect options={centrosCusto} value={filtroCentroCusto ?? undefined} onChange={(value) => setFiltroCentroCusto(value as number | null)} label="Centro de Custo" placeholder="Selecione um centro de custo..." emptyText="Todos" />
+            <SearchableSelect options={centrosCusto.map(cc => ({ ...cc, nome: cc.codigo ? `${cc.codigo} - ${cc.nome}` : cc.nome }))} value={filtroCentroCusto ?? undefined} onChange={(value) => setFiltroCentroCusto(value as number | null)} label="Centro de Custo" placeholder="Selecione um centro de custo..." emptyText="Todos" />
             <SearchableSelect options={clientes} value={filtroCliente ?? undefined} onChange={(value) => setFiltroCliente(value as string | null)} label="Cliente" placeholder="Digite o nome do cliente..." emptyText="Todos" />
             <MultiSelectDropdown label="Tipo Documento" items={tiposDocumento.map(t => ({ id: t.id, nome: t.nome }))} selected={filtroTipoDocumento} setSelected={setFiltroTipoDocumento} isOpen={tipoDocDropdownAberto} setIsOpen={setTipoDocDropdownAberto} searchable={true} />
             <MultiSelectDropdown label="Tipo Condicao" items={tipoCondicaoOptions} selected={filtroTipoCondicao} setSelected={setFiltroTipoCondicao} isOpen={tipoCondicaoDropdownAberto} setIsOpen={setTipoCondicaoDropdownAberto} searchable={true} />

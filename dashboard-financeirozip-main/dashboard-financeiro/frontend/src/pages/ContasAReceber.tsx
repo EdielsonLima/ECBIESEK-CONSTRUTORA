@@ -792,7 +792,7 @@ export const ContasAReceber: React.FC = () => {
           emptyText="Todas"
         />
         <SearchableSelect
-          options={centrosCusto}
+          options={centrosCusto.map(cc => ({ ...cc, nome: cc.codigo ? `${cc.codigo} - ${cc.nome}` : cc.nome }))}
           value={filtroCentroCusto ?? undefined}
           onChange={(value) => setFiltroCentroCusto(value as number | null)}
           label="Centro de Custo"

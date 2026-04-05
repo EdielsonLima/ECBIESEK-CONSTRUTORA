@@ -409,7 +409,7 @@ export const ContasAtrasadas: React.FC = () => {
           emptyText="Todas"
         />
         <SearchableMultiSelect
-          options={centrosCusto}
+          options={centrosCusto.map(cc => ({ ...cc, nome: cc.codigo ? `${cc.codigo} - ${cc.nome}` : cc.nome }))}
           value={filtroCentroCusto}
           onChange={setFiltroCentroCusto}
           label="Centro de Custo"

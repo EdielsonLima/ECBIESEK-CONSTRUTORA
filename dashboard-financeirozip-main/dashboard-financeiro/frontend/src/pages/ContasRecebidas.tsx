@@ -811,7 +811,7 @@ export const ContasRecebidas: React.FC = () => {
           emptyText="Todas"
         />
         <SearchableSelect
-          options={filtroEmpresa ? centrosCusto.filter(cc => cc.id_empresa === filtroEmpresa) : centrosCusto}
+          options={(filtroEmpresa ? centrosCusto.filter(cc => cc.id_empresa === filtroEmpresa) : centrosCusto).map(cc => ({ ...cc, nome: cc.codigo ? `${cc.codigo} - ${cc.nome}` : cc.nome }))}
           value={filtroCentroCusto ?? undefined}
           onChange={(value) => setFiltroCentroCusto(value as number | null)}
           label="Centro de Custo"
