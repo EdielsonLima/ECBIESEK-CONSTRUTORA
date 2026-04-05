@@ -86,10 +86,13 @@ function App() {
   useEffect(() => {
     if (!isAuthenticated || !user) return;
     const enviar = () => {
-      apiService.enviarHeartbeat({ user_id: user.id, user_nome: user.nome, user_email: user.email, user_permissao: user.permissao }).catch(() => {});
+      apiService.enviarHeartbeat({ user_id: user.id, user_nome: user.nome, user_email: user.email, user_permissao: user.permissao })
+        .catch(err => console.error('[heartbeat] erro:', err));
     };
     const buscar = () => {
-      apiService.getUsuariosOnline().then(r => setUsuariosOnline(r.online || [])).catch(() => {});
+      apiService.getUsuariosOnline()
+        .then(r => { setUsuariosOnline(r.online || []); })
+        .catch(err => console.error('[usuarios-online] erro:', err));
     };
     enviar();
     buscar();
