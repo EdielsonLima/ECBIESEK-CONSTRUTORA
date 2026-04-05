@@ -18,9 +18,11 @@ Ao finalizar alterações e o usuário pedir para commitar/fazer release, siga e
 
 1. **Analisar os commits** desde a última versão com `git log`
 2. **Incrementar a versão** no `changelog.json` (campo `versao_atual`) e no `package.json`
-   - Patch (1.1.0 → 1.1.1): correções de bugs
-   - Minor (1.1.0 → 1.2.0): novas funcionalidades
-   - Major (1.1.0 → 2.0.0): mudanças grandes/breaking
+   - **Patch** (1.5.0 → 1.5.1): correções de bugs, ajustes de filtros, novas colunas, melhorias visuais menores
+   - **Minor** (1.5.x → 1.6.0): nova página, novo módulo, nova funcionalidade significativa
+   - **Major** (1.x.x → 2.0.0): redesign do sistema, migração de tecnologia, mudanças estruturais grandes
+   - **IMPORTANTE**: Agrupar múltiplas mudanças da mesma sessão em UMA única versão. Não incrementar a cada commit individual.
+   - Só atualizar changelog quando o usuário pedir explicitamente para commitar/release, não automaticamente.
 3. **Adicionar nova entrada** no início do array `historico` do `changelog.json` com:
    - `versao`: nova versão
    - `data`: data de hoje (YYYY-MM-DD)
