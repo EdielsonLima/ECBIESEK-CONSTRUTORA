@@ -328,11 +328,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
               </div>
             </div>
           ) : (
-            <img src="/logo-ecbiesek-icon.svg" alt="ECB" className="h-9 w-9 mx-auto" />
+            <button onClick={() => setIsOpen(true)} className="mx-auto rounded-lg p-1 hover:bg-slate-800 transition-colors" title="Expandir menu">
+              <img src="/logo-ecbiesek-icon.svg" alt="ECB" className="h-9 w-9" />
+            </button>
           )}
           {isOpen && (
             <button
-              onClick={() => setIsOpen(!isOpen)}
+              onClick={() => setIsOpen(false)}
               className="rounded-lg p-1.5 hover:bg-slate-800 transition-colors flex-shrink-0"
             >
               <svg className="h-5 w-5 text-slate-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
