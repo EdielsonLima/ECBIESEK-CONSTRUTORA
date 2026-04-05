@@ -704,7 +704,7 @@ export const ContasReceberAtrasadas: React.FC = () => {
                           {diasAtraso}d
                         </span>
                       </td>
-                      <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500" title={`${(conta as any).codigo_centrocusto || ''} - ${conta.nome_centrocusto || ''}`}>{(conta as any).codigo_centrocusto ? <span className="text-gray-400 font-mono text-[10px]">{(conta as any).codigo_centrocusto}</span> : null}{(conta as any).codigo_centrocusto ? ' ' : ''}{conta.nome_centrocusto || '-'}</td>
+                      <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500" title={`${(conta as any).codigo_centrocusto || ''} - ${conta.nome_centrocusto || ''}`}>{(conta as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(conta as any).codigo_centrocusto}</span> : null}{(conta as any).codigo_centrocusto ? ' ' : ''}{conta.nome_centrocusto || '-'}</td>
                       <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500">{conta.titulo || '-'}</td>
                       <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500">{conta.numero_parcela || '-'}</td>
                       <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500">{conta.numero_documento || conta.id_documento || '-'}</td>
@@ -903,7 +903,7 @@ export const ContasReceberAtrasadas: React.FC = () => {
                                                 <span title={descTipoCondicao((conta as any).tipo_condicao)} className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold cursor-help ${corTipoCondicao((conta as any).tipo_condicao)}`}>{(conta as any).tipo_condicao}</span>
                                               ) : '-'}
                                             </td>
-                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500" title={`${(conta as any).codigo_centrocusto || ''} - ${conta.nome_centrocusto || ''}`}>{(conta as any).codigo_centrocusto ? <span className="text-gray-400 font-mono text-[10px]">{(conta as any).codigo_centrocusto}</span> : null}{(conta as any).codigo_centrocusto ? ' ' : ''}{conta.nome_centrocusto || '-'}</td>
+                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500" title={`${(conta as any).codigo_centrocusto || ''} - ${conta.nome_centrocusto || ''}`}>{(conta as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(conta as any).codigo_centrocusto}</span> : null}{(conta as any).codigo_centrocusto ? ' ' : ''}{conta.nome_centrocusto || '-'}</td>
                                             <td className="whitespace-nowrap px-4 py-2 text-sm text-red-600 font-semibold text-right">{formatCurrency(conta.saldo_atual || conta.valor_total)}</td>
                                           </tr>
                                         );
@@ -1098,7 +1098,7 @@ export const ContasReceberAtrasadas: React.FC = () => {
                                                 <span title={descTipoCondicao((conta as any).tipo_condicao)} className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold cursor-help ${corTipoCondicao((conta as any).tipo_condicao)}`}>{(conta as any).tipo_condicao}</span>
                                               ) : '-'}
                                             </td>
-                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500" title={`${(conta as any).codigo_centrocusto || ''} - ${conta.nome_centrocusto || ''}`}>{(conta as any).codigo_centrocusto ? <span className="text-gray-400 font-mono text-[10px]">{(conta as any).codigo_centrocusto}</span> : null}{(conta as any).codigo_centrocusto ? ' ' : ''}{conta.nome_centrocusto || '-'}</td>
+                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500" title={`${(conta as any).codigo_centrocusto || ''} - ${conta.nome_centrocusto || ''}`}>{(conta as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(conta as any).codigo_centrocusto}</span> : null}{(conta as any).codigo_centrocusto ? ' ' : ''}{conta.nome_centrocusto || '-'}</td>
                                             <td className="whitespace-nowrap px-4 py-2 text-sm text-red-600 font-semibold text-right">{formatCurrency(conta.saldo_atual || conta.valor_total)}</td>
                                           </tr>
                                         );

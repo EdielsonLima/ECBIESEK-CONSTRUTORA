@@ -1197,7 +1197,7 @@ export const ContasRecebidas: React.FC = () => {
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500" title={`${(conta as any).codigo_centrocusto || ''} - ${conta.nome_centrocusto || ''}`}>
                           {conta.nome_centrocusto ? (
                             <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 border border-blue-100">
-                              {(conta as any).codigo_centrocusto ? <span className="text-blue-400 font-mono text-[10px]">{(conta as any).codigo_centrocusto}</span> : null}
+                              {(conta as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(conta as any).codigo_centrocusto}</span> : null}
                               {(conta as any).codigo_centrocusto ? ' ' : ''}{conta.nome_centrocusto}
                             </span>
                           ) : '-'}
@@ -1251,7 +1251,7 @@ export const ContasRecebidas: React.FC = () => {
                                             <td className="py-1.5 pr-3 text-gray-500">{formatDate(p.data_recebimento)}</td>
                                             <td className="py-1.5 pr-3 text-right font-semibold text-green-700">{formatCurrency(p.valor_total)}</td>
                                             <td className="py-1.5 pr-3 text-gray-500 font-mono text-xs">{p.id_documento || '-'}</td>
-                                            <td className="py-1.5 pr-3 text-gray-500" title={`${(p as any).codigo_centrocusto || ''} - ${p.nome_centrocusto || ''}`}>{(p as any).codigo_centrocusto ? <span className="text-gray-400 font-mono text-[10px]">{(p as any).codigo_centrocusto}</span> : null}{(p as any).codigo_centrocusto ? ' ' : ''}{p.nome_centrocusto || '-'}</td>
+                                            <td className="py-1.5 pr-3 text-gray-500" title={`${(p as any).codigo_centrocusto || ''} - ${p.nome_centrocusto || ''}`}>{(p as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(p as any).codigo_centrocusto}</span> : null}{(p as any).codigo_centrocusto ? ' ' : ''}{p.nome_centrocusto || '-'}</td>
                                             <td className="py-1.5">
                                               {(p as any).tipo_condicao ? (
                                                 <span title={descTipoCondicao((p as any).tipo_condicao)} className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold cursor-help ${corTipoCondicao((p as any).tipo_condicao)}`}>
@@ -1487,7 +1487,7 @@ export const ContasRecebidas: React.FC = () => {
                                               </span>
                                             ) : '-'}
                                           </td>
-                                          <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-500" title={`${(conta as any).codigo_centrocusto || ''} - ${conta.nome_centrocusto || ''}`}>{(conta as any).codigo_centrocusto ? <span className="text-gray-400 font-mono text-[10px]">{(conta as any).codigo_centrocusto}</span> : null}{(conta as any).codigo_centrocusto ? ' ' : ''}{conta.nome_centrocusto || '-'}</td>
+                                          <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-500" title={`${(conta as any).codigo_centrocusto || ''} - ${conta.nome_centrocusto || ''}`}>{(conta as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(conta as any).codigo_centrocusto}</span> : null}{(conta as any).codigo_centrocusto ? ' ' : ''}{conta.nome_centrocusto || '-'}</td>
                                           <td className="whitespace-nowrap px-3 py-2 text-sm text-right">
                                             {(conta.valor_acrescimo || 0) > 0 ? (
                                               <span className="text-orange-600 font-medium">{formatCurrency(conta.valor_acrescimo || 0)}</span>

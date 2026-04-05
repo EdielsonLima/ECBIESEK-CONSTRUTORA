@@ -1599,7 +1599,7 @@ export const ContasAPagar: React.FC = () => {
                         })()}
                       </td>
                       <td className="px-1.5 py-2 text-gray-500 truncate" title={`${(conta as any).codigo_centrocusto || ''} - ${(conta as any).nome_centrocusto || ''}`}>
-                        {(conta as any).codigo_centrocusto ? <span className="text-gray-400 font-mono text-[10px]">{(conta as any).codigo_centrocusto}</span> : null}
+                        {(conta as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(conta as any).codigo_centrocusto}</span> : null}
                         {(conta as any).codigo_centrocusto ? ' ' : ''}{(conta as any).nome_centrocusto || '-'}
                       </td>
                       <td className="px-1.5 py-2 text-gray-500 truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
@@ -2458,7 +2458,7 @@ export const ContasAPagar: React.FC = () => {
                                             <td className={`whitespace-nowrap px-4 py-2 text-sm font-semibold ${corDias}`}>
                                               {dias < 0 ? `${Math.abs(dias)}d atraso` : dias === 0 ? 'Hoje' : `${dias}d`}
                                             </td>
-                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500" title={`${(conta as any).codigo_centrocusto || ''} - ${(conta as any).nome_centrocusto || ''}`}>{(conta as any).codigo_centrocusto ? <span className="text-gray-400 font-mono text-[10px]">{(conta as any).codigo_centrocusto}</span> : null}{(conta as any).codigo_centrocusto ? ' ' : ''}{(conta as any).nome_centrocusto || '-'}</td>
+                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500" title={`${(conta as any).codigo_centrocusto || ''} - ${(conta as any).nome_centrocusto || ''}`}>{(conta as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(conta as any).codigo_centrocusto}</span> : null}{(conta as any).codigo_centrocusto ? ' ' : ''}{(conta as any).nome_centrocusto || '-'}</td>
                                             <td className="px-4 py-2 text-xs text-gray-600 max-w-xs truncate" title={conta.descricao_observacao || ''}>{conta.descricao_observacao || '-'}</td>
                                             <td className="whitespace-nowrap px-4 py-2 text-sm text-blue-600 font-semibold text-right">{formatCurrency(conta.valor_total || 0)}</td>
                                           </tr>
@@ -3188,7 +3188,7 @@ export const ContasAPagar: React.FC = () => {
                                                 {t.data_vencimento ? new Date(t.data_vencimento.toString().split('T')[0] + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}
                                               </td>
                                               <td className="py-1.5 pr-3 text-gray-500 font-mono text-xs">{t.numero_documento || '-'}</td>
-                                              <td className="py-1.5 pr-3 text-gray-500 max-w-[200px] truncate" title={`${(t as any).codigo_centrocusto || ''} - ${t.nome_centrocusto || ''}`}>{(t as any).codigo_centrocusto ? <span className="text-gray-400 font-mono text-[10px]">{(t as any).codigo_centrocusto}</span> : null}{(t as any).codigo_centrocusto ? ' ' : ''}{t.nome_centrocusto || '-'}</td>
+                                              <td className="py-1.5 pr-3 text-gray-500 max-w-[200px] truncate" title={`${(t as any).codigo_centrocusto || ''} - ${t.nome_centrocusto || ''}`}>{(t as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(t as any).codigo_centrocusto}</span> : null}{(t as any).codigo_centrocusto ? ' ' : ''}{t.nome_centrocusto || '-'}</td>
                                               <td className="py-1.5 text-right font-semibold text-blue-600">{formatCurrency(t.valor_total || 0)}</td>
                                             </tr>
                                           ))}

@@ -992,7 +992,7 @@ export const ContasAtrasadas: React.FC = () => {
                                                 </span>
                                               </td>
                                               <td className="px-2 py-1 text-gray-700 max-w-[200px] truncate" title={chaveAgrupamento === 'credor' ? `${(c as any).codigo_centrocusto || ''} - ${c.nome_centrocusto || ''}` : (c.credor || '-')}>
-                                                {chaveAgrupamento === 'credor' ? (<>{(c as any).codigo_centrocusto ? <span className="text-gray-400 font-mono text-[10px]">{(c as any).codigo_centrocusto}</span> : null}{(c as any).codigo_centrocusto ? ' ' : ''}{c.nome_centrocusto || '-'}</>) : (c.credor || '-')}
+                                                {chaveAgrupamento === 'credor' ? (<>{(c as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(c as any).codigo_centrocusto}</span> : null}{(c as any).codigo_centrocusto ? ' ' : ''}{c.nome_centrocusto || '-'}</>) : (c.credor || '-')}
                                               </td>
                                               <td className="px-2 py-1 text-gray-700 max-w-[200px] truncate" title={c.nome_plano_financeiro || '-'}>{c.nome_plano_financeiro || '-'}</td>
                                               <td className="px-2 py-1 text-right font-mono font-semibold text-red-700">{formatCurrency(c.valor_total)}</td>
@@ -1280,7 +1280,7 @@ export const ContasAtrasadas: React.FC = () => {
                             {diasAtraso}d
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-xs text-gray-700 max-w-[200px] truncate" title={`${(c as any).codigo_centrocusto || ''} - ${c.nome_centrocusto || ''}`}>{(c as any).codigo_centrocusto ? <span className="text-gray-400 font-mono text-[10px]">{(c as any).codigo_centrocusto}</span> : null}{(c as any).codigo_centrocusto ? ' ' : ''}{c.nome_centrocusto || '-'}</td>
+                        <td className="px-3 py-2 text-xs text-gray-700 max-w-[200px] truncate" title={`${(c as any).codigo_centrocusto || ''} - ${c.nome_centrocusto || ''}`}>{(c as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(c as any).codigo_centrocusto}</span> : null}{(c as any).codigo_centrocusto ? ' ' : ''}{c.nome_centrocusto || '-'}</td>
                         <td className="px-3 py-2 text-xs text-gray-700 max-w-[200px] truncate" title={c.nome_plano_financeiro || '-'}>{c.nome_plano_financeiro || '-'}</td>
                         <td className="px-3 py-2 text-xs text-gray-700 max-w-[150px] truncate" title={(c as any).nome_tipo_pagamento || '-'}>{(c as any).nome_tipo_pagamento || '-'}</td>
                         <td className="px-3 py-2 text-center">
