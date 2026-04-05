@@ -1622,6 +1622,24 @@ export const apiService = {
 
     return { cubValor, cubReferencia, empreendimentos: resultado, totais };
   },
+
+  // Solicitações de Melhorias
+  getSolicitacoes: async () => {
+    const response = await api.get('/solicitacoes');
+    return response.data;
+  },
+  criarSolicitacao: async (data: { titulo: string; descricao: string; secao: string; prioridade: string; usuario_nome: string; usuario_email: string }) => {
+    const response = await api.post('/solicitacoes', data);
+    return response.data;
+  },
+  atualizarSolicitacao: async (id: number, data: Record<string, string>) => {
+    const response = await api.put(`/solicitacoes/${id}`, data);
+    return response.data;
+  },
+  deletarSolicitacao: async (id: number) => {
+    const response = await api.delete(`/solicitacoes/${id}`);
+    return response.data;
+  },
 };
 
 // ============ VALIDACAO SERVICE ============

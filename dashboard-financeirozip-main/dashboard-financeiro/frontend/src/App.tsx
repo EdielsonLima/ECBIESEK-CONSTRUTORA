@@ -20,6 +20,7 @@ import { GerenciarUsuarios } from './pages/GerenciarUsuarios';
 import { LogAtividades } from './pages/LogAtividades';
 import { AlterarSenha } from './pages/AlterarSenha';
 import { Validacao } from './pages/Validacao';
+import { Solicitacoes } from './pages/Solicitacoes';
 import { authService, apiService, User } from './services/api';
 import { ChangelogModal } from './components/ChangelogModal';
 
@@ -147,6 +148,8 @@ function App() {
         return <AlterarSenha />;
       case 'validacao':
         return isAdmin ? <Validacao /> : <AcessoNegado />;
+      case 'solicitacoes':
+        return <Solicitacoes />;
       default:
         return <Dashboard onNavigate={setCurrentPage} />;
     }
@@ -187,6 +190,7 @@ function App() {
                 {currentPage === 'log-atividades' && 'Log de Atividades'}
                 {currentPage === 'alterar-senha' && 'Alterar Senha'}
                 {currentPage === 'validacao' && 'Validacao de Dados'}
+                {currentPage === 'solicitacoes' && 'Solicitacoes de Melhorias'}
               </h1>
               <p className="mt-1 text-sm font-medium text-gray-500">Gestão Financeira - Construtora</p>
             </div>
@@ -201,17 +205,6 @@ function App() {
                 </div>
               )}
               <span className="text-[10px] text-gray-400">Desenvolvido por <span className="font-medium text-gray-500">DT Consultorias</span></span>
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="rounded-full bg-white p-2.5 text-gray-600 hover:bg-gray-50 border border-gray-200 transition-colors shadow-sm"
-                aria-label="Toggle sidebar"
-                title="Abrir/Fechar Menu"
-              >
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
             </div>
           </div>
         </header>

@@ -45,11 +45,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<string | null>(null);
   const [menuUsuarioAberto, setMenuUsuarioAberto] = useState(false);
   const [validacaoStatus, setValidacaoStatus] = useState<Record<string, string>>({});
+  const [versaoSistema, setVersaoSistema] = useState<string>('');
+  const [changelogAberto, setChangelogAberto] = useState(false);
+  const [changelogDados, setChangelogDados] = useState<any[]>([]);
 
   useEffect(() => {
     apiService.getUltimaAtualizacao()
       .then(r => { if (r.data) setUltimaAtualizacao(formatarDataPt(r.data)); })
       .catch(() => { });
+    fetch('/changelog.json?' + Date.now())
+      .then(res => res.json())
+      .then(data => {
+        setVersaoSistema(data.versao_atual || '');
+        setChangelogDados(data.historico || []);
+      })
+      .catch(() => {});
     // Carregar status de validacao das paginas
     validacaoService.getPaginas()
       .then(paginas => {
@@ -182,6 +192,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
           icon: (
             <svg className="h-5 w-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+          ),
+        },
+        {
+          id: 'solicitacoes',
+          label: 'Solicitacoes',
+          icon: (
+            <svg className="h-5 w-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
             </svg>
           ),
         },
@@ -436,6 +455,42 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
           })}
         </nav>
 
+        {/* Versão do sistema */}
+        {isOpen && versaoSistema && (
+          <div className="flex-shrink-0 px-4 pb-2">
+            <button
+              type="button"
+              onClick={() => setChangelogAberto(true)}
+              className="flex w-full items-center gap-2 rounded-lg bg-slate-800/50 px-3 py-2 text-left hover:bg-slate-700 transition-colors"
+            >
+              <svg className="h-4 w-4 text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider">Versao</p>
+                <p className="text-xs font-semibold text-blue-400">v{versaoSistema}</p>
+              </div>
+              <svg className="h-3.5 w-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        )}
+        {!isOpen && versaoSistema && (
+          <div className="flex-shrink-0 px-2 pb-2">
+            <button
+              type="button"
+              onClick={() => setChangelogAberto(true)}
+              title={`Versao ${versaoSistema}`}
+              className="flex w-full items-center justify-center rounded-lg bg-slate-800/50 p-2 hover:bg-slate-700 transition-colors"
+            >
+              <svg className="h-4 w-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {/* User Menu no rodapé */}
         <div className="flex-shrink-0 border-t border-slate-800 px-2 py-3 relative">
           {/* Overlay para fechar o menu */}
@@ -549,6 +604,62 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
           className="fixed inset-0 z-30 bg-black bg-opacity-50 lg:hidden"
           onClick={() => setIsOpen(false)}
         />
+      )}
+
+      {/* Modal Changelog completo */}
+      {changelogAberto && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setChangelogAberto(false)}
+        >
+          <div
+            className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="relative bg-gradient-to-r from-blue-700 to-indigo-600 px-6 py-5 text-white">
+              <button type="button" onClick={() => setChangelogAberto(false)} className="absolute right-4 top-4 rounded-full p-1 text-white/70 hover:bg-white/20 hover:text-white">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">Historico de Versoes</h2>
+                  <p className="text-sm text-blue-100">Versao atual: {versaoSistema}</p>
+                </div>
+              </div>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto px-6 py-5 space-y-6">
+              {changelogDados.map((versao: any, vi: number) => (
+                <div key={vi} className={vi > 0 ? 'border-t border-gray-200 pt-5' : ''}>
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-blue-700">v{versao.versao}</span>
+                    <span className="text-xs text-gray-400">{new Date(versao.data + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                  </div>
+                  {versao.secoes?.map((secao: any, si: number) => (
+                    <div key={si} className="mb-3">
+                      <h4 className="text-sm font-bold text-gray-800 mb-1">{secao.titulo}</h4>
+                      <ul className="space-y-1 ml-3">
+                        {secao.itens?.map((item: string, ii: number) => (
+                          <li key={ii} className="flex items-start gap-2 text-sm text-gray-600">
+                            <svg className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-gray-100 bg-gray-50 px-6 py-3">
+              <button type="button" onClick={() => setChangelogAberto(false)} className="w-full rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:from-blue-700 hover:to-indigo-700">
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

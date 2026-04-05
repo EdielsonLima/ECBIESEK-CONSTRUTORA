@@ -2639,6 +2639,86 @@ def get_centros_custo_recebidas():
         cursor.close()
         conn.close()
 
+# ============ SOLICITAÇÕES DE MELHORIAS ============
+
+@app.get("/api/solicitacoes")
+def listar_solicitacoes():
+    """Lista todas as solicitações de melhorias"""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT * FROM solicitacoes_melhorias ORDER BY created_at DESC")
+        rows = cursor.fetchall()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        print(f"[ERRO] listar_solicitacoes: {e}")
+        return []
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.post("/api/solicitacoes")
+def criar_solicitacao(data: dict):
+    """Cria uma nova solicitação de melhoria"""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """INSERT INTO solicitacoes_melhorias (titulo, descricao, secao, prioridade, usuario_nome, usuario_email)
+            VALUES (%s, %s, %s, %s, %s, %s)""",
+            (data['titulo'], data['descricao'], data.get('secao', 'Geral'),
+             data.get('prioridade', 'media'), data.get('usuario_nome', ''), data.get('usuario_email', ''))
+        )
+        conn.commit()
+        return {"success": True}
+    except Exception as e:
+        print(f"[ERRO] criar_solicitacao: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.put("/api/solicitacoes/{id}")
+def atualizar_solicitacao(id: int, data: dict):
+    """Atualiza status/resposta de uma solicitação (admin)"""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        fields = []
+        params = []
+        for field in ['status', 'prioridade', 'resposta_dev', 'versao_implementada']:
+            if field in data:
+                fields.append(f"{field} = %s")
+                params.append(data[field])
+        if fields:
+            fields.append("updated_at = CURRENT_TIMESTAMP")
+            params.append(id)
+            cursor.execute(f"UPDATE solicitacoes_melhorias SET {', '.join(fields)} WHERE id = %s", params)
+            conn.commit()
+        return {"success": True}
+    except Exception as e:
+        print(f"[ERRO] atualizar_solicitacao: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.delete("/api/solicitacoes/{id}")
+def deletar_solicitacao(id: int):
+    """Remove uma solicitação"""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM solicitacoes_melhorias WHERE id = %s", (id,))
+        conn.commit()
+        return {"success": True}
+    except Exception as e:
+        print(f"[ERRO] deletar_solicitacao: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
 @app.get("/api/diagnostico/empresas-centros")
 def get_empresas_centros():
     """Retorna todas as empresas com seus centros de custo aninhados (para diagnóstico)"""
@@ -7392,6 +7472,24 @@ def _ensure_config_tables_in_postgres():
                     "INSERT INTO validacao_paginas (page_id, page_label) VALUES (%s, %s) ON CONFLICT DO NOTHING",
                     (page_id, page_label)
                 )
+
+            # Tabela de solicitações de melhorias
+            cursor.execute(f"""
+                CREATE TABLE IF NOT EXISTS solicitacoes_melhorias (
+                    id {serial} PRIMARY KEY,
+                    titulo VARCHAR(255) NOT NULL,
+                    descricao TEXT NOT NULL,
+                    secao VARCHAR(100) NOT NULL,
+                    prioridade VARCHAR(20) NOT NULL DEFAULT 'media',
+                    status VARCHAR(20) NOT NULL DEFAULT 'pendente',
+                    usuario_nome VARCHAR(255),
+                    usuario_email VARCHAR(255),
+                    resposta_dev TEXT,
+                    versao_implementada VARCHAR(20),
+                    created_at {ts},
+                    updated_at {ts}
+                )
+            """)
 
             conn.commit()
             cursor.close()
