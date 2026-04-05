@@ -1519,7 +1519,7 @@ export const ContasAPagar: React.FC = () => {
                 <th onClick={() => toggleOrdenacao('flautorizacao')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Aut.{renderSortIcon('flautorizacao')}
                 </th>
-                <th onClick={() => toggleOrdenacao('codigo_centrocusto')} className="px-1.5 py-2 text-center text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                <th onClick={() => toggleOrdenacao('codigo_centrocusto')} className="px-0.5 py-2 text-center text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100 w-8">
                   Cod.{renderSortIcon('codigo_centrocusto')}
                 </th>
                 <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
@@ -1601,7 +1601,7 @@ export const ContasAPagar: React.FC = () => {
                             : <span className="inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">Nao</span>;
                         })()}
                       </td>
-                      <td className="whitespace-nowrap px-1.5 py-2 text-center text-gray-400 font-mono text-[10px]">{(conta as any).codigo_centrocusto || '-'}</td>
+                      <td className="whitespace-nowrap px-0.5 py-2 text-center text-gray-400 font-mono text-[10px] w-8">{(conta as any).codigo_centrocusto || '-'}</td>
                       <td className="px-1.5 py-2 text-gray-500 truncate" title={(conta as any).nome_centrocusto || '-'}>{(conta as any).nome_centrocusto || '-'}</td>
                       <td className="px-1.5 py-2 text-gray-500 truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
                       <td className="px-1.5 py-2 text-gray-500 truncate" title={(conta as any).nome_tipo_pagamento || '-'}>{(conta as any).nome_tipo_pagamento || '-'}</td>
