@@ -324,8 +324,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
               <img src="/logo-ecbiesek-dark.svg" alt="ECBIESEK Construtora" className="h-10 object-contain" />
             </div>
           ) : (
-            <button onClick={() => setIsOpen(true)} className="mx-auto rounded-lg p-1 hover:bg-slate-800 transition-colors" title="Expandir menu">
-              <img src="/logo-ecbiesek-full.svg" alt="ECB" className="h-9 w-9 object-cover object-left rounded" />
+            <button onClick={() => setIsOpen(true)} className="mx-auto rounded-lg p-1.5 hover:bg-slate-800 transition-colors" title="Expandir menu">
+              <svg className="h-5 w-5 text-slate-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+              </svg>
             </button>
           )}
           {isOpen && (
