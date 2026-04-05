@@ -1486,12 +1486,11 @@ export const ContasAPagar: React.FC = () => {
               <col className="w-[4%]" />{/* Prazo */}
               <col className="w-[5%]" />{/* Dias */}
               <col className="w-[4%]" />{/* Titulo */}
-              <col className="w-[3%]" />{/* Doc */}
+              <col className="w-[4%]" />{/* Doc */}
               <col className="w-[3%]" />{/* Aut */}
-              <col style={{width:'22px'}} />{/* CC cod */}
-              <col className="w-[14%]" />{/* C. Custo */}
-              <col className="w-[12%]" />{/* Plano Fin */}
-              <col className="w-[11%]" />{/* Tipo Pag */}
+              <col className="w-[17%]" />{/* C. Custo (com cod) */}
+              <col className="w-[14%]" />{/* Plano Fin */}
+              <col className="w-[12%]" />{/* Tipo Pag */}
               <col className="w-[7%]" />{/* Valor */}
             </colgroup>
             <thead className="bg-blue-50 sticky top-[85px] z-30 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
@@ -1519,9 +1518,6 @@ export const ContasAPagar: React.FC = () => {
                 </th>
                 <th onClick={() => toggleOrdenacao('flautorizacao')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   Aut.{renderSortIcon('flautorizacao')}
-                </th>
-                <th onClick={() => toggleOrdenacao('codigo_centrocusto')} className="py-2 text-center text-[10px] font-medium uppercase text-gray-500 cursor-pointer hover:bg-blue-100" style={{width:'6px',maxWidth:'6px',padding:'0'}}>
-                  CC
                 </th>
                 <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
                   C. Custo{renderSortIcon('nome_centrocusto')}
@@ -1602,15 +1598,17 @@ export const ContasAPagar: React.FC = () => {
                             : <span className="inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">Nao</span>;
                         })()}
                       </td>
-                      <td className="whitespace-nowrap py-2 text-center text-gray-400 font-mono text-[10px]" style={{width:'6px',maxWidth:'6px',padding:'0'}}>{(conta as any).codigo_centrocusto || '-'}</td>
-                      <td className="px-1.5 py-2 text-gray-500 truncate" title={(conta as any).nome_centrocusto || '-'}>{(conta as any).nome_centrocusto || '-'}</td>
+                      <td className="px-1.5 py-2 text-gray-500 truncate" title={`${(conta as any).codigo_centrocusto || ''} - ${(conta as any).nome_centrocusto || ''}`}>
+                        {(conta as any).codigo_centrocusto ? <span className="text-gray-400 font-mono text-[10px]">{(conta as any).codigo_centrocusto}</span> : null}
+                        {(conta as any).codigo_centrocusto ? ' ' : ''}{(conta as any).nome_centrocusto || '-'}
+                      </td>
                       <td className="px-1.5 py-2 text-gray-500 truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
                       <td className="px-1.5 py-2 text-gray-500 truncate" title={(conta as any).nome_tipo_pagamento || '-'}>{(conta as any).nome_tipo_pagamento || '-'}</td>
                       <td className="whitespace-nowrap px-1.5 py-2 font-semibold text-blue-600 text-right">{formatCurrency(conta.valor_total)}</td>
                     </tr>
                     {isExpanded && (
                       <tr>
-                        <td colSpan={13} className="p-0">
+                        <td colSpan={12} className="p-0">
                           <div className="bg-gradient-to-r from-blue-50 via-blue-50 to-indigo-50 border-l-4 border-l-blue-600 border-t-2 border-b-2 border-t-blue-300 border-b-blue-300 px-8 py-5 shadow-inner">
                             <div className="flex items-center justify-between mb-4 pb-3 border-b border-blue-200">
                               <div className="flex items-center gap-3">
