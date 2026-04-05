@@ -21,6 +21,7 @@ import { LogAtividades } from './pages/LogAtividades';
 import { AlterarSenha } from './pages/AlterarSenha';
 import { Validacao } from './pages/Validacao';
 import { authService, User } from './services/api';
+import { ChangelogModal } from './components/ChangelogModal';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -141,6 +142,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <ChangelogModal />
       <Sidebar
         currentPage={currentPage}
         onNavigate={setCurrentPage}
