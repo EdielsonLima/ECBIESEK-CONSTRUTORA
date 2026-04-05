@@ -2645,6 +2645,95 @@ def get_centros_custo_recebidas():
         cursor.close()
         conn.close()
 
+# ============ USUÁRIOS ONLINE ============
+
+@app.post("/api/heartbeat")
+def registrar_heartbeat(data: dict):
+    """Registra heartbeat do usuário (chamado a cada 30s pelo frontend)"""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Criar tabela se não existir
+        try:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS sessoes_ativas (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    user_nome VARCHAR(255),
+                    user_email VARCHAR(255),
+                    user_permissao VARCHAR(50),
+                    ultimo_heartbeat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    login_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id)
+                )
+            """)
+            conn.commit()
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+
+        user_id = data.get('user_id')
+        user_nome = data.get('user_nome', '')
+        user_email = data.get('user_email', '')
+        user_permissao = data.get('user_permissao', '')
+
+        # Upsert: atualiza heartbeat se existe, insere se não
+        cursor.execute("""
+            INSERT INTO sessoes_ativas (user_id, user_nome, user_email, user_permissao, ultimo_heartbeat, login_at)
+            VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT (user_id)
+            DO UPDATE SET ultimo_heartbeat = CURRENT_TIMESTAMP, user_nome = %s, user_email = %s, user_permissao = %s
+        """, (user_id, user_nome, user_email, user_permissao, user_nome, user_email, user_permissao))
+        conn.commit()
+        return {"success": True}
+    except Exception as e:
+        print(f"[ERRO] heartbeat: {e}")
+        return {"success": False}
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/usuarios-online")
+def get_usuarios_online():
+    """Retorna usuários com heartbeat nos últimos 2 minutos"""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT user_id, user_nome, user_email, user_permissao, login_at, ultimo_heartbeat
+            FROM sessoes_ativas
+            WHERE ultimo_heartbeat > CURRENT_TIMESTAMP - INTERVAL '2 minutes'
+            ORDER BY login_at ASC
+        """)
+        rows = cursor.fetchall()
+        return {
+            "online": [dict(r) for r in rows],
+            "total_online": len(rows)
+        }
+    except Exception as e:
+        print(f"[ERRO] usuarios-online: {e}")
+        return {"online": [], "total_online": 0}
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.delete("/api/heartbeat/{user_id}")
+def remover_heartbeat(user_id: int):
+    """Remove sessão ao fazer logout"""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM sessoes_ativas WHERE user_id = %s", (user_id,))
+        conn.commit()
+        return {"success": True}
+    except Exception:
+        return {"success": False}
+    finally:
+        cursor.close()
+        conn.close()
+
 # ============ SOLICITAÇÕES DE MELHORIAS ============
 
 @app.get("/api/solicitacoes")
@@ -7605,6 +7694,20 @@ def _ensure_config_tables_in_postgres():
                     "INSERT INTO validacao_paginas (page_id, page_label) VALUES (%s, %s) ON CONFLICT DO NOTHING",
                     (page_id, page_label)
                 )
+
+            # Tabela de sessões ativas (usuários online)
+            cursor.execute(f"""
+                CREATE TABLE IF NOT EXISTS sessoes_ativas (
+                    id {serial} PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    user_nome VARCHAR(255),
+                    user_email VARCHAR(255),
+                    user_permissao VARCHAR(50),
+                    ultimo_heartbeat {ts},
+                    login_at {ts},
+                    UNIQUE(user_id)
+                )
+            """)
 
             # Tabela de solicitações de melhorias
             cursor.execute(f"""

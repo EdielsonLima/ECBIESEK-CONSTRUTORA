@@ -1623,6 +1623,20 @@ export const apiService = {
     return { cubValor, cubReferencia, empreendimentos: resultado, totais };
   },
 
+  // Usuários Online
+  enviarHeartbeat: async (data: { user_id: number; user_nome: string; user_email: string; user_permissao: string }) => {
+    const response = await api.post('/heartbeat', data);
+    return response.data;
+  },
+  getUsuariosOnline: async () => {
+    const response = await api.get('/usuarios-online');
+    return response.data;
+  },
+  removerHeartbeat: async (userId: number) => {
+    const response = await api.delete(`/heartbeat/${userId}`);
+    return response.data;
+  },
+
   // Solicitações de Melhorias
   getSolicitacoes: async () => {
     const response = await api.get('/solicitacoes');

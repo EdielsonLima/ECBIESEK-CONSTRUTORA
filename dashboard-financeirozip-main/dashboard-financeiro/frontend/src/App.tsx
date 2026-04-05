@@ -39,6 +39,8 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<string | null>(null);
+  const [usuariosOnline, setUsuariosOnline] = useState<Array<{ user_id: number; user_nome: string; user_email: string; user_permissao: string; login_at: string }>>([]);
+  const [mostrarOnline, setMostrarOnline] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -74,10 +76,27 @@ function App() {
   };
 
   const handleLogout = () => {
+    if (user) apiService.removerHeartbeat(user.id).catch(() => {});
     authService.logout();
     setIsAuthenticated(false);
     setUser(null);
   };
+
+  // Heartbeat e polling de usuários online
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    const enviar = () => {
+      apiService.enviarHeartbeat({ user_id: user.id, user_nome: user.nome, user_email: user.email, user_permissao: user.permissao }).catch(() => {});
+    };
+    const buscar = () => {
+      apiService.getUsuariosOnline().then(r => setUsuariosOnline(r.online || [])).catch(() => {});
+    };
+    enviar();
+    buscar();
+    const hbInterval = setInterval(enviar, 30000);
+    const pollInterval = setInterval(buscar, 30000);
+    return () => { clearInterval(hbInterval); clearInterval(pollInterval); };
+  }, [isAuthenticated, user]);
 
   const isAdmin = user?.permissao === 'admin';
 
@@ -194,10 +213,74 @@ function App() {
               </h1>
               <p className="mt-1 text-sm font-medium text-gray-500">Gestão Financeira - Construtora</p>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              {/* Usuários Online */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setMostrarOnline(!mostrarOnline)}
+                  className="flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2 border border-gray-200 shadow-sm hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex -space-x-1.5">
+                    {usuariosOnline.slice(0, 3).map((u, i) => (
+                      <div key={u.user_id} className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-[10px] font-bold text-white ring-2 ring-white" style={{ zIndex: 3 - i }}>
+                        {u.user_nome?.charAt(0).toUpperCase() || '?'}
+                      </div>
+                    ))}
+                    {usuariosOnline.length > 3 && (
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-300 text-[9px] font-bold text-gray-600 ring-2 ring-white">
+                        +{usuariosOnline.length - 3}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+                    <span className="text-xs font-semibold text-gray-700">{usuariosOnline.length} online</span>
+                  </div>
+                </button>
+
+                {/* Dropdown lista */}
+                {mostrarOnline && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setMostrarOnline(false)} />
+                    <div className="absolute right-0 top-full mt-2 z-50 w-72 rounded-xl bg-white shadow-2xl border border-gray-200 overflow-hidden">
+                      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5">
+                        <p className="text-sm font-bold text-white">Usuarios Online</p>
+                        <p className="text-[10px] text-blue-100">{usuariosOnline.length} usuario(s) ativo(s)</p>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
+                        {usuariosOnline.map(u => (
+                          <div key={u.user_id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-xs font-bold text-white flex-shrink-0">
+                              {u.user_nome?.charAt(0).toUpperCase() || '?'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-gray-900 truncate">{u.user_nome}</p>
+                              <p className="text-[10px] text-gray-500 truncate">{u.user_email}</p>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <div className="flex items-center gap-1">
+                                <div className="h-1.5 w-1.5 rounded-full bg-green-500"></div>
+                                <span className="text-[9px] text-green-600 font-medium">Online</span>
+                              </div>
+                              <p className="text-[9px] text-gray-400">
+                                Entrou {u.login_at ? new Date(u.login_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                        {usuariosOnline.length === 0 && (
+                          <div className="px-4 py-6 text-center text-xs text-gray-400">Nenhum usuario online</div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Base Atualizada */}
               {ultimaAtualizacao && (
-                <div className="flex items-center gap-3 rounded-xl bg-gray-50 px-4 py-2.5 border border-gray-200 shadow-sm">
-                  <div className="h-3 w-3 rounded-full bg-green-500 animate-pulse"></div>
+                <div className="flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2 border border-gray-200 shadow-sm">
                   <div>
                     <p className="text-xs font-semibold text-gray-800">{ultimaAtualizacao}</p>
                     <p className="text-[10px] text-gray-400">Desenvolvido por <span className="font-medium text-gray-500">DT Consultorias</span></p>
