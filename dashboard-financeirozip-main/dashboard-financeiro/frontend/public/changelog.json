@@ -1,6 +1,28 @@
 {
-  "versao_atual": "1.4.0",
+  "versao_atual": "1.5.0",
   "historico": [
+    {
+      "versao": "1.5.0",
+      "data": "2026-04-05",
+      "titulo": "Novidades da Versao 1.5.0",
+      "secoes": [
+        {
+          "titulo": "Dashboard",
+          "icone": "settings",
+          "itens": [
+            "Dashboard simplificado - apenas cards de resumo para visualizacao rapida",
+            "Graficos e tabelas removidos para uma experiencia mais limpa"
+          ]
+        },
+        {
+          "titulo": "Geral",
+          "icone": "settings",
+          "itens": [
+            "Data de atualizacao e creditos reorganizados no header"
+          ]
+        }
+      ]
+    },
     {
       "versao": "1.4.0",
       "data": "2026-04-05",

@@ -196,15 +196,14 @@ function App() {
             </div>
             <div className="flex items-center gap-4">
               {ultimaAtualizacao && (
-                <div className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-1.5 border border-gray-100">
-                  <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+                <div className="flex items-center gap-3 rounded-xl bg-gray-50 px-4 py-2.5 border border-gray-200 shadow-sm">
+                  <div className="h-3 w-3 rounded-full bg-green-500 animate-pulse"></div>
                   <div>
-                    <p className="text-[10px] uppercase tracking-wider text-gray-400 leading-none">Base atualizada</p>
-                    <p className="text-xs font-semibold text-gray-700">{ultimaAtualizacao}</p>
+                    <p className="text-xs font-semibold text-gray-800">{ultimaAtualizacao}</p>
+                    <p className="text-[10px] text-gray-400">Desenvolvido por <span className="font-medium text-gray-500">DT Consultorias</span></p>
                   </div>
                 </div>
               )}
-              <span className="text-[10px] text-gray-400">Desenvolvido por <span className="font-medium text-gray-500">DT Consultorias</span></span>
             </div>
           </div>
         </header>
