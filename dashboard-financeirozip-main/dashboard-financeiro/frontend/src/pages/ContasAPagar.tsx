@@ -1480,18 +1480,19 @@ export const ContasAPagar: React.FC = () => {
         <div>
           <table className="w-full divide-y divide-gray-200 table-fixed text-[11px]">
             <colgroup>
-              <col className="w-[15%]" />
-              <col className="w-[6%]" />
-              <col className="w-[6%]" />
-              <col className="w-[4%]" />
-              <col className="w-[5%]" />
-              <col className="w-[4%]" />
-              <col className="w-[4%]" />
-              <col className="w-[3%]" />
-              <col className="w-[14%]" />
-              <col className="w-[14%]" />
-              <col className="w-[12%]" />
-              <col className="w-[7%]" />
+              <col className="w-[15%]" />{/* Credor */}
+              <col className="w-[6%]" />{/* Cadastro */}
+              <col className="w-[6%]" />{/* Vencimento */}
+              <col className="w-[4%]" />{/* Prazo */}
+              <col className="w-[5%]" />{/* Dias */}
+              <col className="w-[4%]" />{/* Titulo */}
+              <col className="w-[3%]" />{/* Doc */}
+              <col className="w-[3%]" />{/* Aut */}
+              <col style={{width:'22px'}} />{/* CC cod */}
+              <col className="w-[14%]" />{/* C. Custo */}
+              <col className="w-[12%]" />{/* Plano Fin */}
+              <col className="w-[11%]" />{/* Tipo Pag */}
+              <col className="w-[7%]" />{/* Valor */}
             </colgroup>
             <thead className="bg-blue-50 sticky top-[85px] z-30 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
               <tr>
