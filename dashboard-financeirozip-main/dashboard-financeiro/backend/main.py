@@ -2645,6 +2645,264 @@ def get_centros_custo_recebidas():
         cursor.close()
         conn.close()
 
+# ============ COMERCIAL ============
+
+@app.get("/api/comercial/dashboard")
+def get_comercial_dashboard(centro_custo: Optional[str] = None):
+    """Dashboard comercial: cards, vendas por empreendimento, vendas por periodo"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        exclusoes = get_exclusoes()
+
+        # --- Estoque de unidades ---
+        iu_conditions = ["iu.id_interno_centrocusto IS NOT NULL"]
+        iu_params = []
+        if exclusoes['centros_custo']:
+            ph = ','.join(['%s'] * len(exclusoes['centros_custo']))
+            iu_conditions.append(f"iu.id_interno_centrocusto NOT IN ({ph})")
+            iu_params.extend(exclusoes['centros_custo'])
+        if centro_custo:
+            cc_ids = [int(x) for x in centro_custo.split(',') if x.strip()]
+            if cc_ids:
+                ph = ','.join(['%s'] * len(cc_ids))
+                iu_conditions.append(f"iu.id_interno_centrocusto IN ({ph})")
+                iu_params.extend(cc_ids)
+        iu_where = " AND ".join(iu_conditions)
+
+        cursor.execute(f"""
+            SELECT
+                cc.id_sienge_centrocusto as codigo_cc,
+                cc.nome_centrocusto,
+                iu.flag_comercial,
+                COUNT(*) as qtd,
+                COALESCE(SUM(iu.quantidade_indexador), 0) as valor
+            FROM imovel_unidade iu
+            JOIN dim_centrocusto cc ON iu.id_interno_centrocusto = cc.id_interno_centrocusto
+            WHERE {iu_where}
+            GROUP BY cc.id_sienge_centrocusto, cc.nome_centrocusto, iu.flag_comercial
+            ORDER BY cc.nome_centrocusto
+        """, iu_params)
+        rows_estoque = cursor.fetchall()
+
+        # Agregar por empreendimento
+        emp_map = {}
+        total_vendido = 0; total_disponivel = 0; total_geral = 0
+        qtd_vendido = 0; qtd_disponivel = 0; qtd_total = 0
+        for r in rows_estoque:
+            key = r['nome_centrocusto'] or 'Sem Centro'
+            if key not in emp_map:
+                emp_map[key] = {'nome': key, 'codigo_cc': r['codigo_cc'], 'qtd_vendido': 0, 'qtd_disponivel': 0, 'qtd_total': 0, 'valor_vendido': 0, 'valor_disponivel': 0, 'valor_total': 0}
+            emp = emp_map[key]
+            v = float(r['valor'] or 0)
+            q = int(r['qtd'] or 0)
+            emp['qtd_total'] += q
+            emp['valor_total'] += v
+            qtd_total += q
+            total_geral += v
+            if r['flag_comercial'] == 'V':
+                emp['qtd_vendido'] += q; emp['valor_vendido'] += v
+                qtd_vendido += q; total_vendido += v
+            elif r['flag_comercial'] == 'D':
+                emp['qtd_disponivel'] += q; emp['valor_disponivel'] += v
+                qtd_disponivel += q; total_disponivel += v
+
+        por_empreendimento = []
+        for emp in sorted(emp_map.values(), key=lambda x: x['valor_vendido'], reverse=True):
+            emp['percentual_vendido'] = round(emp['qtd_vendido'] / emp['qtd_total'] * 100, 1) if emp['qtd_total'] > 0 else 0
+            por_empreendimento.append(emp)
+
+        # --- Contratos (contas_a_receber, parcela 1) ---
+        car_conditions = ["car.numero_parcela = 1"]
+        car_params = []
+        if exclusoes['centros_custo']:
+            ph = ','.join(['%s'] * len(exclusoes['centros_custo']))
+            car_conditions.append(f"car.id_interno_centro_custo NOT IN ({ph})")
+            car_params.extend(exclusoes['centros_custo'])
+        if exclusoes['empresas']:
+            ph = ','.join(['%s'] * len(exclusoes['empresas']))
+            car_conditions.append(f"cc.id_sienge_empresa NOT IN ({ph})")
+            car_params.extend(exclusoes['empresas'])
+        if centro_custo:
+            cc_ids = [int(x) for x in centro_custo.split(',') if x.strip()]
+            if cc_ids:
+                ph = ','.join(['%s'] * len(cc_ids))
+                car_conditions.append(f"car.id_interno_centro_custo IN ({ph})")
+                car_params.extend(cc_ids)
+        car_where = " AND ".join(car_conditions)
+
+        cursor.execute(f"""
+            SELECT COUNT(*) as total_contratos, COALESCE(SUM(car.valor_total), 0) as valor_contratos
+            FROM contas_a_receber car
+            LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE {car_where}
+        """, car_params)
+        row_contratos = cursor.fetchone()
+        total_contratos = int(row_contratos['total_contratos'] or 0)
+
+        # Vendas por ano
+        cursor.execute(f"""
+            SELECT EXTRACT(YEAR FROM car.data_vencimento)::int as ano,
+                   COUNT(*) as quantidade, COALESCE(SUM(car.valor_total), 0) as valor
+            FROM contas_a_receber car
+            LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE {car_where} AND car.data_vencimento IS NOT NULL
+            GROUP BY ano ORDER BY ano
+        """, car_params)
+        vendas_por_ano = [{'ano': int(r['ano']), 'quantidade': int(r['quantidade']), 'valor': float(r['valor'])} for r in cursor.fetchall()]
+
+        # Vendas por mes (ano atual)
+        from datetime import datetime
+        ano_atual = datetime.now().year
+        cursor.execute(f"""
+            SELECT EXTRACT(MONTH FROM car.data_vencimento)::int as mes,
+                   COUNT(*) as quantidade, COALESCE(SUM(car.valor_total), 0) as valor
+            FROM contas_a_receber car
+            LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE {car_where} AND EXTRACT(YEAR FROM car.data_vencimento) = %s
+            GROUP BY mes ORDER BY mes
+        """, car_params + [ano_atual])
+        meses_nomes = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+        vendas_por_mes = [{'mes': int(r['mes']), 'mes_nome': meses_nomes[int(r['mes'])], 'quantidade': int(r['quantidade']), 'valor': float(r['valor'])} for r in cursor.fetchall()]
+
+        ticket_medio = total_vendido / qtd_vendido if qtd_vendido > 0 else 0
+        estoque_pct = round(qtd_vendido / qtd_total * 100, 1) if qtd_total > 0 else 0
+
+        return {
+            'total_contratos': total_contratos,
+            'valor_vendido': total_vendido,
+            'ticket_medio': ticket_medio,
+            'estoque_percentual': estoque_pct,
+            'qtd_vendido': qtd_vendido,
+            'qtd_disponivel': qtd_disponivel,
+            'qtd_total': qtd_total,
+            'por_empreendimento': por_empreendimento,
+            'vendas_por_ano': vendas_por_ano,
+            'vendas_por_mes': vendas_por_mes,
+        }
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return {'erro': str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/comercial/por-cliente")
+def get_comercial_por_cliente(centro_custo: Optional[str] = None, ano: Optional[str] = None):
+    """Vendas agrupadas por cliente"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        exclusoes = get_exclusoes()
+        conditions = ["car.numero_parcela = 1"]
+        params = []
+        if exclusoes['centros_custo']:
+            ph = ','.join(['%s'] * len(exclusoes['centros_custo']))
+            conditions.append(f"car.id_interno_centro_custo NOT IN ({ph})")
+            params.extend(exclusoes['centros_custo'])
+        if exclusoes['empresas']:
+            ph = ','.join(['%s'] * len(exclusoes['empresas']))
+            conditions.append(f"cc.id_sienge_empresa NOT IN ({ph})")
+            params.extend(exclusoes['empresas'])
+        if centro_custo:
+            cc_ids = [int(x) for x in centro_custo.split(',') if x.strip()]
+            if cc_ids:
+                ph = ','.join(['%s'] * len(cc_ids))
+                conditions.append(f"car.id_interno_centro_custo IN ({ph})")
+                params.extend(cc_ids)
+        if ano:
+            anos = [int(a.strip()) for a in ano.split(',')]
+            ph = ','.join(['%s'] * len(anos))
+            conditions.append(f"EXTRACT(YEAR FROM car.data_vencimento) IN ({ph})")
+            params.extend(anos)
+        where = " AND ".join(conditions)
+
+        cursor.execute(f"""
+            SELECT car.cliente,
+                   COUNT(*) as total_contratos,
+                   COALESCE(SUM(car.valor_total), 0) as valor_total,
+                   MIN(car.data_vencimento) as primeiro_contrato,
+                   MAX(car.data_vencimento) as ultimo_contrato
+            FROM contas_a_receber car
+            LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE {where}
+            GROUP BY car.cliente
+            ORDER BY valor_total DESC
+        """, params)
+        return [dict(r) for r in cursor.fetchall()]
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return []
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/api/comercial/contratos")
+def get_comercial_contratos(centro_custo: Optional[str] = None, cliente: Optional[str] = None, ano: Optional[str] = None, limite: int = 500):
+    """Lista detalhada de contratos com status de pagamento"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        exclusoes = get_exclusoes()
+        conditions = ["car.numero_parcela = 1"]
+        params = []
+        if exclusoes['centros_custo']:
+            ph = ','.join(['%s'] * len(exclusoes['centros_custo']))
+            conditions.append(f"car.id_interno_centro_custo NOT IN ({ph})")
+            params.extend(exclusoes['centros_custo'])
+        if exclusoes['empresas']:
+            ph = ','.join(['%s'] * len(exclusoes['empresas']))
+            conditions.append(f"cc.id_sienge_empresa NOT IN ({ph})")
+            params.extend(exclusoes['empresas'])
+        if centro_custo:
+            cc_ids = [int(x) for x in centro_custo.split(',') if x.strip()]
+            if cc_ids:
+                ph = ','.join(['%s'] * len(cc_ids))
+                conditions.append(f"car.id_interno_centro_custo IN ({ph})")
+                params.extend(cc_ids)
+        if cliente:
+            conditions.append("car.cliente ILIKE %s")
+            params.append(f"%{cliente}%")
+        if ano:
+            anos = [int(a.strip()) for a in ano.split(',')]
+            ph = ','.join(['%s'] * len(anos))
+            conditions.append(f"EXTRACT(YEAR FROM car.data_vencimento) IN ({ph})")
+            params.extend(anos)
+        where = " AND ".join(conditions)
+
+        cursor.execute(f"""
+            SELECT car.cliente, SPLIT_PART(car.lancamento, '/', 1) as titulo,
+                   car.valor_total, car.data_vencimento,
+                   cc.nome_centrocusto, cc.id_sienge_centrocusto as codigo_centrocusto,
+                   (SELECT COUNT(*) FROM contas_a_receber sub WHERE SPLIT_PART(sub.lancamento, '/', 1) = SPLIT_PART(car.lancamento, '/', 1) AND sub.cliente = car.cliente) as total_parcelas,
+                   (SELECT COUNT(*) FROM contas_recebidas cr WHERE cr.titulo::text = SPLIT_PART(car.lancamento, '/', 1) AND cr.cliente = car.cliente) as parcelas_recebidas,
+                   COALESCE((SELECT SUM(cr.valor_liquido) FROM contas_recebidas cr WHERE cr.titulo::text = SPLIT_PART(car.lancamento, '/', 1) AND cr.cliente = car.cliente), 0) as valor_recebido
+            FROM contas_a_receber car
+            LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE {where}
+            ORDER BY car.data_vencimento DESC
+            LIMIT %s
+        """, params + [limite])
+        rows = cursor.fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            hoje = datetime.now().date()
+            if d['parcelas_recebidas'] >= d['total_parcelas'] and d['total_parcelas'] > 0:
+                d['status'] = 'quitado'
+            elif d['data_vencimento'] and d['data_vencimento'] < hoje:
+                d['status'] = 'atraso'
+            else:
+                d['status'] = 'em_dia'
+            result.append(d)
+        return result
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return []
+    finally:
+        cursor.close()
+        conn.close()
+
 # ============ USUÁRIOS ONLINE ============
 
 @app.post("/api/heartbeat")

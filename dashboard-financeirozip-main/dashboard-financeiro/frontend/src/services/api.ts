@@ -1623,6 +1623,30 @@ export const apiService = {
     return { cubValor, cubReferencia, empreendimentos: resultado, totais };
   },
 
+  // Comercial
+  getComercialDashboard: async (filtros?: { centro_custo?: number }) => {
+    const params = new URLSearchParams();
+    if (filtros?.centro_custo) params.append('centro_custo', filtros.centro_custo.toString());
+    const response = await api.get(`/comercial/dashboard?${params.toString()}`);
+    return response.data;
+  },
+  getComercialPorCliente: async (filtros?: { centro_custo?: number; ano?: number }) => {
+    const params = new URLSearchParams();
+    if (filtros?.centro_custo) params.append('centro_custo', filtros.centro_custo.toString());
+    if (filtros?.ano) params.append('ano', filtros.ano.toString());
+    const response = await api.get(`/comercial/por-cliente?${params.toString()}`);
+    return response.data;
+  },
+  getComercialContratos: async (filtros?: { centro_custo?: number; cliente?: string; ano?: number; limite?: number }) => {
+    const params = new URLSearchParams();
+    if (filtros?.centro_custo) params.append('centro_custo', filtros.centro_custo.toString());
+    if (filtros?.cliente) params.append('cliente', filtros.cliente);
+    if (filtros?.ano) params.append('ano', filtros.ano.toString());
+    if (filtros?.limite) params.append('limite', filtros.limite.toString());
+    const response = await api.get(`/comercial/contratos?${params.toString()}`);
+    return response.data;
+  },
+
   // Usuários Online
   enviarHeartbeat: async (data: { user_id: number; user_nome: string; user_email: string; user_permissao: string }) => {
     const response = await api.post('/heartbeat', data);

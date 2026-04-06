@@ -21,6 +21,7 @@ import { LogAtividades } from './pages/LogAtividades';
 import { AlterarSenha } from './pages/AlterarSenha';
 import { Validacao } from './pages/Validacao';
 import { Solicitacoes } from './pages/Solicitacoes';
+import { Comercial } from './pages/Comercial';
 import { authService, apiService, User } from './services/api';
 import { ChangelogModal } from './components/ChangelogModal';
 
@@ -172,6 +173,8 @@ function App() {
         return isAdmin ? <Validacao /> : <AcessoNegado />;
       case 'solicitacoes':
         return <Solicitacoes />;
+      case 'comercial':
+        return <Comercial />;
       default:
         return <Dashboard onNavigate={setCurrentPage} />;
     }
@@ -213,6 +216,7 @@ function App() {
                 {currentPage === 'alterar-senha' && 'Alterar Senha'}
                 {currentPage === 'validacao' && 'Validacao de Dados'}
                 {currentPage === 'solicitacoes' && 'Solicitacoes de Melhorias'}
+                {currentPage === 'comercial' && 'Comercial'}
               </h1>
               <p className="mt-1 text-sm font-medium text-gray-500">Gestão Financeira - Construtora</p>
             </div>
