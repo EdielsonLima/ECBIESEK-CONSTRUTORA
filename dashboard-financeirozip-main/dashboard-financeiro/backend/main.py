@@ -5764,7 +5764,7 @@ def get_contas_recebidas_filtradas(
                 cr.titulo as lancamento,
                 cc.id_sienge_empresa AS id_interno_empresa,
                 cc.nome_empresa,
-                cr.id_interno_centro_custo AS id_interno_centrocusto,
+                cr.id_interno_centro_custo,
                 cc.nome_centrocusto,
                 cc.id_sienge_centrocusto as codigo_centrocusto,
                 TRIM(cr.id_documento) as id_documento,
