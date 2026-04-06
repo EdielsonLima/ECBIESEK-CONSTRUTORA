@@ -5803,8 +5803,10 @@ def get_contas_recebidas_filtradas(
         """
         params.append(limite)
 
+        print(f"[DEBUG recebidas-filtradas] centro_custo={centro_custo}, total_conditions={len(conditions)}")
         cursor.execute(query, params)
         rows = cursor.fetchall()
+        print(f"[DEBUG recebidas-filtradas] retornou {len(rows)} rows")
         return [dict(row) for row in rows]
 
     finally:
