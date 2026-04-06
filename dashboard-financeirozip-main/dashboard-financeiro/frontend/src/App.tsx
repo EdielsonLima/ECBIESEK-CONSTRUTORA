@@ -267,7 +267,7 @@ function App() {
                                 <span className="text-[9px] text-green-600 font-medium">Online</span>
                               </div>
                               <p className="text-[9px] text-gray-400">
-                                Entrou {u.login_at ? new Date(u.login_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                                Entrou {u.login_at ? new Date(u.login_at.endsWith('Z') ? u.login_at : u.login_at + 'Z').toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }) : '-'}
                               </p>
                             </div>
                           </div>
