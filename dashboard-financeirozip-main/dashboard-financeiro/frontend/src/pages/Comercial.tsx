@@ -39,6 +39,8 @@ export const Comercial: React.FC = () => {
   const [filtroTipoImovel, setFiltroTipoImovel] = useState<number | null>(null);
   const [buscaCliente, setBuscaCliente] = useState('');
   const [ordenacao, setOrdenacao] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'valor_total', direcao: 'desc' });
+  const [clienteExpandido, setClienteExpandido] = useState<string | null>(null);
+  const [contratosCliente, setContratosCliente] = useState<Record<string, any[]>>({});
 
   useEffect(() => {
     apiService.getCentrosCusto().then(setCentrosCusto).catch(() => {});
@@ -67,6 +69,17 @@ export const Comercial: React.FC = () => {
     };
     carregar();
   }, [filtroCentroCusto, filtroTipoImovel]);
+
+  const expandirCliente = async (cliente: string) => {
+    if (clienteExpandido === cliente) { setClienteExpandido(null); return; }
+    setClienteExpandido(cliente);
+    if (!contratosCliente[cliente]) {
+      try {
+        const data = await apiService.getComercialContratos({ cliente, centro_custo: filtroCentroCusto || undefined, limite: 100 } as any);
+        setContratosCliente(prev => ({ ...prev, [cliente]: data }));
+      } catch { /* ignore */ }
+    }
+  };
 
   const toggleSort = (campo: string) => {
     setOrdenacao(prev => ({ campo, direcao: prev.campo === campo && prev.direcao === 'desc' ? 'asc' : 'desc' }));
@@ -109,7 +122,7 @@ export const Comercial: React.FC = () => {
     <div>
       {/* Filtro */}
       <div className="mb-5 flex items-end gap-4">
-        <div className="w-72">
+        <div className="w-96">
           <SearchableSelect
             options={centrosCusto.map(cc => ({ ...cc, nome: cc.codigo ? `${cc.codigo} - ${cc.nome}` : cc.nome }))}
             value={filtroCentroCusto ?? undefined}
@@ -119,7 +132,7 @@ export const Comercial: React.FC = () => {
             emptyText="Todos"
           />
         </div>
-        <div className="w-56">
+        <div className="w-72">
           <SearchableSelect
             options={tiposImovel.map(t => ({ id: t.id, nome: t.nome }))}
             value={filtroTipoImovel ?? undefined}
@@ -136,22 +149,42 @@ export const Comercial: React.FC = () => {
 
       {/* Cards */}
       <div className="mb-6 grid gap-4 md:grid-cols-4">
-        <div className="rounded-xl bg-white p-4 shadow-sm border-l-4 border-blue-500">
-          <p className="text-[10px] font-medium text-gray-500 uppercase">Total Contratos</p>
-          <p className="text-2xl font-bold text-gray-900">{d.total_contratos.toLocaleString('pt-BR')}</p>
+        <div className="rounded-xl bg-blue-50 p-5 shadow-sm border border-blue-100">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-blue-600 uppercase">Total Contratos</p>
+            <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+              <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-blue-900 mt-2">{d.total_contratos.toLocaleString('pt-BR')}</p>
         </div>
-        <div className="rounded-xl bg-white p-4 shadow-sm border-l-4 border-emerald-500">
-          <p className="text-[10px] font-medium text-gray-500 uppercase">Valor Vendido</p>
-          <p className="text-2xl font-bold text-emerald-700">{formatCurrency(d.valor_vendido)}</p>
+        <div className="rounded-xl bg-emerald-50 p-5 shadow-sm border border-emerald-100">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-emerald-600 uppercase">Valor Vendido</p>
+            <div className="h-10 w-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+              <svg className="h-5 w-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" /></svg>
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-emerald-900 mt-2">{formatCurrency(d.valor_vendido)}</p>
         </div>
-        <div className="rounded-xl bg-white p-4 shadow-sm border-l-4 border-indigo-500">
-          <p className="text-[10px] font-medium text-gray-500 uppercase">Ticket Medio</p>
-          <p className="text-2xl font-bold text-indigo-700">{formatCurrency(d.ticket_medio)}</p>
+        <div className="rounded-xl bg-indigo-50 p-5 shadow-sm border border-indigo-100">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-indigo-600 uppercase">Ticket Medio</p>
+            <div className="h-10 w-10 rounded-lg bg-indigo-100 flex items-center justify-center">
+              <svg className="h-5 w-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-indigo-900 mt-2">{formatCurrency(d.ticket_medio)}</p>
         </div>
-        <div className="rounded-xl bg-white p-4 shadow-sm border-l-4 border-orange-500">
-          <p className="text-[10px] font-medium text-gray-500 uppercase">Estoque</p>
-          <p className="text-2xl font-bold text-orange-600">{d.estoque_percentual}% <span className="text-sm font-normal text-gray-500">vendido</span></p>
-          <p className="text-[10px] text-gray-400">{d.qtd_vendido} vendidas · {d.qtd_disponivel} disponiveis · {d.qtd_total} total</p>
+        <div className="rounded-xl bg-amber-50 p-5 shadow-sm border border-amber-100">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-amber-600 uppercase">Estoque</p>
+            <div className="h-10 w-10 rounded-lg bg-amber-100 flex items-center justify-center">
+              <svg className="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5" /></svg>
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-amber-900 mt-2">{d.estoque_percentual}% <span className="text-base font-normal text-amber-600">vendido</span></p>
+          <p className="text-xs text-amber-500 mt-0.5">{d.qtd_vendido} vendidas · {d.qtd_disponivel} disponiveis · {d.qtd_total} total</p>
         </div>
       </div>
 
@@ -256,24 +289,76 @@ export const Comercial: React.FC = () => {
                       const pct = totalClientesValor > 0 ? (c.valor_total / totalClientesValor) * 100 : 0;
                       acumulado += pct;
                       const corAcum = acumulado <= 80 ? 'text-emerald-600' : acumulado <= 95 ? 'text-yellow-600' : 'text-red-600';
+                      const isExpandido = clienteExpandido === c.cliente;
+                      const contratos = contratosCliente[c.cliente] || [];
                       return (
-                        <tr key={i} className={`hover:bg-emerald-50 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                          <td className="px-4 py-2.5 text-center text-xs text-gray-400">{i + 1}</td>
-                          <td className="px-4 py-2.5 font-medium text-gray-900 max-w-xs truncate">{c.cliente || '-'}</td>
-                          <td className="px-4 py-2.5 text-center font-semibold text-gray-700">{c.total_contratos}</td>
-                          <td className="px-4 py-2.5 text-right font-semibold text-emerald-700 font-mono">{formatCurrency(c.valor_total)}</td>
-                          <td className="px-4 py-2.5 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <div className="w-16 h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(pct, 100)}%` }}></div>
+                        <React.Fragment key={i}>
+                          <tr className={`cursor-pointer transition-colors ${isExpandido ? 'bg-emerald-100 border-l-4 border-l-emerald-600' : i % 2 === 0 ? 'bg-white hover:bg-emerald-50' : 'bg-gray-50 hover:bg-emerald-50'}`} onClick={() => expandirCliente(c.cliente)}>
+                            <td className="px-4 py-2.5 text-center text-xs text-gray-400">{i + 1}</td>
+                            <td className="px-4 py-2.5 font-medium text-gray-900 max-w-xs truncate">
+                              <span className={`text-gray-400 text-[10px] mr-1 transition-transform inline-block ${isExpandido ? 'rotate-90' : ''}`}>&#9654;</span>
+                              {c.cliente || '-'}
+                            </td>
+                            <td className="px-4 py-2.5 text-center font-semibold text-gray-700">{c.total_contratos}</td>
+                            <td className="px-4 py-2.5 text-right font-semibold text-emerald-700 font-mono">{formatCurrency(c.valor_total)}</td>
+                            <td className="px-4 py-2.5 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <div className="w-16 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                                  <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(pct, 100)}%` }}></div>
+                                </div>
+                                <span className="text-xs text-gray-600 w-12 text-right">{pct.toFixed(1)}%</span>
                               </div>
-                              <span className="text-xs text-gray-600 w-12 text-right">{pct.toFixed(1)}%</span>
-                            </div>
-                          </td>
-                          <td className={`px-4 py-2.5 text-right text-xs font-semibold ${corAcum}`}>{acumulado.toFixed(1)}%</td>
-                          <td className="px-4 py-2.5 text-center text-xs text-gray-500">{formatDate(c.primeiro_contrato)}</td>
-                          <td className="px-4 py-2.5 text-center text-xs text-gray-500">{formatDate(c.ultimo_contrato)}</td>
-                        </tr>
+                            </td>
+                            <td className={`px-4 py-2.5 text-right text-xs font-semibold ${corAcum}`}>{acumulado.toFixed(1)}%</td>
+                            <td className="px-4 py-2.5 text-center text-xs text-gray-500">{formatDate(c.primeiro_contrato)}</td>
+                            <td className="px-4 py-2.5 text-center text-xs text-gray-500">{formatDate(c.ultimo_contrato)}</td>
+                          </tr>
+                          {isExpandido && (
+                            <tr>
+                              <td colSpan={8} className="p-0">
+                                <div className="bg-emerald-50 px-8 py-3 border-y border-emerald-200">
+                                  {contratos.length === 0 ? (
+                                    <p className="text-xs text-gray-400 py-2">Carregando contratos...</p>
+                                  ) : (
+                                    <table className="w-full text-xs">
+                                      <thead>
+                                        <tr className="text-emerald-700 border-b border-emerald-200">
+                                          <th className="py-1.5 text-left font-semibold">Titulo</th>
+                                          <th className="py-1.5 text-right font-semibold">Valor</th>
+                                          <th className="py-1.5 text-center font-semibold">Vencimento</th>
+                                          <th className="py-1.5 text-left font-semibold">Centro de Custo</th>
+                                          <th className="py-1.5 text-center font-semibold">Parcelas</th>
+                                          <th className="py-1.5 text-right font-semibold">Recebido</th>
+                                          <th className="py-1.5 text-center font-semibold">Status</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {contratos.map((ct: any, j: number) => (
+                                          <tr key={j} className="border-b border-emerald-100 hover:bg-emerald-100/50">
+                                            <td className="py-1.5 font-mono font-bold text-gray-800">{ct.titulo}</td>
+                                            <td className="py-1.5 text-right font-mono text-gray-700">{formatCurrency(ct.valor_total || 0)}</td>
+                                            <td className="py-1.5 text-center text-gray-600">{formatDate(ct.data_vencimento)}</td>
+                                            <td className="py-1.5 text-gray-600">
+                                              {ct.codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{ct.codigo_centrocusto}</span> : null}
+                                              {ct.codigo_centrocusto ? ' ' : ''}{ct.nome_centrocusto || '-'}
+                                            </td>
+                                            <td className="py-1.5 text-center text-gray-600">{ct.parcelas_recebidas}/{ct.total_parcelas}</td>
+                                            <td className="py-1.5 text-right font-mono text-gray-700">{formatCurrency(ct.valor_recebido || 0)}</td>
+                                            <td className="py-1.5 text-center">
+                                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${ct.status === 'quitado' ? 'bg-green-100 text-green-700' : ct.status === 'atraso' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                {ct.status === 'quitado' ? 'Quitado' : ct.status === 'atraso' ? 'Atraso' : 'Em Dia'}
+                                              </span>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       );
                     });
                   })()}
