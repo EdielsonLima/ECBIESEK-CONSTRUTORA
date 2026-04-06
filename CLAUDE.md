@@ -44,6 +44,32 @@ Ao finalizar alterações e o usuário pedir para commitar/fazer release, siga e
 6. **Commit** com mensagem: `release: vX.Y.Z - breve descricao`
 7. **Push** para main
 
+## Solicitações de Melhorias
+
+O sistema tem uma página de Kanban onde usuários pedem melhorias. A IA deve trabalhar com essas solicitações automaticamente.
+
+### Fluxo ao iniciar sessão
+
+1. **Verificar pendências**: Chamar `GET https://ecbiesek-construtora-production.up.railway.app/api/solicitacoes/pendentes`
+2. **Apresentar ao usuário**: "Há X solicitações pendentes:" com título, descrição, seção e prioridade de cada uma
+3. **Sugerir ação** para cada solicitação baseado na descrição e seção
+4. **Aguardar aprovação** do usuário antes de implementar
+
+### Ao implementar uma solicitação
+
+1. Fazer as mudanças no código
+2. Atualizar o Kanban via API: `PUT https://ecbiesek-construtora-production.up.railway.app/api/solicitacoes/{id}` com:
+   - `status`: `"implementado"`
+   - `versao_implementada`: versão atual do changelog
+   - `resposta_dev`: breve descrição do que foi feito (linguagem acessível)
+3. Incluir a melhoria no changelog ao fazer release
+
+### Prioridade de atendimento
+- **Urgente**: resolver imediatamente
+- **Alta**: resolver na sessão atual se possível
+- **Media**: resolver quando conveniente
+- **Baixa**: resolver quando não houver nada mais urgente
+
 ### Estrutura do changelog.json
 ```json
 {

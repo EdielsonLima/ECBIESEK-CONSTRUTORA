@@ -2752,6 +2752,29 @@ def listar_solicitacoes():
         cursor.close()
         conn.close()
 
+@app.get("/api/solicitacoes/pendentes")
+def listar_solicitacoes_pendentes():
+    """Lista solicitações pendentes/em_analise SEM campo imagem (leve, para contexto IA)"""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT id, titulo, descricao, secao, prioridade, status, usuario_nome, usuario_email, created_at
+            FROM solicitacoes_melhorias
+            WHERE status IN ('pendente', 'em_analise')
+            ORDER BY
+                CASE prioridade WHEN 'urgente' THEN 1 WHEN 'alta' THEN 2 WHEN 'media' THEN 3 ELSE 4 END,
+                created_at ASC
+        """)
+        rows = cursor.fetchall()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        print(f"[ERRO] solicitacoes_pendentes: {e}")
+        return []
+    finally:
+        cursor.close()
+        conn.close()
+
 @app.post("/api/solicitacoes")
 def criar_solicitacao(data: dict):
     """Cria uma nova solicitação de melhoria"""
