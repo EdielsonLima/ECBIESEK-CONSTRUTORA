@@ -1624,9 +1624,14 @@ export const apiService = {
   },
 
   // Comercial
-  getComercialDashboard: async (filtros?: { centro_custo?: number }) => {
+  getTiposImovel: async () => {
+    const response = await api.get('/comercial/tipos-imovel');
+    return response.data;
+  },
+  getComercialDashboard: async (filtros?: { centro_custo?: number; tipo_imovel?: number }) => {
     const params = new URLSearchParams();
     if (filtros?.centro_custo) params.append('centro_custo', filtros.centro_custo.toString());
+    if (filtros?.tipo_imovel) params.append('tipo_imovel', filtros.tipo_imovel.toString());
     const response = await api.get(`/comercial/dashboard?${params.toString()}`);
     return response.data;
   },

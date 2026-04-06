@@ -35,21 +35,27 @@ export const Comercial: React.FC = () => {
   const [clientes, setClientes] = useState<ClienteData[]>([]);
   const [centrosCusto, setCentrosCusto] = useState<CentroCustoOption[]>([]);
   const [filtroCentroCusto, setFiltroCentroCusto] = useState<number | null>(null);
+  const [tiposImovel, setTiposImovel] = useState<Array<{ id: number; nome: string }>>([]);
+  const [filtroTipoImovel, setFiltroTipoImovel] = useState<number | null>(null);
   const [buscaCliente, setBuscaCliente] = useState('');
   const [ordenacao, setOrdenacao] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'valor_total', direcao: 'desc' });
 
   useEffect(() => {
     apiService.getCentrosCusto().then(setCentrosCusto).catch(() => {});
+    apiService.getTiposImovel().then(setTiposImovel).catch(() => {});
   }, []);
 
   useEffect(() => {
     const carregar = async () => {
       setLoading(true);
       try {
-        const filtro = filtroCentroCusto ? { centro_custo: filtroCentroCusto } : undefined;
+        const filtro: any = {};
+        if (filtroCentroCusto) filtro.centro_custo = filtroCentroCusto;
+        if (filtroTipoImovel) filtro.tipo_imovel = filtroTipoImovel;
+        const filtroObj = Object.keys(filtro).length > 0 ? filtro : undefined;
         const [dash, cli] = await Promise.all([
-          apiService.getComercialDashboard(filtro),
-          apiService.getComercialPorCliente(filtro),
+          apiService.getComercialDashboard(filtroObj),
+          apiService.getComercialPorCliente(filtroObj),
         ]);
         setDashboard(dash);
         setClientes(cli);
@@ -60,7 +66,7 @@ export const Comercial: React.FC = () => {
       }
     };
     carregar();
-  }, [filtroCentroCusto]);
+  }, [filtroCentroCusto, filtroTipoImovel]);
 
   const toggleSort = (campo: string) => {
     setOrdenacao(prev => ({ campo, direcao: prev.campo === campo && prev.direcao === 'desc' ? 'asc' : 'desc' }));
@@ -113,8 +119,18 @@ export const Comercial: React.FC = () => {
             emptyText="Todos"
           />
         </div>
-        {filtroCentroCusto && (
-          <button type="button" onClick={() => setFiltroCentroCusto(null)} className="mb-0.5 text-xs text-gray-500 hover:text-red-600 underline">Limpar filtro</button>
+        <div className="w-56">
+          <SearchableSelect
+            options={tiposImovel.map(t => ({ id: t.id, nome: t.nome }))}
+            value={filtroTipoImovel ?? undefined}
+            onChange={(v) => setFiltroTipoImovel(v as number | null)}
+            label="Tipo de Imovel"
+            placeholder="Todos os tipos..."
+            emptyText="Todos"
+          />
+        </div>
+        {(filtroCentroCusto || filtroTipoImovel) && (
+          <button type="button" onClick={() => { setFiltroCentroCusto(null); setFiltroTipoImovel(null); }} className="mb-0.5 text-xs text-gray-500 hover:text-red-600 underline">Limpar filtros</button>
         )}
       </div>
 

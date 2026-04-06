@@ -2647,8 +2647,23 @@ def get_centros_custo_recebidas():
 
 # ============ COMERCIAL ============
 
+@app.get("/api/comercial/tipos-imovel")
+def get_tipos_imovel():
+    """Retorna tipos de imóvel distintos da tabela tipo_imovel"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id_tipo_imovel as id, nome_tipo_imovel as nome FROM tipo_imovel WHERE nome_tipo_imovel IS NOT NULL AND TRIM(nome_tipo_imovel) != '' ORDER BY nome_tipo_imovel")
+        return [dict(r) for r in cursor.fetchall()]
+    except Exception as e:
+        print(f"[ERRO] tipos-imovel: {e}")
+        return []
+    finally:
+        cursor.close()
+        conn.close()
+
 @app.get("/api/comercial/dashboard")
-def get_comercial_dashboard(centro_custo: Optional[str] = None):
+def get_comercial_dashboard(centro_custo: Optional[str] = None, tipo_imovel: Optional[str] = None):
     """Dashboard comercial: cards, vendas por empreendimento, vendas por periodo"""
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -2662,6 +2677,12 @@ def get_comercial_dashboard(centro_custo: Optional[str] = None):
             ph = ','.join(['%s'] * len(exclusoes['centros_custo']))
             iu_conditions.append(f"iu.id_interno_centrocusto NOT IN ({ph})")
             iu_params.extend(exclusoes['centros_custo'])
+        if tipo_imovel:
+            ti_ids = [int(x) for x in tipo_imovel.split(',') if x.strip()]
+            if ti_ids:
+                ph = ','.join(['%s'] * len(ti_ids))
+                iu_conditions.append(f"iu.id_tipo_imovel IN ({ph})")
+                iu_params.extend(ti_ids)
         if centro_custo:
             cc_ids = [int(x) for x in centro_custo.split(',') if x.strip()]
             if cc_ids:
