@@ -423,18 +423,26 @@ export const ContasRecebidas: React.FC = () => {
   const carregarTotais = useCallback(async () => {
     setLoadingTotal(true);
     try {
-      const result = await apiService.getContasRecebidasTotais({});
+      const result = await apiService.getContasRecebidasTotais({
+        empresa: filtroEmpresa ?? undefined,
+        centro_custo: filtroCentroCusto ?? undefined,
+        cliente: filtroCliente ?? undefined,
+        id_documento: filtroTipoDocumento.length > 0 ? filtroTipoDocumento.join(',') : undefined,
+        ano: filtroAno ? String(filtroAno) : undefined,
+        mes: filtroMes.length > 0 ? filtroMes.join(',') : undefined,
+        tipo_baixa: filtroTipoBaixa.length > 0 ? filtroTipoBaixa.join(',') : undefined,
+      });
       setTotalServidor(result);
     } catch {
       setTotalServidor(null);
     } finally {
       setLoadingTotal(false);
     }
-  }, []);
+  }, [filtroEmpresa, filtroCentroCusto, filtroCliente, filtroTipoDocumento, filtroAno, filtroMes, filtroTipoBaixa]);
 
   useEffect(() => {
     carregarTotais();
-  }, []);
+  }, [carregarTotais]);
 
   const carregarProgressCliente = async (cliente: string) => {
     if (progressData[cliente]) return;
