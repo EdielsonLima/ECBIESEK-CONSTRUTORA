@@ -2733,8 +2733,8 @@ def get_comercial_dashboard(centro_custo: Optional[str] = None, tipo_imovel: Opt
             emp['percentual_vendido'] = round(emp['qtd_vendido'] / emp['qtd_total'] * 100, 1) if emp['qtd_total'] > 0 else 0
             por_empreendimento.append(emp)
 
-        # --- Contratos (contas_a_receber, parcela 1) ---
-        car_conditions = ["car.numero_parcela = 1"]
+        # --- Contratos (agrupados por titulo+cliente = valor total do contrato) ---
+        car_conditions = []
         car_params = []
         if exclusoes['centros_custo']:
             ph = ','.join(['%s'] * len(exclusoes['centros_custo']))
@@ -2750,24 +2750,38 @@ def get_comercial_dashboard(centro_custo: Optional[str] = None, tipo_imovel: Opt
                 ph = ','.join(['%s'] * len(cc_ids))
                 car_conditions.append(f"car.id_interno_centro_custo IN ({ph})")
                 car_params.extend(cc_ids)
-        car_where = " AND ".join(car_conditions)
+        car_where = (" WHERE " + " AND ".join(car_conditions)) if car_conditions else ""
+
+        # CTE que agrupa por contrato (titulo+cliente) para ter valor total do contrato
+        contratos_cte = f"""
+            WITH contratos AS (
+                SELECT car.cliente,
+                       SPLIT_PART(car.lancamento, '/', 1) as titulo,
+                       car.id_interno_centro_custo,
+                       SUM(car.valor_total) as valor_contrato,
+                       MIN(car.data_vencimento) as data_contrato,
+                       COUNT(*) as total_parcelas
+                FROM contas_a_receber car
+                LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
+                {car_where}
+                GROUP BY car.cliente, SPLIT_PART(car.lancamento, '/', 1), car.id_interno_centro_custo
+            )
+        """
 
         cursor.execute(f"""
-            SELECT COUNT(*) as total_contratos, COALESCE(SUM(car.valor_total), 0) as valor_contratos
-            FROM contas_a_receber car
-            LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
-            WHERE {car_where}
+            {contratos_cte}
+            SELECT COUNT(*) as total_contratos, COALESCE(SUM(valor_contrato), 0) as valor_contratos
+            FROM contratos
         """, car_params)
         row_contratos = cursor.fetchone()
         total_contratos = int(row_contratos['total_contratos'] or 0)
 
-        # Vendas por ano
+        # Vendas por ano (baseado na data do contrato = primeiro vencimento)
         cursor.execute(f"""
-            SELECT EXTRACT(YEAR FROM car.data_vencimento)::int as ano,
-                   COUNT(*) as quantidade, COALESCE(SUM(car.valor_total), 0) as valor
-            FROM contas_a_receber car
-            LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
-            WHERE {car_where} AND car.data_vencimento IS NOT NULL
+            {contratos_cte}
+            SELECT EXTRACT(YEAR FROM data_contrato)::int as ano,
+                   COUNT(*) as quantidade, COALESCE(SUM(valor_contrato), 0) as valor
+            FROM contratos WHERE data_contrato IS NOT NULL
             GROUP BY ano ORDER BY ano
         """, car_params)
         vendas_por_ano = [{'ano': int(r['ano']), 'quantidade': int(r['quantidade']), 'valor': float(r['valor'])} for r in cursor.fetchall()]
@@ -2776,11 +2790,10 @@ def get_comercial_dashboard(centro_custo: Optional[str] = None, tipo_imovel: Opt
         from datetime import datetime
         ano_atual = datetime.now().year
         cursor.execute(f"""
-            SELECT EXTRACT(MONTH FROM car.data_vencimento)::int as mes,
-                   COUNT(*) as quantidade, COALESCE(SUM(car.valor_total), 0) as valor
-            FROM contas_a_receber car
-            LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
-            WHERE {car_where} AND EXTRACT(YEAR FROM car.data_vencimento) = %s
+            {contratos_cte}
+            SELECT EXTRACT(MONTH FROM data_contrato)::int as mes,
+                   COUNT(*) as quantidade, COALESCE(SUM(valor_contrato), 0) as valor
+            FROM contratos WHERE EXTRACT(YEAR FROM data_contrato) = %s
             GROUP BY mes ORDER BY mes
         """, car_params + [ano_atual])
         meses_nomes = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
@@ -2815,7 +2828,7 @@ def get_comercial_por_cliente(centro_custo: Optional[str] = None, ano: Optional[
     cursor = conn.cursor()
     try:
         exclusoes = get_exclusoes()
-        conditions = ["car.numero_parcela = 1"]
+        conditions = []
         params = []
         if exclusoes['centros_custo']:
             ph = ','.join(['%s'] * len(exclusoes['centros_custo']))
@@ -2831,23 +2844,35 @@ def get_comercial_por_cliente(centro_custo: Optional[str] = None, ano: Optional[
                 ph = ','.join(['%s'] * len(cc_ids))
                 conditions.append(f"car.id_interno_centro_custo IN ({ph})")
                 params.extend(cc_ids)
+        where = (" WHERE " + " AND ".join(conditions)) if conditions else ""
+
+        # Filtro de ano aplicado depois do agrupamento (sobre data_contrato)
+        ano_filter = ""
         if ano:
             anos = [int(a.strip()) for a in ano.split(',')]
             ph = ','.join(['%s'] * len(anos))
-            conditions.append(f"EXTRACT(YEAR FROM car.data_vencimento) IN ({ph})")
+            ano_filter = f" WHERE EXTRACT(YEAR FROM data_contrato) IN ({ph})"
             params.extend(anos)
-        where = " AND ".join(conditions)
 
         cursor.execute(f"""
-            SELECT car.cliente,
+            WITH contratos AS (
+                SELECT car.cliente,
+                       SPLIT_PART(car.lancamento, '/', 1) as titulo,
+                       SUM(car.valor_total) as valor_contrato,
+                       MIN(car.data_vencimento) as data_contrato
+                FROM contas_a_receber car
+                LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
+                {where}
+                GROUP BY car.cliente, SPLIT_PART(car.lancamento, '/', 1)
+            )
+            SELECT cliente,
                    COUNT(*) as total_contratos,
-                   COALESCE(SUM(car.valor_total), 0) as valor_total,
-                   MIN(car.data_vencimento) as primeiro_contrato,
-                   MAX(car.data_vencimento) as ultimo_contrato
-            FROM contas_a_receber car
-            LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
-            WHERE {where}
-            GROUP BY car.cliente
+                   COALESCE(SUM(valor_contrato), 0) as valor_total,
+                   MIN(data_contrato) as primeiro_contrato,
+                   MAX(data_contrato) as ultimo_contrato
+            FROM contratos
+            {ano_filter}
+            GROUP BY cliente
             ORDER BY valor_total DESC
         """, params)
         return [dict(r) for r in cursor.fetchall()]
@@ -2865,7 +2890,7 @@ def get_comercial_contratos(centro_custo: Optional[str] = None, cliente: Optiona
     cursor = conn.cursor()
     try:
         exclusoes = get_exclusoes()
-        conditions = ["car.numero_parcela = 1"]
+        conditions = []
         params = []
         if exclusoes['centros_custo']:
             ph = ','.join(['%s'] * len(exclusoes['centros_custo']))
@@ -2884,24 +2909,41 @@ def get_comercial_contratos(centro_custo: Optional[str] = None, cliente: Optiona
         if cliente:
             conditions.append("car.cliente ILIKE %s")
             params.append(f"%{cliente}%")
+        where = (" WHERE " + " AND ".join(conditions)) if conditions else ""
+
+        ano_filter = ""
         if ano:
             anos = [int(a.strip()) for a in ano.split(',')]
             ph = ','.join(['%s'] * len(anos))
-            conditions.append(f"EXTRACT(YEAR FROM car.data_vencimento) IN ({ph})")
+            ano_filter = f" WHERE EXTRACT(YEAR FROM data_contrato) IN ({ph})"
             params.extend(anos)
-        where = " AND ".join(conditions)
 
         cursor.execute(f"""
-            SELECT car.cliente, SPLIT_PART(car.lancamento, '/', 1) as titulo,
-                   car.valor_total, car.data_vencimento,
+            WITH contratos AS (
+                SELECT car.cliente,
+                       SPLIT_PART(car.lancamento, '/', 1) as titulo,
+                       car.id_interno_centro_custo,
+                       SUM(car.valor_total) as valor_contrato,
+                       MIN(car.data_vencimento) as data_contrato,
+                       MAX(car.data_vencimento) as ultimo_vencimento,
+                       COUNT(*) as total_parcelas
+                FROM contas_a_receber car
+                LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
+                {where}
+                GROUP BY car.cliente, SPLIT_PART(car.lancamento, '/', 1), car.id_interno_centro_custo
+            )
+            SELECT c.cliente, c.titulo,
+                   c.valor_contrato as valor_total,
+                   c.data_contrato as data_vencimento,
+                   c.ultimo_vencimento,
+                   c.total_parcelas,
                    cc.nome_centrocusto, cc.id_sienge_centrocusto as codigo_centrocusto,
-                   (SELECT COUNT(*) FROM contas_a_receber sub WHERE SPLIT_PART(sub.lancamento, '/', 1) = SPLIT_PART(car.lancamento, '/', 1) AND sub.cliente = car.cliente) as total_parcelas,
-                   (SELECT COUNT(*) FROM contas_recebidas cr WHERE cr.titulo::text = SPLIT_PART(car.lancamento, '/', 1) AND cr.cliente = car.cliente) as parcelas_recebidas,
-                   COALESCE((SELECT SUM(cr.valor_liquido) FROM contas_recebidas cr WHERE cr.titulo::text = SPLIT_PART(car.lancamento, '/', 1) AND cr.cliente = car.cliente), 0) as valor_recebido
-            FROM contas_a_receber car
-            LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
-            WHERE {where}
-            ORDER BY car.data_vencimento DESC
+                   (SELECT COUNT(*) FROM contas_recebidas cr WHERE cr.titulo::text = c.titulo AND cr.cliente = c.cliente) as parcelas_recebidas,
+                   COALESCE((SELECT SUM(cr.valor_liquido) FROM contas_recebidas cr WHERE cr.titulo::text = c.titulo AND cr.cliente = c.cliente), 0) as valor_recebido
+            FROM contratos c
+            LEFT JOIN dim_centrocusto cc ON c.id_interno_centro_custo = cc.id_interno_centrocusto
+            {ano_filter}
+            ORDER BY c.data_contrato DESC
             LIMIT %s
         """, params + [limite])
         rows = cursor.fetchall()
@@ -2911,7 +2953,7 @@ def get_comercial_contratos(centro_custo: Optional[str] = None, cliente: Optiona
             hoje = datetime.now().date()
             if d['parcelas_recebidas'] >= d['total_parcelas'] and d['total_parcelas'] > 0:
                 d['status'] = 'quitado'
-            elif d['data_vencimento'] and d['data_vencimento'] < hoje:
+            elif d['ultimo_vencimento'] and d['ultimo_vencimento'] < hoje:
                 d['status'] = 'atraso'
             else:
                 d['status'] = 'em_dia'
