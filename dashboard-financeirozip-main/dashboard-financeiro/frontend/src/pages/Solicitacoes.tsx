@@ -66,6 +66,7 @@ export const Solicitacoes: React.FC = () => {
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   const [editandoId, setEditandoId] = useState<number | null>(null);
+  const [detalheAberto, setDetalheAberto] = useState<Solicitacao | null>(null);
   const [editResposta, setEditResposta] = useState('');
   const [editVersao, setEditVersao] = useState('');
 
@@ -318,7 +319,10 @@ export const Solicitacoes: React.FC = () => {
       {/* Kanban Board */}
       <div className="grid grid-cols-5 gap-3 pb-4" style={{ minHeight: '65vh' }}>
         {KANBAN_COLUNAS.map(col => {
-          const cards = solicitacoes.filter(s => s.status === col.status);
+          const prioOrdem: Record<string, number> = { urgente: 1, alta: 2, media: 3, baixa: 4 };
+          const cards = solicitacoes
+            .filter(s => s.status === col.status)
+            .sort((a, b) => (prioOrdem[a.prioridade] || 5) - (prioOrdem[b.prioridade] || 5));
           const isDragOver = dragOverCol === col.status;
 
           return (
@@ -355,7 +359,7 @@ export const Solicitacoes: React.FC = () => {
                       className={`rounded-lg bg-white p-4 shadow-sm border border-gray-100 border-l-4 ${prioInfo.borda} ${isAdmin ? 'cursor-grab active:cursor-grabbing' : ''} hover:shadow-md transition-shadow`}
                     >
                       <div className="flex items-start justify-between gap-1">
-                        <h4 className="text-sm font-bold text-gray-900 leading-tight flex-1">{s.titulo}</h4>
+                        <h4 className="text-sm font-bold text-gray-900 leading-tight flex-1 cursor-pointer hover:text-blue-600" onClick={() => setDetalheAberto(s)}>{s.titulo}</h4>
                         {isAdmin && (
                           <div className="flex gap-0.5 flex-shrink-0">
                             <button type="button" onClick={() => { setEditandoId(editando ? null : s.id); setEditResposta(s.resposta_dev || ''); setEditVersao(s.versao_implementada || ''); }} className="rounded p-0.5 text-gray-300 hover:text-blue-600" title="Editar">
@@ -367,7 +371,7 @@ export const Solicitacoes: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      <p className="mt-1.5 text-xs text-gray-500 line-clamp-3">{s.descricao}</p>
+                      <p className="mt-1.5 text-xs text-gray-500 line-clamp-3 cursor-pointer hover:text-gray-700" onClick={() => setDetalheAberto(s)}>{s.descricao}</p>
 
                       {s.imagem && (
                         <img
@@ -421,6 +425,59 @@ export const Solicitacoes: React.FC = () => {
           );
         })}
       </div>
+
+      {/* Modal detalhe da solicitação */}
+      {detalheAberto && (
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setDetalheAberto(null)}>
+          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 text-white relative">
+              <button type="button" onClick={() => setDetalheAberto(null)} className="absolute right-4 top-4 rounded-full p-1 text-white/70 hover:bg-white/20 hover:text-white">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+              <h2 className="text-lg font-bold pr-8">{detalheAberto.titulo}</h2>
+              <div className="mt-1 flex items-center gap-2 text-sm text-blue-100">
+                <span>{detalheAberto.usuario_nome}</span>
+                <span>&middot;</span>
+                <span>{detalheAberto.created_at ? new Date(detalheAberto.created_at).toLocaleDateString('pt-BR') : ''}</span>
+                <span>&middot;</span>
+                <span>{detalheAberto.secao}</span>
+              </div>
+            </div>
+            <div className="px-6 py-4 max-h-[60vh] overflow-y-auto">
+              <div className="flex gap-2 mb-4">
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${(PRIORIDADES.find(p => p.value === detalheAberto.prioridade) || PRIORIDADES[1]).cor}`}>
+                  {(PRIORIDADES.find(p => p.value === detalheAberto.prioridade) || PRIORIDADES[1]).label}
+                </span>
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${(KANBAN_COLUNAS.find(c => c.status === detalheAberto.status) ? `${KANBAN_COLUNAS.find(c => c.status === detalheAberto.status)!.bgHeader} ${KANBAN_COLUNAS.find(c => c.status === detalheAberto.status)!.textCor}` : 'bg-gray-100 text-gray-700')}`}>
+                  {KANBAN_COLUNAS.find(c => c.status === detalheAberto.status)?.label || detalheAberto.status}
+                </span>
+              </div>
+              <h3 className="text-sm font-bold text-gray-700 mb-1">Descricao completa</h3>
+              <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{detalheAberto.descricao}</p>
+              {detalheAberto.imagem && (
+                <div className="mt-4">
+                  <h3 className="text-sm font-bold text-gray-700 mb-1">Print anexado</h3>
+                  <img src={detalheAberto.imagem} alt="Print" className="max-h-64 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90" onClick={() => { setImagemExpandida(detalheAberto.imagem); setDetalheAberto(null); }} />
+                </div>
+              )}
+              {detalheAberto.resposta_dev && (
+                <div className="mt-4">
+                  <h3 className="text-sm font-bold text-gray-700 mb-1">Resposta do desenvolvedor</h3>
+                  <div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-800 border border-blue-100">{detalheAberto.resposta_dev}</div>
+                </div>
+              )}
+              {detalheAberto.versao_implementada && (
+                <div className="mt-3">
+                  <span className="rounded bg-green-100 px-2 py-1 text-xs font-semibold text-green-700">Implementado na v{detalheAberto.versao_implementada}</span>
+                </div>
+              )}
+            </div>
+            <div className="border-t border-gray-100 bg-gray-50 px-6 py-3">
+              <button type="button" onClick={() => setDetalheAberto(null)} className="w-full rounded-lg bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300">Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal imagem expandida */}
       {imagemExpandida && (
