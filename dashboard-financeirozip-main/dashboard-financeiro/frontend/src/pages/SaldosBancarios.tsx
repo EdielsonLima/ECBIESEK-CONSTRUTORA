@@ -19,8 +19,10 @@ interface OptionItem {
   value: number | string;
 }
 
-const currency = (v: number) =>
-  v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 2 });
+const currency = (v: number | null | undefined) =>
+  v !== null && v !== undefined
+    ? v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 2 })
+    : '—';
 
 const MultiSelect: React.FC<{
   options: OptionItem[];
@@ -101,13 +103,21 @@ export const SaldosBancarios: React.FC = () => {
     [contas]
   );
 
-  const barData = resumo?.empresas?.map((e) => ({ name: e.empresa_nome, saldo: e.saldo })) ?? [];
+  const barData =
+    resumo?.empresas
+      ?.filter((e) => e && typeof e.saldo === 'number')
+      .map((e) => ({ name: e.empresa_nome, saldo: e.saldo ?? 0 })) ?? [];
   const contasData =
-    resumo?.contas?.map((c) => ({
-      name: `${c.empresa_nome} - ${c.conta_corrente} (${c.banco})`,
-      saldo: c.saldo,
-    })) ?? [];
-  const serieData = resumo?.serie?.map((p) => ({ data: p.data, saldo: p.saldo })) ?? [];
+    resumo?.contas
+      ?.filter((c) => c && typeof c.saldo === 'number')
+      .map((c) => ({
+        name: `${c.empresa_nome} - ${c.conta_corrente} (${c.banco})`,
+        saldo: c.saldo ?? 0,
+      })) ?? [];
+  const serieData =
+    resumo?.serie
+      ?.filter((p) => p && typeof p.saldo === 'number')
+      .map((p) => ({ data: p.data, saldo: p.saldo ?? 0 })) ?? [];
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -170,7 +180,7 @@ export const SaldosBancarios: React.FC = () => {
             {contasData.map((c, i) => (
               <div key={i} className="flex items-center justify-between py-2">
                 <div className="text-sm text-gray-700 dark:text-slate-200">{c.name}</div>
-                <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-300">{currency(c.saldo)}</div>
+                <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-300">{currency(c.saldo ?? 0)}</div>
               </div>
             ))}
             {!contasData.length && <p className="text-sm text-gray-500 dark:text-slate-400 py-2">Nenhuma conta encontrada.</p>}
@@ -218,9 +228,9 @@ export const SaldosBancarios: React.FC = () => {
                   <td className="py-2 pr-4">{r.banco}</td>
                   <td className="py-2 pr-4">{r.conta_corrente}</td>
                   <td className="py-2 pr-4">{r.data_movimento}</td>
-                  <td className="py-2 pr-4 text-right text-emerald-600">{currency(r.entrada)}</td>
-                  <td className="py-2 pr-4 text-right text-red-500">{currency(r.saida)}</td>
-                  <td className="py-2 pr-4 text-right font-semibold">{currency(r.saldo_atual)}</td>
+                  <td className="py-2 pr-4 text-right text-emerald-600">{currency(r.entrada ?? 0)}</td>
+                  <td className="py-2 pr-4 text-right text-red-500">{currency(r.saida ?? 0)}</td>
+                  <td className="py-2 pr-4 text-right font-semibold">{currency(r.saldo_atual ?? 0)}</td>
                 </tr>
               ))}
               {!detalhe.length && (
