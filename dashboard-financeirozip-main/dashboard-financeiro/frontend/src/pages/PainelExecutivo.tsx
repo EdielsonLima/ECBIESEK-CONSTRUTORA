@@ -47,13 +47,17 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
 
   // Filtro de Tipo de Baixa (para o card Realizado bater com Contas Pagas)
   const [tiposBaixa, setTiposBaixa] = useState<TipoBaixaOption[]>([]);
-  const [tiposBaixaSel, setTiposBaixaSel] = useState<number[]>(() => {
+  const carregarTiposBaixaPadrao = (): number[] => {
     const saved = localStorage.getItem('painel_exec_tipos_baixa');
     if (saved) {
       try { return JSON.parse(saved); } catch { return []; }
     }
     return [];
-  });
+  };
+  // Aplicado: o que esta efetivamente sendo usado para buscar dados
+  const [tiposBaixaSel, setTiposBaixaSel] = useState<number[]>(carregarTiposBaixaPadrao);
+  // Pendente: o que o usuario esta selecionando antes de clicar em Aplicar
+  const [tiposBaixaPendente, setTiposBaixaPendente] = useState<number[]>(carregarTiposBaixaPadrao);
   const [tiposBaixaOpen, setTiposBaixaOpen] = useState(false);
   const tiposBaixaRef = useRef<HTMLDivElement>(null);
 
@@ -120,14 +124,34 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
     fetchData();
   }, [empreendimentoId, tiposBaixaSel]);
 
-  // Persistir selecao de tipos de baixa
+  // Persistir selecao APLICADA de tipos de baixa
   useEffect(() => {
     localStorage.setItem('painel_exec_tipos_baixa', JSON.stringify(tiposBaixaSel));
   }, [tiposBaixaSel]);
 
+  // Quando abre/fecha o dropdown, sincroniza o pendente com o aplicado
+  useEffect(() => {
+    if (tiposBaixaOpen) {
+      setTiposBaixaPendente(tiposBaixaSel);
+    }
+  }, [tiposBaixaOpen]);
+
   const toggleTipoBaixa = (id: number) => {
-    setTiposBaixaSel((prev) => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    setTiposBaixaPendente((prev) => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
+
+  const aplicarTiposBaixa = () => {
+    setTiposBaixaSel(tiposBaixaPendente);
+    setTiposBaixaOpen(false);
+  };
+
+  const limparTiposBaixa = () => {
+    setTiposBaixaPendente([]);
+  };
+
+  const tiposBaixaPendenteIgualAplicado =
+    tiposBaixaPendente.length === tiposBaixaSel.length &&
+    tiposBaixaPendente.every((v) => tiposBaixaSel.includes(v));
 
   const empreendimentoNome = empreendimentos.find(e => e.id === empreendimentoId)?.nome ?? 'Consolidado';
 
@@ -214,14 +238,14 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
               <div className="absolute right-0 mt-1 w-72 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-lg z-50 overflow-hidden">
                 <div className="p-3 border-b border-gray-100 dark:border-slate-700">
                   <p className="text-xs font-semibold text-gray-600 dark:text-slate-300 mb-1">Filtrar Realizado por Tipo de Baixa</p>
-                  <p className="text-[10px] text-gray-400 dark:text-slate-500">Vazio = usa configuração padrão</p>
+                  <p className="text-[10px] text-gray-400 dark:text-slate-500">Marque os tipos e clique em Aplicar</p>
                 </div>
                 <div className="max-h-60 overflow-y-auto p-2">
                   {tiposBaixa.map((tb) => (
                     <label key={tb.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={tiposBaixaSel.includes(tb.id)}
+                        checked={tiposBaixaPendente.includes(tb.id)}
                         onChange={() => toggleTipoBaixa(tb.id)}
                         className="rounded text-emerald-600"
                       />
@@ -234,17 +258,23 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
                     <p className="text-xs text-gray-400 dark:text-slate-500 text-center py-2">Carregando...</p>
                   )}
                 </div>
-                {tiposBaixaSel.length > 0 && (
-                  <div className="p-2 border-t border-gray-100 dark:border-slate-700">
-                    <button
-                      type="button"
-                      onClick={() => setTiposBaixaSel([])}
-                      className="w-full text-xs text-gray-500 hover:text-red-600 dark:text-slate-400"
-                    >
-                      Limpar seleção
-                    </button>
-                  </div>
-                )}
+                <div className="p-2 border-t border-gray-100 dark:border-slate-700 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={limparTiposBaixa}
+                    className="flex-1 text-xs text-gray-500 hover:text-red-600 dark:text-slate-400 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-slate-700/50"
+                  >
+                    Limpar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={aplicarTiposBaixa}
+                    disabled={tiposBaixaPendenteIgualAplicado}
+                    className="flex-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 dark:disabled:bg-slate-600 disabled:cursor-not-allowed py-1.5 rounded transition-colors"
+                  >
+                    Aplicar
+                  </button>
+                </div>
               </div>
             )}
           </div>
