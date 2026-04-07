@@ -404,27 +404,49 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
       </div>
 
       {/* ============ SEÇÃO 5: Lucro ============ */}
-      <div className={`rounded-2xl border p-6 shadow-sm ${lucroPotencial >= 0 ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200' : 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200'}`}>
+      <div
+        className={`rounded-2xl border p-6 shadow-sm ${
+          lucroPotencial >= 0
+            ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200 dark:from-emerald-900/50 dark:via-emerald-900/40 dark:to-teal-900/40 dark:border-emerald-800/70'
+            : 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200 dark:from-red-900/40 dark:via-red-900/35 dark:to-orange-900/35 dark:border-red-800/70'
+        }`}
+      >
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className={`rounded-xl p-3 shadow-lg text-white ${lucroPotencial >= 0 ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-emerald-200' : 'bg-gradient-to-br from-red-400 to-red-600 shadow-red-200'}`}>
+            <div
+              className={`rounded-xl p-3 shadow-lg text-white ${
+                lucroPotencial >= 0
+                  ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-emerald-200 dark:from-emerald-500 dark:to-emerald-700 dark:shadow-emerald-900/40'
+                  : 'bg-gradient-to-br from-red-400 to-red-600 shadow-red-200 dark:from-red-500 dark:to-red-700 dark:shadow-red-900/40'
+              }`}
+            >
               <TrendingUp className="h-7 w-7" />
             </div>
             <div>
-              <p className={`text-sm font-semibold uppercase tracking-wider ${lucroPotencial >= 0 ? 'text-emerald-700' : 'text-red-700 dark:text-red-400'}`}>Lucro Projetado</p>
-              <p className="text-4xl font-extrabold text-gray-900 dark:text-slate-100 mt-1">{formatCurrency(lucroPotencial)}</p>
-              <p className={`text-sm mt-1 ${lucroPotencial >= 0 ? 'text-emerald-600' : 'text-red-600 dark:text-red-400'}`}>
+              <p
+                className={`text-sm font-semibold uppercase tracking-wider ${
+                  lucroPotencial >= 0 ? 'text-emerald-700 dark:text-emerald-100' : 'text-red-700 dark:text-red-100'
+                }`}
+              >
+                Lucro Projetado
+              </p>
+              <p className="text-4xl font-extrabold text-gray-900 dark:text-white mt-1">{formatCurrency(lucroPotencial)}</p>
+              <p
+                className={`text-sm mt-1 ${
+                  lucroPotencial >= 0 ? 'text-emerald-600 dark:text-emerald-100/80' : 'text-red-600 dark:text-red-100/80'
+                }`}
+              >
                 {formatCurrency(data.valor_empreendimento)} (empreendimento) − {formatCurrency(exposicaoUsada)} (exposição {modoExposicao})
               </p>
             </div>
           </div>
-          <div className="flex items-center bg-white dark:bg-slate-800 rounded-xl border border-emerald-200 p-1 shadow-sm">
+          <div className="flex items-center bg-white dark:bg-slate-900/70 rounded-xl border border-emerald-200 dark:border-emerald-800/60 p-1 shadow-sm">
             <button
               onClick={() => setModoExposicao('simples')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 modoExposicao === 'simples'
                   ? 'bg-emerald-600 text-white shadow-md'
-                  : 'text-gray-600 dark:text-slate-400 hover:text-emerald-700 hover:bg-emerald-50'
+                  : 'text-gray-600 dark:text-emerald-200 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30'
               }`}
             >
               Simples
@@ -434,7 +456,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 modoExposicao === 'composta'
                   ? 'bg-emerald-600 text-white shadow-md'
-                  : 'text-gray-600 dark:text-slate-400 hover:text-emerald-700 hover:bg-emerald-50'
+                  : 'text-gray-600 dark:text-emerald-200 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30'
               }`}
             >
               Composta
