@@ -2647,6 +2647,64 @@ def get_centros_custo_recebidas():
 
 # ============ COMERCIAL ============
 
+@app.get("/api/diagnostico/comercial-contagem")
+def diagnostico_comercial_contagem(centro_custo: int):
+    """Compara contagens entre imovel_unidade e contas_a_receber para um centro de custo"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Por flag em imovel_unidade
+        cursor.execute("""
+            SELECT flag_comercial, COUNT(*) as qtd, COALESCE(SUM(quantidade_indexador), 0) as valor
+            FROM imovel_unidade
+            WHERE id_interno_centrocusto = %s
+            GROUP BY flag_comercial
+            ORDER BY qtd DESC
+        """, (centro_custo,))
+        unidades = [dict(r) for r in cursor.fetchall()]
+
+        # Contratos distintos em contas_a_receber + contas_recebidas
+        cursor.execute("""
+            WITH pagas AS (
+                SELECT DISTINCT cliente, titulo::text as titulo
+                FROM contas_recebidas
+                WHERE id_interno_centro_custo = %s
+            ),
+            pendentes AS (
+                SELECT DISTINCT cliente, SPLIT_PART(lancamento, '/', 1) as titulo
+                FROM contas_a_receber
+                WHERE id_interno_centro_custo = %s
+            )
+            SELECT
+                (SELECT COUNT(*) FROM pagas) as contratos_pagos,
+                (SELECT COUNT(*) FROM pendentes) as contratos_pendentes,
+                (SELECT COUNT(DISTINCT (cliente, titulo)) FROM (SELECT * FROM pagas UNION SELECT * FROM pendentes) u) as contratos_total,
+                (SELECT COUNT(*) FROM pagas p WHERE EXISTS (SELECT 1 FROM pendentes pd WHERE pd.cliente = p.cliente AND pd.titulo = p.titulo)) as contratos_ativos_pagos
+        """, (centro_custo, centro_custo))
+        contratos = dict(cursor.fetchone())
+
+        # Contratos por TC (tipo de condicao em contas_a_receber)
+        cursor.execute("""
+            SELECT tc, COUNT(DISTINCT (cliente, SPLIT_PART(lancamento, '/', 1))) as contratos_distintos, COUNT(*) as parcelas
+            FROM contas_a_receber
+            WHERE id_interno_centro_custo = %s
+            GROUP BY tc
+            ORDER BY parcelas DESC
+        """, (centro_custo,))
+        por_tc = [dict(r) for r in cursor.fetchall()]
+
+        return {
+            'unidades_por_flag': unidades,
+            'contratos': contratos,
+            'contratos_por_tc': por_tc,
+        }
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return {"erro": str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
 @app.get("/api/diagnostico/contrato/{titulo}")
 def diagnostico_contrato(titulo: str, cliente: Optional[str] = None):
     """Mostra todas parcelas de um contrato + tabela ecrgtitulo se existir"""

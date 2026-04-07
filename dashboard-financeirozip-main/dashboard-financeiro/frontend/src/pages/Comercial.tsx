@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { apiService } from '../services/api';
 import { CentroCustoOption } from '../types';
 import { SearchableSelect } from '../components/SearchableSelect';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 const formatCurrencyShort = (value: number) => {
@@ -129,7 +129,7 @@ export const Comercial: React.FC = () => {
     <div>
       {/* Filtro */}
       <div className="mb-5 flex items-end gap-4">
-        <div className="w-96">
+        <div className="flex-1 min-w-[600px] max-w-[700px]">
           <SearchableSelect
             options={centrosCusto.map(cc => ({ ...cc, nome: cc.codigo ? `${cc.codigo} - ${cc.nome}` : cc.nome }))}
             value={filtroCentroCusto ?? undefined}
@@ -281,16 +281,37 @@ export const Comercial: React.FC = () => {
               <h3 className="text-base font-bold text-gray-900 mb-1">Vendas por Ano</h3>
               <p className="text-xs text-gray-400 mb-4">Evolucao das vendas no periodo</p>
               {d.vendas_por_ano.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={d.vendas_por_ano}>
+                <ResponsiveContainer width="100%" height={340}>
+                  <BarChart data={d.vendas_por_ano} margin={{ top: 35, right: 10, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="ano" tick={{ fontSize: 11, fill: '#6b7280' }} />
+                    <XAxis dataKey="ano" tick={{ fontSize: 12, fill: '#6b7280', fontWeight: 600 }} />
                     <YAxis tickFormatter={formatCurrencyShort} tick={{ fontSize: 10, fill: '#9ca3af' }} />
-                    <Tooltip formatter={(value: number) => formatCurrency(value)} contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb' }} />
-                    <Bar dataKey="valor" radius={[6, 6, 0, 0]} barSize={40}>
+                    <Tooltip
+                      formatter={(value: number, name: string) => name === 'valor' ? [formatCurrency(value), 'Valor'] : [value, 'Quantidade']}
+                      contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb' }}
+                    />
+                    <Bar dataKey="valor" radius={[6, 6, 0, 0]} barSize={50}>
                       {d.vendas_por_ano.map((_, i) => (
                         <Cell key={i} fill={COLORS[i % COLORS.length]} />
                       ))}
+                      <LabelList
+                        position="top"
+                        content={(props: any) => {
+                          const { x, y, width, index } = props;
+                          const item = d.vendas_por_ano[index];
+                          if (!item) return null;
+                          return (
+                            <g>
+                              <text x={x + width / 2} y={y - 22} textAnchor="middle" fontSize={11} fontWeight={700} fill="#10B981">
+                                {item.quantidade} {item.quantidade === 1 ? 'venda' : 'vendas'}
+                              </text>
+                              <text x={x + width / 2} y={y - 8} textAnchor="middle" fontSize={11} fontWeight={700} fill="#374151">
+                                {formatCurrencyShort(item.valor)}
+                              </text>
+                            </g>
+                          );
+                        }}
+                      />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
