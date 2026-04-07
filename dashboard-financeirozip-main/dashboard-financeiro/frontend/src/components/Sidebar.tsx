@@ -71,11 +71,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
   }, []);
 
   const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({
-    'contas-pagar': true,
-    'contas-receber': true,
+    'contas-pagar': false,
+    'contas-receber': false,
   });
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
-    'financeiro': true,
+    'financeiro': false,
     'comercial': false,
     'suprimentos': false,
     'engenharia': false,
