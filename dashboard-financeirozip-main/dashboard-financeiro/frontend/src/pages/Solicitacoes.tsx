@@ -37,15 +37,39 @@ interface Solicitacao {
 
 const STATUS_FINAIS = ['implementado', 'rejeitado'];
 
+// Banco PostgreSQL retorna timestamps em UTC sem o sufixo "Z".
+// Sem o "Z", o JavaScript interpreta como horario local e o relogio fica 3h adiantado.
+// Esta funcao garante que a string seja parseada como UTC.
+function parseDataUTC(d: string | null | undefined): Date | null {
+  if (!d) return null;
+  const s = d.endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(d) ? d : d + 'Z';
+  return new Date(s);
+}
+
+function formatarDataHoraBR(d: string | null | undefined): string {
+  const dt = parseDataUTC(d);
+  if (!dt) return '';
+  return dt.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+}
+
+function formatarDataBR(d: string | null | undefined): string {
+  const dt = parseDataUTC(d);
+  if (!dt) return '';
+  return dt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+}
+
 function calcularTempo(s: Solicitacao) {
-  const criado = new Date(s.created_at);
+  const criado = parseDataUTC(s.created_at);
+  if (!criado) return { diasDesdeC: 0, diasParaConcluir: null as number | null, concluido: false };
   const agora = new Date();
   const diasDesdeC = Math.max(0, Math.floor((agora.getTime() - criado.getTime()) / 86400000));
   const concluido = STATUS_FINAIS.includes(s.status);
   let diasParaConcluir: number | null = null;
   if (concluido && s.updated_at) {
-    const fim = new Date(s.updated_at);
-    diasParaConcluir = Math.max(0, Math.floor((fim.getTime() - criado.getTime()) / 86400000));
+    const fim = parseDataUTC(s.updated_at);
+    if (fim) {
+      diasParaConcluir = Math.max(0, Math.floor((fim.getTime() - criado.getTime()) / 86400000));
+    }
   }
   return { diasDesdeC, diasParaConcluir, concluido };
 }
@@ -414,14 +438,14 @@ export const Solicitacoes: React.FC = () => {
                       <div className="mt-2 flex items-center gap-1.5 text-[10px] text-gray-400">
                         <span className="font-medium">{s.usuario_nome}</span>
                         <span>&middot;</span>
-                        <span>{s.created_at ? new Date(s.created_at).toLocaleDateString('pt-BR') : ''}</span>
+                        <span>{formatarDataBR(s.created_at)}</span>
                       </div>
 
                       {(() => {
                         const t = calcularTempo(s);
                         if (t.concluido && t.diasParaConcluir !== null) {
                           return (
-                            <div className="mt-1.5 inline-flex items-center gap-1 rounded bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300" title={`Criada em ${new Date(s.created_at).toLocaleDateString('pt-BR')} e concluida em ${s.updated_at ? new Date(s.updated_at).toLocaleDateString('pt-BR') : ''}`}>
+                            <div className="mt-1.5 inline-flex items-center gap-1 rounded bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300" title={`Criada em ${formatarDataBR(s.created_at)} e concluida em ${formatarDataBR(s.updated_at)}`}>
                               <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                               Entregue em {formatarDias(t.diasParaConcluir)}
                             </div>
@@ -481,7 +505,7 @@ export const Solicitacoes: React.FC = () => {
               <div className="mt-1 flex items-center gap-2 text-sm text-blue-100">
                 <span>{detalheAberto.usuario_nome}</span>
                 <span>&middot;</span>
-                <span>{detalheAberto.created_at ? new Date(detalheAberto.created_at).toLocaleDateString('pt-BR') : ''}</span>
+                <span>{formatarDataBR(detalheAberto.created_at)}</span>
                 <span>&middot;</span>
                 <span>{detalheAberto.secao}</span>
               </div>
@@ -528,7 +552,7 @@ export const Solicitacoes: React.FC = () => {
                         <div className="flex-1">
                           <p className="text-xs font-semibold text-gray-700 dark:text-slate-300">Criada</p>
                           <p className="text-[11px] text-gray-500 dark:text-slate-400">
-                            {new Date(detalheAberto.created_at).toLocaleString('pt-BR')}
+                            {formatarDataHoraBR(detalheAberto.created_at)}
                           </p>
                         </div>
                       </div>
@@ -544,7 +568,7 @@ export const Solicitacoes: React.FC = () => {
                                 {detalheAberto.status === 'implementado' ? 'Implementada' : 'Rejeitada'}
                               </p>
                               <p className="text-[11px] text-gray-500 dark:text-slate-400">
-                                {new Date(detalheAberto.updated_at).toLocaleString('pt-BR')}
+                                {formatarDataHoraBR(detalheAberto.updated_at)}
                               </p>
                             </div>
                           </div>
