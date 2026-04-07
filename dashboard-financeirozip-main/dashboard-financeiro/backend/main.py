@@ -2919,20 +2919,24 @@ def get_comercial_dashboard(centro_custo: Optional[str] = None, tipo_imovel: Opt
             )
         """
 
-        cursor.execute(f"""
-            {contratos_cte}
-            SELECT COUNT(*) as total_contratos, COALESCE(SUM(valor_contrato), 0) as valor_contratos
-            FROM contratos
-        """, cr_params + car_params)
-        row_contratos = cursor.fetchone()
-        total_contratos = int(row_contratos['total_contratos'] or 0)
+        # total_contratos = quantidade de UNIDADES vendidas (vem de imovel_unidade)
+        # Cada unidade no Sienge tem multiplos titulos (PM, FI, PE, etc), entao
+        # contar titulos distintos no banco daria valor inflado.
+        total_contratos = qtd_vendido
 
-        # Vendas por ano (baseado na data da PRIMEIRA parcela RECEBIDA)
+        # Vendas por ano (baseado na primeira venda de cada cliente)
+        # Agrupa por cliente para que multiplos titulos de um mesmo cliente contem como 1 venda
         cursor.execute(f"""
-            {contratos_cte}
-            SELECT EXTRACT(YEAR FROM data_venda)::int as ano,
-                   COUNT(*) as quantidade, COALESCE(SUM(valor_contrato), 0) as valor
-            FROM contratos WHERE data_venda IS NOT NULL
+            {contratos_cte},
+            vendas_cliente AS (
+                SELECT cliente, MIN(data_venda) as data_primeira_venda, SUM(valor_contrato) as valor_total
+                FROM contratos
+                WHERE data_venda IS NOT NULL
+                GROUP BY cliente
+            )
+            SELECT EXTRACT(YEAR FROM data_primeira_venda)::int as ano,
+                   COUNT(*) as quantidade, COALESCE(SUM(valor_total), 0) as valor
+            FROM vendas_cliente
             GROUP BY ano ORDER BY ano
         """, cr_params + car_params)
         vendas_por_ano = [{'ano': int(r['ano']), 'quantidade': int(r['quantidade']), 'valor': float(r['valor'])} for r in cursor.fetchall()]
@@ -2941,10 +2945,17 @@ def get_comercial_dashboard(centro_custo: Optional[str] = None, tipo_imovel: Opt
         from datetime import datetime
         ano_atual = datetime.now().year
         cursor.execute(f"""
-            {contratos_cte}
-            SELECT EXTRACT(MONTH FROM data_venda)::int as mes,
-                   COUNT(*) as quantidade, COALESCE(SUM(valor_contrato), 0) as valor
-            FROM contratos WHERE EXTRACT(YEAR FROM data_venda) = %s
+            {contratos_cte},
+            vendas_cliente AS (
+                SELECT cliente, MIN(data_venda) as data_primeira_venda, SUM(valor_contrato) as valor_total
+                FROM contratos
+                WHERE data_venda IS NOT NULL
+                GROUP BY cliente
+            )
+            SELECT EXTRACT(MONTH FROM data_primeira_venda)::int as mes,
+                   COUNT(*) as quantidade, COALESCE(SUM(valor_total), 0) as valor
+            FROM vendas_cliente
+            WHERE EXTRACT(YEAR FROM data_primeira_venda) = %s
             GROUP BY mes ORDER BY mes
         """, cr_params + car_params + [ano_atual])
         meses_nomes = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
