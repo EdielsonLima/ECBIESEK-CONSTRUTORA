@@ -110,8 +110,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
               <button
                 type="button"
                 onClick={() => handleSelect(undefined)}
-                className={`flex w-full items-center px-3 py-2 text-left text-sm hover:bg-gray-100 ${
-                  !value ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-900 dark:text-slate-100'
+                className={`flex w-full items-center px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 ${
+                  !value ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 font-medium' : 'text-gray-900 dark:text-slate-100'
                 }`}
               >
                 {emptyText}
@@ -124,8 +124,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                     key={option.id}
                     type="button"
                     onClick={() => handleSelect(option.id)}
-                    className={`flex w-full items-center px-3 py-2 text-left text-sm hover:bg-gray-100 ${
-                      value === option.id ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-900 dark:text-slate-100'
+                    className={`flex w-full items-center px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 ${
+                      value === option.id ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 font-medium' : 'text-gray-900 dark:text-slate-100'
                     }`}
                   >
                     <span className="flex-1">{option.nome}</span>

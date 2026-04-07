@@ -318,7 +318,7 @@ export const Comercial: React.FC = () => {
                 return (
                   <ResponsiveContainer width="100%" height={340}>
                     <BarChart data={dados as any[]} margin={{ top: 35, right: 10, left: 0, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? 'rgba(255,255,255,0.05)' : '#f8fafc'} vertical={false} />
                       <XAxis dataKey={xKey} tick={{ fontSize: 12, fill: '#6b7280', fontWeight: 600 }} />
                       <YAxis tickFormatter={formatCurrencyShort} tick={{ fontSize: 10, fill: '#9ca3af' }} />
                       <Tooltip

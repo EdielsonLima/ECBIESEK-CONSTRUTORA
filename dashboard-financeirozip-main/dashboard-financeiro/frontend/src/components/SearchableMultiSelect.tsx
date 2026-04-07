@@ -123,7 +123,7 @@ export const SearchableMultiSelect: React.FC<SearchableMultiSelectProps> = ({
           <div className="max-h-60 overflow-y-auto p-2">
             {filteredOptions.length > 0 ? (
               filteredOptions.map((option) => (
-                <label key={option.id} className="flex cursor-pointer items-center gap-2 py-1 hover:bg-gray-50 dark:bg-slate-900 rounded px-1">
+                <label key={option.id} className="flex cursor-pointer items-center gap-2 py-1 hover:bg-gray-50 dark:hover:bg-slate-700 rounded px-1">
                   <input
                     type="checkbox"
                     checked={value.includes(option.id)}
