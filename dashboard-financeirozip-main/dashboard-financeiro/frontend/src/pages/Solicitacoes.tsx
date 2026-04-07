@@ -191,12 +191,11 @@ export const Solicitacoes: React.FC = () => {
   };
 
   const validar = async (id: number, aprovado: boolean) => {
-    const acao = aprovado ? 'aprovar (entrega aceita)' : 'reabrir (entrega nao atende)';
     let comentario: string | undefined = undefined;
     if (!aprovado) {
-      const c = prompt('Por que esta reabrindo? (opcional)') || '';
+      const c = prompt('O que precisa ser corrigido? (opcional)') || '';
       comentario = c.trim() || undefined;
-    } else if (!confirm(`Confirma ${acao}?`)) {
+    } else if (!confirm('Confirma aprovar esta entrega?')) {
       return;
     }
     try {
@@ -205,7 +204,7 @@ export const Solicitacoes: React.FC = () => {
         aprovado_por: user?.nome || user?.email || '',
         comentario,
       });
-      setMsg({ tipo: 'ok', texto: aprovado ? 'Entrega aprovada!' : 'Solicitacao reaberta.' });
+      setMsg({ tipo: 'ok', texto: aprovado ? 'Entrega aprovada!' : 'Solicitacao devolvida para correcao.' });
       setTimeout(() => setMsg(null), 3000);
       carregarDados();
       if (detalheAberto?.id === id) setDetalheAberto(null);
@@ -605,7 +604,7 @@ export const Solicitacoes: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Botoes Aprovar / Reabrir - apenas para o autor da solicitacao quando aguardando validacao */}
+                      {/* Botoes Aprovar / Pedir correcao - apenas para o autor da solicitacao quando aguardando validacao */}
                       {s.status === 'aguardando_validacao' && user?.email && s.usuario_email === user.email && (
                         <div className="mt-2 flex gap-1.5 border-t border-gray-100 dark:border-slate-700/50 pt-2">
                           <button
@@ -620,11 +619,11 @@ export const Solicitacoes: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => validar(s.id, false)}
-                            className="flex-1 inline-flex items-center justify-center gap-1 rounded bg-red-50 dark:bg-red-900/30 px-2 py-1 text-[10px] font-semibold text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800/40 hover:bg-red-100"
-                            title="Reabrir solicitacao"
+                            className="flex-1 inline-flex items-center justify-center gap-1 rounded bg-amber-50 dark:bg-amber-900/30 px-2 py-1 text-[10px] font-semibold text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/40 hover:bg-amber-100"
+                            title="Devolver para o dev ajustar (volta para Pendente)"
                           >
                             <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                            Reabrir
+                            Pedir correcao
                           </button>
                         </div>
                       )}
@@ -826,10 +825,11 @@ export const Solicitacoes: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => validar(detalheAberto.id, false)}
-                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-white dark:bg-slate-800 px-4 py-2 text-sm font-semibold text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-white dark:bg-slate-800 px-4 py-2 text-sm font-semibold text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                    title="Devolve para o dev ajustar (volta para Pendente)"
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                    Reabrir
+                    Pedir correcao
                   </button>
                 </div>
               ) : (
