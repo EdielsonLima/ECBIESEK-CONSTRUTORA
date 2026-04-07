@@ -1382,7 +1382,7 @@ export const apiService = {
     return apiService._empreendimentos.map(e => ({ id: e.id, nome: e.nome, codigo: e.codigo }));
   },
 
-  getPainelExecutivo: async (empreendimentoId: number): Promise<PainelExecutivoData> => {
+  getPainelExecutivo: async (empreendimentoId: number, tiposBaixa?: number[]): Promise<PainelExecutivoData> => {
     // Orcamento = CUB x fator x metragem (formula do Edielson)
     // Load empreendimentos from config DB if not loaded yet
     if (apiService._empreendimentos.length <= 1) {
@@ -1428,7 +1428,9 @@ export const apiService = {
     const ccIdSienge = emp?.centro_custo_id;
     let realizado = 0;
     try {
-      const resRealizado = await api.get('/realizado-por-centro-custo');
+      const realizadoParams: Record<string, string> = {};
+      if (tiposBaixa && tiposBaixa.length > 0) realizadoParams.tipo_baixa = tiposBaixa.join(',');
+      const resRealizado = await api.get('/realizado-por-centro-custo', { params: realizadoParams });
       const realizadoMap = resRealizado.data;
       if (empreendimentoId === 0) {
         // Consolidado: soma todos os centros de custo
@@ -1579,7 +1581,7 @@ export const apiService = {
     });
   },
 
-  getOrcamentoPorEmpreendimento: async (): Promise<{
+  getOrcamentoPorEmpreendimento: async (tiposBaixa?: number[]): Promise<{
     cubValor: number;
     cubReferencia: string;
     empreendimentos: Array<{
@@ -1607,10 +1609,12 @@ export const apiService = {
 
     const emps = apiService._empreendimentos.filter(e => e.id > 0);
 
-    // Busca realizado por CC em uma única chamada (sem filtros de origens/tipos_baixa)
+    // Busca realizado por CC em uma única chamada (com tipos_baixa opcional)
     let realizadoMap: Record<string, number> = {};
     try {
-      const res = await api.get('/realizado-por-centro-custo');
+      const realizadoParams: Record<string, string> = {};
+      if (tiposBaixa && tiposBaixa.length > 0) realizadoParams.tipo_baixa = tiposBaixa.join(',');
+      const res = await api.get('/realizado-por-centro-custo', { params: realizadoParams });
       realizadoMap = Object.fromEntries(
         Object.entries(res.data).map(([k, v]: [string, any]) => [k, v.valor_liquido || 0])
       );

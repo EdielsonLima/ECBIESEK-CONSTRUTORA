@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiService } from '../services/api';
-import { PainelExecutivoData, ExposicaoMensal, EmpreendimentoOption, EstoqueDetalhe } from '../types';
+import { PainelExecutivoData, ExposicaoMensal, EmpreendimentoOption, EstoqueDetalhe, TipoBaixaOption } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { DollarSign, CheckCircle, FileText, Clock, Building2, Wallet, TrendingDown, Calculator, TrendingUp, Package, HandCoins } from 'lucide-react';
 import { criarPDFBase, adicionarResumoCards, finalizarPDF, gerarNomeArquivo } from '../utils/pdfExport';
@@ -45,6 +45,18 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
   const [dropdownSearch, setDropdownSearch] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Filtro de Tipo de Baixa (para o card Realizado bater com Contas Pagas)
+  const [tiposBaixa, setTiposBaixa] = useState<TipoBaixaOption[]>([]);
+  const [tiposBaixaSel, setTiposBaixaSel] = useState<number[]>(() => {
+    const saved = localStorage.getItem('painel_exec_tipos_baixa');
+    if (saved) {
+      try { return JSON.parse(saved); } catch { return []; }
+    }
+    return [];
+  });
+  const [tiposBaixaOpen, setTiposBaixaOpen] = useState(false);
+  const tiposBaixaRef = useRef<HTMLDivElement>(null);
+
   // Orcamento tab data
   const [orcamentoData, setOrcamentoData] = useState<{
     cubValor: number;
@@ -63,6 +75,9 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setDropdownOpen(false);
       }
+      if (tiposBaixaRef.current && !tiposBaixaRef.current.contains(e.target as Node)) {
+        setTiposBaixaOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -72,17 +87,18 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
     apiService.getEmpreendimentos().then(setEmpreendimentos).catch((err) => {
       console.error('Erro ao carregar empreendimentos:', err);
     });
+    apiService.getTiposBaixa().then(setTiposBaixa).catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (abaAtiva === 'orcamento' && !orcamentoData) {
+    if (abaAtiva === 'orcamento') {
       setLoadingOrcamento(true);
-      apiService.getOrcamentoPorEmpreendimento()
+      apiService.getOrcamentoPorEmpreendimento(tiposBaixaSel.length > 0 ? tiposBaixaSel : undefined)
         .then(setOrcamentoData)
         .catch(err => console.error('Erro orcamento:', err))
         .finally(() => setLoadingOrcamento(false));
     }
-  }, [abaAtiva]);
+  }, [abaAtiva, tiposBaixaSel]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -90,7 +106,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
         setLoading(true);
         setError(null);
         const [painelData, exposicaoData] = await Promise.all([
-          apiService.getPainelExecutivo(empreendimentoId),
+          apiService.getPainelExecutivo(empreendimentoId, tiposBaixaSel.length > 0 ? tiposBaixaSel : undefined),
           apiService.getExposicaoExecutivo(empreendimentoId),
         ]);
         setData(painelData);
@@ -102,7 +118,16 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
       }
     };
     fetchData();
-  }, [empreendimentoId]);
+  }, [empreendimentoId, tiposBaixaSel]);
+
+  // Persistir selecao de tipos de baixa
+  useEffect(() => {
+    localStorage.setItem('painel_exec_tipos_baixa', JSON.stringify(tiposBaixaSel));
+  }, [tiposBaixaSel]);
+
+  const toggleTipoBaixa = (id: number) => {
+    setTiposBaixaSel((prev) => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
 
   const empreendimentoNome = empreendimentos.find(e => e.id === empreendimentoId)?.nome ?? 'Consolidado';
 
@@ -170,7 +195,60 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
         <div>
           <p className="text-sm text-gray-500 dark:text-slate-400">Visão consolidada do empreendimento</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Filtro Tipo de Baixa */}
+          <div className="relative" ref={tiposBaixaRef}>
+            <button
+              onClick={() => setTiposBaixaOpen(!tiposBaixaOpen)}
+              className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50 shadow-sm transition-colors min-w-[200px]"
+            >
+              <CheckCircle className="h-4 w-4 text-emerald-500" />
+              <span className="flex-1 text-left">
+                {tiposBaixaSel.length === 0 ? 'Tipo de Baixa: Padrão' : `Tipo de Baixa: ${tiposBaixaSel.length} selecionado(s)`}
+              </span>
+              <svg className={`h-4 w-4 text-gray-400 transition-transform ${tiposBaixaOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {tiposBaixaOpen && (
+              <div className="absolute right-0 mt-1 w-72 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-lg z-50 overflow-hidden">
+                <div className="p-3 border-b border-gray-100 dark:border-slate-700">
+                  <p className="text-xs font-semibold text-gray-600 dark:text-slate-300 mb-1">Filtrar Realizado por Tipo de Baixa</p>
+                  <p className="text-[10px] text-gray-400 dark:text-slate-500">Vazio = usa configuração padrão</p>
+                </div>
+                <div className="max-h-60 overflow-y-auto p-2">
+                  {tiposBaixa.map((tb) => (
+                    <label key={tb.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={tiposBaixaSel.includes(tb.id)}
+                        onChange={() => toggleTipoBaixa(tb.id)}
+                        className="rounded text-emerald-600"
+                      />
+                      <span className="text-xs text-gray-700 dark:text-slate-300">
+                        <span className="font-mono text-gray-400">#{tb.id}</span> {tb.nome}
+                      </span>
+                    </label>
+                  ))}
+                  {tiposBaixa.length === 0 && (
+                    <p className="text-xs text-gray-400 dark:text-slate-500 text-center py-2">Carregando...</p>
+                  )}
+                </div>
+                {tiposBaixaSel.length > 0 && (
+                  <div className="p-2 border-t border-gray-100 dark:border-slate-700">
+                    <button
+                      type="button"
+                      onClick={() => setTiposBaixaSel([])}
+                      className="w-full text-xs text-gray-500 hover:text-red-600 dark:text-slate-400"
+                    >
+                      Limpar seleção
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}

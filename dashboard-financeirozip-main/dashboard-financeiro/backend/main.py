@@ -10143,9 +10143,13 @@ def delete_empreendimento_config(emp_id: int):
 # └──────────────────────────────────────────────────────────────┘
 
 @app.get("/api/realizado-por-centro-custo")
-def get_realizado_por_centro_custo():
+def get_realizado_por_centro_custo(tipo_baixa: Optional[str] = None):
     """Retorna o total pago (valor_liquido) agrupado por centro de custo (chave = id_sienge).
-    Aplica os mesmos filtros da página Contas Pagas (exclusões, origens, tipos_baixa, inter-empresa)."""
+    Aplica os mesmos filtros da página Contas Pagas (exclusões, origens, tipos_baixa, inter-empresa).
+
+    Parâmetros:
+    - tipo_baixa: lista de IDs separados por vírgula. Se fornecido, sobrescreve a config padrão.
+    """
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -10153,6 +10157,14 @@ def get_realizado_por_centro_custo():
         excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp', has_conta_corrente=True)
         conditions = list(excl_conds)
         params = list(excl_params)
+
+        # Se tipo_baixa for fornecido pelo frontend, usa ele direto (override)
+        tipos_baixa_filtro = []
+        if tipo_baixa:
+            try:
+                tipos_baixa_filtro = [int(x) for x in tipo_baixa.split(',') if x.strip()]
+            except Exception:
+                tipos_baixa_filtro = []
 
         # Filtros de origens e tipos_baixa da config (mesmo da página Contas Pagas)
         try:
@@ -10169,17 +10181,21 @@ def get_realizado_por_centro_custo():
                     conditions.append(f"TRIM(UPPER(cp.id_origem)) NOT IN ({oe_ph})")
                     params.extend(origens_excluidas)
 
-                cfg_cursor.execute(
-                    "SELECT id_tipo_baixa FROM config_tipos_baixa_exposicao_caixa WHERE incluir = 1 AND paginas LIKE %s",
-                    ('%contas_pagas%',)
-                )
-                tipos_baixa_config = [r['id_tipo_baixa'] for r in cfg_cursor.fetchall()]
-                if tipos_baixa_config:
-                    tb_ph = ', '.join(['%s'] * len(tipos_baixa_config))
+                # Se nao tem override do frontend, usa config
+                if not tipos_baixa_filtro:
+                    cfg_cursor.execute(
+                        "SELECT id_tipo_baixa FROM config_tipos_baixa_exposicao_caixa WHERE incluir = 1 AND paginas LIKE %s",
+                        ('%contas_pagas%',)
+                    )
+                    tipos_baixa_filtro = [r['id_tipo_baixa'] for r in cfg_cursor.fetchall()]
+
+                if tipos_baixa_filtro:
+                    tb_ph = ', '.join(['%s'] * len(tipos_baixa_filtro))
                     conditions.append(f"cp.id_tipo_baixa IN ({tb_ph})")
-                    params.extend(tipos_baixa_config)
+                    params.extend(tipos_baixa_filtro)
             finally:
                 cfg_cursor.close()
+                cfg_cursor = None  # type: ignore
                 cfg_conn.close()
         except Exception:
             pass
