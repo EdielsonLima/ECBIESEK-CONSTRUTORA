@@ -1532,8 +1532,10 @@ export const apiService = {
     const params: Record<string, string> = { ano: anos };
 
     const emp = apiService._empreendimentos.find(e => e.id === empreendimentoId);
-    if (emp?.centro_custo_id) {
-      params.centro_custo = emp.centro_custo_id.toString();
+    // IMPORTANTE: usar ID INTERNO (não o Sienge), porque /estatisticas-por-mes
+    // e /recebidas-por-mes filtram por id_interno_centro_custo
+    if (emp?.centro_custo_id_interno) {
+      params.centro_custo = emp.centro_custo_id_interno.toString();
     }
 
     const [resPago, resRecebido] = await Promise.all([
