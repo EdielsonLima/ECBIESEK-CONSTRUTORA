@@ -2760,24 +2760,34 @@ def get_comercial_dashboard(centro_custo: Optional[str] = None, tipo_imovel: Opt
         # Agregar por empreendimento
         emp_map = {}
         total_vendido = 0; total_disponivel = 0; total_geral = 0
-        qtd_vendido = 0; qtd_disponivel = 0; qtd_total = 0
+        qtd_vendido = 0; qtd_disponivel = 0; qtd_reserva = 0; qtd_permuta = 0; qtd_outros = 0; qtd_total = 0
         for r in rows_estoque:
             key = r['nome_centrocusto'] or 'Sem Centro'
             if key not in emp_map:
-                emp_map[key] = {'nome': key, 'codigo_cc': r['codigo_cc'], 'qtd_vendido': 0, 'qtd_disponivel': 0, 'qtd_total': 0, 'valor_vendido': 0, 'valor_disponivel': 0, 'valor_total': 0}
+                emp_map[key] = {'nome': key, 'codigo_cc': r['codigo_cc'], 'qtd_vendido': 0, 'qtd_disponivel': 0, 'qtd_reserva': 0, 'qtd_permuta': 0, 'qtd_outros': 0, 'qtd_total': 0, 'valor_vendido': 0, 'valor_disponivel': 0, 'valor_total': 0}
             emp = emp_map[key]
             v = float(r['valor'] or 0)
             q = int(r['qtd'] or 0)
+            flag = r['flag_comercial']
             emp['qtd_total'] += q
             emp['valor_total'] += v
             qtd_total += q
             total_geral += v
-            if r['flag_comercial'] == 'V':
+            if flag == 'V' or flag == 'C':  # Vendido ou Pre-Contrato
                 emp['qtd_vendido'] += q; emp['valor_vendido'] += v
                 qtd_vendido += q; total_vendido += v
-            elif r['flag_comercial'] == 'D':
+            elif flag == 'D':  # Disponivel
                 emp['qtd_disponivel'] += q; emp['valor_disponivel'] += v
                 qtd_disponivel += q; total_disponivel += v
+            elif flag == 'R' or flag == 'A':  # Reserva Tecnica ou Reservada
+                emp['qtd_reserva'] += q
+                qtd_reserva += q
+            elif flag == 'P':  # Permuta
+                emp['qtd_permuta'] += q
+                qtd_permuta += q
+            else:  # Outros (M, L, T, E, G, O...)
+                emp['qtd_outros'] += q
+                qtd_outros += q
 
         por_empreendimento = []
         for emp in sorted(emp_map.values(), key=lambda x: x['valor_vendido'], reverse=True):
@@ -2892,6 +2902,9 @@ def get_comercial_dashboard(centro_custo: Optional[str] = None, tipo_imovel: Opt
             'estoque_percentual': estoque_pct,
             'qtd_vendido': qtd_vendido,
             'qtd_disponivel': qtd_disponivel,
+            'qtd_reserva': qtd_reserva,
+            'qtd_permuta': qtd_permuta,
+            'qtd_outros': qtd_outros,
             'qtd_total': qtd_total,
             'por_empreendimento': por_empreendimento,
             'vendas_por_ano': vendas_por_ano,

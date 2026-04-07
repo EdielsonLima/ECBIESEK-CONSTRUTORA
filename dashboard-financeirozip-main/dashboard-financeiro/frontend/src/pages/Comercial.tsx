@@ -16,10 +16,17 @@ const COLORS = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4'
 
 type AbaAtiva = 'vendas' | 'por-cliente' | 'por-empreendimento';
 
+interface EmpreendimentoData {
+  nome: string; codigo_cc: number;
+  qtd_vendido: number; qtd_disponivel: number; qtd_reserva: number; qtd_permuta: number; qtd_outros: number; qtd_total: number;
+  valor_vendido: number; valor_disponivel: number; valor_total: number;
+  percentual_vendido: number;
+}
+
 interface DashboardData {
   total_contratos: number; valor_vendido: number; ticket_medio: number; estoque_percentual: number;
-  qtd_vendido: number; qtd_disponivel: number; qtd_total: number;
-  por_empreendimento: Array<{ nome: string; codigo_cc: number; qtd_vendido: number; qtd_disponivel: number; qtd_total: number; valor_vendido: number; valor_disponivel: number; valor_total: number; percentual_vendido: number }>;
+  qtd_vendido: number; qtd_disponivel: number; qtd_reserva: number; qtd_permuta: number; qtd_outros: number; qtd_total: number;
+  por_empreendimento: EmpreendimentoData[];
   vendas_por_ano: Array<{ ano: number; quantidade: number; valor: number }>;
   vendas_por_mes: Array<{ mes: number; mes_nome: string; quantidade: number; valor: number }>;
 }
@@ -97,7 +104,7 @@ export const Comercial: React.FC = () => {
     );
   }
 
-  const d = dashboard || { total_contratos: 0, valor_vendido: 0, ticket_medio: 0, estoque_percentual: 0, qtd_vendido: 0, qtd_disponivel: 0, qtd_total: 0, por_empreendimento: [], vendas_por_ano: [], vendas_por_mes: [] };
+  const d: DashboardData = dashboard || { total_contratos: 0, valor_vendido: 0, ticket_medio: 0, estoque_percentual: 0, qtd_vendido: 0, qtd_disponivel: 0, qtd_reserva: 0, qtd_permuta: 0, qtd_outros: 0, qtd_total: 0, por_empreendimento: [], vendas_por_ano: [], vendas_por_mes: [] };
 
   // Clientes filtrados e ordenados
   const clientesFiltrados = clientes
@@ -184,7 +191,15 @@ export const Comercial: React.FC = () => {
             </div>
           </div>
           <p className="text-3xl font-bold text-amber-900 mt-2">{d.estoque_percentual}% <span className="text-base font-normal text-amber-600">vendido</span></p>
-          <p className="text-xs text-amber-500 mt-0.5">{d.qtd_vendido} vendidas · {d.qtd_disponivel} disponiveis · {d.qtd_total} total</p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5 text-[11px] font-semibold">
+            <span className="text-emerald-700">{d.qtd_vendido} vend.</span>
+            <span className="text-gray-300">·</span>
+            <span className="text-blue-700">{d.qtd_disponivel} disp.</span>
+            {(d.qtd_reserva ?? 0) > 0 && <><span className="text-gray-300">·</span><span className="text-amber-700">{d.qtd_reserva} res.</span></>}
+            {(d.qtd_permuta ?? 0) > 0 && <><span className="text-gray-300">·</span><span className="text-purple-700">{d.qtd_permuta} perm.</span></>}
+            <span className="text-gray-300">·</span>
+            <span className="text-amber-900">{d.qtd_total} total</span>
+          </div>
         </div>
       </div>
 
@@ -213,21 +228,47 @@ export const Comercial: React.FC = () => {
             <div className="rounded-xl bg-white p-5 shadow-sm border border-gray-100">
               <h3 className="text-base font-bold text-gray-900 mb-1">Por Empreendimento</h3>
               <p className="text-xs text-gray-400 mb-4">Vendas e estoque por empreendimento</p>
-              <div className="space-y-4">
+              <div className="space-y-5">
                 {d.por_empreendimento.map((emp, i) => (
-                  <div key={i}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-semibold text-gray-800">{emp.nome}</span>
-                      <span className="text-xs font-bold text-emerald-600">{emp.percentual_vendido}%</span>
+                  <div key={i} className="rounded-lg border border-gray-100 p-3 bg-gray-50/50">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-bold text-gray-900">{emp.nome}</span>
+                      <span className="text-base font-bold text-emerald-600">{emp.percentual_vendido}%</span>
                     </div>
-                    <p className="text-[10px] text-gray-400 mb-1">{emp.qtd_vendido + emp.qtd_disponivel} contratos · {formatCurrencyShort(emp.valor_vendido)}</p>
-                    <div className="h-2.5 rounded-full bg-gray-100 overflow-hidden">
-                      <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${emp.percentual_vendido}%` }}></div>
+                    <p className="text-xs text-gray-500 mb-2 font-medium">{formatCurrency(emp.valor_vendido)} vendido</p>
+                    <div className="h-3 rounded-full bg-gray-200 overflow-hidden mb-3">
+                      <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all" style={{ width: `${emp.percentual_vendido}%` }}></div>
                     </div>
-                    <div className="mt-1 flex gap-2 text-[9px]">
-                      <span className="text-emerald-600">Vend: {emp.qtd_vendido}</span>
-                      <span className="text-blue-600">Disp: {emp.qtd_disponivel}</span>
-                      <span className="text-gray-400">{emp.qtd_total} un.</span>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-700 px-2.5 py-1 text-xs font-semibold">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                        Vendido: {emp.qtd_vendido}
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 text-blue-700 px-2.5 py-1 text-xs font-semibold">
+                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
+                        Disponivel: {emp.qtd_disponivel}
+                      </span>
+                      {emp.qtd_reserva > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-700 px-2.5 py-1 text-xs font-semibold">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                          Reserva: {emp.qtd_reserva}
+                        </span>
+                      )}
+                      {emp.qtd_permuta > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 text-purple-700 px-2.5 py-1 text-xs font-semibold">
+                          <span className="h-1.5 w-1.5 rounded-full bg-purple-500"></span>
+                          Permuta: {emp.qtd_permuta}
+                        </span>
+                      )}
+                      {emp.qtd_outros > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 text-gray-700 px-2.5 py-1 text-xs font-semibold">
+                          <span className="h-1.5 w-1.5 rounded-full bg-gray-500"></span>
+                          Outros: {emp.qtd_outros}
+                        </span>
+                      )}
+                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-700 px-2.5 py-1 text-xs font-bold border border-slate-200">
+                        Total: {emp.qtd_total} un.
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -392,18 +433,32 @@ export const Comercial: React.FC = () => {
               <div className="h-3 rounded-full bg-gray-100 overflow-hidden mb-3">
                 <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all" style={{ width: `${emp.percentual_vendido}%` }}></div>
               </div>
-              <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="grid grid-cols-2 gap-2 text-center mb-2">
                 <div className="rounded-lg bg-emerald-50 p-2">
-                  <p className="text-lg font-bold text-emerald-700">{emp.qtd_vendido}</p>
-                  <p className="text-[9px] text-emerald-600 uppercase font-medium">Vendido</p>
+                  <p className="text-xl font-bold text-emerald-700">{emp.qtd_vendido}</p>
+                  <p className="text-[10px] text-emerald-600 uppercase font-semibold">Vendido</p>
                 </div>
                 <div className="rounded-lg bg-blue-50 p-2">
-                  <p className="text-lg font-bold text-blue-700">{emp.qtd_disponivel}</p>
-                  <p className="text-[9px] text-blue-600 uppercase font-medium">Disponivel</p>
+                  <p className="text-xl font-bold text-blue-700">{emp.qtd_disponivel}</p>
+                  <p className="text-[10px] text-blue-600 uppercase font-semibold">Disponivel</p>
                 </div>
-                <div className="rounded-lg bg-gray-50 p-2">
-                  <p className="text-lg font-bold text-gray-700">{emp.qtd_total}</p>
-                  <p className="text-[9px] text-gray-500 uppercase font-medium">Total</p>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                {emp.qtd_reserva > 0 && (
+                  <div className="rounded-lg bg-amber-50 p-2">
+                    <p className="text-base font-bold text-amber-700">{emp.qtd_reserva}</p>
+                    <p className="text-[9px] text-amber-600 uppercase font-semibold">Reserva</p>
+                  </div>
+                )}
+                {emp.qtd_permuta > 0 && (
+                  <div className="rounded-lg bg-purple-50 p-2">
+                    <p className="text-base font-bold text-purple-700">{emp.qtd_permuta}</p>
+                    <p className="text-[9px] text-purple-600 uppercase font-semibold">Permuta</p>
+                  </div>
+                )}
+                <div className={`rounded-lg bg-slate-100 p-2 ${(emp.qtd_reserva > 0 && emp.qtd_permuta > 0) ? '' : 'col-span-3'}`}>
+                  <p className="text-base font-bold text-slate-800">{emp.qtd_total}</p>
+                  <p className="text-[9px] text-slate-600 uppercase font-semibold">Total</p>
                 </div>
               </div>
             </div>
