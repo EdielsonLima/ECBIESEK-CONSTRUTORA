@@ -2657,7 +2657,7 @@ def diagnostico_contrato(titulo: str, cliente: Optional[str] = None):
         # Listar todas parcelas do titulo
         if cliente:
             cursor.execute("""
-                SELECT lancamento, numero_parcela, valor_total, data_vencimento, tc, id_interno_centro_custo, id_credor
+                SELECT lancamento, numero_parcela, valor_total, data_vencimento, tc, id_interno_centro_custo, cliente
                 FROM contas_a_receber
                 WHERE SPLIT_PART(lancamento, '/', 1) = %s AND cliente ILIKE %s
                 ORDER BY numero_parcela
