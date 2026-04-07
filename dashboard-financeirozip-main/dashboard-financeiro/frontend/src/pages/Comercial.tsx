@@ -201,7 +201,7 @@ export const Comercial: React.FC = () => {
             <span className="text-emerald-700 dark:text-emerald-400">{d.qtd_vendido} vend.</span>
             <span className="text-gray-300 dark:text-slate-600">·</span>
             <span className="text-blue-700 dark:text-blue-400">{d.qtd_disponivel} disp.</span>
-            {(d.qtd_reserva ?? 0) > 0 && <><span className="text-gray-300 dark:text-slate-600">·</span><span className="text-amber-700 dark:text-amber-400">{d.qtd_reserva} res.</span></>}
+            {(d.qtd_reserva ?? 0) > 0 && <><span className="text-gray-300 dark:text-slate-600">·</span><span className="text-amber-700 dark:text-amber-400">{d.qtd_reserva} res. téc.</span></>}
             {(d.qtd_permuta ?? 0) > 0 && <><span className="text-gray-300 dark:text-slate-600">·</span><span className="text-purple-700 dark:text-purple-400">{d.qtd_permuta} perm.</span></>}
             <span className="text-gray-300 dark:text-slate-600">·</span>
             <span className="text-amber-900 dark:text-amber-500">{d.qtd_total} total</span>
@@ -257,7 +257,7 @@ export const Comercial: React.FC = () => {
                       {emp.qtd_reserva > 0 && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 px-2.5 py-1 text-xs font-semibold">
                           <span className="h-1.5 w-1.5 rounded-full bg-amber-500 dark:bg-amber-400"></span>
-                          Reserva: {emp.qtd_reserva}
+                          Res. Técnica: {emp.qtd_reserva}
                         </span>
                       )}
                       {emp.qtd_permuta > 0 && (
@@ -510,7 +510,7 @@ export const Comercial: React.FC = () => {
                 {emp.qtd_reserva > 0 && (
                   <div className="flex-1 rounded-lg bg-amber-50 dark:bg-amber-900/20 p-1.5 border border-amber-100 dark:border-amber-800/50">
                     <p className="text-base sm:text-lg font-bold text-amber-700 dark:text-amber-400">{emp.qtd_reserva}</p>
-                    <p className="text-[9px] text-amber-600 dark:text-amber-500 uppercase font-bold">Res.</p>
+                    <p className="text-[9px] text-amber-600 dark:text-amber-500 uppercase font-bold tracking-tight">Res. Téc.</p>
                   </div>
                 )}
                 {emp.qtd_permuta > 0 && (
