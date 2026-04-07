@@ -1556,6 +1556,8 @@ export const apiService = {
     const TAXA_MENSAL = 1.5;
     let acumulado = 0;
     let jurosAcumulados = 0;
+    let picoExposicaoSimples = 0; // pico (maior valor) de exposicao simples ate o momento
+    let picoExposicaoComposta = 0; // pico de exposicao composta ate o momento
 
     return mesesOrdenados.map(mes => {
       const [ano, mesNum] = mes.split('-');
@@ -1564,10 +1566,16 @@ export const apiService = {
       const pago = pagoMap[mes] ?? 0;
       acumulado += recebido - pago;
 
-      // Exposicao simples = acumulado invertido (positivo = empresa exposta)
-      const exposicaoSimples = -acumulado;
+      // Exposicao simples no mes = acumulado invertido (positivo = empresa exposta)
+      const exposicaoSimplesMes = -acumulado;
 
-      // Exposicao composta = acumulado + juros compostos
+      // Pico acumulado: a cada mes, mantem o maior valor de exposicao ja atingido
+      // Isso garante que o ultimo ponto do grafico bate com o card "Exposicao Simples"
+      if (exposicaoSimplesMes > picoExposicaoSimples) {
+        picoExposicaoSimples = exposicaoSimplesMes;
+      }
+
+      // Exposicao composta: aplica juros sobre exposicao acumulada
       const exposicaoNegativa = Math.min(0, acumulado);
       if (exposicaoNegativa < 0) {
         const base = Math.abs(exposicaoNegativa) + jurosAcumulados;
@@ -1575,9 +1583,21 @@ export const apiService = {
       } else {
         jurosAcumulados = 0;
       }
-      const exposicaoComposta = exposicaoSimples + jurosAcumulados;
+      const exposicaoCompostaMes = exposicaoSimplesMes + jurosAcumulados;
+      if (exposicaoCompostaMes > picoExposicaoComposta) {
+        picoExposicaoComposta = exposicaoCompostaMes;
+      }
 
-      return { periodo, mes_key: mes, recebido, pago, saldo_acumulado: acumulado, exposicao_simples: exposicaoSimples, exposicao_composta: exposicaoComposta };
+      return {
+        periodo,
+        mes_key: mes,
+        recebido,
+        pago,
+        saldo_acumulado: acumulado,
+        // Retorna o PICO ACUMULADO (curva sempre crescente que bate com o card)
+        exposicao_simples: picoExposicaoSimples,
+        exposicao_composta: picoExposicaoComposta,
+      };
     });
   },
 

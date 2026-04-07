@@ -577,8 +577,8 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
       <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700/50 shadow-sm p-6">
         <div className="flex items-center justify-between mb-2">
           <div>
-            <h3 className="text-lg font-bold text-gray-800 dark:text-slate-200">Evolução da Exposição</h3>
-            <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">{empreendimentoNome} — Acima de zero = empresa exposta</p>
+            <h3 className="text-lg font-bold text-gray-800 dark:text-slate-200">Evolução da Exposição Acumulada</h3>
+            <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">{empreendimentoNome} — Pico acumulado de exposição mês a mês (último ponto = valor do card)</p>
           </div>
           <div className="flex items-center bg-gray-100 rounded-xl p-1">
             <button
@@ -625,7 +625,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
           </AreaChart>
         </ResponsiveContainer>
         <p className="text-xs text-gray-400 text-center mt-2">
-          Linha verde = ponto de equilíbrio (zero). Quanto mais alto, maior a exposição de capital da empresa.
+          Curva acumulada de exposição: cada ponto representa o pico de capital exposto até aquele mês. O valor final corresponde ao card "Exposição" acima.
         </p>
       </div>
       </>)}
