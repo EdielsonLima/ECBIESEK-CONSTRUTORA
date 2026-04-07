@@ -45,117 +45,164 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">ECBIESEK-CONSTRUTORA</h1>
-          <p className="text-gray-600 dark:text-slate-400 mt-2">
-            {isLogin ? 'Entre com suas credenciais' : 'Crie sua conta'}
-          </p>
-        </div>
+    <div className="min-h-screen bg-slate-950 text-slate-900">
+      <div className="flex min-h-screen flex-col md:flex-row">
+        <div className="relative flex-1 bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900 px-8 py-10 md:px-14 lg:px-16 flex items-center justify-center overflow-hidden">
+          <div className="absolute -left-24 -top-32 h-72 w-72 bg-blue-100/60 blur-3xl rounded-full pointer-events-none" />
+          <div className="absolute -right-10 bottom-0 h-64 w-64 bg-indigo-100/50 blur-3xl rounded-full pointer-events-none" />
 
-        {error && (
-          <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-              placeholder="seu@email.com"
-              required
-            />
-          </div>
-
-          {!isLogin && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Nome</label>
-              <input
-                type="text"
-                value={nome}
-                onChange={(e) => setNome(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                placeholder="Seu nome completo"
-                required={!isLogin}
-              />
+          <div className="w-full max-w-xl relative z-10">
+            <div className="mb-10">
+              <div className="inline-flex items-center rounded-full bg-blue-50 text-blue-700 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em]">
+                Acesso Seguro
+              </div>
+              <h1 className="mt-6 text-4xl font-bold text-slate-900 dark:text-white leading-tight font-['Sora']">
+                Bem-vindo de volta
+              </h1>
+              <p className="mt-3 text-base text-slate-500 dark:text-slate-300 max-w-xl">
+                Entre para acessar o painel da ECBIESEK-CONSTRUTORA. Use seu e-mail corporativo ou telefone cadastrado.
+              </p>
             </div>
-          )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Senha</label>
-            <input
-              type="password"
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-              placeholder="••••••••"
-              required
-            />
-          </div>
-
-          {!isLogin && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Confirmar Senha</label>
-              <input
-                type="password"
-                value={confirmarSenha}
-                onChange={(e) => setConfirmarSenha(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                placeholder="••••••••"
-                required={!isLogin}
-              />
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? (
-              <span className="flex items-center justify-center">
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Processando...
-              </span>
-            ) : (
-              isLogin ? 'Entrar' : 'Criar Conta'
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600 shadow-sm">
+                {error}
+              </div>
             )}
-          </button>
-        </form>
 
-        <div className="mt-6 text-center">
-          <button
-            onClick={() => {
-              setIsLogin(!isLogin);
-              setError(null);
-            }}
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-          >
-            {isLogin ? 'Não tem conta? Cadastre-se' : 'Já tem conta? Entre'}
-          </button>
+            <div className="bg-white dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl shadow-blue-500/5 backdrop-blur-sm p-8">
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">E-mail ou Telefone</label>
+                  <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 dark:focus-within:ring-blue-900/40 transition">
+                    <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12.79V12a9 9 0 10-9 9h.79M15 9l-6 6m0-6l6 6" />
+                    </svg>
+                    <input
+                      type="text"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="flex-1 bg-transparent outline-none text-[15px] placeholder:text-slate-400"
+                      placeholder="email@exemplo.com ou (11) 99999-9999"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {!isLogin && (
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">Nome completo</label>
+                    <input
+                      type="text"
+                      value={nome}
+                      onChange={(e) => setNome(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40 focus:border-blue-500 outline-none transition text-[15px]"
+                      placeholder="Digite seu nome"
+                      required={!isLogin}
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">Senha</label>
+                    <button type="button" className="text-xs font-semibold text-blue-700 hover:text-blue-800">
+                      Esqueci minha senha
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 dark:focus-within:ring-blue-900/40 transition">
+                    <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 11c1.657 0 3-1.567 3-3.5S13.657 4 12 4s-3 1.567-3 3.5S10.343 11 12 11z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 20c0-2.21 2.686-4 6-4s6 1.79 6 4" />
+                    </svg>
+                    <input
+                      type="password"
+                      value={senha}
+                      onChange={(e) => setSenha(e.target.value)}
+                      className="flex-1 bg-transparent outline-none text-[15px] placeholder:text-slate-400"
+                      placeholder="••••••••"
+                      required
+                    />
+                    <button type="button" className="text-slate-400 hover:text-slate-500" aria-label="mostrar senha">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        <circle cx="12" cy="12" r="3" strokeWidth={1.5} />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                {!isLogin && (
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">Confirmar senha</label>
+                    <input
+                      type="password"
+                      value={confirmarSenha}
+                      onChange={(e) => setConfirmarSenha(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40 focus:border-blue-500 outline-none transition text-[15px]"
+                      placeholder="Repita sua senha"
+                      required={!isLogin}
+                    />
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-blue-700 text-white py-3.5 rounded-xl font-semibold hover:bg-blue-800 shadow-lg shadow-blue-500/25 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Processando...
+                    </span>
+                  ) : (
+                    isLogin ? 'Entrar' : 'Criar conta'
+                  )}
+                </button>
+
+                <div className="text-sm text-slate-600 dark:text-slate-300 text-center">
+                  {isLogin ? 'Não tem conta?' : 'Já tem conta?'}{' '}
+                  <button
+                    type="button"
+                    onClick={() => { setIsLogin(!isLogin); setError(null); }}
+                    className="font-semibold text-blue-700 hover:text-blue-800"
+                  >
+                    {isLogin ? 'Cadastre-se' : 'Entre'}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div className="mt-10 flex items-center gap-4 text-xs uppercase tracking-[0.18em] text-slate-400">
+              <span className="h-px w-10 bg-slate-200" />
+              Sistema protegido por autenticação segura
+              <span className="h-px w-10 bg-slate-200" />
+            </div>
+          </div>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-gray-200 dark:border-slate-700">
-          <p className="text-xs text-center text-gray-500 dark:text-slate-400">
-            Sistema protegido por autenticação segura
-          </p>
-          <p className="mt-2 text-[10px] text-center text-gray-400">
-            Desenvolvido por DT Consultorias
-          </p>
+        <div className="relative md:w-[44%] lg:w-[42%] hidden md:flex items-center justify-center overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-[#0b1020] via-[#111a30] to-[#090f1d]" />
+          <div className="absolute inset-0 opacity-50" style={{ backgroundImage: 'radial-gradient(circle at 20% 20%, rgba(255,255,255,0.04) 0, transparent 28%), radial-gradient(circle at 80% 0%, rgba(0,122,255,0.15) 0, transparent 32%), radial-gradient(circle at 70% 70%, rgba(255,255,255,0.05) 0, transparent 30%)' }} />
+          <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.05)_0,rgba(255,255,255,0)_25%)]" />
+
+          <div className="relative z-10 flex flex-col items-center text-white px-10">
+            <div className="bg-white/10 border border-white/10 rounded-full px-4 py-2 text-xs uppercase tracking-[0.24em] mb-6">
+              ECBIESEK • Construção Inteligente
+            </div>
+            <img
+              src="/logo-ecbiesek-full.svg"
+              alt="Logotipo ECBIESEK"
+              className="w-56 drop-shadow-[0_18px_40px_rgba(0,0,0,0.35)] mb-8"
+            />
+            <p className="max-w-md text-center text-slate-200 leading-relaxed">
+              Traga a identidade da empresa para o login: coloque aqui uma foto da obra, o render 3D do empreendimento ou qualquer arte institucional.
+            </p>
+          </div>
         </div>
       </div>
     </div>
