@@ -66,6 +66,13 @@ Dashboard financeiro React 18 + TypeScript + Tailwind CSS (frontend) com FastAPI
 - Empresas excluídas: dados delas NÃO aparecem nos painéis financeiros
 - **MAS**: o filtro de centros de custo NÃO deve excluir CCs de empresas excluídas (cada usuário pode ter visão diferente)
 
+### Saldos Bancários
+- O banco **NÃO** tem tabela de saldo bancário consolidado
+- Saldo por conta corrente = `SUM(contas_recebidas.valor_liquido) - SUM(contas_pagas.valor_liquido WHERE id_tipo_baixa=1)`
+- Tabela `ecadcontacorrente` (id_conta_corrente, nome_conta_corrente, id_interno_empresa) tem o cadastro
+- Joins: `cp.id_conta_corrente = eccc.id_conta_corrente`
+- Endpoints: `/api/saldos-bancarios` e `/api/saldos-bancarios/detalhe`
+
 ### Fuso Horário
 - Banco PostgreSQL armazena timestamps em UTC
 - Frontend deve converter para `America/Sao_Paulo` ao exibir
