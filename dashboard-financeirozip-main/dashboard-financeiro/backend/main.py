@@ -2817,12 +2817,19 @@ def get_comercial_dashboard(centro_custo: Optional[str] = None, tipo_imovel: Opt
 
         # Agregar por empreendimento
         emp_map = {}
+        flag_labels = {
+            'D': 'Disponível', 'R': 'Res. Técnica', 'P': 'Permuta', 'M': 'Mútuo',
+            'O': 'Proposta', 'V': 'Vendido', 'C': 'Pré-Contrato', 'A': 'Reservada',
+            'L': 'Locado', 'T': 'Transferido', 'E': 'Terceiros', 'I': 'Indisponível', 'G': 'Gravame'
+        }
         total_vendido = 0; total_disponivel = 0; total_geral = 0
-        qtd_vendido = 0; qtd_disponivel = 0; qtd_reserva = 0; qtd_permuta = 0; qtd_outros = 0; qtd_total = 0
+        qtd_vendido = 0; qtd_disponivel = 0; qtd_total = 0
+        global_status_extra_dict = {}
+
         for r in rows_estoque:
             key = r['nome_centrocusto'] or 'Sem Centro'
             if key not in emp_map:
-                emp_map[key] = {'nome': key, 'codigo_cc': r['codigo_cc'], 'qtd_vendido': 0, 'qtd_disponivel': 0, 'qtd_reserva': 0, 'qtd_permuta': 0, 'qtd_outros': 0, 'qtd_total': 0, 'valor_vendido': 0, 'valor_disponivel': 0, 'valor_total': 0}
+                emp_map[key] = {'nome': key, 'codigo_cc': r['codigo_cc'], 'qtd_vendido': 0, 'qtd_disponivel': 0, 'qtd_total': 0, 'valor_vendido': 0, 'valor_disponivel': 0, 'valor_total': 0, 'status_extra_dict': {}}
             emp = emp_map[key]
             v = float(r['valor'] or 0)
             q = int(r['qtd'] or 0)
@@ -2831,26 +2838,28 @@ def get_comercial_dashboard(centro_custo: Optional[str] = None, tipo_imovel: Opt
             emp['valor_total'] += v
             qtd_total += q
             total_geral += v
-            if flag == 'V' or flag == 'C':  # Vendido ou Pre-Contrato
+            if flag in ('V', 'C'):  # Vendido ou Pre-Contrato
                 emp['qtd_vendido'] += q; emp['valor_vendido'] += v
                 qtd_vendido += q; total_vendido += v
             elif flag == 'D':  # Disponivel
                 emp['qtd_disponivel'] += q; emp['valor_disponivel'] += v
                 qtd_disponivel += q; total_disponivel += v
-            elif flag == 'R' or flag == 'A':  # Reserva Tecnica ou Reservada
-                emp['qtd_reserva'] += q
-                qtd_reserva += q
-            elif flag == 'P':  # Permuta
-                emp['qtd_permuta'] += q
-                qtd_permuta += q
-            else:  # Outros (M, L, T, E, G, O...)
-                emp['qtd_outros'] += q
-                qtd_outros += q
+            else:
+                if flag not in emp['status_extra_dict']: emp['status_extra_dict'][flag] = 0
+                emp['status_extra_dict'][flag] += q
+                if flag not in global_status_extra_dict: global_status_extra_dict[flag] = 0
+                global_status_extra_dict[flag] += q
 
         por_empreendimento = []
         for emp in sorted(emp_map.values(), key=lambda x: x['valor_vendido'], reverse=True):
             emp['percentual_vendido'] = round(emp['qtd_vendido'] / emp['qtd_total'] * 100, 1) if emp['qtd_total'] > 0 else 0
+            emp['status_extra'] = [{'flag': f, 'nome': flag_labels.get(f, f"Outro ({f})"), 'qtd': q} for f, q in emp['status_extra_dict'].items() if q > 0]
+            emp['status_extra'].sort(key=lambda x: x['qtd'], reverse=True)
+            del emp['status_extra_dict']
             por_empreendimento.append(emp)
+
+        status_extra_global = [{'flag': f, 'nome': flag_labels.get(f, f"Outro ({f})"), 'qtd': q} for f, q in global_status_extra_dict.items() if q > 0]
+        status_extra_global.sort(key=lambda x: x['qtd'], reverse=True)
 
         # --- Contratos: combina contas_a_receber (pendentes) + contas_recebidas (pagas) ---
         # Data da venda = data do PRIMEIRO recebimento (quando o cliente comecou a pagar)
@@ -2971,9 +2980,7 @@ def get_comercial_dashboard(centro_custo: Optional[str] = None, tipo_imovel: Opt
             'estoque_percentual': estoque_pct,
             'qtd_vendido': qtd_vendido,
             'qtd_disponivel': qtd_disponivel,
-            'qtd_reserva': qtd_reserva,
-            'qtd_permuta': qtd_permuta,
-            'qtd_outros': qtd_outros,
+            'status_extra': status_extra_global,
             'qtd_total': qtd_total,
             'por_empreendimento': por_empreendimento,
             'vendas_por_ano': vendas_por_ano,

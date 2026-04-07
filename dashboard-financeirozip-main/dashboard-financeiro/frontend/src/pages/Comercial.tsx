@@ -17,24 +17,46 @@ const COLORS = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4'
 
 type AbaAtiva = 'vendas' | 'por-cliente' | 'por-empreendimento';
 
+interface StatusExtra { flag: string; nome: string; qtd: number; }
+
 interface EmpreendimentoData {
   nome: string; codigo_cc: number;
-  qtd_vendido: number; qtd_disponivel: number; qtd_reserva: number; qtd_permuta: number; qtd_outros: number; qtd_total: number;
+  qtd_vendido: number; qtd_disponivel: number; qtd_total: number;
   valor_vendido: number; valor_disponivel: number; valor_total: number;
   percentual_vendido: number;
+  status_extra?: StatusExtra[];
+  qtd_reserva?: number; qtd_permuta?: number; qtd_outros?: number;
 }
 
 interface DashboardData {
   total_contratos: number; valor_vendido: number; ticket_medio: number; estoque_percentual: number;
-  qtd_vendido: number; qtd_disponivel: number; qtd_reserva: number; qtd_permuta: number; qtd_outros: number; qtd_total: number;
+  qtd_vendido: number; qtd_disponivel: number; qtd_total: number;
+  status_extra?: StatusExtra[];
   por_empreendimento: EmpreendimentoData[];
   vendas_por_ano: Array<{ ano: number; quantidade: number; valor: number }>;
   vendas_por_mes: Array<{ mes: number; mes_nome: string; quantidade: number; valor: number }>;
+  qtd_reserva?: number; qtd_permuta?: number; qtd_outros?: number;
 }
 
 interface ClienteData {
   cliente: string; total_contratos: number; valor_total: number; primeiro_contrato: string; ultimo_contrato: string;
 }
+
+const getFlagColor = (flag: string) => {
+  const map: Record<string, any> = {
+    'R': { text: 'text-amber-700 dark:text-amber-400', badge: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400', dot: 'bg-amber-500 dark:bg-amber-400', card: 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800/50', textMuted: 'text-amber-600 dark:text-amber-500' },
+    'A': { text: 'text-orange-700 dark:text-orange-400', badge: 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400', dot: 'bg-orange-500 dark:bg-orange-400', card: 'bg-orange-50 dark:bg-orange-900/20 border-orange-100 dark:border-orange-800/50', textMuted: 'text-orange-600 dark:text-orange-500' },
+    'P': { text: 'text-purple-700 dark:text-purple-400', badge: 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400', dot: 'bg-purple-500 dark:bg-purple-400', card: 'bg-purple-50 dark:bg-purple-900/20 border-purple-100 dark:border-purple-800/50', textMuted: 'text-purple-600 dark:text-purple-500' },
+    'M': { text: 'text-sky-700 dark:text-sky-400', badge: 'bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-400', dot: 'bg-sky-500 dark:bg-sky-400', card: 'bg-sky-50 dark:bg-sky-900/20 border-sky-100 dark:border-sky-800/50', textMuted: 'text-sky-600 dark:text-sky-500' },
+    'O': { text: 'text-pink-700 dark:text-pink-400', badge: 'bg-pink-100 dark:bg-pink-900/40 text-pink-700 dark:text-pink-400', dot: 'bg-pink-500 dark:bg-pink-400', card: 'bg-pink-50 dark:bg-pink-900/20 border-pink-100 dark:border-pink-800/50', textMuted: 'text-pink-600 dark:text-pink-500' },
+    'L': { text: 'text-indigo-700 dark:text-indigo-400', badge: 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-400', dot: 'bg-indigo-500 dark:bg-indigo-400', card: 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-100 dark:border-indigo-800/50', textMuted: 'text-indigo-600 dark:text-indigo-500' },
+    'T': { text: 'text-teal-700 dark:text-teal-400', badge: 'bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-400', dot: 'bg-teal-500 dark:bg-teal-400', card: 'bg-teal-50 dark:bg-teal-900/20 border-teal-100 dark:border-teal-800/50', textMuted: 'text-teal-600 dark:text-teal-500' },
+    'I': { text: 'text-red-700 dark:text-red-400', badge: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400', dot: 'bg-red-500 dark:bg-red-400', card: 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-800/50', textMuted: 'text-red-600 dark:text-red-500' },
+    'E': { text: 'text-rose-700 dark:text-rose-400', badge: 'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-400', dot: 'bg-rose-500 dark:bg-rose-400', card: 'bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-800/50', textMuted: 'text-rose-600 dark:text-rose-500' },
+    'G': { text: 'text-stone-700 dark:text-stone-400', badge: 'bg-stone-100 dark:bg-stone-900/40 text-stone-700 dark:text-stone-400', dot: 'bg-stone-500 dark:bg-stone-400', card: 'bg-stone-50 dark:bg-stone-900/20 border-stone-100 dark:border-stone-800/50', textMuted: 'text-stone-600 dark:text-stone-500' },
+  };
+  return map[flag] || { text: 'text-slate-700 dark:text-slate-400', badge: 'bg-slate-100 dark:bg-slate-800/50 text-slate-700 dark:text-slate-400', dot: 'bg-slate-400 dark:bg-slate-500', card: 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700', textMuted: 'text-slate-500 dark:text-slate-400' };
+};
 
 export const Comercial: React.FC = () => {
   const { theme } = useTheme();
@@ -201,8 +223,17 @@ export const Comercial: React.FC = () => {
             <span className="text-emerald-700 dark:text-emerald-400">{d.qtd_vendido} vend.</span>
             <span className="text-gray-300 dark:text-slate-600">·</span>
             <span className="text-blue-700 dark:text-blue-400">{d.qtd_disponivel} disp.</span>
-            {(d.qtd_reserva ?? 0) > 0 && <><span className="text-gray-300 dark:text-slate-600">·</span><span className="text-amber-700 dark:text-amber-400">{d.qtd_reserva} res. téc.</span></>}
-            {(d.qtd_permuta ?? 0) > 0 && <><span className="text-gray-300 dark:text-slate-600">·</span><span className="text-purple-700 dark:text-purple-400">{d.qtd_permuta} perm.</span></>}
+            {d.status_extra ? d.status_extra.map(st => (
+              <React.Fragment key={st.flag}>
+                <span className="text-gray-300 dark:text-slate-600">·</span>
+                <span className={getFlagColor(st.flag).text}>{st.qtd} {st.nome.toLowerCase()}</span>
+              </React.Fragment>
+            )) : (
+              <>
+                {(d.qtd_reserva ?? 0) > 0 && <><span className="text-gray-300 dark:text-slate-600">·</span><span className="text-amber-700 dark:text-amber-400">{d.qtd_reserva} res. téc.</span></>}
+                {(d.qtd_permuta ?? 0) > 0 && <><span className="text-gray-300 dark:text-slate-600">·</span><span className="text-purple-700 dark:text-purple-400">{d.qtd_permuta} perm.</span></>}
+              </>
+            )}
             <span className="text-gray-300 dark:text-slate-600">·</span>
             <span className="text-amber-900 dark:text-amber-500">{d.qtd_total} total</span>
           </div>
@@ -254,23 +285,34 @@ export const Comercial: React.FC = () => {
                         <span className="h-1.5 w-1.5 rounded-full bg-blue-500 dark:bg-blue-400"></span>
                         Disponivel: {emp.qtd_disponivel}
                       </span>
-                      {emp.qtd_reserva > 0 && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 px-2.5 py-1 text-xs font-semibold">
-                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500 dark:bg-amber-400"></span>
-                          Res. Técnica: {emp.qtd_reserva}
-                        </span>
-                      )}
-                      {emp.qtd_permuta > 0 && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400 px-2.5 py-1 text-xs font-semibold">
-                          <span className="h-1.5 w-1.5 rounded-full bg-purple-500 dark:bg-purple-400"></span>
-                          Permuta: {emp.qtd_permuta}
-                        </span>
-                      )}
-                      {emp.qtd_outros > 0 && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 px-2.5 py-1 text-xs font-semibold">
-                          <span className="h-1.5 w-1.5 rounded-full bg-gray-50 dark:bg-slate-900"></span>
-                          Outros: {emp.qtd_outros}
-                        </span>
+                      {emp.status_extra ? (
+                        emp.status_extra.map(st => (
+                          <span key={st.flag} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${getFlagColor(st.flag).badge}`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${getFlagColor(st.flag).dot}`}></span>
+                            {st.nome}: {st.qtd}
+                          </span>
+                        ))
+                      ) : (
+                        <>
+                          {(emp.qtd_reserva ?? 0) > 0 && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 px-2.5 py-1 text-xs font-semibold">
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500 dark:bg-amber-400"></span>
+                              Res. Técnica: {emp.qtd_reserva}
+                            </span>
+                          )}
+                          {(emp.qtd_permuta ?? 0) > 0 && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400 px-2.5 py-1 text-xs font-semibold">
+                              <span className="h-1.5 w-1.5 rounded-full bg-purple-500 dark:bg-purple-400"></span>
+                              Permuta: {emp.qtd_permuta}
+                            </span>
+                          )}
+                          {(emp.qtd_outros ?? 0) > 0 && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 px-2.5 py-1 text-xs font-semibold">
+                              <span className="h-1.5 w-1.5 rounded-full bg-gray-50 dark:bg-slate-900"></span>
+                              Outros: {emp.qtd_outros}
+                            </span>
+                          )}
+                        </>
                       )}
                       <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-2.5 py-1 text-xs font-bold border border-slate-200 dark:border-slate-600">
                         Total: {emp.qtd_total} un.
@@ -498,30 +540,43 @@ export const Comercial: React.FC = () => {
               <div className="h-3 rounded-full bg-gray-100 overflow-hidden mb-3">
                 <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all" style={{ width: `${emp.percentual_vendido}%` }}></div>
               </div>
-              <div className="flex gap-1.5 text-center mt-2 w-full">
-                <div className="flex-1 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 p-1.5 border border-emerald-100 dark:border-emerald-800/50">
+              <div className="flex flex-wrap gap-1.5 text-center mt-2 w-full">
+                <div className="flex-1 min-w-[60px] rounded-lg bg-emerald-50 dark:bg-emerald-900/20 p-1.5 border border-emerald-100 dark:border-emerald-800/50">
                   <p className="text-base sm:text-lg font-bold text-emerald-700 dark:text-emerald-400">{emp.qtd_vendido}</p>
-                  <p className="text-[9px] text-emerald-600 dark:text-emerald-500 uppercase font-bold">Vend.</p>
+                  <p className="text-[9px] text-emerald-600 dark:text-emerald-500 uppercase font-bold tracking-tight">Vend.</p>
                 </div>
-                <div className="flex-1 rounded-lg bg-blue-50 dark:bg-blue-900/20 p-1.5 border border-blue-100 dark:border-blue-800/50">
+                <div className="flex-1 min-w-[60px] rounded-lg bg-blue-50 dark:bg-blue-900/20 p-1.5 border border-blue-100 dark:border-blue-800/50">
                   <p className="text-base sm:text-lg font-bold text-blue-700 dark:text-blue-400">{emp.qtd_disponivel}</p>
-                  <p className="text-[9px] text-blue-600 dark:text-blue-500 uppercase font-bold">Disp.</p>
+                  <p className="text-[9px] text-blue-600 dark:text-blue-500 uppercase font-bold tracking-tight">Disp.</p>
                 </div>
-                {emp.qtd_reserva > 0 && (
-                  <div className="flex-1 rounded-lg bg-amber-50 dark:bg-amber-900/20 p-1.5 border border-amber-100 dark:border-amber-800/50">
-                    <p className="text-base sm:text-lg font-bold text-amber-700 dark:text-amber-400">{emp.qtd_reserva}</p>
-                    <p className="text-[9px] text-amber-600 dark:text-amber-500 uppercase font-bold tracking-tight">Res. Téc.</p>
-                  </div>
+                {emp.status_extra ? (
+                  emp.status_extra.map(st => (
+                    <div key={st.flag} className={`flex-1 min-w-[60px] rounded-lg p-1.5 border ${getFlagColor(st.flag).card}`}>
+                      <p className={`text-base sm:text-lg font-bold ${getFlagColor(st.flag).text}`}>{st.qtd}</p>
+                      <p className={`text-[9px] uppercase font-bold tracking-tight ${getFlagColor(st.flag).textMuted}`}>
+                        {st.nome.length > 7 ? st.nome.substring(0, 6) + '.' : st.nome}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <>
+                    {(emp.qtd_reserva ?? 0) > 0 && (
+                      <div className="flex-1 min-w-[60px] rounded-lg bg-amber-50 dark:bg-amber-900/20 p-1.5 border border-amber-100 dark:border-amber-800/50">
+                        <p className="text-base sm:text-lg font-bold text-amber-700 dark:text-amber-400">{emp.qtd_reserva}</p>
+                        <p className="text-[9px] text-amber-600 dark:text-amber-500 uppercase font-bold tracking-tight">Res. Téc.</p>
+                      </div>
+                    )}
+                    {(emp.qtd_permuta ?? 0) > 0 && (
+                      <div className="flex-1 min-w-[60px] rounded-lg bg-purple-50 dark:bg-purple-900/20 p-1.5 border border-purple-100 dark:border-purple-800/50">
+                        <p className="text-base sm:text-lg font-bold text-purple-700 dark:text-purple-400">{emp.qtd_permuta}</p>
+                        <p className="text-[9px] text-purple-600 dark:text-purple-500 uppercase font-bold tracking-tight">Perm.</p>
+                      </div>
+                    )}
+                  </>
                 )}
-                {emp.qtd_permuta > 0 && (
-                  <div className="flex-1 rounded-lg bg-purple-50 dark:bg-purple-900/20 p-1.5 border border-purple-100 dark:border-purple-800/50">
-                    <p className="text-base sm:text-lg font-bold text-purple-700 dark:text-purple-400">{emp.qtd_permuta}</p>
-                    <p className="text-[9px] text-purple-600 dark:text-purple-500 uppercase font-bold">Perm.</p>
-                  </div>
-                )}
-                <div className="flex-1 rounded-lg bg-slate-100 dark:bg-slate-700 p-1.5 border border-slate-200 dark:border-slate-600">
+                <div className="flex-1 min-w-[60px] rounded-lg bg-slate-100 dark:bg-slate-700 p-1.5 border border-slate-200 dark:border-slate-600">
                   <p className="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-100">{emp.qtd_total}</p>
-                  <p className="text-[9px] text-slate-600 dark:text-slate-300 uppercase font-bold">Total</p>
+                  <p className="text-[9px] text-slate-600 dark:text-slate-300 uppercase font-bold tracking-tight">Total</p>
                 </div>
               </div>
             </div>
