@@ -336,6 +336,8 @@ export const Solicitacoes: React.FC = () => {
     pendente: solicitacoes.filter(s => s.status === 'pendente').length,
     em_andamento: solicitacoes.filter(s => s.status === 'em_desenvolvimento' || s.status === 'em_analise').length,
     aguardando_validacao: solicitacoes.filter(s => s.status === 'aguardando_validacao').length,
+    // So conta como "aguardando voce" se o usuario logado for o autor
+    aguardando_minha: solicitacoes.filter(s => s.status === 'aguardando_validacao' && user?.email && s.usuario_email === user.email).length,
     implementado: solicitacoes.filter(s => s.status === 'implementado').length,
   };
 
@@ -357,7 +359,12 @@ export const Solicitacoes: React.FC = () => {
         </div>
         <div className="rounded-xl bg-white dark:bg-slate-800 p-3 shadow-sm border-l-4 border-amber-500">
           <p className="text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase">Aguardando Voce</p>
-          <p className="text-xl font-bold text-amber-600">{contadores.aguardando_validacao}</p>
+          <p className="text-xl font-bold text-amber-600">
+            {contadores.aguardando_minha}
+            {contadores.aguardando_validacao > contadores.aguardando_minha && (
+              <span className="ml-1 text-xs font-normal text-gray-400">/ {contadores.aguardando_validacao} total</span>
+            )}
+          </p>
         </div>
         <div className="rounded-xl bg-white dark:bg-slate-800 p-3 shadow-sm border-l-4 border-green-500">
           <p className="text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase">Implementados</p>
@@ -648,6 +655,9 @@ export const Solicitacoes: React.FC = () => {
                           const cor = d <= 1 ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
                                     : d <= 3 ? 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
                                     : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+                          // Se o usuario logado NAO eh o autor, mostra o nome do autor no badge
+                          const ehAutor = user?.email && s.usuario_email === user.email;
+                          const quemAguarda = ehAutor ? 'voce' : (s.usuario_nome || 'autor');
                           return (
                             <div className="mt-1.5 flex flex-wrap gap-1">
                               {t.diasDev !== null && (
@@ -656,9 +666,9 @@ export const Solicitacoes: React.FC = () => {
                                   Dev: {formatarDias(t.diasDev)}
                                 </div>
                               )}
-                              <div className={`inline-flex items-center gap-1 rounded ${cor} px-1.5 py-0.5 text-[10px] font-semibold`} title="Ha quanto tempo aguarda validacao">
+                              <div className={`inline-flex items-center gap-1 rounded ${cor} px-1.5 py-0.5 text-[10px] font-semibold`} title={`Ha quanto tempo aguarda validacao de ${s.usuario_nome}`}>
                                 <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                {d === 0 ? 'Aguardando voce' : `Aguardando voce ha ${formatarDias(d)}`}
+                                {d === 0 ? `Aguardando ${quemAguarda}` : `Aguardando ${quemAguarda} ha ${formatarDias(d)}`}
                               </div>
                             </div>
                           );
@@ -840,7 +850,9 @@ export const Solicitacoes: React.FC = () => {
                           </div>
                           <div className="flex-1">
                             <p className="text-xs font-semibold text-gray-700 dark:text-slate-300">
-                              Aguardando validacao do usuario
+                              {user?.email && detalheAberto.usuario_email === user.email
+                                ? 'Aguardando sua validacao'
+                                : `Aguardando validacao de ${detalheAberto.usuario_nome}`}
                             </p>
                             <p className="text-[11px] text-gray-500 dark:text-slate-400">
                               Faz {formatarDias(t.diasAguardandoValidacao)} esperando aceite
