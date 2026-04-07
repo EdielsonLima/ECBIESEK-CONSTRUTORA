@@ -2784,38 +2784,70 @@ def get_comercial_dashboard(centro_custo: Optional[str] = None, tipo_imovel: Opt
             emp['percentual_vendido'] = round(emp['qtd_vendido'] / emp['qtd_total'] * 100, 1) if emp['qtd_total'] > 0 else 0
             por_empreendimento.append(emp)
 
-        # --- Contratos (agrupados por titulo+cliente = valor total do contrato) ---
-        car_conditions = []
-        car_params = []
+        # --- Contratos: combina contas_a_receber (pendentes) + contas_recebidas (pagas) ---
+        # Data da venda = data do PRIMEIRO recebimento (quando o cliente comecou a pagar)
+        # Valor do contrato = soma de TODAS as parcelas (pendentes + recebidas)
+        car_filters = []
+        car_params: list = []
         if exclusoes['centros_custo']:
             ph = ','.join(['%s'] * len(exclusoes['centros_custo']))
-            car_conditions.append(f"car.id_interno_centro_custo NOT IN ({ph})")
+            car_filters.append(f"car.id_interno_centro_custo NOT IN ({ph})")
             car_params.extend(exclusoes['centros_custo'])
-        if exclusoes['empresas']:
-            ph = ','.join(['%s'] * len(exclusoes['empresas']))
-            car_conditions.append(f"cc.id_sienge_empresa NOT IN ({ph})")
-            car_params.extend(exclusoes['empresas'])
         if centro_custo:
             cc_ids = [int(x) for x in centro_custo.split(',') if x.strip()]
             if cc_ids:
                 ph = ','.join(['%s'] * len(cc_ids))
-                car_conditions.append(f"car.id_interno_centro_custo IN ({ph})")
+                car_filters.append(f"car.id_interno_centro_custo IN ({ph})")
                 car_params.extend(cc_ids)
-        car_where = (" WHERE " + " AND ".join(car_conditions)) if car_conditions else ""
+        car_where = (" WHERE " + " AND ".join(car_filters)) if car_filters else ""
 
-        # CTE que agrupa por contrato (titulo+cliente) para ter valor total do contrato
+        cr_filters = []
+        cr_params: list = []
+        if exclusoes['centros_custo']:
+            ph = ','.join(['%s'] * len(exclusoes['centros_custo']))
+            cr_filters.append(f"cr.id_interno_centro_custo NOT IN ({ph})")
+            cr_params.extend(exclusoes['centros_custo'])
+        if centro_custo:
+            cc_ids = [int(x) for x in centro_custo.split(',') if x.strip()]
+            if cc_ids:
+                ph = ','.join(['%s'] * len(cc_ids))
+                cr_filters.append(f"cr.id_interno_centro_custo IN ({ph})")
+                cr_params.extend(cc_ids)
+        cr_where = (" WHERE " + " AND ".join(cr_filters)) if cr_filters else ""
+
         contratos_cte = f"""
-            WITH contratos AS (
-                SELECT car.cliente,
-                       SPLIT_PART(car.lancamento, '/', 1) as titulo,
-                       car.id_interno_centro_custo,
-                       SUM(car.valor_total) as valor_contrato,
-                       MIN(car.data_vencimento) as data_contrato,
-                       COUNT(*) as total_parcelas
+            WITH pagas AS (
+                SELECT cr.cliente, cr.titulo::text as titulo,
+                       MAX(cr.id_interno_centro_custo) as id_interno_centro_custo,
+                       MIN(cr.data_recebimento) as data_venda,
+                       SUM(cr.valor_liquido) as valor_recebido,
+                       COUNT(*) as parcelas_recebidas
+                FROM contas_recebidas cr
+                {cr_where}
+                GROUP BY cr.cliente, cr.titulo::text
+            ),
+            pendentes AS (
+                SELECT car.cliente, SPLIT_PART(car.lancamento, '/', 1) as titulo,
+                       MAX(car.id_interno_centro_custo) as id_interno_centro_custo,
+                       SUM(car.valor_total) as valor_pendente,
+                       COUNT(*) as parcelas_pendentes
                 FROM contas_a_receber car
-                LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
                 {car_where}
-                GROUP BY car.cliente, SPLIT_PART(car.lancamento, '/', 1), car.id_interno_centro_custo
+                GROUP BY car.cliente, SPLIT_PART(car.lancamento, '/', 1)
+            ),
+            contratos AS (
+                SELECT
+                    COALESCE(p.cliente, q.cliente) as cliente,
+                    COALESCE(p.titulo, q.titulo) as titulo,
+                    COALESCE(p.id_interno_centro_custo, q.id_interno_centro_custo) as id_interno_centro_custo,
+                    p.data_venda,
+                    COALESCE(p.valor_recebido, 0) + COALESCE(q.valor_pendente, 0) as valor_contrato,
+                    COALESCE(p.parcelas_recebidas, 0) as parcelas_recebidas,
+                    COALESCE(q.parcelas_pendentes, 0) as parcelas_pendentes,
+                    COALESCE(p.valor_recebido, 0) as valor_recebido
+                FROM pagas p
+                FULL OUTER JOIN pendentes q ON p.cliente = q.cliente AND p.titulo = q.titulo
+                WHERE p.data_venda IS NOT NULL
             )
         """
 
@@ -2823,18 +2855,18 @@ def get_comercial_dashboard(centro_custo: Optional[str] = None, tipo_imovel: Opt
             {contratos_cte}
             SELECT COUNT(*) as total_contratos, COALESCE(SUM(valor_contrato), 0) as valor_contratos
             FROM contratos
-        """, car_params)
+        """, cr_params + car_params)
         row_contratos = cursor.fetchone()
         total_contratos = int(row_contratos['total_contratos'] or 0)
 
-        # Vendas por ano (baseado na data do contrato = primeiro vencimento)
+        # Vendas por ano (baseado na data da PRIMEIRA parcela RECEBIDA)
         cursor.execute(f"""
             {contratos_cte}
-            SELECT EXTRACT(YEAR FROM data_contrato)::int as ano,
+            SELECT EXTRACT(YEAR FROM data_venda)::int as ano,
                    COUNT(*) as quantidade, COALESCE(SUM(valor_contrato), 0) as valor
-            FROM contratos WHERE data_contrato IS NOT NULL
+            FROM contratos WHERE data_venda IS NOT NULL
             GROUP BY ano ORDER BY ano
-        """, car_params)
+        """, cr_params + car_params)
         vendas_por_ano = [{'ano': int(r['ano']), 'quantidade': int(r['quantidade']), 'valor': float(r['valor'])} for r in cursor.fetchall()]
 
         # Vendas por mes (ano atual)
@@ -2842,11 +2874,11 @@ def get_comercial_dashboard(centro_custo: Optional[str] = None, tipo_imovel: Opt
         ano_atual = datetime.now().year
         cursor.execute(f"""
             {contratos_cte}
-            SELECT EXTRACT(MONTH FROM data_contrato)::int as mes,
+            SELECT EXTRACT(MONTH FROM data_venda)::int as mes,
                    COUNT(*) as quantidade, COALESCE(SUM(valor_contrato), 0) as valor
-            FROM contratos WHERE EXTRACT(YEAR FROM data_contrato) = %s
+            FROM contratos WHERE EXTRACT(YEAR FROM data_venda) = %s
             GROUP BY mes ORDER BY mes
-        """, car_params + [ano_atual])
+        """, cr_params + car_params + [ano_atual])
         meses_nomes = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
         vendas_por_mes = [{'mes': int(r['mes']), 'mes_nome': meses_nomes[int(r['mes'])], 'quantidade': int(r['quantidade']), 'valor': float(r['valor'])} for r in cursor.fetchall()]
 
@@ -2874,58 +2906,76 @@ def get_comercial_dashboard(centro_custo: Optional[str] = None, tipo_imovel: Opt
 
 @app.get("/api/comercial/por-cliente")
 def get_comercial_por_cliente(centro_custo: Optional[str] = None, ano: Optional[str] = None):
-    """Vendas agrupadas por cliente"""
+    """Vendas agrupadas por cliente - usa data do primeiro recebimento como data da venda"""
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
         exclusoes = get_exclusoes()
-        conditions = []
-        params = []
+        car_filters = []
+        car_params: list = []
+        cr_filters = []
+        cr_params: list = []
         if exclusoes['centros_custo']:
             ph = ','.join(['%s'] * len(exclusoes['centros_custo']))
-            conditions.append(f"car.id_interno_centro_custo NOT IN ({ph})")
-            params.extend(exclusoes['centros_custo'])
-        if exclusoes['empresas']:
-            ph = ','.join(['%s'] * len(exclusoes['empresas']))
-            conditions.append(f"cc.id_sienge_empresa NOT IN ({ph})")
-            params.extend(exclusoes['empresas'])
+            car_filters.append(f"car.id_interno_centro_custo NOT IN ({ph})")
+            cr_filters.append(f"cr.id_interno_centro_custo NOT IN ({ph})")
+            car_params.extend(exclusoes['centros_custo'])
+            cr_params.extend(exclusoes['centros_custo'])
         if centro_custo:
             cc_ids = [int(x) for x in centro_custo.split(',') if x.strip()]
             if cc_ids:
                 ph = ','.join(['%s'] * len(cc_ids))
-                conditions.append(f"car.id_interno_centro_custo IN ({ph})")
-                params.extend(cc_ids)
-        where = (" WHERE " + " AND ".join(conditions)) if conditions else ""
+                car_filters.append(f"car.id_interno_centro_custo IN ({ph})")
+                cr_filters.append(f"cr.id_interno_centro_custo IN ({ph})")
+                car_params.extend(cc_ids)
+                cr_params.extend(cc_ids)
+        car_where = (" WHERE " + " AND ".join(car_filters)) if car_filters else ""
+        cr_where = (" WHERE " + " AND ".join(cr_filters)) if cr_filters else ""
 
-        # Filtro de ano aplicado depois do agrupamento (sobre data_contrato)
         ano_filter = ""
+        ano_params: list = []
         if ano:
             anos = [int(a.strip()) for a in ano.split(',')]
             ph = ','.join(['%s'] * len(anos))
-            ano_filter = f" WHERE EXTRACT(YEAR FROM data_contrato) IN ({ph})"
-            params.extend(anos)
+            ano_filter = f" AND EXTRACT(YEAR FROM data_venda) IN ({ph})"
+            ano_params.extend(anos)
 
         cursor.execute(f"""
-            WITH contratos AS (
-                SELECT car.cliente,
-                       SPLIT_PART(car.lancamento, '/', 1) as titulo,
-                       SUM(car.valor_total) as valor_contrato,
-                       MIN(car.data_vencimento) as data_contrato
+            WITH pagas AS (
+                SELECT cr.cliente, cr.titulo::text as titulo,
+                       MIN(cr.data_recebimento) as data_venda,
+                       SUM(cr.valor_liquido) as valor_recebido
+                FROM contas_recebidas cr
+                {cr_where}
+                GROUP BY cr.cliente, cr.titulo::text
+            ),
+            pendentes AS (
+                SELECT car.cliente, SPLIT_PART(car.lancamento, '/', 1) as titulo,
+                       SUM(car.valor_total) as valor_pendente
                 FROM contas_a_receber car
-                LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
-                {where}
+                {car_where}
                 GROUP BY car.cliente, SPLIT_PART(car.lancamento, '/', 1)
+            ),
+            contratos AS (
+                SELECT
+                    COALESCE(p.cliente, q.cliente) as cliente,
+                    COALESCE(p.titulo, q.titulo) as titulo,
+                    p.data_venda,
+                    COALESCE(p.valor_recebido, 0) + COALESCE(q.valor_pendente, 0) as valor_contrato
+                FROM pagas p
+                FULL OUTER JOIN pendentes q ON p.cliente = q.cliente AND p.titulo = q.titulo
+                WHERE p.data_venda IS NOT NULL
             )
             SELECT cliente,
                    COUNT(*) as total_contratos,
                    COALESCE(SUM(valor_contrato), 0) as valor_total,
-                   MIN(data_contrato) as primeiro_contrato,
-                   MAX(data_contrato) as ultimo_contrato
+                   MIN(data_venda) as primeiro_contrato,
+                   MAX(data_venda) as ultimo_contrato
             FROM contratos
-            {ano_filter}
+            WHERE 1=1 {ano_filter}
             GROUP BY cliente
             ORDER BY valor_total DESC
-        """, params)
+        """, cr_params + car_params + ano_params)
         return [dict(r) for r in cursor.fetchall()]
     except Exception as e:
         import traceback; traceback.print_exc()
@@ -2941,62 +2991,78 @@ def get_comercial_contratos(centro_custo: Optional[str] = None, cliente: Optiona
     cursor = conn.cursor()
     try:
         exclusoes = get_exclusoes()
-        conditions = []
-        params = []
+        car_filters = []
+        cr_filters = []
+        car_params: list = []
+        cr_params: list = []
         if exclusoes['centros_custo']:
             ph = ','.join(['%s'] * len(exclusoes['centros_custo']))
-            conditions.append(f"car.id_interno_centro_custo NOT IN ({ph})")
-            params.extend(exclusoes['centros_custo'])
-        if exclusoes['empresas']:
-            ph = ','.join(['%s'] * len(exclusoes['empresas']))
-            conditions.append(f"cc.id_sienge_empresa NOT IN ({ph})")
-            params.extend(exclusoes['empresas'])
+            car_filters.append(f"car.id_interno_centro_custo NOT IN ({ph})")
+            cr_filters.append(f"cr.id_interno_centro_custo NOT IN ({ph})")
+            car_params.extend(exclusoes['centros_custo'])
+            cr_params.extend(exclusoes['centros_custo'])
         if centro_custo:
             cc_ids = [int(x) for x in centro_custo.split(',') if x.strip()]
             if cc_ids:
                 ph = ','.join(['%s'] * len(cc_ids))
-                conditions.append(f"car.id_interno_centro_custo IN ({ph})")
-                params.extend(cc_ids)
+                car_filters.append(f"car.id_interno_centro_custo IN ({ph})")
+                cr_filters.append(f"cr.id_interno_centro_custo IN ({ph})")
+                car_params.extend(cc_ids)
+                cr_params.extend(cc_ids)
         if cliente:
-            conditions.append("car.cliente ILIKE %s")
-            params.append(f"%{cliente}%")
-        where = (" WHERE " + " AND ".join(conditions)) if conditions else ""
+            car_filters.append("car.cliente ILIKE %s")
+            cr_filters.append("cr.cliente ILIKE %s")
+            car_params.append(f"%{cliente}%")
+            cr_params.append(f"%{cliente}%")
+        car_where = (" WHERE " + " AND ".join(car_filters)) if car_filters else ""
+        cr_where = (" WHERE " + " AND ".join(cr_filters)) if cr_filters else ""
 
         ano_filter = ""
+        ano_params: list = []
         if ano:
             anos = [int(a.strip()) for a in ano.split(',')]
             ph = ','.join(['%s'] * len(anos))
-            ano_filter = f" WHERE EXTRACT(YEAR FROM data_contrato) IN ({ph})"
-            params.extend(anos)
+            ano_filter = f" AND EXTRACT(YEAR FROM data_venda) IN ({ph})"
+            ano_params.extend(anos)
 
         cursor.execute(f"""
-            WITH contratos AS (
-                SELECT car.cliente,
-                       SPLIT_PART(car.lancamento, '/', 1) as titulo,
-                       car.id_interno_centro_custo,
-                       SUM(car.valor_total) as valor_contrato,
-                       MIN(car.data_vencimento) as data_contrato,
-                       MAX(car.data_vencimento) as ultimo_vencimento,
-                       COUNT(*) as total_parcelas
+            WITH pagas AS (
+                SELECT cr.cliente, cr.titulo::text as titulo,
+                       MAX(cr.id_interno_centro_custo) as id_interno_centro_custo,
+                       MIN(cr.data_recebimento) as data_venda,
+                       SUM(cr.valor_liquido) as valor_recebido,
+                       COUNT(*) as parcelas_recebidas
+                FROM contas_recebidas cr
+                {cr_where}
+                GROUP BY cr.cliente, cr.titulo::text
+            ),
+            pendentes AS (
+                SELECT car.cliente, SPLIT_PART(car.lancamento, '/', 1) as titulo,
+                       MAX(car.id_interno_centro_custo) as id_interno_centro_custo,
+                       SUM(car.valor_total) as valor_pendente,
+                       COUNT(*) as parcelas_pendentes,
+                       MAX(car.data_vencimento) as ultimo_vencimento
                 FROM contas_a_receber car
-                LEFT JOIN dim_centrocusto cc ON car.id_interno_centro_custo = cc.id_interno_centrocusto
-                {where}
-                GROUP BY car.cliente, SPLIT_PART(car.lancamento, '/', 1), car.id_interno_centro_custo
+                {car_where}
+                GROUP BY car.cliente, SPLIT_PART(car.lancamento, '/', 1)
             )
-            SELECT c.cliente, c.titulo,
-                   c.valor_contrato as valor_total,
-                   c.data_contrato as data_vencimento,
-                   c.ultimo_vencimento,
-                   c.total_parcelas,
-                   cc.nome_centrocusto, cc.id_sienge_centrocusto as codigo_centrocusto,
-                   (SELECT COUNT(*) FROM contas_recebidas cr WHERE cr.titulo::text = c.titulo AND cr.cliente = c.cliente) as parcelas_recebidas,
-                   COALESCE((SELECT SUM(cr.valor_liquido) FROM contas_recebidas cr WHERE cr.titulo::text = c.titulo AND cr.cliente = c.cliente), 0) as valor_recebido
-            FROM contratos c
-            LEFT JOIN dim_centrocusto cc ON c.id_interno_centro_custo = cc.id_interno_centrocusto
-            {ano_filter}
-            ORDER BY c.data_contrato DESC
+            SELECT
+                COALESCE(p.cliente, q.cliente) as cliente,
+                COALESCE(p.titulo, q.titulo) as titulo,
+                p.data_venda as data_vencimento,
+                q.ultimo_vencimento,
+                COALESCE(p.valor_recebido, 0) + COALESCE(q.valor_pendente, 0) as valor_total,
+                COALESCE(p.parcelas_recebidas, 0) + COALESCE(q.parcelas_pendentes, 0) as total_parcelas,
+                COALESCE(p.parcelas_recebidas, 0) as parcelas_recebidas,
+                COALESCE(p.valor_recebido, 0) as valor_recebido,
+                cc.nome_centrocusto, cc.id_sienge_centrocusto as codigo_centrocusto
+            FROM pagas p
+            FULL OUTER JOIN pendentes q ON p.cliente = q.cliente AND p.titulo = q.titulo
+            LEFT JOIN dim_centrocusto cc ON COALESCE(p.id_interno_centro_custo, q.id_interno_centro_custo) = cc.id_interno_centrocusto
+            WHERE p.data_venda IS NOT NULL {ano_filter}
+            ORDER BY p.data_venda DESC
             LIMIT %s
-        """, params + [limite])
+        """, cr_params + car_params + ano_params + [limite])
         rows = cursor.fetchall()
         result = []
         for r in rows:
