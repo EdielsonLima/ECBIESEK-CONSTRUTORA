@@ -10232,6 +10232,249 @@ def get_realizado_por_centro_custo(tipo_baixa: Optional[str] = None):
         cursor.close()
         conn.close()
 
+# ============ EXPORTACAO DE RELATORIOS PDF ============
+
+@app.post("/api/relatorios/pdf")
+def gerar_relatorio_pdf(data: dict):
+    """Gera relatorio PDF com filtros aplicados.
+
+    Body JSON:
+    - tipo_relatorio: 'contas_a_pagar' | 'contas_pagas' | 'contas_atrasadas' |
+                      'contas_a_receber' | 'contas_recebidas' | 'inadimplencia'
+    - filtros (opcional): {
+        empresa: int (id_sienge),
+        centro_custo: int (id_interno),
+        credor: str,
+        cliente: str,
+        tipo_documento: str,
+        permuta: bool (true = apenas permutas, false = sem permutas),
+        ano: int,
+        mes: int,
+        data_inicio: 'YYYY-MM-DD',
+        data_fim: 'YYYY-MM-DD',
+        limite: int (default 1000)
+      }
+
+    Retorna: application/pdf como download
+    """
+    try:
+        from io import BytesIO
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import mm
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from fastapi.responses import StreamingResponse
+    except ImportError:
+        raise HTTPException(status_code=500, detail="reportlab nao instalado no servidor")
+
+    tipo = (data.get('tipo_relatorio') or '').strip().lower()
+    filtros = data.get('filtros') or {}
+
+    TIPOS_VALIDOS = {
+        'contas_a_pagar': ('contas_a_pagar', 'cap', 'data_vencimento', 'credor', 'Contas a Pagar'),
+        'contas_pagas': ('contas_pagas', 'cp', 'data_pagamento', 'credor', 'Contas Pagas'),
+        'contas_atrasadas': ('contas_a_pagar', 'cap', 'data_vencimento', 'credor', 'Contas Atrasadas'),
+        'contas_a_receber': ('contas_a_receber', 'car', 'data_vencimento', 'cliente', 'Contas a Receber'),
+        'contas_recebidas': ('contas_recebidas', 'cr', 'data_recebimento', 'cliente', 'Contas Recebidas'),
+        'inadimplencia': ('contas_a_receber', 'car', 'data_vencimento', 'cliente', 'Inadimplencia'),
+    }
+    if tipo not in TIPOS_VALIDOS:
+        raise HTTPException(status_code=400, detail=f"tipo_relatorio invalido. Use: {', '.join(TIPOS_VALIDOS.keys())}")
+
+    tabela, alias, data_col, credor_col, titulo_relatorio = TIPOS_VALIDOS[tipo]
+    valor_col = 'valor_liquido' if tipo in ('contas_pagas', 'contas_recebidas') else 'valor_total'
+
+    # Construir query SQL
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        exclusoes = get_exclusoes()
+        conditions: list = []
+        params: list = []
+
+        # Exclusoes padrao
+        if exclusoes['centros_custo']:
+            ph = ','.join(['%s'] * len(exclusoes['centros_custo']))
+            conditions.append(f"{alias}.id_interno_centro_custo NOT IN ({ph})")
+            params.extend(exclusoes['centros_custo'])
+        if exclusoes['empresas']:
+            ph = ','.join(['%s'] * len(exclusoes['empresas']))
+            conditions.append(f"cc.id_sienge_empresa NOT IN ({ph})")
+            params.extend(exclusoes['empresas'])
+        if exclusoes['tipos_documento'] and tipo not in ('contas_recebidas',):
+            ph = ','.join(['%s'] * len(exclusoes['tipos_documento']))
+            conditions.append(f"({alias}.id_documento IS NULL OR TRIM({alias}.id_documento) NOT IN ({ph}))")
+            params.extend(exclusoes['tipos_documento'])
+
+        # Filtros do usuario
+        empresa = filtros.get('empresa')
+        centro_custo = filtros.get('centro_custo')
+        credor_filtro = filtros.get('credor') or filtros.get('cliente')
+        tipo_doc = filtros.get('tipo_documento')
+        permuta = filtros.get('permuta')
+        ano_f = filtros.get('ano')
+        mes_f = filtros.get('mes')
+        data_inicio = filtros.get('data_inicio')
+        data_fim = filtros.get('data_fim')
+        limite = int(filtros.get('limite') or 1000)
+
+        if empresa:
+            conditions.append("cc.id_sienge_empresa = %s")
+            params.append(int(empresa))
+        if centro_custo:
+            conditions.append(f"{alias}.id_interno_centro_custo = %s")
+            params.append(int(centro_custo))
+        if credor_filtro:
+            conditions.append(f"{alias}.{credor_col} ILIKE %s")
+            params.append(f"%{credor_filtro}%")
+        if tipo_doc and tipo not in ('contas_recebidas',):
+            conditions.append(f"TRIM({alias}.id_documento) = %s")
+            params.append(tipo_doc)
+        if permuta is True:
+            # Apenas permutas: filtra plano financeiro contendo 'permuta'
+            conditions.append(f"pf.nome_plano_financeiro ILIKE %s")
+            params.append('%permuta%')
+        elif permuta is False:
+            conditions.append(f"(pf.nome_plano_financeiro IS NULL OR pf.nome_plano_financeiro NOT ILIKE %s)")
+            params.append('%permuta%')
+        if ano_f:
+            conditions.append(f"EXTRACT(YEAR FROM {alias}.{data_col}) = %s")
+            params.append(int(ano_f))
+        if mes_f:
+            conditions.append(f"EXTRACT(MONTH FROM {alias}.{data_col}) = %s")
+            params.append(int(mes_f))
+        if data_inicio:
+            conditions.append(f"{alias}.{data_col} >= %s")
+            params.append(data_inicio)
+        if data_fim:
+            conditions.append(f"{alias}.{data_col} <= %s")
+            params.append(data_fim)
+
+        # Filtro especifico por tipo
+        if tipo == 'contas_atrasadas':
+            conditions.append(f"{alias}.{data_col} < CURRENT_DATE")
+            conditions.append(f"NOT EXISTS (SELECT 1 FROM contas_pagas cpg WHERE SPLIT_PART(cpg.lancamento, '/', 1) = SPLIT_PART({alias}.lancamento, '/', 1) AND cpg.id_credor = {alias}.id_credor)")
+        elif tipo == 'inadimplencia':
+            conditions.append(f"{alias}.{data_col} < CURRENT_DATE")
+            conditions.append(f"NOT EXISTS (SELECT 1 FROM contas_recebidas cr2 WHERE cr2.titulo::text = SPLIT_PART({alias}.lancamento, '/', 1) AND cr2.cliente = {alias}.cliente)")
+        elif tipo == 'contas_a_pagar':
+            conditions.append(f"{alias}.{data_col} >= CURRENT_DATE")
+            conditions.append(f"NOT EXISTS (SELECT 1 FROM contas_pagas cpg WHERE SPLIT_PART(cpg.lancamento, '/', 1) = SPLIT_PART({alias}.lancamento, '/', 1) AND cpg.id_credor = {alias}.id_credor)")
+
+        where_clause = " WHERE " + " AND ".join(conditions) if conditions else ""
+
+        join_pf = "LEFT JOIN ecadplanofin pf ON " + alias + ".id_plano_financeiro = pf.id_plano_financeiro" if permuta is not None else ""
+        select_pf = ", pf.nome_plano_financeiro" if permuta is not None else ""
+
+        query = f"""
+            SELECT {alias}.{credor_col} as nome,
+                   {alias}.lancamento,
+                   {alias}.{data_col} as data_ref,
+                   {alias}.{valor_col} as valor,
+                   TRIM({alias}.id_documento) as documento,
+                   cc.nome_centrocusto,
+                   cc.nome_empresa
+                   {select_pf}
+            FROM {tabela} {alias}
+            LEFT JOIN dim_centrocusto cc ON {alias}.id_interno_centro_custo = cc.id_interno_centrocusto
+            {join_pf}
+            {where_clause}
+            ORDER BY {alias}.{data_col} DESC
+            LIMIT %s
+        """
+        params.append(limite)
+        cursor.execute(query, tuple(params))
+        rows = cursor.fetchall()
+
+        # Gerar PDF
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer, pagesize=landscape(A4),
+            leftMargin=10*mm, rightMargin=10*mm, topMargin=15*mm, bottomMargin=15*mm
+        )
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle('title', parent=styles['Heading1'], fontSize=14, textColor=colors.HexColor('#1e293b'), spaceAfter=4)
+        subtitle_style = ParagraphStyle('subtitle', parent=styles['Normal'], fontSize=8, textColor=colors.HexColor('#64748b'), spaceAfter=10)
+
+        elements = []
+        elements.append(Paragraph(f"ECBIESEK CONSTRUTORA - {titulo_relatorio}", title_style))
+        elements.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')} - {len(rows)} registro(s)", subtitle_style))
+
+        # Filtros aplicados
+        filtros_texto = []
+        if empresa: filtros_texto.append(f"Empresa: {empresa}")
+        if centro_custo: filtros_texto.append(f"CC: {centro_custo}")
+        if credor_filtro: filtros_texto.append(f"{credor_col.title()}: {credor_filtro}")
+        if tipo_doc: filtros_texto.append(f"Doc: {tipo_doc}")
+        if permuta is True: filtros_texto.append("Apenas permutas")
+        if permuta is False: filtros_texto.append("Excluindo permutas")
+        if ano_f: filtros_texto.append(f"Ano: {ano_f}")
+        if mes_f: filtros_texto.append(f"Mes: {mes_f}")
+        if data_inicio: filtros_texto.append(f"De: {data_inicio}")
+        if data_fim: filtros_texto.append(f"Ate: {data_fim}")
+        if filtros_texto:
+            elements.append(Paragraph(f"<b>Filtros:</b> {' | '.join(filtros_texto)}", subtitle_style))
+
+        # Tabela
+        headers = [credor_col.title(), 'Titulo', 'Data', 'Documento', 'Centro de Custo', 'Empresa', 'Valor']
+        table_data = [headers]
+        total_valor = 0.0
+        for r in rows:
+            valor = float(r['valor'] or 0)
+            total_valor += valor
+            table_data.append([
+                (r['nome'] or '-')[:35],
+                (r['lancamento'] or '-').split('/')[0] if r['lancamento'] else '-',
+                r['data_ref'].strftime('%d/%m/%Y') if r['data_ref'] else '-',
+                r['documento'] or '-',
+                (r['nome_centrocusto'] or '-')[:30],
+                (r['nome_empresa'] or '-')[:25],
+                f"R$ {valor:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
+            ])
+        # Linha total
+        table_data.append(['', '', '', '', '', 'TOTAL', f"R$ {total_valor:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')])
+
+        col_widths = [55*mm, 20*mm, 22*mm, 18*mm, 50*mm, 50*mm, 35*mm]
+        table = Table(table_data, colWidths=col_widths, repeatRows=1)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e293b')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 8),
+            ('ALIGN', (-1, 0), (-1, -1), 'RIGHT'),
+            ('FONTSIZE', (0, 1), (-1, -1), 7),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f8fafc')]),
+            ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#e2e8f0')),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#dbeafe')),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, -1), (-1, -1), 8),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 4),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ]))
+        elements.append(table)
+
+        doc.build(elements)
+        buffer.seek(0)
+
+        filename = f"{tipo}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+        return StreamingResponse(
+            iter([buffer.getvalue()]),
+            media_type='application/pdf',
+            headers={'Content-Disposition': f'attachment; filename="{filename}"'}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {e}")
+    finally:
+        cursor.close()
+        conn.close()
+
+
 # ============ DOCUMENTAÇÃO DO SISTEMA ============
 
 @app.get("/api/documentacao/fluxo-dados")
@@ -10561,6 +10804,7 @@ def get_documentacao_fluxo_dados():
             {"area": "Configurações", "rota": "GET /api/configuracoes", "descricao": "Todas as exclusões ativas", "tabelas": "config_*"},
             {"area": "Filtros", "rota": "GET /api/filtros/empresas", "descricao": "Dropdown de empresas ativas", "tabelas": "dim_centrocusto"},
             {"area": "Filtros", "rota": "GET /api/filtros/centros-custo", "descricao": "Dropdown de CCs ativos", "tabelas": "dim_centrocusto"},
+            {"area": "Relatorios", "rota": "POST /api/relatorios/pdf", "descricao": "Gera PDF com filtros aplicados (empresa, CC, credor/cliente, tipo doc, permuta, data). Tipos: contas_a_pagar, contas_pagas, contas_atrasadas, contas_a_receber, contas_recebidas, inadimplencia. Body: {tipo_relatorio, filtros}. Retorna application/pdf", "tabelas": "contas_a_pagar, contas_pagas, contas_a_receber, contas_recebidas, dim_centrocusto"},
         ],
         "glossario": [
             {"termo": "CUB/RO", "definicao": "Custo Unitário Básico da Construção Civil do estado de Rondônia. Índice mensal publicado pelo SINDUSCON que representa o custo por metro quadrado de construção. Usado para calcular o orçamento dos empreendimentos."},
