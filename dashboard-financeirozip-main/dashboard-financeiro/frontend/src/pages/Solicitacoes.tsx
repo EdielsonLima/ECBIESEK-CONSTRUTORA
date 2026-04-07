@@ -35,6 +35,27 @@ interface Solicitacao {
   updated_at: string | null;
 }
 
+const STATUS_FINAIS = ['implementado', 'rejeitado'];
+
+function calcularTempo(s: Solicitacao) {
+  const criado = new Date(s.created_at);
+  const agora = new Date();
+  const diasDesdeC = Math.max(0, Math.floor((agora.getTime() - criado.getTime()) / 86400000));
+  const concluido = STATUS_FINAIS.includes(s.status);
+  let diasParaConcluir: number | null = null;
+  if (concluido && s.updated_at) {
+    const fim = new Date(s.updated_at);
+    diasParaConcluir = Math.max(0, Math.floor((fim.getTime() - criado.getTime()) / 86400000));
+  }
+  return { diasDesdeC, diasParaConcluir, concluido };
+}
+
+function formatarDias(d: number): string {
+  if (d === 0) return 'hoje';
+  if (d === 1) return '1 dia';
+  return `${d} dias`;
+}
+
 const SECOES = ['Painel Executivo', 'Contas a Pagar', 'Contas Pagas', 'Contas Atrasadas', 'Contas a Receber', 'Contas Recebidas', 'Inadimplencia', 'Dashboard', 'KPIs', 'Centros de Custo', 'Exposicao de Caixa', 'Extrato Cliente', 'Geral'];
 const PRIORIDADES = [
   { value: 'baixa', label: 'Baixa', cor: 'bg-gray-100 text-gray-700 dark:text-slate-300', borda: 'border-l-gray-400' },
@@ -396,6 +417,28 @@ export const Solicitacoes: React.FC = () => {
                         <span>{s.created_at ? new Date(s.created_at).toLocaleDateString('pt-BR') : ''}</span>
                       </div>
 
+                      {(() => {
+                        const t = calcularTempo(s);
+                        if (t.concluido && t.diasParaConcluir !== null) {
+                          return (
+                            <div className="mt-1.5 inline-flex items-center gap-1 rounded bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300" title={`Criada em ${new Date(s.created_at).toLocaleDateString('pt-BR')} e concluida em ${s.updated_at ? new Date(s.updated_at).toLocaleDateString('pt-BR') : ''}`}>
+                              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                              Entregue em {formatarDias(t.diasParaConcluir)}
+                            </div>
+                          );
+                        }
+                        const cor = t.diasDesdeC <= 3 ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                                 : t.diasDesdeC <= 10 ? 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
+                                 : t.diasDesdeC <= 30 ? 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+                                 : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+                        return (
+                          <div className={`mt-1.5 inline-flex items-center gap-1 rounded ${cor} px-1.5 py-0.5 text-[10px] font-semibold`} title="Dias desde a criacao da solicitacao">
+                            <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            {t.diasDesdeC === 0 ? 'Aberta hoje' : `${formatarDias(t.diasDesdeC)} em aberto`}
+                          </div>
+                        );
+                      })()}
+
                       {s.resposta_dev && (
                         <div className="mt-1.5 rounded bg-blue-50 p-1.5 text-[10px] text-blue-700 border border-blue-100">
                           <span className="font-semibold">Dev:</span> {s.resposta_dev}
@@ -471,6 +514,63 @@ export const Solicitacoes: React.FC = () => {
                   <span className="rounded bg-green-100 px-2 py-1 text-xs font-semibold text-green-700">Implementado na v{detalheAberto.versao_implementada}</span>
                 </div>
               )}
+
+              <div className="mt-5 border-t border-gray-100 dark:border-slate-700/50 pt-4">
+                <h3 className="text-sm font-bold text-gray-700 dark:text-slate-300 mb-3">Tempo da Solicitacao</h3>
+                {(() => {
+                  const t = calcularTempo(detalheAberto);
+                  return (
+                    <div className="space-y-2.5">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 flex-shrink-0">
+                          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs font-semibold text-gray-700 dark:text-slate-300">Criada</p>
+                          <p className="text-[11px] text-gray-500 dark:text-slate-400">
+                            {new Date(detalheAberto.created_at).toLocaleString('pt-BR')}
+                          </p>
+                        </div>
+                      </div>
+
+                      {t.concluido && t.diasParaConcluir !== null && detalheAberto.updated_at ? (
+                        <>
+                          <div className="flex items-start gap-3">
+                            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-300 flex-shrink-0">
+                              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-xs font-semibold text-gray-700 dark:text-slate-300">
+                                {detalheAberto.status === 'implementado' ? 'Implementada' : 'Rejeitada'}
+                              </p>
+                              <p className="text-[11px] text-gray-500 dark:text-slate-400">
+                                {new Date(detalheAberto.updated_at).toLocaleString('pt-BR')}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="ml-10 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/40 px-3 py-2">
+                            <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                              Tempo total de entrega: {formatarDias(t.diasParaConcluir)}
+                            </p>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900/40 text-yellow-600 dark:text-yellow-300 flex-shrink-0">
+                            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-xs font-semibold text-gray-700 dark:text-slate-300">Em aberto</p>
+                            <p className="text-[11px] text-gray-500 dark:text-slate-400">
+                              Faz {formatarDias(t.diasDesdeC)} que a solicitacao foi criada
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
             <div className="border-t border-gray-100 dark:border-slate-700/50 bg-gray-50 dark:bg-slate-900 px-6 py-3">
               <button type="button" onClick={() => setDetalheAberto(null)} className="w-full rounded-lg bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-300">Fechar</button>
