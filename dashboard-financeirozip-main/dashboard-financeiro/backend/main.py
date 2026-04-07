@@ -3467,6 +3467,35 @@ def validar_solicitacao(id: int, data: dict):
         cursor.close()
         conn.close()
 
+@app.post("/api/solicitacoes/backfill-entregue")
+def backfill_entregue_em():
+    """Preenche entregue_em = updated_at em solicitacoes que ja estavam em aguardando_validacao
+    ou implementado antes da nova coluna existir. Idempotente: so atualiza onde esta NULL."""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        try:
+            cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS entregue_em TIMESTAMP")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+        cursor.execute("""
+            UPDATE solicitacoes_melhorias
+            SET entregue_em = updated_at
+            WHERE entregue_em IS NULL
+              AND status IN ('aguardando_validacao', 'implementado')
+        """)
+        atualizadas = cursor.rowcount
+        conn.commit()
+        return {"success": True, "atualizadas": atualizadas}
+    except Exception as e:
+        print(f"[ERRO] backfill_entregue_em: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
 @app.delete("/api/solicitacoes/{id}")
 def deletar_solicitacao(id: int):
     """Remove uma solicitação"""
