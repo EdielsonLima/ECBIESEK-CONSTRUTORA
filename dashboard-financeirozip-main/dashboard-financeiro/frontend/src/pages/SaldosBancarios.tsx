@@ -101,13 +101,13 @@ export const SaldosBancarios: React.FC = () => {
     [contas]
   );
 
-  const barData = resumo?.empresas.map((e) => ({ name: e.empresa_nome, saldo: e.saldo })) || [];
+  const barData = resumo?.empresas?.map((e) => ({ name: e.empresa_nome, saldo: e.saldo })) ?? [];
   const contasData =
-    resumo?.contas.map((c) => ({
+    resumo?.contas?.map((c) => ({
       name: `${c.empresa_nome} - ${c.conta_corrente} (${c.banco})`,
       saldo: c.saldo,
-    })) || [];
-  const serieData = resumo?.serie.map((p) => ({ data: p.data, saldo: p.saldo })) || [];
+    })) ?? [];
+  const serieData = resumo?.serie?.map((p) => ({ data: p.data, saldo: p.saldo })) ?? [];
 
   return (
     <div className="space-y-6 animate-fade-in">
