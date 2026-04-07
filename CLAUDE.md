@@ -19,6 +19,7 @@ Dashboard financeiro React 18 + TypeScript + Tailwind CSS (frontend) com FastAPI
 - Sempre que mostrar código de CC ao usuário, usar `id_sienge_centrocusto`
 - Para queries no banco, usar sempre `id_interno_centrocusto`
 - O filtro de CC **não deve filtrar por empresa excluída** (já corrigido em /filtros/centros-custo)
+- **ATENÇÃO**: ao chamar endpoints como `/estatisticas-por-mes`, `/recebidas-por-mes`, `/contas-pagas-filtradas`, etc, o parâmetro `centro_custo` deve ser o **id_interno** (campo `centro_custo_id_interno` em empreendimentos_config), NUNCA o id_sienge. O endpoint `/realizado-por-centro-custo` é a exceção - ele agrupa por id_sienge.
 
 ### Unidades Imobiliárias (imovel_unidade)
 - Campo `flag_comercial` define o status da unidade:
