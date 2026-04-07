@@ -1181,27 +1181,16 @@ export const apiService = {
     if (contaIds.length) params.append('contas', contaIds.join(','));
     try {
       const response = await api.get<SaldoBancarioResumo>(`/saldos-bancarios?${params.toString()}`);
-      return response.data;
-    } catch (err) {
-      // Fallback mock para ambientes sem backend
-      const mockSerie = Array.from({ length: 7 }).map((_, i) => ({
-        data: new Date(Date.now() - (6 - i) * 86400000).toISOString().slice(0, 10),
-        saldo: 18000000 - i * 120000,
-      }));
+      const data = response.data || ({} as SaldoBancarioResumo);
       return {
-        saldo_total: 18318339.8,
-        empresas: [
-          { empresa_nome: 'Silva Packer Construtora', empresa_id: 1, saldo: 12304562.58 },
-          { empresa_nome: 'Palacio Elizabeth', empresa_id: 2, saldo: 4081977.35 },
-          { empresa_nome: 'Edificio 135 Jardins', empresa_id: 3, saldo: 166612.21 },
-        ],
-        contas: [
-          { empresa_nome: 'Silva Packer Construtora', conta_corrente: '001-12345-6', banco: 'Itau', saldo: 8200000 },
-          { empresa_nome: 'Silva Packer Construtora', conta_corrente: '341-99887-0', banco: 'Santander', saldo: 4104562.58 },
-          { empresa_nome: 'Palacio Elizabeth', conta_corrente: '033-77712-1', banco: 'Santander', saldo: 3000000 },
-        ],
-        serie: mockSerie,
+        saldo_total: typeof data.saldo_total === 'number' ? data.saldo_total : 0,
+        empresas: Array.isArray(data.empresas) ? data.empresas : [],
+        contas: Array.isArray(data.contas) ? data.contas : [],
+        serie: Array.isArray(data.serie) ? data.serie : [],
       };
+    } catch (err) {
+      console.error('[saldos-bancarios] erro:', err);
+      return { saldo_total: 0, empresas: [], contas: [], serie: [] };
     }
   },
 
@@ -1211,12 +1200,10 @@ export const apiService = {
     if (contaIds.length) params.append('contas', contaIds.join(','));
     try {
       const response = await api.get<SaldoBancarioRegistro[]>(`/saldos-bancarios/detalhe?${params.toString()}`);
-      return response.data;
-    } catch {
-      return [
-        { banco: 'Itau', conta_corrente: '001-12345-6', empresa_id: 1, empresa_nome: 'Silva Packer Construtora', data_movimento: '2026-04-07', saldo_anterior: 8000000, entrada: 500000, saida: 300000, saldo_atual: 8200000 },
-        { banco: 'Santander', conta_corrente: '033-77712-1', empresa_id: 2, empresa_nome: 'Palacio Elizabeth', data_movimento: '2026-04-07', saldo_anterior: 3900000, entrada: 200000, saida: 100000, saldo_atual: 4000000 },
-      ];
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (err) {
+      console.error('[saldos-bancarios/detalhe] erro:', err);
+      return [];
     }
   },
 

@@ -19,10 +19,11 @@ interface OptionItem {
   value: number | string;
 }
 
-const currency = (v: number | null | undefined) =>
-  v !== null && v !== undefined
-    ? v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 2 })
-    : '—';
+const currency = (v: any) => {
+  const n = typeof v === 'number' ? v : Number(v);
+  if (!isFinite(n)) return '—';
+  return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 2 });
+};
 
 const MultiSelect: React.FC<{
   options: OptionItem[];
@@ -137,7 +138,7 @@ export const SaldosBancarios: React.FC = () => {
             {resumo ? currency(resumo.saldo_total) : '—'}
           </p>
           <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
-            {resumo ? `${resumo.empresas.length} empresas • ${resumo.contas.length} contas` : 'Carregando...'}
+            {resumo ? `${(resumo.empresas ?? []).length} empresas • ${(resumo.contas ?? []).length} contas` : 'Carregando...'}
           </p>
         </div>
         <div className="rounded-2xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 p-5 shadow-sm">
