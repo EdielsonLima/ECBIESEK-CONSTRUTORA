@@ -2647,6 +2647,57 @@ def get_centros_custo_recebidas():
 
 # ============ COMERCIAL ============
 
+@app.get("/api/diagnostico/contrato/{titulo}")
+def diagnostico_contrato(titulo: str, cliente: Optional[str] = None):
+    """Mostra todas parcelas de um contrato + tabela ecrgtitulo se existir"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        result = {}
+        # Listar todas parcelas do titulo
+        if cliente:
+            cursor.execute("""
+                SELECT lancamento, numero_parcela, valor_total, data_vencimento, tc, id_interno_centro_custo, id_credor
+                FROM contas_a_receber
+                WHERE SPLIT_PART(lancamento, '/', 1) = %s AND cliente ILIKE %s
+                ORDER BY numero_parcela
+            """, (titulo, f"%{cliente}%"))
+        else:
+            cursor.execute("""
+                SELECT lancamento, numero_parcela, valor_total, data_vencimento, tc, id_interno_centro_custo, cliente
+                FROM contas_a_receber
+                WHERE SPLIT_PART(lancamento, '/', 1) = %s
+                ORDER BY cliente, numero_parcela
+                LIMIT 50
+            """, (titulo,))
+        result['parcelas'] = [dict(r) for r in cursor.fetchall()]
+        result['total_parcelas'] = len(result['parcelas'])
+        result['soma_valor'] = sum(float(p.get('valor_total') or 0) for p in result['parcelas'])
+
+        # Tentar buscar em ecrgtitulo se existir
+        try:
+            cursor.execute("""
+                SELECT column_name FROM information_schema.columns
+                WHERE table_name = 'ecrgtitulo'
+                ORDER BY ordinal_position LIMIT 30
+            """)
+            cols = [r['column_name'] for r in cursor.fetchall()]
+            result['ecrgtitulo_colunas'] = cols
+            if cols and 'id_rg_titulo' in cols:
+                cursor.execute(f"SELECT * FROM ecrgtitulo WHERE id_rg_titulo = %s LIMIT 1", (int(titulo),))
+                row = cursor.fetchone()
+                result['ecrgtitulo_dados'] = dict(row) if row else None
+        except Exception as e:
+            result['ecrgtitulo_erro'] = str(e)
+
+        return result
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return {"erro": str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
 @app.get("/api/comercial/tipos-imovel")
 def get_tipos_imovel():
     """Retorna tipos de imóvel distintos da tabela tipo_imovel"""
