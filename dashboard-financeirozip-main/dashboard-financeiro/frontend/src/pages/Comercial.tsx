@@ -3,6 +3,7 @@ import { apiService } from '../services/api';
 import { CentroCustoOption } from '../types';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
+import { useTheme } from '../contexts/ThemeContext';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 const formatCurrencyShort = (value: number) => {
@@ -36,6 +37,7 @@ interface ClienteData {
 }
 
 export const Comercial: React.FC = () => {
+  const { theme } = useTheme();
   const [abaAtiva, setAbaAtiva] = useState<AbaAtiva>('vendas');
   const [loading, setLoading] = useState(true);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
@@ -196,13 +198,13 @@ export const Comercial: React.FC = () => {
           </div>
           <p className="text-3xl font-bold text-amber-900 mt-2">{d.estoque_percentual}% <span className="text-base font-normal text-amber-600">vendido</span></p>
           <div className="mt-1.5 flex flex-wrap gap-1.5 text-[11px] font-semibold">
-            <span className="text-emerald-700">{d.qtd_vendido} vend.</span>
-            <span className="text-gray-300">·</span>
-            <span className="text-blue-700">{d.qtd_disponivel} disp.</span>
-            {(d.qtd_reserva ?? 0) > 0 && <><span className="text-gray-300">·</span><span className="text-amber-700">{d.qtd_reserva} res.</span></>}
-            {(d.qtd_permuta ?? 0) > 0 && <><span className="text-gray-300">·</span><span className="text-purple-700">{d.qtd_permuta} perm.</span></>}
-            <span className="text-gray-300">·</span>
-            <span className="text-amber-900">{d.qtd_total} total</span>
+            <span className="text-emerald-700 dark:text-emerald-400">{d.qtd_vendido} vend.</span>
+            <span className="text-gray-300 dark:text-slate-600">·</span>
+            <span className="text-blue-700 dark:text-blue-400">{d.qtd_disponivel} disp.</span>
+            {(d.qtd_reserva ?? 0) > 0 && <><span className="text-gray-300 dark:text-slate-600">·</span><span className="text-amber-700 dark:text-amber-400">{d.qtd_reserva} res.</span></>}
+            {(d.qtd_permuta ?? 0) > 0 && <><span className="text-gray-300 dark:text-slate-600">·</span><span className="text-purple-700 dark:text-purple-400">{d.qtd_permuta} perm.</span></>}
+            <span className="text-gray-300 dark:text-slate-600">·</span>
+            <span className="text-amber-900 dark:text-amber-500">{d.qtd_total} total</span>
           </div>
         </div>
       </div>
@@ -234,43 +236,43 @@ export const Comercial: React.FC = () => {
               <p className="text-xs text-gray-400 dark:text-slate-400 mb-4">Vendas e estoque por empreendimento</p>
               <div className="space-y-5">
                 {d.por_empreendimento.map((emp, i) => (
-                  <div key={i} className="rounded-lg border border-gray-100 dark:border-slate-700/50 p-3 bg-gray-50/50">
+                  <div key={i} className="rounded-lg border border-gray-100 dark:border-slate-700/50 p-3 bg-gray-50/50 dark:bg-slate-700/30">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-bold text-gray-900 dark:text-slate-100">{emp.nome}</span>
-                      <span className="text-base font-bold text-emerald-600">{emp.percentual_vendido}%</span>
+                      <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">{emp.percentual_vendido}%</span>
                     </div>
                     <p className="text-xs text-gray-500 dark:text-slate-400 mb-2 font-medium">{formatCurrency(emp.valor_vendido)} vendido</p>
-                    <div className="h-3 rounded-full bg-gray-200 overflow-hidden mb-3">
+                    <div className="h-3 rounded-full bg-gray-200 dark:bg-slate-700 overflow-hidden mb-3">
                       <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all" style={{ width: `${emp.percentual_vendido}%` }}></div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-700 px-2.5 py-1 text-xs font-semibold">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 px-2.5 py-1 text-xs font-semibold">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400"></span>
                         Vendido: {emp.qtd_vendido}
                       </span>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 text-blue-700 px-2.5 py-1 text-xs font-semibold">
-                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 px-2.5 py-1 text-xs font-semibold">
+                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500 dark:bg-blue-400"></span>
                         Disponivel: {emp.qtd_disponivel}
                       </span>
                       {emp.qtd_reserva > 0 && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-700 px-2.5 py-1 text-xs font-semibold">
-                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 px-2.5 py-1 text-xs font-semibold">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500 dark:bg-amber-400"></span>
                           Reserva: {emp.qtd_reserva}
                         </span>
                       )}
                       {emp.qtd_permuta > 0 && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 text-purple-700 px-2.5 py-1 text-xs font-semibold">
-                          <span className="h-1.5 w-1.5 rounded-full bg-purple-500"></span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400 px-2.5 py-1 text-xs font-semibold">
+                          <span className="h-1.5 w-1.5 rounded-full bg-purple-500 dark:bg-purple-400"></span>
                           Permuta: {emp.qtd_permuta}
                         </span>
                       )}
                       {emp.qtd_outros > 0 && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 text-gray-700 dark:text-slate-300 px-2.5 py-1 text-xs font-semibold">
-                          <span className="h-1.5 w-1.5 rounded-full bg-gray-50 dark:bg-slate-9000"></span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 px-2.5 py-1 text-xs font-semibold">
+                          <span className="h-1.5 w-1.5 rounded-full bg-gray-50 dark:bg-slate-900"></span>
                           Outros: {emp.qtd_outros}
                         </span>
                       )}
-                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-700 px-2.5 py-1 text-xs font-bold border border-slate-200">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-2.5 py-1 text-xs font-bold border border-slate-200 dark:border-slate-600">
                         Total: {emp.qtd_total} un.
                       </span>
                     </div>
@@ -345,10 +347,10 @@ export const Comercial: React.FC = () => {
                             if (!item) return null;
                             return (
                               <g>
-                                <text x={x + width / 2} y={y - 22} textAnchor="middle" fontSize={11} fontWeight={700} fill="#10B981">
+                                <text x={x + width / 2} y={y - 22} textAnchor="middle" fontSize={11} fontWeight={700} fill={theme === 'dark' ? '#34d399' : '#10B981'}>
                                   {item.quantidade} {item.quantidade === 1 ? 'venda' : 'vendas'}
                                 </text>
-                                <text x={x + width / 2} y={y - 8} textAnchor="middle" fontSize={11} fontWeight={700} fill="#374151">
+                                <text x={x + width / 2} y={y - 8} textAnchor="middle" fontSize={11} fontWeight={700} fill={theme === 'dark' ? '#94a3b8' : '#374151'}>
                                   {formatCurrencyShort(item.valor)}
                                 </text>
                               </g>
