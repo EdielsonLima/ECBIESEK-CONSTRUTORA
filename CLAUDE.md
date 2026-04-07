@@ -60,6 +60,8 @@ Dashboard financeiro React 18 + TypeScript + Tailwind CSS (frontend) com FastAPI
   - **Tipo 5 - Substituição**: NÃO incluir (gera duplicata)
   - **Tipo 8 - Abatimento de Adiantamento**: avaliar
 - Sem essa configuração, valores ficam inflados (incluem cancelamentos)
+- O endpoint `/api/realizado-por-centro-custo` aceita parâmetro `tipo_baixa` (override) - usado pelo Painel Executivo para garantir que o card "Realizado" bata com o "Líquido Total" da página Contas Pagas
+- O filtro do Painel Executivo é persistido em `localStorage.painel_exec_tipos_baixa`
 
 ### Empresas Excluídas
 - Algumas empresas estão excluídas via `config_empresas_excluidas` por motivo administrativo
