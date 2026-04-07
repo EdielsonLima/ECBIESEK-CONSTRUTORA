@@ -217,7 +217,7 @@ function App() {
                 {currentPage === 'log-atividades' && 'Log de Atividades'}
                 {currentPage === 'alterar-senha' && 'Alterar Senha'}
                 {currentPage === 'validacao' && 'Validacao de Dados'}
-                {currentPage === 'solicitacoes' && 'Solicitacoes de Melhorias'}
+                {currentPage === 'solicitacoes' && 'Solicitacao de Melhorias'}
                 {currentPage === 'comercial' && 'Comercial'}
               </h1>
               <p className="mt-1 text-sm font-medium text-gray-500 dark:text-slate-400">Gestão Financeira - Construtora</p>
