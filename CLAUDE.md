@@ -133,10 +133,19 @@ O sistema tem uma página de Kanban onde usuários pedem melhorias. A IA deve tr
 
 1. Fazer as mudanças no código
 2. Atualizar o Kanban via API: `PUT https://ecbiesek-construtora-production.up.railway.app/api/solicitacoes/{id}` com:
-   - `status`: `"implementado"`
+   - `status`: `"aguardando_validacao"` (NÃO mais `"implementado"` direto)
    - `versao_implementada`: versão atual do changelog
    - `resposta_dev`: breve descrição do que foi feito (linguagem acessível)
 3. Incluir a melhoria no changelog ao fazer release
+4. **Importante**: a solicitação só vira `implementado` quando o usuário que criou clica em "Aprovar" no card da página de Solicitações. Se ele clicar "Reabrir", ela volta para `pendente` com um comentário do que precisa ajustar.
+
+### Fluxo de status (Kanban)
+`pendente` → `em_analise` → `em_desenvolvimento` → `aguardando_validacao` → `implementado` (após aprovação do autor)
+
+A partir de `aguardando_validacao`, o autor pode reabrir → volta para `pendente` (registra `comentario_validacao`).
+
+Endpoint de validação (usado apenas pelo frontend):
+`POST /api/solicitacoes/{id}/validar` body `{ aprovado: bool, aprovado_por: str, comentario?: str }`
 
 ### Prioridade de atendimento
 - **Urgente**: resolver imediatamente

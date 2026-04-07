@@ -3323,10 +3323,20 @@ def criar_solicitacao(data: dict):
                     resposta_dev TEXT,
                     versao_implementada VARCHAR(20),
                     imagem TEXT,
+                    aprovado_em TIMESTAMP,
+                    aprovado_por VARCHAR(255),
+                    comentario_validacao TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+            # Migração: garante colunas de validação para tabelas antigas
+            try:
+                cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS aprovado_em TIMESTAMP")
+                cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS aprovado_por VARCHAR(255)")
+                cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS comentario_validacao TEXT")
+            except Exception:
+                pass
             conn.commit()
         except Exception as create_err:
             print(f"[WARN] CREATE TABLE solicitacoes: {create_err}")
@@ -3365,7 +3375,7 @@ def criar_solicitacao(data: dict):
 
 @app.put("/api/solicitacoes/{id}")
 def atualizar_solicitacao(id: int, data: dict):
-    """Atualiza status/resposta de uma solicitação (admin)"""
+    """Atualiza status/resposta de uma solicitação (admin/dev)"""
     conn = get_config_db_connection()
     cursor = conn.cursor()
     try:
@@ -3383,6 +3393,60 @@ def atualizar_solicitacao(id: int, data: dict):
         return {"success": True}
     except Exception as e:
         print(f"[ERRO] atualizar_solicitacao: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.post("/api/solicitacoes/{id}/validar")
+def validar_solicitacao(id: int, data: dict):
+    """Usuário valida (aprova ou rejeita) a implementação feita pelo dev.
+    Body: { aprovado: bool, aprovado_por: str, comentario?: str }
+    - aprovado=True  -> status='implementado', registra aprovado_em/aprovado_por
+    - aprovado=False -> status='pendente' (reabre), registra comentario_validacao
+    """
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Garante migração das colunas (idempotente)
+        try:
+            cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS aprovado_em TIMESTAMP")
+            cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS aprovado_por VARCHAR(255)")
+            cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS comentario_validacao TEXT")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+        aprovado = bool(data.get('aprovado', False))
+        aprovado_por = data.get('aprovado_por', '')
+        comentario = data.get('comentario') or None
+
+        if aprovado:
+            cursor.execute(
+                """UPDATE solicitacoes_melhorias
+                   SET status = 'implementado',
+                       aprovado_em = CURRENT_TIMESTAMP,
+                       aprovado_por = %s,
+                       comentario_validacao = %s,
+                       updated_at = CURRENT_TIMESTAMP
+                   WHERE id = %s""",
+                (aprovado_por, comentario, id)
+            )
+        else:
+            cursor.execute(
+                """UPDATE solicitacoes_melhorias
+                   SET status = 'pendente',
+                       aprovado_em = NULL,
+                       aprovado_por = NULL,
+                       comentario_validacao = %s,
+                       updated_at = CURRENT_TIMESTAMP
+                   WHERE id = %s""",
+                (comentario, id)
+            )
+        conn.commit()
+        return {"success": True, "aprovado": aprovado}
+    except Exception as e:
+        print(f"[ERRO] validar_solicitacao: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         cursor.close()
@@ -8317,6 +8381,13 @@ def _ensure_config_tables_in_postgres():
             # Migração: adicionar coluna imagem se não existir
             try:
                 cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS imagem TEXT")
+            except Exception:
+                pass
+            # Migração: colunas de validação/aceite do usuário
+            try:
+                cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS aprovado_em TIMESTAMP")
+                cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS aprovado_por VARCHAR(255)")
+                cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS comentario_validacao TEXT")
             except Exception:
                 pass
 

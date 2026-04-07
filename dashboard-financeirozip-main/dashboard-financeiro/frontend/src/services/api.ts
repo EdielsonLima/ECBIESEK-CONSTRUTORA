@@ -1743,6 +1743,10 @@ export const apiService = {
     const response = await api.delete(`/solicitacoes/${id}`);
     return response.data;
   },
+  validarSolicitacao: async (id: number, data: { aprovado: boolean; aprovado_por: string; comentario?: string }) => {
+    const response = await api.post(`/solicitacoes/${id}/validar`, data);
+    return response.data;
+  },
 };
 
 // ============ VALIDACAO SERVICE ============

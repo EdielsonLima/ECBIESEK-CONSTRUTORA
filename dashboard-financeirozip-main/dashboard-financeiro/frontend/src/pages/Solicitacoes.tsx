@@ -33,6 +33,9 @@ interface Solicitacao {
   imagem: string | null;
   created_at: string;
   updated_at: string | null;
+  aprovado_em?: string | null;
+  aprovado_por?: string | null;
+  comentario_validacao?: string | null;
 }
 
 const STATUS_FINAIS = ['implementado', 'rejeitado'];
@@ -92,6 +95,7 @@ const KANBAN_COLUNAS = [
   { status: 'pendente', label: 'Pendente', cor: 'border-t-yellow-400', bgHeader: 'bg-yellow-50', textCor: 'text-yellow-700', dot: 'bg-yellow-400' },
   { status: 'em_analise', label: 'Em Analise', cor: 'border-t-blue-400', bgHeader: 'bg-blue-50', textCor: 'text-blue-700', dot: 'bg-blue-400' },
   { status: 'em_desenvolvimento', label: 'Em Desenvolvimento', cor: 'border-t-purple-400', bgHeader: 'bg-purple-50', textCor: 'text-purple-700', dot: 'bg-purple-400' },
+  { status: 'aguardando_validacao', label: 'Aguardando Validacao', cor: 'border-t-amber-400', bgHeader: 'bg-amber-50', textCor: 'text-amber-700', dot: 'bg-amber-400' },
   { status: 'implementado', label: 'Implementado', cor: 'border-t-green-400', bgHeader: 'bg-green-50', textCor: 'text-green-700', dot: 'bg-green-400' },
   { status: 'rejeitado', label: 'Rejeitado', cor: 'border-t-red-400', bgHeader: 'bg-red-50 dark:bg-red-900/20', textCor: 'text-red-700 dark:text-red-400', dot: 'bg-red-400' },
 ];
@@ -184,6 +188,30 @@ export const Solicitacoes: React.FC = () => {
     }
   };
 
+  const validar = async (id: number, aprovado: boolean) => {
+    const acao = aprovado ? 'aprovar (entrega aceita)' : 'reabrir (entrega nao atende)';
+    let comentario: string | undefined = undefined;
+    if (!aprovado) {
+      const c = prompt('Por que esta reabrindo? (opcional)') || '';
+      comentario = c.trim() || undefined;
+    } else if (!confirm(`Confirma ${acao}?`)) {
+      return;
+    }
+    try {
+      await apiService.validarSolicitacao(id, {
+        aprovado,
+        aprovado_por: user?.nome || user?.email || '',
+        comentario,
+      });
+      setMsg({ tipo: 'ok', texto: aprovado ? 'Entrega aprovada!' : 'Solicitacao reaberta.' });
+      setTimeout(() => setMsg(null), 3000);
+      carregarDados();
+      if (detalheAberto?.id === id) setDetalheAberto(null);
+    } catch {
+      setMsg({ tipo: 'erro', texto: 'Erro ao validar.' });
+    }
+  };
+
   const deletar = async (id: number) => {
     if (!confirm('Remover esta solicitacao?')) return;
     try {
@@ -245,13 +273,14 @@ export const Solicitacoes: React.FC = () => {
     total: solicitacoes.length,
     pendente: solicitacoes.filter(s => s.status === 'pendente').length,
     em_andamento: solicitacoes.filter(s => s.status === 'em_desenvolvimento' || s.status === 'em_analise').length,
+    aguardando_validacao: solicitacoes.filter(s => s.status === 'aguardando_validacao').length,
     implementado: solicitacoes.filter(s => s.status === 'implementado').length,
   };
 
   return (
     <div>
       {/* Cards resumo */}
-      <div className="mb-5 grid gap-3 md:grid-cols-4">
+      <div className="mb-5 grid gap-3 md:grid-cols-5">
         <div className="rounded-xl bg-white dark:bg-slate-800 p-3 shadow-sm border-l-4 border-blue-500">
           <p className="text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase">Total</p>
           <p className="text-xl font-bold text-gray-900 dark:text-slate-100">{contadores.total}</p>
@@ -263,6 +292,10 @@ export const Solicitacoes: React.FC = () => {
         <div className="rounded-xl bg-white dark:bg-slate-800 p-3 shadow-sm border-l-4 border-purple-500">
           <p className="text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase">Em Andamento</p>
           <p className="text-xl font-bold text-purple-600">{contadores.em_andamento}</p>
+        </div>
+        <div className="rounded-xl bg-white dark:bg-slate-800 p-3 shadow-sm border-l-4 border-amber-500">
+          <p className="text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase">Aguardando Voce</p>
+          <p className="text-xl font-bold text-amber-600">{contadores.aguardando_validacao}</p>
         </div>
         <div className="rounded-xl bg-white dark:bg-slate-800 p-3 shadow-sm border-l-4 border-green-500">
           <p className="text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase">Implementados</p>
@@ -362,7 +395,7 @@ export const Solicitacoes: React.FC = () => {
       )}
 
       {/* Kanban Board */}
-      <div className="grid grid-cols-5 gap-3 pb-4" style={{ minHeight: '65vh' }}>
+      <div className="grid grid-cols-6 gap-3 pb-4" style={{ minHeight: '65vh' }}>
         {KANBAN_COLUNAS.map(col => {
           const prioOrdem: Record<string, number> = { urgente: 1, alta: 2, media: 3, baixa: 4 };
           const cards = solicitacoes
@@ -469,6 +502,41 @@ export const Solicitacoes: React.FC = () => {
                         </div>
                       )}
 
+                      {/* Botoes Aprovar / Reabrir - apenas para o autor da solicitacao quando aguardando validacao */}
+                      {s.status === 'aguardando_validacao' && user?.email && s.usuario_email === user.email && (
+                        <div className="mt-2 flex gap-1.5 border-t border-gray-100 dark:border-slate-700/50 pt-2">
+                          <button
+                            type="button"
+                            onClick={() => validar(s.id, true)}
+                            className="flex-1 inline-flex items-center justify-center gap-1 rounded bg-emerald-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-emerald-700"
+                            title="Aprovar a entrega"
+                          >
+                            <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                            Aprovar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => validar(s.id, false)}
+                            className="flex-1 inline-flex items-center justify-center gap-1 rounded bg-red-50 dark:bg-red-900/30 px-2 py-1 text-[10px] font-semibold text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800/40 hover:bg-red-100"
+                            title="Reabrir solicitacao"
+                          >
+                            <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                            Reabrir
+                          </button>
+                        </div>
+                      )}
+                      {s.status === 'aguardando_validacao' && user?.email && s.usuario_email !== user.email && (
+                        <div className="mt-2 rounded bg-amber-50 dark:bg-amber-900/20 px-2 py-1 text-[10px] text-amber-700 dark:text-amber-300 border border-amber-100 dark:border-amber-800/40">
+                          Aguardando validacao de <span className="font-semibold">{s.usuario_nome}</span>
+                        </div>
+                      )}
+                      {s.status === 'implementado' && s.aprovado_por && (
+                        <div className="mt-1.5 inline-flex items-center gap-1 rounded bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 text-[10px] text-emerald-700 dark:text-emerald-300">
+                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                          Aprovado por {s.aprovado_por}
+                        </div>
+                      )}
+
                       {/* Admin edit inline */}
                       {editando && isAdmin && (
                         <div className="mt-2 space-y-1.5 border-t border-gray-100 dark:border-slate-700/50 pt-2">
@@ -557,7 +625,44 @@ export const Solicitacoes: React.FC = () => {
                         </div>
                       </div>
 
-                      {t.concluido && t.diasParaConcluir !== null && detalheAberto.updated_at ? (
+                      {detalheAberto.status === 'aguardando_validacao' && (
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-300 flex-shrink-0">
+                            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-xs font-semibold text-gray-700 dark:text-slate-300">Aguardando sua validacao</p>
+                            <p className="text-[11px] text-gray-500 dark:text-slate-400">
+                              Implementado em {formatarDataHoraBR(detalheAberto.updated_at)}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {detalheAberto.status === 'implementado' && detalheAberto.aprovado_em ? (
+                        <>
+                          <div className="flex items-start gap-3">
+                            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-300 flex-shrink-0">
+                              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-xs font-semibold text-gray-700 dark:text-slate-300">
+                                Aprovado{detalheAberto.aprovado_por ? ` por ${detalheAberto.aprovado_por}` : ''}
+                              </p>
+                              <p className="text-[11px] text-gray-500 dark:text-slate-400">
+                                {formatarDataHoraBR(detalheAberto.aprovado_em)}
+                              </p>
+                            </div>
+                          </div>
+                          {t.diasParaConcluir !== null && (
+                            <div className="ml-10 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/40 px-3 py-2">
+                              <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                                Tempo total de entrega: {formatarDias(t.diasParaConcluir)}
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      ) : t.concluido && t.diasParaConcluir !== null && detalheAberto.updated_at ? (
                         <>
                           <div className="flex items-start gap-3">
                             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-300 flex-shrink-0">
@@ -578,7 +683,7 @@ export const Solicitacoes: React.FC = () => {
                             </p>
                           </div>
                         </>
-                      ) : (
+                      ) : detalheAberto.status !== 'aguardando_validacao' && (
                         <div className="flex items-start gap-3">
                           <div className="flex h-7 w-7 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900/40 text-yellow-600 dark:text-yellow-300 flex-shrink-0">
                             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -591,13 +696,42 @@ export const Solicitacoes: React.FC = () => {
                           </div>
                         </div>
                       )}
+
+                      {detalheAberto.comentario_validacao && (
+                        <div className="ml-10 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/40 px-3 py-2">
+                          <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                            <span className="font-semibold">Comentario:</span> {detalheAberto.comentario_validacao}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
               </div>
             </div>
             <div className="border-t border-gray-100 dark:border-slate-700/50 bg-gray-50 dark:bg-slate-900 px-6 py-3">
-              <button type="button" onClick={() => setDetalheAberto(null)} className="w-full rounded-lg bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-300">Fechar</button>
+              {detalheAberto.status === 'aguardando_validacao' && user?.email && detalheAberto.usuario_email === user.email ? (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => validar(detalheAberto.id, true)}
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                    Aprovar entrega
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => validar(detalheAberto.id, false)}
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-white dark:bg-slate-800 px-4 py-2 text-sm font-semibold text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    Reabrir
+                  </button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setDetalheAberto(null)} className="w-full rounded-lg bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-300">Fechar</button>
+              )}
             </div>
           </div>
         </div>
