@@ -498,32 +498,30 @@ export const Comercial: React.FC = () => {
               <div className="h-3 rounded-full bg-gray-100 overflow-hidden mb-3">
                 <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all" style={{ width: `${emp.percentual_vendido}%` }}></div>
               </div>
-              <div className="grid grid-cols-2 gap-2 text-center mb-2">
-                <div className="rounded-lg bg-emerald-50 p-2">
-                  <p className="text-xl font-bold text-emerald-700">{emp.qtd_vendido}</p>
-                  <p className="text-[10px] text-emerald-600 uppercase font-semibold">Vendido</p>
+              <div className="flex gap-1.5 text-center mt-2 w-full">
+                <div className="flex-1 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 p-1.5 border border-emerald-100 dark:border-emerald-800/50">
+                  <p className="text-base sm:text-lg font-bold text-emerald-700 dark:text-emerald-400">{emp.qtd_vendido}</p>
+                  <p className="text-[9px] text-emerald-600 dark:text-emerald-500 uppercase font-bold">Vend.</p>
                 </div>
-                <div className="rounded-lg bg-blue-50 p-2">
-                  <p className="text-xl font-bold text-blue-700">{emp.qtd_disponivel}</p>
-                  <p className="text-[10px] text-blue-600 uppercase font-semibold">Disponivel</p>
+                <div className="flex-1 rounded-lg bg-blue-50 dark:bg-blue-900/20 p-1.5 border border-blue-100 dark:border-blue-800/50">
+                  <p className="text-base sm:text-lg font-bold text-blue-700 dark:text-blue-400">{emp.qtd_disponivel}</p>
+                  <p className="text-[9px] text-blue-600 dark:text-blue-500 uppercase font-bold">Disp.</p>
                 </div>
-              </div>
-              <div className="grid grid-cols-3 gap-2 text-center">
                 {emp.qtd_reserva > 0 && (
-                  <div className="rounded-lg bg-amber-50 p-2">
-                    <p className="text-base font-bold text-amber-700">{emp.qtd_reserva}</p>
-                    <p className="text-[9px] text-amber-600 uppercase font-semibold">Reserva</p>
+                  <div className="flex-1 rounded-lg bg-amber-50 dark:bg-amber-900/20 p-1.5 border border-amber-100 dark:border-amber-800/50">
+                    <p className="text-base sm:text-lg font-bold text-amber-700 dark:text-amber-400">{emp.qtd_reserva}</p>
+                    <p className="text-[9px] text-amber-600 dark:text-amber-500 uppercase font-bold">Res.</p>
                   </div>
                 )}
                 {emp.qtd_permuta > 0 && (
-                  <div className="rounded-lg bg-purple-50 p-2">
-                    <p className="text-base font-bold text-purple-700">{emp.qtd_permuta}</p>
-                    <p className="text-[9px] text-purple-600 uppercase font-semibold">Permuta</p>
+                  <div className="flex-1 rounded-lg bg-purple-50 dark:bg-purple-900/20 p-1.5 border border-purple-100 dark:border-purple-800/50">
+                    <p className="text-base sm:text-lg font-bold text-purple-700 dark:text-purple-400">{emp.qtd_permuta}</p>
+                    <p className="text-[9px] text-purple-600 dark:text-purple-500 uppercase font-bold">Perm.</p>
                   </div>
                 )}
-                <div className={`rounded-lg bg-slate-100 p-2 ${(emp.qtd_reserva > 0 && emp.qtd_permuta > 0) ? '' : 'col-span-3'}`}>
-                  <p className="text-base font-bold text-slate-800">{emp.qtd_total}</p>
-                  <p className="text-[9px] text-slate-600 uppercase font-semibold">Total</p>
+                <div className="flex-1 rounded-lg bg-slate-100 dark:bg-slate-700 p-1.5 border border-slate-200 dark:border-slate-600">
+                  <p className="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-100">{emp.qtd_total}</p>
+                  <p className="text-[9px] text-slate-600 dark:text-slate-300 uppercase font-bold">Total</p>
                 </div>
               </div>
             </div>
