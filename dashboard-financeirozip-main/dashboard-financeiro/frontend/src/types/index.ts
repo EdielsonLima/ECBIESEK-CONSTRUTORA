@@ -222,6 +222,26 @@ export interface SnapshotDiarioResponse {
   registros_atualizados: number;
 }
 
+// -------- Saldos Bancários --------
+export interface SaldoBancarioRegistro {
+  banco: string;
+  conta_corrente: string;
+  empresa_id: number;
+  empresa_nome: string;
+  data_movimento: string;
+  saldo_anterior: number;
+  entrada: number;
+  saida: number;
+  saldo_atual: number;
+}
+
+export interface SaldoBancarioResumo {
+  saldo_total: number;
+  empresas: Array<{ empresa_nome: string; empresa_id: number; saldo: number }>;
+  contas: Array<{ empresa_nome: string; conta_corrente: string; banco: string; saldo: number }>;
+  serie: Array<{ data: string; saldo: number }>;
+}
+
 export interface ContaReceber {
   cliente: string;
   id_cliente?: number;

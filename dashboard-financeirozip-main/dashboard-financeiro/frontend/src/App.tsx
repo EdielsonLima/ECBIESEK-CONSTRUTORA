@@ -22,6 +22,7 @@ import { AlterarSenha } from './pages/AlterarSenha';
 import { Validacao } from './pages/Validacao';
 import { Solicitacoes } from './pages/Solicitacoes';
 import { Comercial } from './pages/Comercial';
+import { SaldosBancarios } from './pages/SaldosBancarios';
 import { authService, apiService, User } from './services/api';
 import { ChangelogModal } from './components/ChangelogModal';
 import { useTheme } from './contexts/ThemeContext';
@@ -177,6 +178,8 @@ function App() {
         return <Solicitacoes />;
       case 'comercial':
         return <Comercial />;
+      case 'saldos-bancarios':
+        return <SaldosBancarios />;
       default:
         return <Dashboard onNavigate={setCurrentPage} />;
     }
