@@ -119,6 +119,7 @@ export const Solicitacoes: React.FC = () => {
   const [editResposta, setEditResposta] = useState('');
   const [editVersao, setEditVersao] = useState('');
   const [busca, setBusca] = useState('');
+  const [filtroUsuario, setFiltroUsuario] = useState('');
 
   const user = authService.getStoredUser();
   const isAdmin = user?.permissao === 'admin';
@@ -270,22 +271,29 @@ export const Solicitacoes: React.FC = () => {
     );
   }
 
-  // Filtro de busca: titulo, descricao, usuario, secao, resposta_dev, versao
+  // Lista unica de usuarios para o dropdown
+  const usuariosUnicos = Array.from(
+    new Set(solicitacoes.map(s => s.usuario_nome).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+  // Filtros combinados: busca de texto + filtro de usuario
   const buscaNorm = busca.trim().toLowerCase();
-  const solicitacoesFiltradas = buscaNorm
-    ? solicitacoes.filter(s => {
-        const campos = [
-          s.titulo,
-          s.descricao,
-          s.usuario_nome,
-          s.usuario_email,
-          s.secao,
-          s.resposta_dev,
-          s.versao_implementada,
-        ];
-        return campos.some(c => (c || '').toLowerCase().includes(buscaNorm));
-      })
-    : solicitacoes;
+  const solicitacoesFiltradas = solicitacoes.filter(s => {
+    if (filtroUsuario && s.usuario_nome !== filtroUsuario) return false;
+    if (buscaNorm) {
+      const campos = [
+        s.titulo,
+        s.descricao,
+        s.usuario_nome,
+        s.usuario_email,
+        s.secao,
+        s.resposta_dev,
+        s.versao_implementada,
+      ];
+      if (!campos.some(c => (c || '').toLowerCase().includes(buscaNorm))) return false;
+    }
+    return true;
+  });
 
   const contadores = {
     total: solicitacoes.length,
@@ -321,39 +329,82 @@ export const Solicitacoes: React.FC = () => {
         </div>
       </div>
 
-      {/* Busca + Botão Nova Solicitação */}
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-md">
-          <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
-          </svg>
-          <input
-            type="text"
-            value={busca}
-            onChange={e => setBusca(e.target.value)}
-            placeholder="Buscar por titulo, descricao, usuario, secao..."
-            className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 pl-9 pr-9 py-2 text-sm text-gray-900 dark:text-slate-100 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-          {busca && (
-            <button
-              type="button"
-              onClick={() => setBusca('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
-              title="Limpar busca"
+      {/* Busca + Filtro Usuario + Botão Nova Solicitação */}
+      <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-1">
+          {/* Busca */}
+          <div className="relative w-full sm:max-w-sm">
+            <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
+            </svg>
+            <input
+              type="text"
+              value={busca}
+              onChange={e => setBusca(e.target.value)}
+              placeholder="Buscar por titulo, descricao, secao..."
+              className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 pl-9 pr-9 py-2 text-sm text-gray-900 dark:text-slate-100 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            {busca && (
+              <button
+                type="button"
+                onClick={() => setBusca('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+                title="Limpar busca"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            )}
+          </div>
+
+          {/* Dropdown filtro usuario */}
+          <div className="relative w-full sm:w-56">
+            <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            <select
+              value={filtroUsuario}
+              onChange={e => setFiltroUsuario(e.target.value)}
+              className="w-full appearance-none rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 pl-9 pr-8 py-2 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
-              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-          )}
-          {buscaNorm && (
-            <p className="absolute -bottom-5 left-1 text-[10px] text-gray-500 dark:text-slate-400">
-              {solicitacoesFiltradas.length} resultado{solicitacoesFiltradas.length !== 1 ? 's' : ''} de {solicitacoes.length}
-            </p>
+              <option value="">Todos os usuarios</option>
+              {usuariosUnicos.map(u => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
+            <svg className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+          </div>
+
+          {/* Contador / chip de filtro ativo */}
+          {(buscaNorm || filtroUsuario) && (
+            <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400">
+              <span>
+                {solicitacoesFiltradas.length} de {solicitacoes.length}
+              </span>
+              {filtroUsuario && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 dark:bg-blue-900/40 px-2 py-0.5 text-[11px] font-semibold text-blue-700 dark:text-blue-300">
+                  {filtroUsuario}
+                  <button type="button" onClick={() => setFiltroUsuario('')} className="rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 p-0.5" title="Remover filtro">
+                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </span>
+              )}
+              {(buscaNorm || filtroUsuario) && (
+                <button
+                  type="button"
+                  onClick={() => { setBusca(''); setFiltroUsuario(''); }}
+                  className="rounded text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  limpar tudo
+                </button>
+              )}
+            </div>
           )}
         </div>
+
         <button
           type="button"
           onClick={() => setMostrarForm(!mostrarForm)}
-          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm self-end sm:self-auto"
+          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm self-end lg:self-auto"
         >
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -514,7 +565,14 @@ export const Solicitacoes: React.FC = () => {
                       </div>
 
                       <div className="mt-2 flex items-center gap-1.5 text-[10px] text-gray-400">
-                        <span className="font-medium">{s.usuario_nome}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setFiltroUsuario(s.usuario_nome); }}
+                          className="font-medium hover:text-blue-600 hover:underline cursor-pointer"
+                          title={`Filtrar por ${s.usuario_nome}`}
+                        >
+                          {s.usuario_nome}
+                        </button>
                         <span>&middot;</span>
                         <span>{formatarDataBR(s.created_at)}</span>
                       </div>
