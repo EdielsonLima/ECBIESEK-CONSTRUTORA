@@ -118,6 +118,7 @@ export const Solicitacoes: React.FC = () => {
   const [detalheAberto, setDetalheAberto] = useState<Solicitacao | null>(null);
   const [editResposta, setEditResposta] = useState('');
   const [editVersao, setEditVersao] = useState('');
+  const [busca, setBusca] = useState('');
 
   const user = authService.getStoredUser();
   const isAdmin = user?.permissao === 'admin';
@@ -269,6 +270,23 @@ export const Solicitacoes: React.FC = () => {
     );
   }
 
+  // Filtro de busca: titulo, descricao, usuario, secao, resposta_dev, versao
+  const buscaNorm = busca.trim().toLowerCase();
+  const solicitacoesFiltradas = buscaNorm
+    ? solicitacoes.filter(s => {
+        const campos = [
+          s.titulo,
+          s.descricao,
+          s.usuario_nome,
+          s.usuario_email,
+          s.secao,
+          s.resposta_dev,
+          s.versao_implementada,
+        ];
+        return campos.some(c => (c || '').toLowerCase().includes(buscaNorm));
+      })
+    : solicitacoes;
+
   const contadores = {
     total: solicitacoes.length,
     pendente: solicitacoes.filter(s => s.status === 'pendente').length,
@@ -303,12 +321,39 @@ export const Solicitacoes: React.FC = () => {
         </div>
       </div>
 
-      {/* Botão Nova Solicitação */}
-      <div className="mb-4 flex justify-end">
+      {/* Busca + Botão Nova Solicitação */}
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-md">
+          <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
+          </svg>
+          <input
+            type="text"
+            value={busca}
+            onChange={e => setBusca(e.target.value)}
+            placeholder="Buscar por titulo, descricao, usuario, secao..."
+            className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 pl-9 pr-9 py-2 text-sm text-gray-900 dark:text-slate-100 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+          {busca && (
+            <button
+              type="button"
+              onClick={() => setBusca('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+              title="Limpar busca"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          )}
+          {buscaNorm && (
+            <p className="absolute -bottom-5 left-1 text-[10px] text-gray-500 dark:text-slate-400">
+              {solicitacoesFiltradas.length} resultado{solicitacoesFiltradas.length !== 1 ? 's' : ''} de {solicitacoes.length}
+            </p>
+          )}
+        </div>
         <button
           type="button"
           onClick={() => setMostrarForm(!mostrarForm)}
-          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm"
+          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm self-end sm:self-auto"
         >
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -398,7 +443,7 @@ export const Solicitacoes: React.FC = () => {
       <div className="grid grid-cols-6 gap-3 pb-4" style={{ minHeight: '65vh' }}>
         {KANBAN_COLUNAS.map(col => {
           const prioOrdem: Record<string, number> = { urgente: 1, alta: 2, media: 3, baixa: 4 };
-          const cards = solicitacoes
+          const cards = solicitacoesFiltradas
             .filter(s => s.status === col.status)
             .sort((a, b) => (prioOrdem[a.prioridade] || 5) - (prioOrdem[b.prioridade] || 5));
           const isDragOver = dragOverCol === col.status;
