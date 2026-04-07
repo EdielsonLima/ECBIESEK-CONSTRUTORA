@@ -259,7 +259,10 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
 
       {/* ============ SEÇÃO 1: Vendas ============ */}
       <div>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 ml-1">Vendas</p>
+        <p className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wider mb-3 ml-1 text-slate-700 dark:text-slate-100">
+          <span className="h-2 w-2 rounded-full bg-blue-500"></span>
+          Vendas
+        </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="rounded-2xl border border-blue-100 bg-white dark:bg-slate-800 p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
@@ -317,7 +320,10 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
 
       {/* ============ SEÇÃO 2: Custos ============ */}
       <div>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 ml-1">Custos</p>
+        <p className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wider mb-3 ml-1 text-slate-700 dark:text-slate-100">
+          <span className="h-2 w-2 rounded-full bg-amber-400"></span>
+          Custos
+        </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="rounded-2xl border border-slate-100 bg-white dark:bg-slate-800 p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
@@ -353,16 +359,16 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
       </div>
 
       {/* ============ SEÇÃO 3: Valor do Empreendimento ============ */}
-      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-white p-6 shadow-sm">
+      <div className="rounded-2xl border border-indigo-200 dark:border-indigo-800/60 bg-gradient-to-r from-indigo-50 to-white dark:from-indigo-900/60 dark:via-slate-900/50 dark:to-slate-900/20 p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="rounded-xl p-3 bg-gradient-to-br from-indigo-400 to-indigo-600 shadow-lg shadow-indigo-200 text-white">
+            <div className="rounded-xl p-3 bg-gradient-to-br from-indigo-400 to-indigo-600 dark:from-indigo-500 dark:to-indigo-700 shadow-lg shadow-indigo-200/80 dark:shadow-indigo-900/50 text-white">
               <Building2 className="h-7 w-7" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-indigo-600 uppercase tracking-wider">Valor do Empreendimento</p>
-              <p className="text-4xl font-extrabold text-gray-900 dark:text-slate-100 mt-1">{formatCurrency(data.valor_empreendimento)}</p>
-              <p className="text-sm text-indigo-500 mt-1">
+              <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-200 uppercase tracking-wider">Valor do Empreendimento</p>
+              <p className="text-4xl font-extrabold text-gray-900 dark:text-indigo-50 mt-1">{formatCurrency(data.valor_empreendimento)}</p>
+              <p className="text-sm text-indigo-500 dark:text-indigo-200/80 mt-1">
                 {formatCurrency(data.saldo_a_receber)} (a receber) + {formatCurrency(data.estoque)} (estoque) − {formatCurrency(data.saldo_a_realizar)} (a realizar)
               </p>
             </div>
