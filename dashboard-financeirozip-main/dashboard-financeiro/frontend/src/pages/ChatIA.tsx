@@ -63,14 +63,14 @@ export const ChatIA: React.FC = () => {
             <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 pointer-events-none translate-y-1/2 -translate-x-1/2"></div>
 
             {/* Header section */}
-            <div className="bg-white border-b border-gray-200 px-8 py-5 flex items-center justify-between z-10 shadow-sm relative">
+            <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-8 py-5 flex items-center justify-between z-10 shadow-sm relative">
                 <div className="flex items-center gap-4">
                     <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
                         <Sparkles className="text-white h-6 w-6" />
                     </div>
                     <div>
                         <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-700 to-blue-800">Analista de IA</h1>
-                        <p className="text-sm text-gray-500 font-medium flex items-center gap-1.5">
+                        <p className="text-sm text-gray-500 dark:text-slate-400 font-medium flex items-center gap-1.5">
                             <span className="relative flex h-2.5 w-2.5">
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
@@ -89,7 +89,7 @@ export const ChatIA: React.FC = () => {
             {/* Sugestões Iniciais */}
             {messages.length === 1 && (
                 <div className="max-w-4xl mx-auto w-full px-4 mt-8 mb-4 z-10 relative">
-                    <p className="text-sm font-semibold text-gray-500 mb-3 flex items-center gap-2 uppercase tracking-wide">
+                    <p className="text-sm font-semibold text-gray-500 dark:text-slate-400 mb-3 flex items-center gap-2 uppercase tracking-wide">
                         <AlertCircle className="h-4 w-4" /> Sugestões para perguntar:
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -102,10 +102,10 @@ export const ChatIA: React.FC = () => {
                                         document.getElementById('chat-input')?.focus();
                                     }, 50);
                                 }}
-                                className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm text-left text-sm text-gray-700 font-medium hover:border-purple-300 hover:shadow-md hover:bg-purple-50/50 transition-all flex items-center gap-3 group whitespace-nowrap overflow-hidden text-ellipsis"
+                                className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm text-left text-sm text-gray-700 dark:text-slate-300 font-medium hover:border-purple-300 hover:shadow-md hover:bg-purple-50/50 transition-all flex items-center gap-3 group whitespace-nowrap overflow-hidden text-ellipsis"
                             >
                                 <div className="h-8 w-8 shrink-0 rounded-lg bg-gray-100 group-hover:bg-purple-100 flex items-center justify-center transition-colors">
-                                    <Bot className="h-4 w-4 text-gray-500 group-hover:text-purple-600" />
+                                    <Bot className="h-4 w-4 text-gray-500 dark:text-slate-400 group-hover:text-purple-600" />
                                 </div>
                                 {sug}
                             </button>
@@ -140,7 +140,7 @@ export const ChatIA: React.FC = () => {
                                     <div className={`
                     px-5 py-4 rounded-2xl shadow-sm text-[15px] leading-relaxed relative
                     ${isAss
-                                            ? 'bg-white border text-gray-800 border-gray-200/60 rounded-tl-none prose prose-p:my-1 prose-strong:text-purple-900 prose-ul:my-2 prose-li:my-0'
+                                            ? 'bg-white dark:bg-slate-800 border text-gray-800 dark:text-slate-200 border-gray-200 dark:border-slate-700/60 rounded-tl-none prose prose-p:my-1 prose-strong:text-purple-900 prose-ul:my-2 prose-li:my-0'
                                             : 'bg-slate-800 text-white rounded-tr-none shadow-slate-900/10'}
                   `}>
                                         {isAss ? (
@@ -162,13 +162,13 @@ export const ChatIA: React.FC = () => {
                                         <Loader2 className="text-white h-5 w-5 animate-spin" />
                                     </div>
                                 </div>
-                                <div className="bg-white border border-gray-200/60 p-5 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-2">
+                                <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 p-5 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-2">
                                     <div className="flex space-x-1.5">
                                         <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
                                         <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }}></div>
                                         <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }}></div>
                                     </div>
-                                    <span className="text-sm text-gray-500 font-medium ml-2">Analisando dados...</span>
+                                    <span className="text-sm text-gray-500 dark:text-slate-400 font-medium ml-2">Analisando dados...</span>
                                 </div>
                             </div>
                         </div>
@@ -178,9 +178,9 @@ export const ChatIA: React.FC = () => {
             </div>
 
             {/* Input area */}
-            <div className="p-4 bg-white/80 backdrop-blur-md border-t border-gray-200 z-20 pb-8">
+            <div className="p-4 bg-white dark:bg-slate-800/80 backdrop-blur-md border-t border-gray-200 dark:border-slate-700 z-20 pb-8">
                 <div className="max-w-4xl mx-auto relative">
-                    <form onSubmit={handleSubmit} className="relative flex items-end gap-3 bg-white p-2 rounded-2xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] border border-gray-100">
+                    <form onSubmit={handleSubmit} className="relative flex items-end gap-3 bg-white dark:bg-slate-800 p-2 rounded-2xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] border border-gray-100 dark:border-slate-700/50">
                         <textarea
                             id="chat-input"
                             value={input}

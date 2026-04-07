@@ -37,10 +37,10 @@ interface Solicitacao {
 
 const SECOES = ['Painel Executivo', 'Contas a Pagar', 'Contas Pagas', 'Contas Atrasadas', 'Contas a Receber', 'Contas Recebidas', 'Inadimplencia', 'Dashboard', 'KPIs', 'Centros de Custo', 'Exposicao de Caixa', 'Extrato Cliente', 'Geral'];
 const PRIORIDADES = [
-  { value: 'baixa', label: 'Baixa', cor: 'bg-gray-100 text-gray-700', borda: 'border-l-gray-400' },
+  { value: 'baixa', label: 'Baixa', cor: 'bg-gray-100 text-gray-700 dark:text-slate-300', borda: 'border-l-gray-400' },
   { value: 'media', label: 'Media', cor: 'bg-blue-100 text-blue-700', borda: 'border-l-blue-400' },
   { value: 'alta', label: 'Alta', cor: 'bg-orange-100 text-orange-700', borda: 'border-l-orange-400' },
-  { value: 'urgente', label: 'Urgente', cor: 'bg-red-100 text-red-700', borda: 'border-l-red-500' },
+  { value: 'urgente', label: 'Urgente', cor: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400', borda: 'border-l-red-500' },
 ];
 
 const KANBAN_COLUNAS = [
@@ -48,7 +48,7 @@ const KANBAN_COLUNAS = [
   { status: 'em_analise', label: 'Em Analise', cor: 'border-t-blue-400', bgHeader: 'bg-blue-50', textCor: 'text-blue-700', dot: 'bg-blue-400' },
   { status: 'em_desenvolvimento', label: 'Em Desenvolvimento', cor: 'border-t-purple-400', bgHeader: 'bg-purple-50', textCor: 'text-purple-700', dot: 'bg-purple-400' },
   { status: 'implementado', label: 'Implementado', cor: 'border-t-green-400', bgHeader: 'bg-green-50', textCor: 'text-green-700', dot: 'bg-green-400' },
-  { status: 'rejeitado', label: 'Rejeitado', cor: 'border-t-red-400', bgHeader: 'bg-red-50', textCor: 'text-red-700', dot: 'bg-red-400' },
+  { status: 'rejeitado', label: 'Rejeitado', cor: 'border-t-red-400', bgHeader: 'bg-red-50 dark:bg-red-900/20', textCor: 'text-red-700 dark:text-red-400', dot: 'bg-red-400' },
 ];
 
 export const Solicitacoes: React.FC = () => {
@@ -190,7 +190,7 @@ export const Solicitacoes: React.FC = () => {
       <div className="flex h-96 items-center justify-center">
         <div className="text-center">
           <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
-          <p className="text-gray-600">Carregando...</p>
+          <p className="text-gray-600 dark:text-slate-400">Carregando...</p>
         </div>
       </div>
     );
@@ -207,20 +207,20 @@ export const Solicitacoes: React.FC = () => {
     <div>
       {/* Cards resumo */}
       <div className="mb-5 grid gap-3 md:grid-cols-4">
-        <div className="rounded-xl bg-white p-3 shadow-sm border-l-4 border-blue-500">
-          <p className="text-[10px] font-medium text-gray-500 uppercase">Total</p>
-          <p className="text-xl font-bold text-gray-900">{contadores.total}</p>
+        <div className="rounded-xl bg-white dark:bg-slate-800 p-3 shadow-sm border-l-4 border-blue-500">
+          <p className="text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase">Total</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-slate-100">{contadores.total}</p>
         </div>
-        <div className="rounded-xl bg-white p-3 shadow-sm border-l-4 border-yellow-500">
-          <p className="text-[10px] font-medium text-gray-500 uppercase">Pendentes</p>
+        <div className="rounded-xl bg-white dark:bg-slate-800 p-3 shadow-sm border-l-4 border-yellow-500">
+          <p className="text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase">Pendentes</p>
           <p className="text-xl font-bold text-yellow-600">{contadores.pendente}</p>
         </div>
-        <div className="rounded-xl bg-white p-3 shadow-sm border-l-4 border-purple-500">
-          <p className="text-[10px] font-medium text-gray-500 uppercase">Em Andamento</p>
+        <div className="rounded-xl bg-white dark:bg-slate-800 p-3 shadow-sm border-l-4 border-purple-500">
+          <p className="text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase">Em Andamento</p>
           <p className="text-xl font-bold text-purple-600">{contadores.em_andamento}</p>
         </div>
-        <div className="rounded-xl bg-white p-3 shadow-sm border-l-4 border-green-500">
-          <p className="text-[10px] font-medium text-gray-500 uppercase">Implementados</p>
+        <div className="rounded-xl bg-white dark:bg-slate-800 p-3 shadow-sm border-l-4 border-green-500">
+          <p className="text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase">Implementados</p>
           <p className="text-xl font-bold text-green-600">{contadores.implementado}</p>
         </div>
       </div>
@@ -240,42 +240,42 @@ export const Solicitacoes: React.FC = () => {
       </div>
 
       {msg && (
-        <div className={`mb-4 rounded-lg p-3 text-sm ${msg.tipo === 'ok' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+        <div className={`mb-4 rounded-lg p-3 text-sm ${msg.tipo === 'ok' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200'}`}>
           {msg.texto}
         </div>
       )}
 
       {/* Formulário */}
       {mostrarForm && (
-        <div className="mb-5 rounded-xl bg-white p-5 shadow-lg border border-gray-100">
-          <h3 className="text-base font-bold text-gray-900 mb-3">Nova Solicitacao de Melhoria</h3>
+        <div className="mb-5 rounded-xl bg-white dark:bg-slate-800 p-5 shadow-lg border border-gray-100 dark:border-slate-700/50">
+          <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 mb-3">Nova Solicitacao de Melhoria</h3>
           <div className="grid gap-3 md:grid-cols-2">
             <div className="md:col-span-2">
-              <label className="mb-1 block text-xs font-medium text-gray-700">Titulo</label>
-              <input type="text" value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Ex: Adicionar filtro de data no relatorio..." className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-slate-300">Titulo</label>
+              <input type="text" value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Ex: Adicionar filtro de data no relatorio..." className="w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
             </div>
             <div className="md:col-span-2">
-              <label className="mb-1 block text-xs font-medium text-gray-700">Descricao</label>
-              <textarea value={descricao} onChange={e => setDescricao(e.target.value)} placeholder="Descreva o que voce gostaria que fosse melhorado..." rows={3} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-slate-300">Descricao</label>
+              <textarea value={descricao} onChange={e => setDescricao(e.target.value)} placeholder="Descreva o que voce gostaria que fosse melhorado..." rows={3} className="w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Secao</label>
-              <select value={secao} onChange={e => setSecao(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-slate-300">Secao</label>
+              <select value={secao} onChange={e => setSecao(e.target.value)} className="w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
                 {SECOES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Prioridade</label>
-              <select value={prioridade} onChange={e => setPrioridade(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-slate-300">Prioridade</label>
+              <select value={prioridade} onChange={e => setPrioridade(e.target.value)} className="w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
                 {PRIORIDADES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
               </select>
             </div>
           </div>
           {/* Área de imagem */}
           <div className="mt-3">
-            <label className="mb-1 block text-xs font-medium text-gray-700">Print da tela (opcional)</label>
+            <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-slate-300">Print da tela (opcional)</label>
             <div
-              className={`relative rounded-lg border-2 border-dashed p-3 text-center transition-colors ${imagem ? 'border-blue-300 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}
+              className={`relative rounded-lg border-2 border-dashed p-3 text-center transition-colors ${imagem ? 'border-blue-300 bg-blue-50' : 'border-gray-300 dark:border-slate-600 hover:border-blue-400'}`}
               onPaste={(e) => {
                 const items = e.clipboardData?.items;
                 if (!items) return;
@@ -294,13 +294,13 @@ export const Solicitacoes: React.FC = () => {
               {imagem ? (
                 <div className="relative inline-block">
                   <img src={imagem} alt="Print" className="max-h-36 rounded-lg shadow-sm mx-auto" />
-                  <button type="button" onClick={() => setImagem(null)} className="absolute -top-2 -right-2 rounded-full bg-red-500 p-1 text-white shadow hover:bg-red-600">
+                  <button type="button" onClick={() => setImagem(null)} className="absolute -top-2 -right-2 rounded-full bg-red-50 dark:bg-red-900/200 p-1 text-white shadow hover:bg-red-600">
                     <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                   </button>
                 </div>
               ) : (
                 <div className="py-2">
-                  <p className="text-xs text-gray-500">Cole (<span className="font-semibold">Ctrl+V</span>), arraste ou <label className="cursor-pointer text-blue-600 hover:underline">selecione<input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) { const reader = new FileReader(); reader.onload = async (ev) => { setImagem(await comprimirImagem(ev.target?.result as string)); }; reader.readAsDataURL(file); } }} /></label> uma imagem</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Cole (<span className="font-semibold">Ctrl+V</span>), arraste ou <label className="cursor-pointer text-blue-600 hover:underline">selecione<input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) { const reader = new FileReader(); reader.onload = async (ev) => { setImagem(await comprimirImagem(ev.target?.result as string)); }; reader.readAsDataURL(file); } }} /></label> uma imagem</p>
                 </div>
               )}
             </div>
@@ -309,7 +309,7 @@ export const Solicitacoes: React.FC = () => {
             <button type="button" onClick={enviar} disabled={enviando} className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
               {enviando ? 'Enviando...' : 'Enviar'}
             </button>
-            <button type="button" onClick={() => { setMostrarForm(false); setImagem(null); }} className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+            <button type="button" onClick={() => { setMostrarForm(false); setImagem(null); }} className="rounded-lg border border-gray-300 dark:border-slate-600 px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:bg-slate-900">
               Cancelar
             </button>
           </div>
@@ -328,7 +328,7 @@ export const Solicitacoes: React.FC = () => {
           return (
             <div
               key={col.status}
-              className={`rounded-xl bg-gray-50 border-t-4 ${col.cor} transition-all ${isDragOver ? 'ring-2 ring-blue-400 bg-blue-50/50' : ''}`}
+              className={`rounded-xl bg-gray-50 dark:bg-slate-900 border-t-4 ${col.cor} transition-all ${isDragOver ? 'ring-2 ring-blue-400 bg-blue-50/50' : ''}`}
               onDragOver={(e) => handleDragOver(e, col.status)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, col.status)}
@@ -356,35 +356,35 @@ export const Solicitacoes: React.FC = () => {
                       draggable={isAdmin}
                       onDragStart={(e) => handleDragStart(e, s.id)}
                       onDragEnd={handleDragEnd}
-                      className={`rounded-lg bg-white p-4 shadow-sm border border-gray-100 border-l-4 ${prioInfo.borda} ${isAdmin ? 'cursor-grab active:cursor-grabbing' : ''} hover:shadow-md transition-shadow`}
+                      className={`rounded-lg bg-white dark:bg-slate-800 p-4 shadow-sm border border-gray-100 dark:border-slate-700/50 border-l-4 ${prioInfo.borda} ${isAdmin ? 'cursor-grab active:cursor-grabbing' : ''} hover:shadow-md transition-shadow`}
                     >
                       <div className="flex items-start justify-between gap-1">
-                        <h4 className="text-sm font-bold text-gray-900 leading-tight flex-1 cursor-pointer hover:text-blue-600" onClick={() => setDetalheAberto(s)}>{s.titulo}</h4>
+                        <h4 className="text-sm font-bold text-gray-900 dark:text-slate-100 leading-tight flex-1 cursor-pointer hover:text-blue-600" onClick={() => setDetalheAberto(s)}>{s.titulo}</h4>
                         {isAdmin && (
                           <div className="flex gap-0.5 flex-shrink-0">
                             <button type="button" onClick={() => { setEditandoId(editando ? null : s.id); setEditResposta(s.resposta_dev || ''); setEditVersao(s.versao_implementada || ''); }} className="rounded p-0.5 text-gray-300 hover:text-blue-600" title="Editar">
                               <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                             </button>
-                            <button type="button" onClick={() => deletar(s.id)} className="rounded p-0.5 text-gray-300 hover:text-red-600" title="Remover">
+                            <button type="button" onClick={() => deletar(s.id)} className="rounded p-0.5 text-gray-300 hover:text-red-600 dark:text-red-400" title="Remover">
                               <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                             </button>
                           </div>
                         )}
                       </div>
-                      <p className="mt-1.5 text-xs text-gray-500 line-clamp-3 cursor-pointer hover:text-gray-700" onClick={() => setDetalheAberto(s)}>{s.descricao}</p>
+                      <p className="mt-1.5 text-xs text-gray-500 dark:text-slate-400 line-clamp-3 cursor-pointer hover:text-gray-700 dark:text-slate-300" onClick={() => setDetalheAberto(s)}>{s.descricao}</p>
 
                       {s.imagem && (
                         <img
                           src={s.imagem}
                           alt="Print"
-                          className="mt-2 max-h-20 rounded border border-gray-100 cursor-pointer hover:opacity-80"
+                          className="mt-2 max-h-20 rounded border border-gray-100 dark:border-slate-700/50 cursor-pointer hover:opacity-80"
                           onClick={() => setImagemExpandida(s.imagem)}
                         />
                       )}
 
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         <span className={`rounded px-2 py-0.5 text-[10px] font-semibold ${prioInfo.cor}`}>{prioInfo.label}</span>
-                        <span className="rounded bg-gray-100 px-2 py-0.5 text-[10px] text-gray-500">{s.secao}</span>
+                        <span className="rounded bg-gray-100 px-2 py-0.5 text-[10px] text-gray-500 dark:text-slate-400">{s.secao}</span>
                         {s.versao_implementada && (
                           <span className="rounded bg-green-50 px-1.5 py-0.5 text-[9px] text-green-700 font-medium">v{s.versao_implementada}</span>
                         )}
@@ -404,9 +404,9 @@ export const Solicitacoes: React.FC = () => {
 
                       {/* Admin edit inline */}
                       {editando && isAdmin && (
-                        <div className="mt-2 space-y-1.5 border-t border-gray-100 pt-2">
-                          <input type="text" value={editVersao} onChange={e => setEditVersao(e.target.value)} placeholder="Versao (ex: 1.6.0)" className="w-full rounded border border-gray-200 px-2 py-1 text-[10px]" />
-                          <textarea value={editResposta} onChange={e => setEditResposta(e.target.value)} rows={2} placeholder="Resposta..." className="w-full rounded border border-gray-200 px-2 py-1 text-[10px]" />
+                        <div className="mt-2 space-y-1.5 border-t border-gray-100 dark:border-slate-700/50 pt-2">
+                          <input type="text" value={editVersao} onChange={e => setEditVersao(e.target.value)} placeholder="Versao (ex: 1.6.0)" className="w-full rounded border border-gray-200 dark:border-slate-700 px-2 py-1 text-[10px]" />
+                          <textarea value={editResposta} onChange={e => setEditResposta(e.target.value)} rows={2} placeholder="Resposta..." className="w-full rounded border border-gray-200 dark:border-slate-700 px-2 py-1 text-[10px]" />
                           <button type="button" onClick={() => salvarEdicao(s.id)} className="rounded bg-blue-600 px-2 py-1 text-[10px] font-medium text-white hover:bg-blue-700">Salvar</button>
                         </div>
                       )}
@@ -415,7 +415,7 @@ export const Solicitacoes: React.FC = () => {
                 })}
 
                 {cards.length === 0 && (
-                  <div className={`rounded-lg border-2 border-dashed p-6 text-center ${isDragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-200'}`}>
+                  <div className={`rounded-lg border-2 border-dashed p-6 text-center ${isDragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-200 dark:border-slate-700'}`}>
                     <svg className="mx-auto h-8 w-8 text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
                     <p className="text-xs text-gray-400">{isAdmin ? 'Arraste cards aqui' : 'Nenhuma solicitacao'}</p>
                   </div>
@@ -429,9 +429,9 @@ export const Solicitacoes: React.FC = () => {
       {/* Modal detalhe da solicitação */}
       {detalheAberto && (
         <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setDetalheAberto(null)}>
-          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-800 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 text-white relative">
-              <button type="button" onClick={() => setDetalheAberto(null)} className="absolute right-4 top-4 rounded-full p-1 text-white/70 hover:bg-white/20 hover:text-white">
+              <button type="button" onClick={() => setDetalheAberto(null)} className="absolute right-4 top-4 rounded-full p-1 text-white/70 hover:bg-white dark:bg-slate-800/20 hover:text-white">
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
               <h2 className="text-lg font-bold pr-8">{detalheAberto.titulo}</h2>
@@ -448,21 +448,21 @@ export const Solicitacoes: React.FC = () => {
                 <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${(PRIORIDADES.find(p => p.value === detalheAberto.prioridade) || PRIORIDADES[1]).cor}`}>
                   {(PRIORIDADES.find(p => p.value === detalheAberto.prioridade) || PRIORIDADES[1]).label}
                 </span>
-                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${(KANBAN_COLUNAS.find(c => c.status === detalheAberto.status) ? `${KANBAN_COLUNAS.find(c => c.status === detalheAberto.status)!.bgHeader} ${KANBAN_COLUNAS.find(c => c.status === detalheAberto.status)!.textCor}` : 'bg-gray-100 text-gray-700')}`}>
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${(KANBAN_COLUNAS.find(c => c.status === detalheAberto.status) ? `${KANBAN_COLUNAS.find(c => c.status === detalheAberto.status)!.bgHeader} ${KANBAN_COLUNAS.find(c => c.status === detalheAberto.status)!.textCor}` : 'bg-gray-100 text-gray-700 dark:text-slate-300')}`}>
                   {KANBAN_COLUNAS.find(c => c.status === detalheAberto.status)?.label || detalheAberto.status}
                 </span>
               </div>
-              <h3 className="text-sm font-bold text-gray-700 mb-1">Descricao completa</h3>
-              <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{detalheAberto.descricao}</p>
+              <h3 className="text-sm font-bold text-gray-700 dark:text-slate-300 mb-1">Descricao completa</h3>
+              <p className="text-sm text-gray-600 dark:text-slate-400 whitespace-pre-wrap leading-relaxed">{detalheAberto.descricao}</p>
               {detalheAberto.imagem && (
                 <div className="mt-4">
-                  <h3 className="text-sm font-bold text-gray-700 mb-1">Print anexado</h3>
-                  <img src={detalheAberto.imagem} alt="Print" className="max-h-64 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90" onClick={() => { setImagemExpandida(detalheAberto.imagem); setDetalheAberto(null); }} />
+                  <h3 className="text-sm font-bold text-gray-700 dark:text-slate-300 mb-1">Print anexado</h3>
+                  <img src={detalheAberto.imagem} alt="Print" className="max-h-64 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm cursor-pointer hover:opacity-90" onClick={() => { setImagemExpandida(detalheAberto.imagem); setDetalheAberto(null); }} />
                 </div>
               )}
               {detalheAberto.resposta_dev && (
                 <div className="mt-4">
-                  <h3 className="text-sm font-bold text-gray-700 mb-1">Resposta do desenvolvedor</h3>
+                  <h3 className="text-sm font-bold text-gray-700 dark:text-slate-300 mb-1">Resposta do desenvolvedor</h3>
                   <div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-800 border border-blue-100">{detalheAberto.resposta_dev}</div>
                 </div>
               )}
@@ -472,8 +472,8 @@ export const Solicitacoes: React.FC = () => {
                 </div>
               )}
             </div>
-            <div className="border-t border-gray-100 bg-gray-50 px-6 py-3">
-              <button type="button" onClick={() => setDetalheAberto(null)} className="w-full rounded-lg bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300">Fechar</button>
+            <div className="border-t border-gray-100 dark:border-slate-700/50 bg-gray-50 dark:bg-slate-900 px-6 py-3">
+              <button type="button" onClick={() => setDetalheAberto(null)} className="w-full rounded-lg bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-300">Fechar</button>
             </div>
           </div>
         </div>
@@ -483,8 +483,8 @@ export const Solicitacoes: React.FC = () => {
       {imagemExpandida && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4" onClick={() => setImagemExpandida(null)}>
           <div className="relative max-w-4xl max-h-[90vh]" onClick={e => e.stopPropagation()}>
-            <button type="button" onClick={() => setImagemExpandida(null)} className="absolute -top-3 -right-3 rounded-full bg-white p-1.5 shadow-lg hover:bg-gray-100 z-10">
-              <svg className="h-5 w-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            <button type="button" onClick={() => setImagemExpandida(null)} className="absolute -top-3 -right-3 rounded-full bg-white dark:bg-slate-800 p-1.5 shadow-lg hover:bg-gray-100 z-10">
+              <svg className="h-5 w-5 text-gray-700 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
             <img src={imagemExpandida} alt="Print expandido" className="max-h-[85vh] rounded-lg shadow-2xl" />
           </div>

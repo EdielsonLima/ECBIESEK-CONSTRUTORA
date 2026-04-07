@@ -64,7 +64,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
   return (
     <div ref={containerRef} className="relative">
-      <label className="mb-2 block text-sm font-medium text-gray-700">
+      <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-300">
         {label}
       </label>
 
@@ -73,9 +73,9 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-blue-500 focus:outline-none"
+          className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-left focus:border-blue-500 focus:outline-none"
         >
-          <span className={selectedOption ? 'text-gray-900' : 'text-gray-500'}>
+          <span className={selectedOption ? 'text-gray-900 dark:text-slate-100' : 'text-gray-500 dark:text-slate-400'}>
             {selectedOption ? selectedOption.nome : placeholder}
           </span>
           <svg
@@ -92,16 +92,16 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
         {/* Dropdown com busca */}
         {isOpen && (
-          <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg">
+          <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-lg">
             {/* Campo de busca */}
-            <div className="border-b border-gray-200 p-2">
+            <div className="border-b border-gray-200 dark:border-slate-700 p-2">
               <input
                 ref={inputRef}
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Digite para pesquisar..."
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                className="w-full rounded border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
               />
             </div>
 
@@ -111,7 +111,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                 type="button"
                 onClick={() => handleSelect(undefined)}
                 className={`flex w-full items-center px-3 py-2 text-left text-sm hover:bg-gray-100 ${
-                  !value ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-900'
+                  !value ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-900 dark:text-slate-100'
                 }`}
               >
                 {emptyText}
@@ -125,14 +125,14 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                     type="button"
                     onClick={() => handleSelect(option.id)}
                     className={`flex w-full items-center px-3 py-2 text-left text-sm hover:bg-gray-100 ${
-                      value === option.id ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-900'
+                      value === option.id ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-900 dark:text-slate-100'
                     }`}
                   >
                     <span className="flex-1">{option.nome}</span>
                   </button>
                 ))
               ) : (
-                <div className="px-3 py-2 text-sm text-gray-500">
+                <div className="px-3 py-2 text-sm text-gray-500 dark:text-slate-400">
                   Nenhum resultado encontrado
                 </div>
               )}

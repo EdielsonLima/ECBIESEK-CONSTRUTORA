@@ -379,8 +379,8 @@ export const ContasAtrasadas: React.FC = () => {
     return (
       <div className="flex h-96 items-center justify-center">
         <div className="text-center">
-          <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-red-600 border-r-transparent"></div>
-          <p className="text-gray-600">Carregando dados...</p>
+          <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-red-600 dark:border-red-500/50 border-r-transparent"></div>
+          <p className="text-gray-600 dark:text-slate-400">Carregando dados...</p>
         </div>
       </div>
     );
@@ -388,7 +388,7 @@ export const ContasAtrasadas: React.FC = () => {
 
   if (error) {
     return (
-      <div className="rounded-lg bg-red-50 p-4">
+      <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-4">
         <p className="text-red-800">{error}</p>
       </div>
     );
@@ -398,7 +398,7 @@ export const ContasAtrasadas: React.FC = () => {
   const mesesOptions = meses.map(m => ({ id: m.valor, nome: m.nome }));
 
   const renderFiltros = () => (
-    <div className="mb-6 rounded-lg bg-gray-50 p-4 shadow">
+    <div className="mb-6 rounded-lg bg-gray-50 dark:bg-slate-900 p-4 shadow">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <SearchableMultiSelect
           options={empresas}
@@ -461,7 +461,7 @@ export const ContasAtrasadas: React.FC = () => {
         <button
           type="button"
           onClick={limparFiltros}
-          className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
+          className="rounded-lg border border-gray-300 dark:border-slate-600 px-4 py-2 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:bg-slate-900"
         >
           Limpar Filtros
         </button>
@@ -479,7 +479,7 @@ export const ContasAtrasadas: React.FC = () => {
           <button
             type="button"
             onClick={removerFiltrosPadrao}
-            className="flex items-center rounded-lg border border-red-300 px-4 py-2 text-red-600 hover:bg-red-50"
+            className="flex items-center rounded-lg border border-red-300 px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:bg-red-900/20"
           >
             <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -538,14 +538,14 @@ export const ContasAtrasadas: React.FC = () => {
         {tags.map((tag, index) => (
           <span
             key={index}
-            className="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-800"
+            className="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/40 px-3 py-1 text-sm font-medium text-red-800"
           >
-            <span className="text-red-600">{tag.label}:</span>
+            <span className="text-red-600 dark:text-red-400">{tag.label}:</span>
             <span className="ml-1">{tag.value}</span>
             <button
               type="button"
               onClick={tag.onRemove}
-              className="ml-2 inline-flex h-4 w-4 items-center justify-center rounded-full text-red-600 hover:bg-red-200 hover:text-red-800"
+              className="ml-2 inline-flex h-4 w-4 items-center justify-center rounded-full text-red-600 dark:text-red-400 hover:bg-red-200 hover:text-red-800"
             >
               <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -557,7 +557,7 @@ export const ContasAtrasadas: React.FC = () => {
           <button
             type="button"
             onClick={limparFiltros}
-            className="text-sm text-gray-500 hover:text-gray-700 underline"
+            className="text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300 underline"
           >
             Limpar todos
           </button>
@@ -794,8 +794,8 @@ export const ContasAtrasadas: React.FC = () => {
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">{titulo}</h2>
-              <p className="mt-1 text-sm text-gray-600">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">{titulo}</h2>
+              <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
                 {dados.length} {subtitulo}
                 {(busca || faixa !== 'todos') && ` · ${dadosFiltrados.length} exibido(s)`}
               </p>
@@ -845,9 +845,9 @@ export const ContasAtrasadas: React.FC = () => {
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             placeholder={`Buscar ${colNome.toLowerCase()}...`}
-            className="w-full max-w-md rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-red-500 focus:outline-none"
+            className="w-full max-w-md rounded-lg border border-gray-300 dark:border-slate-600 px-4 py-2 text-sm focus:border-red-500 focus:outline-none"
           />
-          <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+          <div className="flex rounded-lg border border-gray-300 dark:border-slate-600 overflow-hidden">
             {([
               { key: 'todos' as const, label: 'Todos' },
               { key: '1-7' as const, label: '1-7d' },
@@ -864,8 +864,8 @@ export const ContasAtrasadas: React.FC = () => {
                 className={`px-3 py-2 text-xs font-medium transition-colors ${
                   faixa === key
                     ? 'bg-red-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-100'
-                } ${key !== 'todos' ? 'border-l border-gray-300' : ''}`}
+                    : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-100'
+                } ${key !== 'todos' ? 'border-l border-gray-300 dark:border-slate-600' : ''}`}
               >
                 {label}
               </button>
@@ -882,36 +882,36 @@ export const ContasAtrasadas: React.FC = () => {
             <p className="mt-1 text-sm text-green-600">Parabens! Todos os pagamentos estao em dia.</p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-lg bg-white shadow">
+          <div className="overflow-hidden rounded-lg bg-white dark:bg-slate-800 shadow">
             <div className="overflow-x-auto max-h-[700px] overflow-y-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-red-700 sticky top-0 z-10">
                   <tr>
-                    <th className="px-2 py-3 text-center text-xs font-bold text-white border border-red-600 w-8"></th>
-                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 w-12">#</th>
-                    <th className="px-3 py-3 text-left text-xs font-bold text-white border border-red-600 cursor-pointer select-none" onClick={() => toggleSortAgrupada('nome')}>
+                    <th className="px-2 py-3 text-center text-xs font-bold text-white border border-red-600 dark:border-red-500/50 w-8"></th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 dark:border-red-500/50 w-12">#</th>
+                    <th className="px-3 py-3 text-left text-xs font-bold text-white border border-red-600 dark:border-red-500/50 cursor-pointer select-none" onClick={() => toggleSortAgrupada('nome')}>
                       {colNome}{sortIcon('nome')}
                     </th>
-                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 bg-red-800">1-7d</th>
-                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 bg-red-800">8-15d</th>
-                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 bg-red-800">16-30d</th>
-                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 bg-orange-700">31-60d</th>
-                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 bg-orange-700">61-90d</th>
-                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 bg-orange-700">+90d</th>
-                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 cursor-pointer select-none" onClick={() => toggleSortAgrupada('valor_total')}>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 dark:border-red-500/50 bg-red-800">1-7d</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 dark:border-red-500/50 bg-red-800">8-15d</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 dark:border-red-500/50 bg-red-800">16-30d</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 dark:border-red-500/50 bg-orange-700">31-60d</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 dark:border-red-500/50 bg-orange-700">61-90d</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 dark:border-red-500/50 bg-orange-700">+90d</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 dark:border-red-500/50 cursor-pointer select-none" onClick={() => toggleSortAgrupada('valor_total')}>
                       Total{sortIcon('valor_total')}
                     </th>
-                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 w-16 cursor-pointer select-none" onClick={() => toggleSortAgrupada('quantidade')}>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 dark:border-red-500/50 w-16 cursor-pointer select-none" onClick={() => toggleSortAgrupada('quantidade')}>
                       Qtd{sortIcon('quantidade')}
                     </th>
-                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 w-20 cursor-pointer select-none" onClick={() => toggleSortAgrupada('dias_max')}>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 dark:border-red-500/50 w-20 cursor-pointer select-none" onClick={() => toggleSortAgrupada('dias_max')}>
                       Max{sortIcon('dias_max')}
                     </th>
-                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 w-16">%</th>
-                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 w-20">% Acum.</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 dark:border-red-500/50 w-16">%</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 dark:border-red-500/50 w-20">% Acum.</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 bg-white">
+                <tbody className="divide-y divide-gray-100 bg-white dark:bg-slate-800">
                   {(() => {
                     let acumulado = 0;
                     return dadosFiltrados.map((d, index) => {
@@ -931,34 +931,34 @@ export const ContasAtrasadas: React.FC = () => {
                       return (
                         <React.Fragment key={d.nome}>
                           <tr
-                            className={`cursor-pointer ${isExpanded ? 'bg-red-100 border-l-4 border-l-red-600' : index % 2 === 0 ? 'bg-white hover:bg-red-50' : 'bg-gray-50 hover:bg-red-50'}`}
+                            className={`cursor-pointer ${isExpanded ? 'bg-red-100 dark:bg-red-900/40 border-l-4 border-l-red-600' : index % 2 === 0 ? 'bg-white dark:bg-slate-800 hover:bg-red-50 dark:bg-red-900/20' : 'bg-gray-50 dark:bg-slate-900 hover:bg-red-50 dark:bg-red-900/20'}`}
                             onClick={() => setExpandido(isExpanded ? null : `${chaveAgrupamento}-${d.nome}`)}
                           >
-                            <td className="px-2 py-2 text-center text-xs text-gray-500">
+                            <td className="px-2 py-2 text-center text-xs text-gray-500 dark:text-slate-400">
                               <span className={`inline-block transition-transform ${isExpanded ? 'rotate-90' : ''}`}>{'\u25B6'}</span>
                             </td>
-                            <td className="px-3 py-2 text-center text-xs text-gray-500 border-r border-gray-100">{index + 1}</td>
-                            <td className="px-3 py-2 text-sm font-medium text-gray-900 border-r border-gray-100 max-w-xs truncate" title={d.nome}>{d.nome}</td>
-                            <td className="px-3 py-2 text-right text-xs text-gray-700 border-r border-gray-100 font-mono">{d.valor_1_7 ? formatCurrency(d.valor_1_7) : '-'}</td>
-                            <td className="px-3 py-2 text-right text-xs text-gray-700 border-r border-gray-100 font-mono">{d.valor_8_15 ? formatCurrency(d.valor_8_15) : '-'}</td>
-                            <td className="px-3 py-2 text-right text-xs text-gray-700 border-r border-gray-100 font-mono">{d.valor_16_30 ? formatCurrency(d.valor_16_30) : '-'}</td>
-                            <td className="px-3 py-2 text-right text-xs text-orange-700 border-r border-gray-100 font-mono">{d.valor_31_60 ? formatCurrency(d.valor_31_60) : '-'}</td>
-                            <td className="px-3 py-2 text-right text-xs text-orange-700 border-r border-gray-100 font-mono">{d.valor_61_90 ? formatCurrency(d.valor_61_90) : '-'}</td>
-                            <td className="px-3 py-2 text-right text-xs text-red-700 border-r border-gray-100 font-mono font-semibold">{d.valor_90_mais ? formatCurrency(d.valor_90_mais) : '-'}</td>
-                            <td className="px-3 py-2 text-right text-sm font-semibold text-red-700 font-mono">{formatCurrency(d.valor_total)}</td>
-                            <td className="px-3 py-2 text-center text-xs text-gray-600 font-mono">{d.quantidade}</td>
+                            <td className="px-3 py-2 text-center text-xs text-gray-500 dark:text-slate-400 border-r border-gray-100 dark:border-slate-700/50">{index + 1}</td>
+                            <td className="px-3 py-2 text-sm font-medium text-gray-900 dark:text-slate-100 border-r border-gray-100 dark:border-slate-700/50 max-w-xs truncate" title={d.nome}>{d.nome}</td>
+                            <td className="px-3 py-2 text-right text-xs text-gray-700 dark:text-slate-300 border-r border-gray-100 dark:border-slate-700/50 font-mono">{d.valor_1_7 ? formatCurrency(d.valor_1_7) : '-'}</td>
+                            <td className="px-3 py-2 text-right text-xs text-gray-700 dark:text-slate-300 border-r border-gray-100 dark:border-slate-700/50 font-mono">{d.valor_8_15 ? formatCurrency(d.valor_8_15) : '-'}</td>
+                            <td className="px-3 py-2 text-right text-xs text-gray-700 dark:text-slate-300 border-r border-gray-100 dark:border-slate-700/50 font-mono">{d.valor_16_30 ? formatCurrency(d.valor_16_30) : '-'}</td>
+                            <td className="px-3 py-2 text-right text-xs text-orange-700 border-r border-gray-100 dark:border-slate-700/50 font-mono">{d.valor_31_60 ? formatCurrency(d.valor_31_60) : '-'}</td>
+                            <td className="px-3 py-2 text-right text-xs text-orange-700 border-r border-gray-100 dark:border-slate-700/50 font-mono">{d.valor_61_90 ? formatCurrency(d.valor_61_90) : '-'}</td>
+                            <td className="px-3 py-2 text-right text-xs text-red-700 dark:text-red-400 border-r border-gray-100 dark:border-slate-700/50 font-mono font-semibold">{d.valor_90_mais ? formatCurrency(d.valor_90_mais) : '-'}</td>
+                            <td className="px-3 py-2 text-right text-sm font-semibold text-red-700 dark:text-red-400 font-mono">{formatCurrency(d.valor_total)}</td>
+                            <td className="px-3 py-2 text-center text-xs text-gray-600 dark:text-slate-400 font-mono">{d.quantidade}</td>
                             <td className="px-3 py-2 text-center text-xs font-mono">
-                              <span className={`font-semibold ${d.dias_max > 90 ? 'text-red-700' : d.dias_max > 30 ? 'text-orange-600' : 'text-yellow-600'}`}>
+                              <span className={`font-semibold ${d.dias_max > 90 ? 'text-red-700 dark:text-red-400' : d.dias_max > 30 ? 'text-orange-600' : 'text-yellow-600'}`}>
                                 {d.dias_max}d
                               </span>
                             </td>
-                            <td className="px-3 py-2 text-center text-xs text-gray-600 font-mono">{pctTotal.toFixed(1)}%</td>
+                            <td className="px-3 py-2 text-center text-xs text-gray-600 dark:text-slate-400 font-mono">{pctTotal.toFixed(1)}%</td>
                             <td className="px-3 py-2 text-center text-xs font-mono">
                               <div className="flex items-center gap-1">
                                 <div className="h-2 flex-1 rounded-full bg-gray-200">
-                                  <div className="h-2 rounded-full bg-red-500" style={{ width: `${Math.min(acumulado, 100)}%` }}></div>
+                                  <div className="h-2 rounded-full bg-red-50 dark:bg-red-900/200" style={{ width: `${Math.min(acumulado, 100)}%` }}></div>
                                 </div>
-                                <span className="text-gray-600 w-12 text-right">{acumulado.toFixed(1)}%</span>
+                                <span className="text-gray-600 dark:text-slate-400 w-12 text-right">{acumulado.toFixed(1)}%</span>
                               </div>
                             </td>
                           </tr>
@@ -983,26 +983,26 @@ export const ContasAtrasadas: React.FC = () => {
                                         {contasDetalhe.map((c, ci) => {
                                           const diasAtraso = calcularDiasAtraso(c.data_vencimento as any);
                                           return (
-                                            <tr key={ci} className={ci % 2 === 0 ? 'bg-white' : 'bg-red-50'}>
-                                              <td className="px-2 py-1 text-gray-700">{formatDate(c.data_vencimento)}</td>
-                                              <td className="px-2 py-1 text-gray-700">{c.lancamento ? String(c.lancamento).split('/')[0] : '-'}</td>
+                                            <tr key={ci} className={ci % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-red-50 dark:bg-red-900/20'}>
+                                              <td className="px-2 py-1 text-gray-700 dark:text-slate-300">{formatDate(c.data_vencimento)}</td>
+                                              <td className="px-2 py-1 text-gray-700 dark:text-slate-300">{c.lancamento ? String(c.lancamento).split('/')[0] : '-'}</td>
                                               <td className="px-2 py-1 text-center">
-                                                <span className={`font-semibold ${diasAtraso > 90 ? 'text-red-700' : diasAtraso > 30 ? 'text-orange-600' : diasAtraso > 7 ? 'text-yellow-600' : 'text-green-600'}`}>
+                                                <span className={`font-semibold ${diasAtraso > 90 ? 'text-red-700 dark:text-red-400' : diasAtraso > 30 ? 'text-orange-600' : diasAtraso > 7 ? 'text-yellow-600' : 'text-green-600'}`}>
                                                   {diasAtraso}d
                                                 </span>
                                               </td>
-                                              <td className="px-2 py-1 text-gray-700 max-w-[200px] truncate" title={chaveAgrupamento === 'credor' ? `${(c as any).codigo_centrocusto || ''} - ${c.nome_centrocusto || ''}` : (c.credor || '-')}>
+                                              <td className="px-2 py-1 text-gray-700 dark:text-slate-300 max-w-[200px] truncate" title={chaveAgrupamento === 'credor' ? `${(c as any).codigo_centrocusto || ''} - ${c.nome_centrocusto || ''}` : (c.credor || '-')}>
                                                 {chaveAgrupamento === 'credor' ? (<>{(c as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(c as any).codigo_centrocusto}</span> : null}{(c as any).codigo_centrocusto ? ' ' : ''}{c.nome_centrocusto || '-'}</>) : (c.credor || '-')}
                                               </td>
-                                              <td className="px-2 py-1 text-gray-700 max-w-[200px] truncate" title={c.nome_plano_financeiro || '-'}>{c.nome_plano_financeiro || '-'}</td>
-                                              <td className="px-2 py-1 text-right font-mono font-semibold text-red-700">{formatCurrency(c.valor_total)}</td>
+                                              <td className="px-2 py-1 text-gray-700 dark:text-slate-300 max-w-[200px] truncate" title={c.nome_plano_financeiro || '-'}>{c.nome_plano_financeiro || '-'}</td>
+                                              <td className="px-2 py-1 text-right font-mono font-semibold text-red-700 dark:text-red-400">{formatCurrency(c.valor_total)}</td>
                                             </tr>
                                           );
                                         })}
                                       </tbody>
-                                      <tfoot className="bg-red-100 font-bold">
+                                      <tfoot className="bg-red-100 dark:bg-red-900/40 font-bold">
                                         <tr>
-                                          <td colSpan={5} className="px-2 py-1.5 text-gray-800">Total</td>
+                                          <td colSpan={5} className="px-2 py-1.5 text-gray-800 dark:text-slate-200">Total</td>
                                           <td className="px-2 py-1.5 text-right font-mono text-red-800">{formatCurrency(contasDetalhe.reduce((s, c) => s + (c.valor_total || 0), 0))}</td>
                                         </tr>
                                       </tfoot>
@@ -1017,18 +1017,18 @@ export const ContasAtrasadas: React.FC = () => {
                     });
                   })()}
                 </tbody>
-                <tfoot className="bg-red-100 sticky bottom-0">
+                <tfoot className="bg-red-100 dark:bg-red-900/40 sticky bottom-0">
                   <tr className="font-bold">
                     <td className="px-3 py-3 border-t-2 border-red-300"></td>
-                    <td className="px-3 py-3 text-sm text-gray-900 border-t-2 border-red-300" colSpan={2}>TOTAL GERAL</td>
-                    <td className="px-3 py-3 text-right text-xs text-gray-900 border-t-2 border-red-300 font-mono">{formatCurrency(totais.valor_1_7)}</td>
-                    <td className="px-3 py-3 text-right text-xs text-gray-900 border-t-2 border-red-300 font-mono">{formatCurrency(totais.valor_8_15)}</td>
-                    <td className="px-3 py-3 text-right text-xs text-gray-900 border-t-2 border-red-300 font-mono">{formatCurrency(totais.valor_16_30)}</td>
-                    <td className="px-3 py-3 text-right text-xs text-gray-900 border-t-2 border-red-300 font-mono">{formatCurrency(totais.valor_31_60)}</td>
-                    <td className="px-3 py-3 text-right text-xs text-gray-900 border-t-2 border-red-300 font-mono">{formatCurrency(totais.valor_61_90)}</td>
-                    <td className="px-3 py-3 text-right text-xs text-gray-900 border-t-2 border-red-300 font-mono">{formatCurrency(totais.valor_90_mais)}</td>
+                    <td className="px-3 py-3 text-sm text-gray-900 dark:text-slate-100 border-t-2 border-red-300" colSpan={2}>TOTAL GERAL</td>
+                    <td className="px-3 py-3 text-right text-xs text-gray-900 dark:text-slate-100 border-t-2 border-red-300 font-mono">{formatCurrency(totais.valor_1_7)}</td>
+                    <td className="px-3 py-3 text-right text-xs text-gray-900 dark:text-slate-100 border-t-2 border-red-300 font-mono">{formatCurrency(totais.valor_8_15)}</td>
+                    <td className="px-3 py-3 text-right text-xs text-gray-900 dark:text-slate-100 border-t-2 border-red-300 font-mono">{formatCurrency(totais.valor_16_30)}</td>
+                    <td className="px-3 py-3 text-right text-xs text-gray-900 dark:text-slate-100 border-t-2 border-red-300 font-mono">{formatCurrency(totais.valor_31_60)}</td>
+                    <td className="px-3 py-3 text-right text-xs text-gray-900 dark:text-slate-100 border-t-2 border-red-300 font-mono">{formatCurrency(totais.valor_61_90)}</td>
+                    <td className="px-3 py-3 text-right text-xs text-gray-900 dark:text-slate-100 border-t-2 border-red-300 font-mono">{formatCurrency(totais.valor_90_mais)}</td>
                     <td className="px-3 py-3 text-right text-sm font-bold text-red-800 border-t-2 border-red-300 font-mono">{formatCurrency(totais.valor_total)}</td>
-                    <td className="px-3 py-3 text-center text-xs text-gray-900 border-t-2 border-red-300 font-mono">{totais.quantidade}</td>
+                    <td className="px-3 py-3 text-center text-xs text-gray-900 dark:text-slate-100 border-t-2 border-red-300 font-mono">{totais.quantidade}</td>
                     <td className="px-3 py-3 border-t-2 border-red-300"></td>
                     <td className="px-3 py-3 border-t-2 border-red-300"></td>
                     <td className="px-3 py-3 border-t-2 border-red-300"></td>
@@ -1162,8 +1162,8 @@ export const ContasAtrasadas: React.FC = () => {
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Dados Detalhados</h2>
-              <p className="mt-1 text-sm text-gray-600">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Dados Detalhados</h2>
+              <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
                 {contas.length} contas atrasadas
                 {(buscaDados || filtroFaixaDados !== 'todos') && ` · ${dadosOrdenados.length} exibido(s)`}
               </p>
@@ -1213,9 +1213,9 @@ export const ContasAtrasadas: React.FC = () => {
             value={buscaDados}
             onChange={(e) => setBuscaDados(e.target.value)}
             placeholder="Buscar credor, centro de custo, titulo..."
-            className="w-full max-w-md rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-red-500 focus:outline-none"
+            className="w-full max-w-md rounded-lg border border-gray-300 dark:border-slate-600 px-4 py-2 text-sm focus:border-red-500 focus:outline-none"
           />
-          <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+          <div className="flex rounded-lg border border-gray-300 dark:border-slate-600 overflow-hidden">
             {([
               { key: 'todos' as const, label: 'Todos' },
               { key: '1-7' as const, label: '1-7d' },
@@ -1232,8 +1232,8 @@ export const ContasAtrasadas: React.FC = () => {
                 className={`px-3 py-2 text-xs font-medium transition-colors ${
                   filtroFaixaDados === key
                     ? 'bg-red-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-100'
-                } ${key !== 'todos' ? 'border-l border-gray-300' : ''}`}
+                    : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-100'
+                } ${key !== 'todos' ? 'border-l border-gray-300 dark:border-slate-600' : ''}`}
               >
                 {label}
               </button>
@@ -1249,57 +1249,57 @@ export const ContasAtrasadas: React.FC = () => {
             <p className="mt-4 text-lg font-semibold text-green-800">Nenhuma conta encontrada!</p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-lg bg-white shadow">
+          <div className="overflow-hidden rounded-lg bg-white dark:bg-slate-800 shadow">
             <div className="overflow-x-auto max-h-[700px] overflow-y-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-red-700 sticky top-0 z-10">
                   <tr>
-                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 w-12">#</th>
-                    <th className="px-3 py-3 text-left text-xs font-bold text-white border border-red-600 cursor-pointer select-none" onClick={() => toggleSortDados('credor')}>Credor{sortIconDados('credor')}</th>
-                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 cursor-pointer select-none" onClick={() => toggleSortDados('data_vencimento')}>Vencimento{sortIconDados('data_vencimento')}</th>
-                    <th className="px-3 py-3 text-left text-xs font-bold text-white border border-red-600 cursor-pointer select-none" onClick={() => toggleSortDados('lancamento')}>Titulo{sortIconDados('lancamento')}</th>
-                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 cursor-pointer select-none" onClick={() => toggleSortDados('dias_atraso')}>Dias Atraso{sortIconDados('dias_atraso')}</th>
-                    <th className="px-3 py-3 text-left text-xs font-bold text-white border border-red-600 cursor-pointer select-none" onClick={() => toggleSortDados('nome_centrocusto')}>Centro de Custo{sortIconDados('nome_centrocusto')}</th>
-                    <th className="px-3 py-3 text-left text-xs font-bold text-white border border-red-600 cursor-pointer select-none" onClick={() => toggleSortDados('nome_plano_financeiro')}>Plano Financeiro{sortIconDados('nome_plano_financeiro')}</th>
-                    <th className="px-3 py-3 text-left text-xs font-bold text-white border border-red-600 cursor-pointer select-none" onClick={() => toggleSortDados('nome_tipo_pagamento')}>Tipo Pag.{sortIconDados('nome_tipo_pagamento')}</th>
-                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 cursor-pointer select-none" onClick={() => toggleSortDados('flautorizacao')}>Aut.{sortIconDados('flautorizacao')}</th>
-                    <th className="px-3 py-3 text-right text-xs font-bold text-white border border-red-600 cursor-pointer select-none" onClick={() => toggleSortDados('valor_total')}>Valor{sortIconDados('valor_total')}</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 dark:border-red-500/50 w-12">#</th>
+                    <th className="px-3 py-3 text-left text-xs font-bold text-white border border-red-600 dark:border-red-500/50 cursor-pointer select-none" onClick={() => toggleSortDados('credor')}>Credor{sortIconDados('credor')}</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 dark:border-red-500/50 cursor-pointer select-none" onClick={() => toggleSortDados('data_vencimento')}>Vencimento{sortIconDados('data_vencimento')}</th>
+                    <th className="px-3 py-3 text-left text-xs font-bold text-white border border-red-600 dark:border-red-500/50 cursor-pointer select-none" onClick={() => toggleSortDados('lancamento')}>Titulo{sortIconDados('lancamento')}</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 dark:border-red-500/50 cursor-pointer select-none" onClick={() => toggleSortDados('dias_atraso')}>Dias Atraso{sortIconDados('dias_atraso')}</th>
+                    <th className="px-3 py-3 text-left text-xs font-bold text-white border border-red-600 dark:border-red-500/50 cursor-pointer select-none" onClick={() => toggleSortDados('nome_centrocusto')}>Centro de Custo{sortIconDados('nome_centrocusto')}</th>
+                    <th className="px-3 py-3 text-left text-xs font-bold text-white border border-red-600 dark:border-red-500/50 cursor-pointer select-none" onClick={() => toggleSortDados('nome_plano_financeiro')}>Plano Financeiro{sortIconDados('nome_plano_financeiro')}</th>
+                    <th className="px-3 py-3 text-left text-xs font-bold text-white border border-red-600 dark:border-red-500/50 cursor-pointer select-none" onClick={() => toggleSortDados('nome_tipo_pagamento')}>Tipo Pag.{sortIconDados('nome_tipo_pagamento')}</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-white border border-red-600 dark:border-red-500/50 cursor-pointer select-none" onClick={() => toggleSortDados('flautorizacao')}>Aut.{sortIconDados('flautorizacao')}</th>
+                    <th className="px-3 py-3 text-right text-xs font-bold text-white border border-red-600 dark:border-red-500/50 cursor-pointer select-none" onClick={() => toggleSortDados('valor_total')}>Valor{sortIconDados('valor_total')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 bg-white">
+                <tbody className="divide-y divide-gray-100 bg-white dark:bg-slate-800">
                   {dadosOrdenados.map((c, index) => {
                     const diasAtraso = calcularDiasAtraso(c.data_vencimento as any);
                     return (
-                      <tr key={index} className={`hover:bg-red-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                        <td className="px-3 py-2 text-center text-xs text-gray-500">{index + 1}</td>
-                        <td className="px-3 py-2 text-sm font-medium text-gray-900 max-w-xs truncate" title={c.credor || '-'}>{c.credor || '-'}</td>
-                        <td className="px-3 py-2 text-center text-xs text-gray-700 font-mono">{formatDate(c.data_vencimento)}</td>
-                        <td className="px-3 py-2 text-xs text-gray-700">{c.lancamento ? String(c.lancamento).split('/')[0] : '-'}</td>
+                      <tr key={index} className={`hover:bg-red-50 dark:bg-red-900/20 ${index % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-gray-50 dark:bg-slate-900'}`}>
+                        <td className="px-3 py-2 text-center text-xs text-gray-500 dark:text-slate-400">{index + 1}</td>
+                        <td className="px-3 py-2 text-sm font-medium text-gray-900 dark:text-slate-100 max-w-xs truncate" title={c.credor || '-'}>{c.credor || '-'}</td>
+                        <td className="px-3 py-2 text-center text-xs text-gray-700 dark:text-slate-300 font-mono">{formatDate(c.data_vencimento)}</td>
+                        <td className="px-3 py-2 text-xs text-gray-700 dark:text-slate-300">{c.lancamento ? String(c.lancamento).split('/')[0] : '-'}</td>
                         <td className="px-3 py-2 text-center text-xs font-mono">
-                          <span className={`font-semibold px-2 py-0.5 rounded ${diasAtraso > 90 ? 'bg-red-100 text-red-700' : diasAtraso > 30 ? 'bg-orange-100 text-orange-700' : diasAtraso > 7 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
+                          <span className={`font-semibold px-2 py-0.5 rounded ${diasAtraso > 90 ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400' : diasAtraso > 30 ? 'bg-orange-100 text-orange-700' : diasAtraso > 7 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
                             {diasAtraso}d
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-xs text-gray-700 max-w-[200px] truncate" title={`${(c as any).codigo_centrocusto || ''} - ${c.nome_centrocusto || ''}`}>{(c as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(c as any).codigo_centrocusto}</span> : null}{(c as any).codigo_centrocusto ? ' ' : ''}{c.nome_centrocusto || '-'}</td>
-                        <td className="px-3 py-2 text-xs text-gray-700 max-w-[200px] truncate" title={c.nome_plano_financeiro || '-'}>{c.nome_plano_financeiro || '-'}</td>
-                        <td className="px-3 py-2 text-xs text-gray-700 max-w-[150px] truncate" title={(c as any).nome_tipo_pagamento || '-'}>{(c as any).nome_tipo_pagamento || '-'}</td>
+                        <td className="px-3 py-2 text-xs text-gray-700 dark:text-slate-300 max-w-[200px] truncate" title={`${(c as any).codigo_centrocusto || ''} - ${c.nome_centrocusto || ''}`}>{(c as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(c as any).codigo_centrocusto}</span> : null}{(c as any).codigo_centrocusto ? ' ' : ''}{c.nome_centrocusto || '-'}</td>
+                        <td className="px-3 py-2 text-xs text-gray-700 dark:text-slate-300 max-w-[200px] truncate" title={c.nome_plano_financeiro || '-'}>{c.nome_plano_financeiro || '-'}</td>
+                        <td className="px-3 py-2 text-xs text-gray-700 dark:text-slate-300 max-w-[150px] truncate" title={(c as any).nome_tipo_pagamento || '-'}>{(c as any).nome_tipo_pagamento || '-'}</td>
                         <td className="px-3 py-2 text-center">
                           {(() => {
                             const authApi = c.lancamento ? autorizacoesBulk[c.lancamento] : undefined;
                             const auth = authApi || (c as any).flautorizacao;
                             return auth === 'S'
                               ? <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">Sim</span>
-                              : <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">Não</span>;
+                              : <span className="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/40 px-2 py-0.5 text-xs font-semibold text-red-700 dark:text-red-400">Não</span>;
                           })()}
                         </td>
-                        <td className="px-3 py-2 text-right text-sm font-semibold text-red-700 font-mono">{formatCurrency(c.valor_total)}</td>
+                        <td className="px-3 py-2 text-right text-sm font-semibold text-red-700 dark:text-red-400 font-mono">{formatCurrency(c.valor_total)}</td>
                       </tr>
                     );
                   })}
                 </tbody>
-                <tfoot className="bg-red-100 sticky bottom-0">
+                <tfoot className="bg-red-100 dark:bg-red-900/40 sticky bottom-0">
                   <tr className="font-bold">
-                    <td className="px-3 py-3 text-sm text-gray-900 border-t-2 border-red-300" colSpan={9}>TOTAL ({dadosOrdenados.length} titulos)</td>
+                    <td className="px-3 py-3 text-sm text-gray-900 dark:text-slate-100 border-t-2 border-red-300" colSpan={9}>TOTAL ({dadosOrdenados.length} titulos)</td>
                     <td className="px-3 py-3 text-right text-sm font-bold text-red-800 border-t-2 border-red-300 font-mono">{formatCurrency(totalValor)}</td>
                   </tr>
                 </tfoot>
@@ -1350,9 +1350,9 @@ export const ContasAtrasadas: React.FC = () => {
       </div>
 
       {dadosPorFaixaAtraso.length > 0 && (
-        <div className="rounded-lg bg-white p-6 shadow">
-          <h3 className="mb-2 text-xl font-semibold text-gray-900">Distribuicao por Faixa de Atraso</h3>
-          <p className="mb-4 text-sm text-gray-500">Valores atrasados agrupados por tempo de atraso</p>
+        <div className="rounded-lg bg-white dark:bg-slate-800 p-6 shadow">
+          <h3 className="mb-2 text-xl font-semibold text-gray-900 dark:text-slate-100">Distribuicao por Faixa de Atraso</h3>
+          <p className="mb-4 text-sm text-gray-500 dark:text-slate-400">Valores atrasados agrupados por tempo de atraso</p>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dadosPorFaixaAtraso} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
@@ -1364,10 +1364,10 @@ export const ContasAtrasadas: React.FC = () => {
                     if (active && payload && payload.length) {
                       const data = payload[0].payload;
                       return (
-                        <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
-                          <p className="mb-2 font-semibold text-gray-900">{label}</p>
-                          <p className="text-sm text-red-600">Valor: {formatCurrency(data.valor)}</p>
-                          <p className="text-sm text-gray-600">Quantidade: {data.quantidade} titulo(s)</p>
+                        <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 shadow-lg">
+                          <p className="mb-2 font-semibold text-gray-900 dark:text-slate-100">{label}</p>
+                          <p className="text-sm text-red-600 dark:text-red-400">Valor: {formatCurrency(data.valor)}</p>
+                          <p className="text-sm text-gray-600 dark:text-slate-400">Quantidade: {data.quantidade} titulo(s)</p>
                         </div>
                       );
                     }
@@ -1387,9 +1387,9 @@ export const ContasAtrasadas: React.FC = () => {
       )}
 
       {dadosPorCredor.length > 0 && (
-        <div className="rounded-lg bg-white p-6 shadow">
-          <h3 className="mb-2 text-xl font-semibold text-gray-900">Top 15 Credores - Valores em Atraso</h3>
-          <p className="mb-4 text-sm text-gray-500">Maiores valores atrasados por credor</p>
+        <div className="rounded-lg bg-white dark:bg-slate-800 p-6 shadow">
+          <h3 className="mb-2 text-xl font-semibold text-gray-900 dark:text-slate-100">Top 15 Credores - Valores em Atraso</h3>
+          <p className="mb-4 text-sm text-gray-500 dark:text-slate-400">Maiores valores atrasados por credor</p>
           <div className="h-96">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dadosPorCredor} layout="vertical" margin={{ top: 5, right: 80, left: 180, bottom: 5 }}>
@@ -1403,11 +1403,11 @@ export const ContasAtrasadas: React.FC = () => {
                       const totalCredores = dadosPorCredor.reduce((acc, c) => acc + c.valor, 0);
                       const percentual = totalCredores > 0 ? ((data.valor / totalCredores) * 100).toFixed(1) : '0';
                       return (
-                        <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
-                          <p className="mb-2 font-semibold text-gray-900">{label}</p>
-                          <p className="text-sm text-red-600">Valor: {formatCurrency(data.valor)}</p>
+                        <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 shadow-lg">
+                          <p className="mb-2 font-semibold text-gray-900 dark:text-slate-100">{label}</p>
+                          <p className="text-sm text-red-600 dark:text-red-400">Valor: {formatCurrency(data.valor)}</p>
                           <p className="text-sm text-purple-600">Percentual: {percentual}%</p>
-                          <p className="text-sm text-gray-600">Titulos: {data.quantidade}</p>
+                          <p className="text-sm text-gray-600 dark:text-slate-400">Titulos: {data.quantidade}</p>
                           <p className="text-sm text-orange-600">Max atraso: {data.dias_atraso_max} dias</p>
                         </div>
                       );
@@ -1428,9 +1428,9 @@ export const ContasAtrasadas: React.FC = () => {
       )}
 
       {dadosPorEmpresa.length > 0 && (
-        <div className="rounded-lg bg-white p-6 shadow">
-          <h3 className="mb-2 text-xl font-semibold text-gray-900">Valores em Atraso por Empresa</h3>
-          <p className="mb-4 text-sm text-gray-500">Distribuicao de valores atrasados por empresa</p>
+        <div className="rounded-lg bg-white dark:bg-slate-800 p-6 shadow">
+          <h3 className="mb-2 text-xl font-semibold text-gray-900 dark:text-slate-100">Valores em Atraso por Empresa</h3>
+          <p className="mb-4 text-sm text-gray-500 dark:text-slate-400">Distribuicao de valores atrasados por empresa</p>
           <div style={{ height: Math.max(300, dadosPorEmpresa.length * 35) }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dadosPorEmpresa} layout="vertical" margin={{ top: 5, right: 100, left: 200, bottom: 5 }}>
@@ -1444,11 +1444,11 @@ export const ContasAtrasadas: React.FC = () => {
                       const totalEmpresas = dadosPorEmpresa.reduce((acc, e) => acc + e.valor, 0);
                       const percentual = totalEmpresas > 0 ? ((data.valor / totalEmpresas) * 100).toFixed(1) : '0';
                       return (
-                        <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
-                          <p className="mb-2 font-semibold text-gray-900">{label}</p>
-                          <p className="text-sm text-red-600">Valor: {formatCurrency(data.valor)}</p>
+                        <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 shadow-lg">
+                          <p className="mb-2 font-semibold text-gray-900 dark:text-slate-100">{label}</p>
+                          <p className="text-sm text-red-600 dark:text-red-400">Valor: {formatCurrency(data.valor)}</p>
                           <p className="text-sm text-purple-600">Percentual: {percentual}%</p>
-                          <p className="text-sm text-gray-600">Titulos: {data.quantidade}</p>
+                          <p className="text-sm text-gray-600 dark:text-slate-400">Titulos: {data.quantidade}</p>
                         </div>
                       );
                     }
@@ -1549,14 +1549,14 @@ export const ContasAtrasadas: React.FC = () => {
       })()}
 
       <div className="mb-6">
-        <div className="border-b border-gray-200">
+        <div className="border-b border-gray-200 dark:border-slate-700">
           <nav className="-mb-px flex space-x-8">
             <button
               type="button"
               onClick={() => handleTabChange('dados')}
               className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'dados'
-                  ? 'border-red-500 text-red-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  ? 'border-red-500 text-red-600 dark:text-red-400'
+                  : 'border-transparent text-gray-500 dark:text-slate-400 hover:border-gray-300 dark:border-slate-600 hover:text-gray-700 dark:text-slate-300'
                 }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1568,8 +1568,8 @@ export const ContasAtrasadas: React.FC = () => {
               type="button"
               onClick={() => handleTabChange('credor')}
               className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'credor'
-                  ? 'border-red-500 text-red-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  ? 'border-red-500 text-red-600 dark:text-red-400'
+                  : 'border-transparent text-gray-500 dark:text-slate-400 hover:border-gray-300 dark:border-slate-600 hover:text-gray-700 dark:text-slate-300'
                 }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1581,8 +1581,8 @@ export const ContasAtrasadas: React.FC = () => {
               type="button"
               onClick={() => handleTabChange('empresa')}
               className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'empresa'
-                  ? 'border-red-500 text-red-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  ? 'border-red-500 text-red-600 dark:text-red-400'
+                  : 'border-transparent text-gray-500 dark:text-slate-400 hover:border-gray-300 dark:border-slate-600 hover:text-gray-700 dark:text-slate-300'
                 }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1594,8 +1594,8 @@ export const ContasAtrasadas: React.FC = () => {
               type="button"
               onClick={() => handleTabChange('centro-custo')}
               className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'centro-custo'
-                  ? 'border-red-500 text-red-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  ? 'border-red-500 text-red-600 dark:text-red-400'
+                  : 'border-transparent text-gray-500 dark:text-slate-400 hover:border-gray-300 dark:border-slate-600 hover:text-gray-700 dark:text-slate-300'
                 }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1607,8 +1607,8 @@ export const ContasAtrasadas: React.FC = () => {
               type="button"
               onClick={() => handleTabChange('origem')}
               className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'origem'
-                  ? 'border-red-500 text-red-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  ? 'border-red-500 text-red-600 dark:text-red-400'
+                  : 'border-transparent text-gray-500 dark:text-slate-400 hover:border-gray-300 dark:border-slate-600 hover:text-gray-700 dark:text-slate-300'
                 }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1620,8 +1620,8 @@ export const ContasAtrasadas: React.FC = () => {
               type="button"
               onClick={() => handleTabChange('analises')}
               className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'analises'
-                  ? 'border-red-500 text-red-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  ? 'border-red-500 text-red-600 dark:text-red-400'
+                  : 'border-transparent text-gray-500 dark:text-slate-400 hover:border-gray-300 dark:border-slate-600 hover:text-gray-700 dark:text-slate-300'
                 }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

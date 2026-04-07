@@ -81,13 +81,13 @@ export const SearchableMultiSelect: React.FC<SearchableMultiSelectProps> = ({
 
   return (
     <div ref={containerRef} className="relative">
-      <label className="mb-2 block text-sm font-medium text-gray-700">{label}</label>
+      <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-300">{label}</label>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-red-500 focus:outline-none"
+        className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-left focus:border-red-500 focus:outline-none"
       >
-        <span className={value.length > 0 && value.length < options.length ? 'text-gray-900' : 'text-gray-500'}>
+        <span className={value.length > 0 && value.length < options.length ? 'text-gray-900 dark:text-slate-100' : 'text-gray-500 dark:text-slate-400'}>
           {displayText()}
         </span>
         <svg
@@ -101,42 +101,42 @@ export const SearchableMultiSelect: React.FC<SearchableMultiSelectProps> = ({
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg">
-          <div className="border-b border-gray-200 p-2">
+        <div className="absolute z-50 mt-1 w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-lg">
+          <div className="border-b border-gray-200 dark:border-slate-700 p-2">
             <input
               ref={inputRef}
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Digite para pesquisar..."
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
+              className="w-full rounded border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
             />
           </div>
-          <div className="border-b border-gray-200 p-2 flex gap-2">
-            <button type="button" onClick={selectAll} className="text-xs text-red-600 hover:underline">
+          <div className="border-b border-gray-200 dark:border-slate-700 p-2 flex gap-2">
+            <button type="button" onClick={selectAll} className="text-xs text-red-600 dark:text-red-400 hover:underline">
               Todos
             </button>
-            <button type="button" onClick={clearAll} className="text-xs text-gray-500 hover:underline">
+            <button type="button" onClick={clearAll} className="text-xs text-gray-500 dark:text-slate-400 hover:underline">
               Limpar
             </button>
           </div>
           <div className="max-h-60 overflow-y-auto p-2">
             {filteredOptions.length > 0 ? (
               filteredOptions.map((option) => (
-                <label key={option.id} className="flex cursor-pointer items-center gap-2 py-1 hover:bg-gray-50 rounded px-1">
+                <label key={option.id} className="flex cursor-pointer items-center gap-2 py-1 hover:bg-gray-50 dark:bg-slate-900 rounded px-1">
                   <input
                     type="checkbox"
                     checked={value.includes(option.id)}
                     onChange={() => toggleOption(option.id)}
-                    className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                    className="h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-red-600 dark:text-red-400 focus:ring-red-500"
                   />
-                  <span className="text-sm text-gray-700">
+                  <span className="text-sm text-gray-700 dark:text-slate-300">
                     {option.nome}
                   </span>
                 </label>
               ))
             ) : (
-              <div className="px-3 py-2 text-sm text-gray-500">Nenhum resultado encontrado</div>
+              <div className="px-3 py-2 text-sm text-gray-500 dark:text-slate-400">Nenhum resultado encontrado</div>
             )}
           </div>
         </div>

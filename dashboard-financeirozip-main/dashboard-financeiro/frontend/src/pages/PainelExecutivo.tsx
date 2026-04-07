@@ -20,8 +20,8 @@ const formatCurrencyFull = (value: number): string => {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-4">
-      <p className="font-semibold text-gray-700 mb-2">{label}</p>
+    <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-lg p-4">
+      <p className="font-semibold text-gray-700 dark:text-slate-300 mb-2">{label}</p>
       {payload.map((entry: any, idx: number) => (
         <p key={idx} className="text-sm" style={{ color: entry.color }}>
           {entry.name}: {formatCurrencyFull(entry.value)}
@@ -136,7 +136,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-500">Carregando painel executivo...</p>
+          <p className="mt-4 text-gray-500 dark:text-slate-400">Carregando painel executivo...</p>
         </div>
       </div>
     );
@@ -146,12 +146,12 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="h-8 w-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/40 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="h-8 w-8 text-red-500 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
             </svg>
           </div>
-          <p className="text-red-600 font-medium">{error}</p>
+          <p className="text-red-600 dark:text-red-400 font-medium">{error}</p>
         </div>
       </div>
     );
@@ -168,13 +168,13 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
       {/* Header com filtro */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <p className="text-sm text-gray-500">Visão consolidada do empreendimento</p>
+          <p className="text-sm text-gray-500 dark:text-slate-400">Visão consolidada do empreendimento</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition-colors min-w-[220px]"
+              className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:bg-slate-900 shadow-sm transition-colors min-w-[220px]"
             >
               <Building2 className="h-4 w-4 text-blue-500" />
               <span className="flex-1 text-left">{empreendimentoNome}</span>
@@ -183,14 +183,14 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
               </svg>
             </button>
             {dropdownOpen && (
-              <div className="absolute right-0 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+              <div className="absolute right-0 mt-1 w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-lg z-50 overflow-hidden">
                 <div className="p-2">
                   <input
                     type="text"
                     placeholder="Buscar..."
                     value={dropdownSearch}
                     onChange={(e) => setDropdownSearch(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     autoFocus
                   />
                 </div>
@@ -202,7 +202,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
                       className={`flex w-full items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
                         emp.id === empreendimentoId
                           ? 'bg-blue-50 text-blue-700 font-medium'
-                          : 'text-gray-700 hover:bg-gray-50'
+                          : 'text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:bg-slate-900'
                       }`}
                     >
                       <span className="text-xs text-gray-400 w-8">{emp.codigo}</span>
@@ -215,7 +215,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
           </div>
           <button
             onClick={handleExportPDF}
-            className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-100 shadow-sm transition-colors"
+            className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 rounded-xl px-4 py-2.5 text-sm font-medium text-red-700 dark:text-red-400 hover:bg-red-100 dark:bg-red-900/40 shadow-sm transition-colors"
             title="Exportar PDF"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -231,7 +231,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
         <button
           onClick={() => setAbaAtiva('geral')}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-            abaAtiva === 'geral' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            abaAtiva === 'geral' ? 'bg-white dark:bg-slate-800 text-gray-800 dark:text-slate-200 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300'
           }`}
         >
           Geral
@@ -239,7 +239,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
         <button
           onClick={() => setAbaAtiva('orcamento')}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-            abaAtiva === 'orcamento' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            abaAtiva === 'orcamento' ? 'bg-white dark:bg-slate-800 text-gray-800 dark:text-slate-200 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300'
           }`}
         >
           Orçamento
@@ -261,34 +261,34 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
       <div>
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 ml-1">Vendas</p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border border-blue-100 bg-white dark:bg-slate-800 p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
               <div className="rounded-lg p-2 bg-gradient-to-br from-blue-400 to-blue-600 text-white">
                 <DollarSign className="h-4 w-4" />
               </div>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">VGV</p>
             </div>
-            <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.vgv)}</p>
+            <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100">{formatCurrency(data.vgv)}</p>
             <p className="text-xs text-gray-400 mt-1">Total Vendido + Estoque</p>
           </div>
-          <div className="rounded-2xl border border-sky-100 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border border-sky-100 bg-white dark:bg-slate-800 p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
               <div className="rounded-lg p-2 bg-gradient-to-br from-sky-400 to-sky-600 text-white">
                 <HandCoins className="h-4 w-4" />
               </div>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Saldo a Receber</p>
             </div>
-            <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.saldo_a_receber)}</p>
+            <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100">{formatCurrency(data.saldo_a_receber)}</p>
             <p className="text-xs text-gray-400 mt-1">A receber + inadimplentes, corrigidos por indexador (INCC/IGPM/IPCA)</p>
           </div>
-          <div className="rounded-2xl border border-cyan-100 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border border-cyan-100 bg-white dark:bg-slate-800 p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
               <div className="rounded-lg p-2 bg-gradient-to-br from-cyan-400 to-cyan-600 text-white">
                 <Package className="h-4 w-4" />
               </div>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Estoque</p>
             </div>
-            <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.estoque)}</p>
+            <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100">{formatCurrency(data.estoque)}</p>
             <p className="text-xs text-gray-400 mt-1">{data.qtd_disponivel} unidades disponíveis de {data.qtd_total_unidades}</p>
             {data.estoque_detalhes && data.estoque_detalhes.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2">
@@ -304,7 +304,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
                     d.flag === 'M' ? 'bg-pink-100 text-pink-700' :
                     d.flag === 'L' ? 'bg-cyan-100 text-cyan-700' :
                     d.flag === 'T' ? 'bg-slate-100 text-slate-700' :
-                    'bg-gray-100 text-gray-600'
+                    'bg-gray-100 text-gray-600 dark:text-slate-400'
                   }`}>
                     {d.status}: {d.quantidade}
                   </span>
@@ -319,34 +319,34 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
       <div>
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 ml-1">Custos</p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border border-slate-100 bg-white dark:bg-slate-800 p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
               <div className="rounded-lg p-2 bg-gradient-to-br from-slate-400 to-slate-600 text-white">
                 <FileText className="h-4 w-4" />
               </div>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Orçamento Total</p>
             </div>
-            <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.orcamento_total)}</p>
+            <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100">{formatCurrency(data.orcamento_total)}</p>
             <p className="text-xs text-gray-400 mt-1">CUB × metragem</p>
           </div>
-          <div className="rounded-2xl border border-green-100 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border border-green-100 bg-white dark:bg-slate-800 p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
               <div className="rounded-lg p-2 bg-gradient-to-br from-green-400 to-green-600 text-white">
                 <CheckCircle className="h-4 w-4" />
               </div>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Realizado</p>
             </div>
-            <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.realizado)}</p>
+            <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100">{formatCurrency(data.realizado)}</p>
             <p className="text-xs text-gray-400 mt-1">Total pago</p>
           </div>
-          <div className="rounded-2xl border border-orange-100 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border border-orange-100 bg-white dark:bg-slate-800 p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
               <div className="rounded-lg p-2 bg-gradient-to-br from-orange-400 to-orange-600 text-white">
                 <Clock className="h-4 w-4" />
               </div>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Saldo a Realizar</p>
             </div>
-            <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.saldo_a_realizar)}</p>
+            <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100">{formatCurrency(data.saldo_a_realizar)}</p>
             <p className="text-xs text-gray-400 mt-1">Orçamento − Realizado</p>
           </div>
         </div>
@@ -361,7 +361,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
             </div>
             <div>
               <p className="text-sm font-semibold text-indigo-600 uppercase tracking-wider">Valor do Empreendimento</p>
-              <p className="text-4xl font-extrabold text-gray-900 mt-1">{formatCurrency(data.valor_empreendimento)}</p>
+              <p className="text-4xl font-extrabold text-gray-900 dark:text-slate-100 mt-1">{formatCurrency(data.valor_empreendimento)}</p>
               <p className="text-sm text-indigo-500 mt-1">
                 {formatCurrency(data.saldo_a_receber)} (a receber) + {formatCurrency(data.estoque)} (estoque) − {formatCurrency(data.saldo_a_realizar)} (a realizar)
               </p>
@@ -374,24 +374,24 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
       <div>
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 ml-1">Exposição de Caixa</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="rounded-2xl border border-red-100 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border border-red-100 bg-white dark:bg-slate-800 p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
               <div className="rounded-lg p-2 bg-gradient-to-br from-red-400 to-red-600 text-white">
                 <TrendingDown className="h-4 w-4" />
               </div>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Exposição Simples</p>
             </div>
-            <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.exposicao_simples)}</p>
+            <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100">{formatCurrency(data.exposicao_simples)}</p>
             <p className="text-xs text-gray-400 mt-1">Pico do saldo acumulado (pago − recebido)</p>
           </div>
-          <div className="rounded-2xl border border-rose-100 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border border-rose-100 bg-white dark:bg-slate-800 p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
               <div className="rounded-lg p-2 bg-gradient-to-br from-rose-400 to-rose-600 text-white">
                 <Calculator className="h-4 w-4" />
               </div>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Exposição Composta</p>
             </div>
-            <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(data.exposicao_composta)}</p>
+            <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100">{formatCurrency(data.exposicao_composta)}</p>
             <p className="text-xs text-gray-400 mt-1">Saldo acumulado + custo de oportunidade (1,5% a.m.)</p>
           </div>
         </div>
@@ -405,20 +405,20 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
               <TrendingUp className="h-7 w-7" />
             </div>
             <div>
-              <p className={`text-sm font-semibold uppercase tracking-wider ${lucroPotencial >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>Lucro Projetado</p>
-              <p className="text-4xl font-extrabold text-gray-900 mt-1">{formatCurrency(lucroPotencial)}</p>
-              <p className={`text-sm mt-1 ${lucroPotencial >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+              <p className={`text-sm font-semibold uppercase tracking-wider ${lucroPotencial >= 0 ? 'text-emerald-700' : 'text-red-700 dark:text-red-400'}`}>Lucro Projetado</p>
+              <p className="text-4xl font-extrabold text-gray-900 dark:text-slate-100 mt-1">{formatCurrency(lucroPotencial)}</p>
+              <p className={`text-sm mt-1 ${lucroPotencial >= 0 ? 'text-emerald-600' : 'text-red-600 dark:text-red-400'}`}>
                 {formatCurrency(data.valor_empreendimento)} (empreendimento) − {formatCurrency(exposicaoUsada)} (exposição {modoExposicao})
               </p>
             </div>
           </div>
-          <div className="flex items-center bg-white rounded-xl border border-emerald-200 p-1 shadow-sm">
+          <div className="flex items-center bg-white dark:bg-slate-800 rounded-xl border border-emerald-200 p-1 shadow-sm">
             <button
               onClick={() => setModoExposicao('simples')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 modoExposicao === 'simples'
                   ? 'bg-emerald-600 text-white shadow-md'
-                  : 'text-gray-600 hover:text-emerald-700 hover:bg-emerald-50'
+                  : 'text-gray-600 dark:text-slate-400 hover:text-emerald-700 hover:bg-emerald-50'
               }`}
             >
               Simples
@@ -428,7 +428,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 modoExposicao === 'composta'
                   ? 'bg-emerald-600 text-white shadow-md'
-                  : 'text-gray-600 hover:text-emerald-700 hover:bg-emerald-50'
+                  : 'text-gray-600 dark:text-slate-400 hover:text-emerald-700 hover:bg-emerald-50'
               }`}
             >
               Composta
@@ -438,17 +438,17 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
       </div>
 
       {/* Grafico Evolucao da Exposicao */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700/50 shadow-sm p-6">
         <div className="flex items-center justify-between mb-2">
           <div>
-            <h3 className="text-lg font-bold text-gray-800">Evolução da Exposição</h3>
-            <p className="text-sm text-gray-500 mt-0.5">{empreendimentoNome} — Acima de zero = empresa exposta</p>
+            <h3 className="text-lg font-bold text-gray-800 dark:text-slate-200">Evolução da Exposição</h3>
+            <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">{empreendimentoNome} — Acima de zero = empresa exposta</p>
           </div>
           <div className="flex items-center bg-gray-100 rounded-xl p-1">
             <button
               onClick={() => setModoExposicao('simples')}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                modoExposicao === 'simples' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'
+                modoExposicao === 'simples' ? 'bg-white dark:bg-slate-800 text-gray-800 dark:text-slate-200 shadow-sm' : 'text-gray-500 dark:text-slate-400'
               }`}
             >
               Simples
@@ -456,7 +456,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
             <button
               onClick={() => setModoExposicao('composta')}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                modoExposicao === 'composta' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'
+                modoExposicao === 'composta' ? 'bg-white dark:bg-slate-800 text-gray-800 dark:text-slate-200 shadow-sm' : 'text-gray-500 dark:text-slate-400'
               }`}
             >
               Composta
@@ -501,7 +501,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
             <div className="flex items-center justify-center py-20">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-4 text-gray-500">Carregando orçamentos...</p>
+                <p className="mt-4 text-gray-500 dark:text-slate-400">Carregando orçamentos...</p>
               </div>
             </div>
           ) : orcamentoData ? (
@@ -520,49 +520,49 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
 
               {/* 3 summary cards */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="rounded-2xl border-t-4 border-t-blue-500 bg-white p-5 shadow-sm border border-gray-100">
+                <div className="rounded-2xl border-t-4 border-t-blue-500 bg-white dark:bg-slate-800 p-5 shadow-sm border border-gray-100 dark:border-slate-700/50">
                   <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-2">Orçamento</p>
-                  <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(orcamentoData.totais.orcamento)}</p>
+                  <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100">{formatCurrency(orcamentoData.totais.orcamento)}</p>
                 </div>
-                <div className="rounded-2xl border-t-4 border-t-green-500 bg-white p-5 shadow-sm border border-gray-100">
+                <div className="rounded-2xl border-t-4 border-t-green-500 bg-white dark:bg-slate-800 p-5 shadow-sm border border-gray-100 dark:border-slate-700/50">
                   <p className="text-xs font-semibold text-green-600 uppercase tracking-wider mb-2">Realizado</p>
-                  <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(orcamentoData.totais.realizado)}</p>
+                  <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100">{formatCurrency(orcamentoData.totais.realizado)}</p>
                 </div>
-                <div className="rounded-2xl border-t-4 border-t-orange-500 bg-white p-5 shadow-sm border border-gray-100">
+                <div className="rounded-2xl border-t-4 border-t-orange-500 bg-white dark:bg-slate-800 p-5 shadow-sm border border-gray-100 dark:border-slate-700/50">
                   <p className="text-xs font-semibold text-orange-600 uppercase tracking-wider mb-2">A Realizar</p>
-                  <p className="text-2xl font-extrabold text-gray-900">{formatCurrency(orcamentoData.totais.a_realizar)}</p>
+                  <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100">{formatCurrency(orcamentoData.totais.a_realizar)}</p>
                   <p className="text-xs text-gray-400 mt-1">Valor não contabiliza obras finalizadas e saldos negativos</p>
                 </div>
               </div>
 
               {/* Table */}
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700/50 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-gray-50 dark:bg-slate-900">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empreendimento</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Fator</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Orçamento</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Realizado</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">À Realizar</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">% Real</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Empreendimento</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Fator</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Orçamento</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Realizado</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">À Realizar</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">% Real</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100 bg-white">
+                    <tbody className="divide-y divide-gray-100 bg-white dark:bg-slate-800">
                       {orcamentoData.empreendimentos.map((emp) => (
-                        <tr key={emp.id} className={`hover:bg-gray-50 ${emp.status === 'finalizada' ? 'text-gray-400' : ''}`}>
-                          <td className={`px-4 py-3 text-sm font-medium ${emp.status === 'finalizada' ? 'text-gray-400' : 'text-gray-900'}`}>
+                        <tr key={emp.id} className={`hover:bg-gray-50 dark:bg-slate-900 ${emp.status === 'finalizada' ? 'text-gray-400' : ''}`}>
+                          <td className={`px-4 py-3 text-sm font-medium ${emp.status === 'finalizada' ? 'text-gray-400' : 'text-gray-900 dark:text-slate-100'}`}>
                             {emp.nome}
                           </td>
-                          <td className="px-4 py-3 text-sm text-center text-gray-600">{emp.fator.toFixed(2)}</td>
-                          <td className="px-4 py-3 text-sm text-right font-medium text-gray-700">{formatCurrency(emp.orcamento)}</td>
+                          <td className="px-4 py-3 text-sm text-center text-gray-600 dark:text-slate-400">{emp.fator.toFixed(2)}</td>
+                          <td className="px-4 py-3 text-sm text-right font-medium text-gray-700 dark:text-slate-300">{formatCurrency(emp.orcamento)}</td>
                           <td className="px-4 py-3 text-sm text-right font-medium text-green-700">{formatCurrency(emp.realizado)}</td>
                           <td className="px-4 py-3 text-sm text-right font-medium text-orange-700">{formatCurrency(emp.a_realizar)}</td>
                           <td className="px-4 py-3 text-sm text-center">
                             <span className={`font-semibold ${
-                              emp.percentual_realizado >= 80 ? 'text-red-600' :
+                              emp.percentual_realizado >= 80 ? 'text-red-600 dark:text-red-400' :
                               emp.percentual_realizado >= 50 ? 'text-amber-600' :
                               'text-green-600'
                             }`}>
@@ -573,7 +573,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
                             <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                               emp.status === 'ativa'
                                 ? 'bg-green-100 text-green-700'
-                                : 'bg-gray-100 text-gray-500'
+                                : 'bg-gray-100 text-gray-500 dark:text-slate-400'
                             }`}>
                               {emp.status === 'ativa' ? 'Ativa' : 'Finalizada'}
                             </span>
@@ -586,7 +586,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
               </div>
             </>
           ) : (
-            <div className="text-center py-10 text-gray-500">Nenhum dado disponível</div>
+            <div className="text-center py-10 text-gray-500 dark:text-slate-400">Nenhum dado disponível</div>
           )}
         </div>
       )}

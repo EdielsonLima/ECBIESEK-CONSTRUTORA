@@ -139,13 +139,13 @@ export const ExtratoCliente: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Recebido': return 'bg-green-100 text-green-800 border border-green-200';
-      case 'Atrasado': return 'bg-red-100 text-red-800 border border-red-200';
+      case 'Atrasado': return 'bg-red-100 dark:bg-red-900/40 text-red-800 border border-red-200';
       default: return 'bg-blue-100 text-blue-800 border border-blue-200';
     }
   };
 
   const corTipoCondicao = (tc: string | undefined): string => {
-    if (!tc) return 'bg-gray-100 text-gray-600';
+    if (!tc) return 'bg-gray-100 text-gray-600 dark:text-slate-400';
     const val = tc.trim().toLowerCase();
     if (val.includes('mensal') || val === 'pm') return 'bg-blue-100 text-blue-700 border border-blue-200';
     if (val.includes('semestral') || val === 'ps') return 'bg-purple-100 text-purple-700 border border-purple-200';
@@ -153,11 +153,11 @@ export const ExtratoCliente: React.FC = () => {
     if (val.includes('dito') || val === 'cr') return 'bg-teal-100 text-teal-700 border border-teal-200';
     if (val === 'ato' || val === 'at') return 'bg-yellow-100 text-yellow-700 border border-yellow-200';
     if (val.includes('financ') || val === 'fi') return 'bg-orange-100 text-orange-700 border border-orange-200';
-    if (val.includes('duo') || val === 're') return 'bg-red-100 text-red-700 border border-red-200';
+    if (val.includes('duo') || val === 're') return 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 border border-red-200';
     if (val.includes('o') || val === 'pb') return 'bg-pink-100 text-pink-700 border border-pink-200';
     if (val.includes('especiai') || val === 'pe') return 'bg-indigo-100 text-indigo-700 border border-indigo-200';
     if (val.includes('intermedi') || val === 'pi') return 'bg-cyan-100 text-cyan-700 border border-cyan-200';
-    return 'bg-gray-100 text-gray-600 border border-gray-200';
+    return 'bg-gray-100 text-gray-600 dark:text-slate-400 border border-gray-200 dark:border-slate-700';
   };
 
   const toggleOrdenacao = (campo: string) => {
@@ -585,7 +585,7 @@ export const ExtratoCliente: React.FC = () => {
       <div className="flex h-96 items-center justify-center">
         <div className="text-center">
           <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-green-600 border-r-transparent"></div>
-          <p className="text-gray-600">Carregando clientes...</p>
+          <p className="text-gray-600 dark:text-slate-400">Carregando clientes...</p>
         </div>
       </div>
     );
@@ -594,8 +594,8 @@ export const ExtratoCliente: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Filtros */}
-      <div className="rounded-lg bg-white p-6 shadow">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">Filtros</h2>
+      <div className="rounded-lg bg-white dark:bg-slate-800 p-6 shadow">
+        <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-slate-100">Filtros</h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <SearchableSelect
@@ -631,7 +631,7 @@ export const ExtratoCliente: React.FC = () => {
               aria-checked={extrato.calculo_incc_manual || false}
             >
               <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white dark:bg-slate-800 shadow ring-0 transition duration-200 ease-in-out ${
                   extrato.calculo_incc_manual ? 'translate-x-5' : 'translate-x-0'
                 }`}
               />
@@ -650,12 +650,12 @@ export const ExtratoCliente: React.FC = () => {
 
       {/* Empty state */}
       {!clienteSelecionado && (
-        <div className="rounded-lg bg-gray-50 p-12 text-center">
+        <div className="rounded-lg bg-gray-50 dark:bg-slate-900 p-12 text-center">
           <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          <h3 className="mt-4 text-lg font-medium text-gray-900">Selecione um cliente</h3>
-          <p className="mt-2 text-gray-500">Escolha um cliente no filtro acima para visualizar seu extrato</p>
+          <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-slate-100">Selecione um cliente</h3>
+          <p className="mt-2 text-gray-500 dark:text-slate-400">Escolha um cliente no filtro acima para visualizar seu extrato</p>
         </div>
       )}
 
@@ -664,7 +664,7 @@ export const ExtratoCliente: React.FC = () => {
         <div className="flex h-48 items-center justify-center">
           <div className="text-center">
             <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-green-600 border-r-transparent"></div>
-            <p className="text-gray-600">Carregando extrato...</p>
+            <p className="text-gray-600 dark:text-slate-400">Carregando extrato...</p>
           </div>
         </div>
       )}
@@ -714,9 +714,9 @@ export const ExtratoCliente: React.FC = () => {
           </div>
 
           {/* Barra de Progresso Geral */}
-          <div className="rounded-lg bg-white p-5 shadow">
+          <div className="rounded-lg bg-white dark:bg-slate-800 p-5 shadow">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Progresso de Recebimento</h3>
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-wider">Progresso de Recebimento</h3>
               <span className="text-sm font-bold text-green-600">{pctValorRecebido.toFixed(1)}% do valor recebido</span>
             </div>
             <div className="h-4 w-full rounded-full bg-gray-100 overflow-hidden flex">
@@ -742,7 +742,7 @@ export const ExtratoCliente: React.FC = () => {
                 />
               )}
             </div>
-            <div className="flex gap-4 mt-2 text-xs text-gray-500">
+            <div className="flex gap-4 mt-2 text-xs text-gray-500 dark:text-slate-400">
               <div className="flex items-center gap-1">
                 <div className="h-2.5 w-2.5 rounded-full bg-green-500"></div>
                 Recebido: {parcelasRecebidas}/{totalParcelas} ({pctRecebido.toFixed(1)}%)
@@ -796,7 +796,7 @@ export const ExtratoCliente: React.FC = () => {
             <div className="rounded-lg bg-gradient-to-r from-purple-600 to-violet-800 p-5 shadow-lg text-white">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white dark:bg-slate-800/20">
                     <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
@@ -820,72 +820,72 @@ export const ExtratoCliente: React.FC = () => {
           )}
 
           {/* Historico de Parcelas */}
-          <div className="rounded-lg bg-white shadow overflow-hidden">
+          <div className="rounded-lg bg-white dark:bg-slate-800 shadow overflow-hidden">
             <div className="p-6 pb-3">
-              <h2 className="text-lg font-semibold text-gray-900">Historico de Parcelas</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Historico de Parcelas</h2>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-green-50">
                   <tr>
-                    <th onClick={() => toggleOrdenacao('titulo')} className="cursor-pointer px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                    <th onClick={() => toggleOrdenacao('titulo')} className="cursor-pointer px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 hover:bg-green-100">
                       Titulo/Parcela {renderSortIcon('titulo')}
                     </th>
-                    <th onClick={() => toggleOrdenacao('parcela')} className="cursor-pointer px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                    <th onClick={() => toggleOrdenacao('parcela')} className="cursor-pointer px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 hover:bg-green-100">
                       Par {renderSortIcon('parcela')}
                     </th>
-                    <th onClick={() => toggleOrdenacao('indice')} className="cursor-pointer px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                    <th onClick={() => toggleOrdenacao('indice')} className="cursor-pointer px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 hover:bg-green-100">
                       Índice {renderSortIcon('indice')}
                     </th>
-                    <th onClick={() => toggleOrdenacao('tipo_condicao')} className="cursor-pointer px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                    <th onClick={() => toggleOrdenacao('tipo_condicao')} className="cursor-pointer px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 hover:bg-green-100">
                       Tipo Condicao {renderSortIcon('tipo_condicao')}
                     </th>
-                    <th onClick={() => toggleOrdenacao('data_vencimento')} className="cursor-pointer px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                    <th onClick={() => toggleOrdenacao('data_vencimento')} className="cursor-pointer px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 hover:bg-green-100">
                       Vencimento {renderSortIcon('data_vencimento')}
                     </th>
-                    <th onClick={() => toggleOrdenacao('valor_nominal')} className="cursor-pointer px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                    <th onClick={() => toggleOrdenacao('valor_nominal')} className="cursor-pointer px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 hover:bg-green-100">
                       Valor Original {renderSortIcon('valor_nominal')}
                     </th>
-                    <th onClick={() => toggleOrdenacao('correcao_monetaria')} className="cursor-pointer px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                    <th onClick={() => toggleOrdenacao('correcao_monetaria')} className="cursor-pointer px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 hover:bg-green-100">
                       Correção Monetária {renderSortIcon('correcao_monetaria')}
                     </th>
-                    <th onClick={() => toggleOrdenacao('valor_corrigido')} className="cursor-pointer px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                    <th onClick={() => toggleOrdenacao('valor_corrigido')} className="cursor-pointer px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 hover:bg-green-100">
                       Valor Corrigido {renderSortIcon('valor_corrigido')}
                     </th>
-                    <th onClick={() => toggleOrdenacao('saldo_atual')} className="cursor-pointer px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                    <th onClick={() => toggleOrdenacao('saldo_atual')} className="cursor-pointer px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 hover:bg-green-100">
                       Saldo Atual {renderSortIcon('saldo_atual')}
                     </th>
-                    <th onClick={() => toggleOrdenacao('acrescimo')} className="cursor-pointer px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                    <th onClick={() => toggleOrdenacao('acrescimo')} className="cursor-pointer px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 hover:bg-green-100">
                       Acrescimo {renderSortIcon('acrescimo')}
                     </th>
-                    <th onClick={() => toggleOrdenacao('desconto')} className="cursor-pointer px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                    <th onClick={() => toggleOrdenacao('desconto')} className="cursor-pointer px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 hover:bg-green-100">
                       Desconto {renderSortIcon('desconto')}
                     </th>
-                    <th onClick={() => toggleOrdenacao('dias_atraso')} className="cursor-pointer px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                    <th onClick={() => toggleOrdenacao('dias_atraso')} className="cursor-pointer px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 hover:bg-green-100">
                       Dias {renderSortIcon('dias_atraso')}
                     </th>
-                    <th onClick={() => toggleOrdenacao('data_baixa')} className="cursor-pointer px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                    <th onClick={() => toggleOrdenacao('data_baixa')} className="cursor-pointer px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 hover:bg-green-100">
                       Data Baixa {renderSortIcon('data_baixa')}
                     </th>
-                    <th onClick={() => toggleOrdenacao('valor_baixa')} className="cursor-pointer px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                    <th onClick={() => toggleOrdenacao('valor_baixa')} className="cursor-pointer px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 hover:bg-green-100">
                       Valor Baixa {renderSortIcon('valor_baixa')}
                     </th>
-                    <th onClick={() => toggleOrdenacao('status')} className="cursor-pointer px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-green-100">
+                    <th onClick={() => toggleOrdenacao('status')} className="cursor-pointer px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 hover:bg-green-100">
                       Status {renderSortIcon('status')}
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
+                <tbody className="divide-y divide-gray-200 bg-white dark:bg-slate-800">
                   {ordenarParcelas(extrato.parcelas).map((parcela, index) => (
-                    <tr key={index} className={`hover:bg-gray-50 ${
+                    <tr key={index} className={`hover:bg-gray-50 dark:bg-slate-900 ${
                       proximaParcela && parcela.titulo === proximaParcela.titulo
                         ? 'bg-purple-50 ring-2 ring-inset ring-purple-300'
                         : parcela.status === 'Atrasado' ? 'bg-red-50/30' : ''
                     }`}>
-                      <td className="whitespace-nowrap px-3 py-3 text-sm font-medium text-gray-900">
+                      <td className="whitespace-nowrap px-3 py-3 text-sm font-medium text-gray-900 dark:text-slate-100">
                         {parcela.titulo}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-3 text-center text-sm text-gray-600">
+                      <td className="whitespace-nowrap px-3 py-3 text-center text-sm text-gray-600 dark:text-slate-400">
                         {parcela.parcela_display || parcela.parcela}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3 text-sm">
@@ -893,7 +893,7 @@ export const ExtratoCliente: React.FC = () => {
                           parcela.indice === 'INCC-M' ? 'bg-purple-100 text-purple-700' :
                           parcela.indice === 'IGPM' ? 'bg-teal-100 text-teal-700' :
                           parcela.indice === 'IPCA' ? 'bg-cyan-100 text-cyan-700' :
-                          'bg-gray-100 text-gray-600'
+                          'bg-gray-100 text-gray-600 dark:text-slate-400'
                         }`}>
                           {parcela.indice || 'REAL'}
                         </span>
@@ -905,10 +905,10 @@ export const ExtratoCliente: React.FC = () => {
                           </span>
                         ) : '-'}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                      <td className="whitespace-nowrap px-3 py-3 text-sm text-gray-500 dark:text-slate-400">
                         {formatDate(parcela.data_vencimento)}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-3 text-right text-sm font-medium text-gray-900">
+                      <td className="whitespace-nowrap px-3 py-3 text-right text-sm font-medium text-gray-900 dark:text-slate-100">
                         {formatCurrency(parcela.valor_nominal)}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3 text-right text-sm">
@@ -937,7 +937,7 @@ export const ExtratoCliente: React.FC = () => {
                       </td>
                       <td className="whitespace-nowrap px-3 py-3 text-right text-sm">
                         {parcela.desconto > 0 ? (
-                          <span className="text-red-600 font-medium">{formatCurrency(parcela.desconto)}</span>
+                          <span className="text-red-600 dark:text-red-400 font-medium">{formatCurrency(parcela.desconto)}</span>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
@@ -945,7 +945,7 @@ export const ExtratoCliente: React.FC = () => {
                       <td className="whitespace-nowrap px-3 py-3 text-center text-sm">
                         {parcela.dias_atraso !== 0 ? (
                           <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold ${
-                            parcela.dias_atraso > 90 ? 'bg-red-100 text-red-700' :
+                            parcela.dias_atraso > 90 ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400' :
                             parcela.dias_atraso > 30 ? 'bg-orange-100 text-orange-700' :
                             parcela.dias_atraso > 0 ? 'bg-yellow-100 text-yellow-700' :
                             'bg-green-100 text-green-700'
@@ -956,7 +956,7 @@ export const ExtratoCliente: React.FC = () => {
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-3 text-sm text-gray-500">
+                      <td className="whitespace-nowrap px-3 py-3 text-sm text-gray-500 dark:text-slate-400">
                         {formatDate(parcela.data_baixa)}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3 text-right text-sm font-medium">
@@ -976,10 +976,10 @@ export const ExtratoCliente: React.FC = () => {
                 </tbody>
                 <tfoot className="bg-gray-100">
                   <tr className="font-bold">
-                    <td colSpan={5} className="px-3 py-3 text-sm text-gray-900">
+                    <td colSpan={5} className="px-3 py-3 text-sm text-gray-900 dark:text-slate-100">
                       TOTAIS
                     </td>
-                    <td className="whitespace-nowrap px-3 py-3 text-right text-sm text-gray-900">
+                    <td className="whitespace-nowrap px-3 py-3 text-right text-sm text-gray-900 dark:text-slate-100">
                       {formatCurrency(extrato.totais.total_nominal)}
                     </td>
                     <td className="whitespace-nowrap px-3 py-3 text-right text-sm text-amber-600">

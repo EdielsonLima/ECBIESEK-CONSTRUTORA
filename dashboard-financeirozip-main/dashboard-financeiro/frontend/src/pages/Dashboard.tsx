@@ -119,10 +119,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="text-center">
           <div className="relative mb-6">
-            <div className="h-16 w-16 mx-auto rounded-full border-4 border-gray-200"></div>
+            <div className="h-16 w-16 mx-auto rounded-full border-4 border-gray-200 dark:border-slate-700"></div>
             <div className="absolute top-0 left-1/2 -translate-x-1/2 h-16 w-16 rounded-full border-4 border-transparent border-t-green-500 animate-spin"></div>
           </div>
-          <p className="text-gray-500 font-medium">Carregando dashboard...</p>
+          <p className="text-gray-500 dark:text-slate-400 font-medium">Carregando dashboard...</p>
         </div>
       </div>
     );
@@ -131,9 +131,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   if (error) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="rounded-2xl bg-red-50 border border-red-200 p-8 text-center max-w-md">
-          <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
-            <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="rounded-2xl bg-red-50 dark:bg-red-900/20 border border-red-200 p-8 text-center max-w-md">
+          <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center">
+            <svg className="h-6 w-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </div>
@@ -192,7 +192,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         <div className="flex animate-ticker whitespace-nowrap">
           {[...tickerItems, ...tickerItems].map((item, i) => (
             <span key={i} className="mx-8 text-sm font-medium text-gray-300 flex items-center gap-2">
-              <span className={`inline-block h-2 w-2 rounded-full ${item.includes('ATENCAO') ? 'bg-red-500 animate-pulse' : 'bg-green-400'}`}></span>
+              <span className={`inline-block h-2 w-2 rounded-full ${item.includes('ATENCAO') ? 'bg-red-50 dark:bg-red-900/200 animate-pulse' : 'bg-green-400'}`}></span>
               <span className={item.includes('ATENCAO') ? 'text-red-400 font-semibold' : ''}>{item}</span>
             </span>
           ))}
@@ -203,7 +203,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       <div className="animate-slide-up">
         <div className="flex items-center gap-3 mb-4">
           <div className="h-8 w-1.5 rounded-full bg-gradient-to-b from-blue-500 to-blue-700"></div>
-          <h2 className="text-xl font-bold text-gray-800">Contas a Pagar</h2>
+          <h2 className="text-xl font-bold text-gray-800 dark:text-slate-200">Contas a Pagar</h2>
         </div>
 
         {metricas && (
@@ -213,13 +213,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               onClick={() => nav('contas-pagas')}
               onMouseEnter={() => setHoveredCard('pagas')}
               onMouseLeave={() => setHoveredCard(null)}
-              className="group relative cursor-pointer rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-green-200 overflow-hidden"
+              className="group relative cursor-pointer rounded-2xl border border-gray-100 dark:border-slate-700/50 bg-white dark:bg-slate-800 p-5 shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-green-200 overflow-hidden"
             >
               <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-green-400 to-green-600 transform origin-left transition-transform duration-300 scale-x-0 group-hover:scale-x-100"></div>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Contas Pagas</p>
-                  <p className="mt-2 text-2xl font-extrabold text-gray-900 animate-count-up">{formatCurrency(metricas.total_pago)}</p>
+                  <p className="mt-2 text-2xl font-extrabold text-gray-900 dark:text-slate-100 animate-count-up">{formatCurrency(metricas.total_pago)}</p>
                   <p className="mt-1 text-sm text-gray-400">{metricas.quantidade_pago.toLocaleString('pt-BR')} contas</p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
@@ -244,13 +244,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               onClick={() => nav('contas-a-pagar')}
               onMouseEnter={() => setHoveredCard('apagar')}
               onMouseLeave={() => setHoveredCard(null)}
-              className="group relative cursor-pointer rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-blue-200 overflow-hidden"
+              className="group relative cursor-pointer rounded-2xl border border-gray-100 dark:border-slate-700/50 bg-white dark:bg-slate-800 p-5 shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-blue-200 overflow-hidden"
             >
               <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-blue-400 to-blue-600 transform origin-left transition-transform duration-300 scale-x-0 group-hover:scale-x-100"></div>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">A Pagar</p>
-                  <p className="mt-2 text-2xl font-extrabold text-gray-900">{formatCurrency(metricas.total_a_pagar)}</p>
+                  <p className="mt-2 text-2xl font-extrabold text-gray-900 dark:text-slate-100">{formatCurrency(metricas.total_a_pagar)}</p>
                   <p className="mt-1 text-sm text-gray-400">{metricas.quantidade_a_pagar.toLocaleString('pt-BR')} contas</p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
@@ -275,21 +275,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               onClick={() => nav('contas-atrasadas')}
               onMouseEnter={() => setHoveredCard('atrasados')}
               onMouseLeave={() => setHoveredCard(null)}
-              className={`group relative cursor-pointer rounded-2xl border bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden ${metricas.total_em_atraso > 0 ? 'border-red-200 ring-1 ring-red-100' : 'border-gray-100 hover:border-red-200'}`}
+              className={`group relative cursor-pointer rounded-2xl border bg-white dark:bg-slate-800 p-5 shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden ${metricas.total_em_atraso > 0 ? 'border-red-200 ring-1 ring-red-100' : 'border-gray-100 dark:border-slate-700/50 hover:border-red-200'}`}
             >
               <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-red-400 to-red-600 transform origin-left transition-transform duration-300 scale-x-0 group-hover:scale-x-100"></div>
               {metricas.total_em_atraso > 0 && (
                 <div className="absolute top-3 right-3">
                   <span className="relative flex h-3 w-3">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-50 dark:bg-red-900/200"></span>
                   </span>
                 </div>
               )}
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Pagamentos Atrasados</p>
-                  <p className={`mt-2 text-2xl font-extrabold ${metricas.total_em_atraso > 0 ? 'text-red-600' : 'text-gray-900'}`}>{formatCurrency(metricas.total_em_atraso)}</p>
+                  <p className={`mt-2 text-2xl font-extrabold ${metricas.total_em_atraso > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-slate-100'}`}>{formatCurrency(metricas.total_em_atraso)}</p>
                   <p className="mt-1 text-sm text-gray-400">{metricas.quantidade_em_atraso.toLocaleString('pt-BR')} contas</p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
@@ -301,7 +301,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                   <Sparkline data={sparkAtraso} color="#ef4444" />
                 </div>
               </div>
-              <div className="mt-3 flex items-center gap-1 text-xs text-red-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="mt-3 flex items-center gap-1 text-xs text-red-600 dark:text-red-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
                 Ver detalhes
                 <svg className="h-3 w-3 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -316,7 +316,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       <div className="animate-slide-up-delay-1">
         <div className="flex items-center gap-3 mb-4">
           <div className="h-8 w-1.5 rounded-full bg-gradient-to-b from-green-500 to-green-700"></div>
-          <h2 className="text-xl font-bold text-gray-800">Contas a Receber</h2>
+          <h2 className="text-xl font-bold text-gray-800 dark:text-slate-200">Contas a Receber</h2>
         </div>
 
         {metricasReceber && (
@@ -324,13 +324,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             {/* Card Recebido */}
             <div
               onClick={() => nav('contas-recebidas')}
-              className="group relative cursor-pointer rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-green-200 overflow-hidden"
+              className="group relative cursor-pointer rounded-2xl border border-gray-100 dark:border-slate-700/50 bg-white dark:bg-slate-800 p-5 shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-green-200 overflow-hidden"
             >
               <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-emerald-400 to-emerald-600 transform origin-left transition-transform duration-300 scale-x-0 group-hover:scale-x-100"></div>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Recebido</p>
-                  <p className="mt-2 text-2xl font-extrabold text-gray-900">{formatCurrency(metricasReceber.total_recebido)}</p>
+                  <p className="mt-2 text-2xl font-extrabold text-gray-900 dark:text-slate-100">{formatCurrency(metricasReceber.total_recebido)}</p>
                   <p className="mt-1 text-sm text-gray-400">{metricasReceber.quantidade_recebido.toLocaleString('pt-BR')} contas</p>
                 </div>
                 <div className="rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 p-2.5 text-white shadow-lg shadow-emerald-200/50">
@@ -350,13 +350,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             {/* Card A Receber */}
             <div
               onClick={() => nav('contas-a-receber')}
-              className="group relative cursor-pointer rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-blue-200 overflow-hidden"
+              className="group relative cursor-pointer rounded-2xl border border-gray-100 dark:border-slate-700/50 bg-white dark:bg-slate-800 p-5 shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-blue-200 overflow-hidden"
             >
               <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-cyan-400 to-cyan-600 transform origin-left transition-transform duration-300 scale-x-0 group-hover:scale-x-100"></div>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">A Receber</p>
-                  <p className="mt-2 text-2xl font-extrabold text-gray-900">{formatCurrency(metricasReceber.total_a_receber)}</p>
+                  <p className="mt-2 text-2xl font-extrabold text-gray-900 dark:text-slate-100">{formatCurrency(metricasReceber.total_a_receber)}</p>
                   <p className="mt-1 text-sm text-gray-400">{metricasReceber.quantidade_a_receber.toLocaleString('pt-BR')} contas</p>
                 </div>
                 <div className="rounded-xl bg-gradient-to-br from-cyan-400 to-cyan-600 p-2.5 text-white shadow-lg shadow-cyan-200/50">
@@ -376,7 +376,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             {/* Card Recebimentos Atrasados */}
             <div
               onClick={() => nav('recebimentos-atrasados')}
-              className={`group relative cursor-pointer rounded-2xl border bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden ${metricasReceber.total_em_atraso > 0 ? 'border-orange-200 ring-1 ring-orange-100' : 'border-gray-100 hover:border-orange-200'}`}
+              className={`group relative cursor-pointer rounded-2xl border bg-white dark:bg-slate-800 p-5 shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden ${metricasReceber.total_em_atraso > 0 ? 'border-orange-200 ring-1 ring-orange-100' : 'border-gray-100 dark:border-slate-700/50 hover:border-orange-200'}`}
             >
               <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-orange-400 to-red-500 transform origin-left transition-transform duration-300 scale-x-0 group-hover:scale-x-100"></div>
               {metricasReceber.total_em_atraso > 0 && (
@@ -390,7 +390,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Recebimentos Atrasados</p>
-                  <p className={`mt-2 text-2xl font-extrabold ${metricasReceber.total_em_atraso > 0 ? 'text-orange-600' : 'text-gray-900'}`}>{formatCurrency(metricasReceber.total_em_atraso)}</p>
+                  <p className={`mt-2 text-2xl font-extrabold ${metricasReceber.total_em_atraso > 0 ? 'text-orange-600' : 'text-gray-900 dark:text-slate-100'}`}>{formatCurrency(metricasReceber.total_em_atraso)}</p>
                   <p className="mt-1 text-sm text-gray-400">{metricasReceber.quantidade_em_atraso.toLocaleString('pt-BR')} contas</p>
                 </div>
                 <div className="rounded-xl bg-gradient-to-br from-orange-400 to-red-500 p-2.5 text-white shadow-lg shadow-orange-200/50">

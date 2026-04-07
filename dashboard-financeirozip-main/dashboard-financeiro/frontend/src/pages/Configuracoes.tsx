@@ -563,7 +563,7 @@ export const Configuracoes: React.FC = () => {
       } ${loading ? 'opacity-50' : ''}`}
     >
       <span
-        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white dark:bg-slate-800 shadow ring-0 transition duration-200 ease-in-out ${
           ativo ? 'translate-x-5' : 'translate-x-0'
         }`}
       />
@@ -574,7 +574,7 @@ export const Configuracoes: React.FC = () => {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        <span className="ml-3 text-gray-600">Carregando configuracoes...</span>
+        <span className="ml-3 text-gray-600 dark:text-slate-400">Carregando configuracoes...</span>
       </div>
     );
   }
@@ -596,8 +596,8 @@ export const Configuracoes: React.FC = () => {
   return (
     <>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Configuracoes</h2>
-        <p className="mt-1 text-sm text-gray-600">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Configuracoes</h2>
+        <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
           Gerencie quais empresas, centros de custo, tipos de documento e contas correntes participam dos calculos
         </p>
       </div>
@@ -609,12 +609,12 @@ export const Configuracoes: React.FC = () => {
           className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
             abaAtiva === 'empresas'
               ? 'bg-blue-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+              : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-100 border border-gray-300 dark:border-slate-600'
           }`}
         >
           Empresas
           {totalExcluidas > 0 && (
-            <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
+            <span className="ml-2 rounded-full bg-red-100 dark:bg-red-900/40 px-2 py-0.5 text-xs text-red-700 dark:text-red-400">
               {totalExcluidas} excluida(s)
             </span>
           )}
@@ -625,12 +625,12 @@ export const Configuracoes: React.FC = () => {
           className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
             abaAtiva === 'centros'
               ? 'bg-blue-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+              : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-100 border border-gray-300 dark:border-slate-600'
           }`}
         >
           Centros de Custo
           {totalCentrosExcluidos > 0 && (
-            <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
+            <span className="ml-2 rounded-full bg-red-100 dark:bg-red-900/40 px-2 py-0.5 text-xs text-red-700 dark:text-red-400">
               {totalCentrosExcluidos} excluido(s)
             </span>
           )}
@@ -641,12 +641,12 @@ export const Configuracoes: React.FC = () => {
           className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
             abaAtiva === 'documentos'
               ? 'bg-blue-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+              : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-100 border border-gray-300 dark:border-slate-600'
           }`}
         >
           Tipos de Documento
           {totalTiposExcluidos > 0 && (
-            <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
+            <span className="ml-2 rounded-full bg-red-100 dark:bg-red-900/40 px-2 py-0.5 text-xs text-red-700 dark:text-red-400">
               {totalTiposExcluidos} excluido(s)
             </span>
           )}
@@ -657,12 +657,12 @@ export const Configuracoes: React.FC = () => {
           className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
             abaAtiva === 'contas_correntes'
               ? 'bg-blue-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+              : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-100 border border-gray-300 dark:border-slate-600'
           }`}
         >
           Contas Correntes
           {totalContasExcluidas > 0 && (
-            <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
+            <span className="ml-2 rounded-full bg-red-100 dark:bg-red-900/40 px-2 py-0.5 text-xs text-red-700 dark:text-red-400">
               {totalContasExcluidas} excluida(s)
             </span>
           )}
@@ -673,12 +673,12 @@ export const Configuracoes: React.FC = () => {
           className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
             abaAtiva === 'origens'
               ? 'bg-blue-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+              : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-100 border border-gray-300 dark:border-slate-600'
           }`}
         >
           Origens Titulos
           {totalOrigensExcluidas > 0 && (
-            <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
+            <span className="ml-2 rounded-full bg-red-100 dark:bg-red-900/40 px-2 py-0.5 text-xs text-red-700 dark:text-red-400">
               {totalOrigensExcluidas} excluida(s)
             </span>
           )}
@@ -689,12 +689,12 @@ export const Configuracoes: React.FC = () => {
           className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
             abaAtiva === 'tipos_baixa'
               ? 'bg-blue-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+              : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-100 border border-gray-300 dark:border-slate-600'
           }`}
         >
           Tipos de Baixa
           {totalTiposBaixaExcluidos > 0 && (
-            <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
+            <span className="ml-2 rounded-full bg-red-100 dark:bg-red-900/40 px-2 py-0.5 text-xs text-red-700 dark:text-red-400">
               {totalTiposBaixaExcluidos} excluido(s)
             </span>
           )}
@@ -705,7 +705,7 @@ export const Configuracoes: React.FC = () => {
           className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
             abaAtiva === 'snapshots'
               ? 'bg-blue-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+              : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-100 border border-gray-300 dark:border-slate-600'
           }`}
         >
           Snapshots
@@ -721,7 +721,7 @@ export const Configuracoes: React.FC = () => {
           className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
             abaAtiva === 'diagnostico'
               ? 'bg-purple-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+              : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-100 border border-gray-300 dark:border-slate-600'
           }`}
         >
           Empresas e Centros
@@ -732,7 +732,7 @@ export const Configuracoes: React.FC = () => {
           className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
             abaAtiva === 'orcamentos'
               ? 'bg-green-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+              : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-100 border border-gray-300 dark:border-slate-600'
           }`}
         >
           Orcamentos
@@ -743,7 +743,7 @@ export const Configuracoes: React.FC = () => {
           className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
             abaAtiva === 'feriados'
               ? 'bg-green-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+              : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-100 border border-gray-300 dark:border-slate-600'
           }`}
         >
           Feriados
@@ -756,16 +756,16 @@ export const Configuracoes: React.FC = () => {
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
           placeholder="Buscar..."
-          className="w-full max-w-md rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none"
+          className="w-full max-w-md rounded-lg border border-gray-300 dark:border-slate-600 px-4 py-2 focus:border-blue-500 focus:outline-none"
         />
       </div>
 
-      <div className="rounded-lg bg-white shadow">
+      <div className="rounded-lg bg-white dark:bg-slate-800 shadow">
         {abaAtiva === 'empresas' && (
           <div className="divide-y divide-gray-200">
             <div className="bg-blue-50 px-6 py-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">
+                <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
                   {empresas.length} empresa(s) | {empresas.length - totalExcluidas} ativa(s) | {totalExcluidas} excluida(s)
                 </span>
               </div>
@@ -773,18 +773,18 @@ export const Configuracoes: React.FC = () => {
             {empresasFiltradas.map(empresa => (
               <div
                 key={empresa.id}
-                className={`flex items-center justify-between px-6 py-4 hover:bg-gray-50 ${
-                  empresa.excluida ? 'bg-red-50' : ''
+                className={`flex items-center justify-between px-6 py-4 hover:bg-gray-50 dark:bg-slate-900 ${
+                  empresa.excluida ? 'bg-red-50 dark:bg-red-900/20' : ''
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <span className={`text-sm font-medium ${empresa.excluida ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                  <span className={`text-sm font-medium ${empresa.excluida ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-slate-100'}`}>
                     {empresa.nome}
                   </span>
                   <span className="text-xs text-gray-400">ID: {empresa.id}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`text-xs font-medium ${empresa.excluida ? 'text-red-600' : 'text-green-600'}`}>
+                  <span className={`text-xs font-medium ${empresa.excluida ? 'text-red-600 dark:text-red-400' : 'text-green-600'}`}>
                     {empresa.excluida ? 'Excluida' : 'Ativa'}
                   </span>
                   <button
@@ -798,7 +798,7 @@ export const Configuracoes: React.FC = () => {
               </div>
             ))}
             {empresasFiltradas.length === 0 && (
-              <div className="px-6 py-8 text-center text-gray-500">
+              <div className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
                 Nenhuma empresa encontrada
               </div>
             )}
@@ -809,7 +809,7 @@ export const Configuracoes: React.FC = () => {
           <div className="divide-y divide-gray-200">
             <div className="bg-blue-50 px-6 py-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">
+                <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
                   {centrosCusto.length} centro(s) de custo | {centrosCusto.length - totalCentrosExcluidos} ativo(s) | {totalCentrosExcluidos} excluido(s)
                 </span>
               </div>
@@ -817,18 +817,18 @@ export const Configuracoes: React.FC = () => {
             {centrosFiltrados.map(centro => (
               <div
                 key={centro.id}
-                className={`flex items-center justify-between px-6 py-4 hover:bg-gray-50 ${
-                  centro.excluido ? 'bg-red-50' : ''
+                className={`flex items-center justify-between px-6 py-4 hover:bg-gray-50 dark:bg-slate-900 ${
+                  centro.excluido ? 'bg-red-50 dark:bg-red-900/20' : ''
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <span className={`text-sm font-medium ${centro.excluido ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                  <span className={`text-sm font-medium ${centro.excluido ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-slate-100'}`}>
                     {centro.nome}
                   </span>
                   <span className="text-xs text-gray-400">ID: {centro.id}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`text-xs font-medium ${centro.excluido ? 'text-red-600' : 'text-green-600'}`}>
+                  <span className={`text-xs font-medium ${centro.excluido ? 'text-red-600 dark:text-red-400' : 'text-green-600'}`}>
                     {centro.excluido ? 'Excluido' : 'Ativo'}
                   </span>
                   <button
@@ -842,7 +842,7 @@ export const Configuracoes: React.FC = () => {
               </div>
             ))}
             {centrosFiltrados.length === 0 && (
-              <div className="px-6 py-8 text-center text-gray-500">
+              <div className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
                 Nenhum centro de custo encontrado
               </div>
             )}
@@ -853,7 +853,7 @@ export const Configuracoes: React.FC = () => {
           <div className="divide-y divide-gray-200">
             <div className="bg-blue-50 px-6 py-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">
+                <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
                   {tiposDocumento.length} tipo(s) | {tiposDocumento.length - totalTiposExcluidos} ativo(s) | {totalTiposExcluidos} excluido(s)
                 </span>
               </div>
@@ -861,18 +861,18 @@ export const Configuracoes: React.FC = () => {
             {tiposFiltrados.map(tipo => (
               <div
                 key={tipo.id}
-                className={`flex items-center justify-between px-6 py-4 hover:bg-gray-50 ${
-                  tipo.excluido ? 'bg-red-50' : ''
+                className={`flex items-center justify-between px-6 py-4 hover:bg-gray-50 dark:bg-slate-900 ${
+                  tipo.excluido ? 'bg-red-50 dark:bg-red-900/20' : ''
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <span className={`text-sm font-medium ${tipo.excluido ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                  <span className={`text-sm font-medium ${tipo.excluido ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-slate-100'}`}>
                     {tipo.nome}
                   </span>
                   <span className="text-xs text-gray-400">({tipo.id})</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`text-xs font-medium ${tipo.excluido ? 'text-red-600' : 'text-green-600'}`}>
+                  <span className={`text-xs font-medium ${tipo.excluido ? 'text-red-600 dark:text-red-400' : 'text-green-600'}`}>
                     {tipo.excluido ? 'Excluido' : 'Ativo'}
                   </span>
                   <button
@@ -886,7 +886,7 @@ export const Configuracoes: React.FC = () => {
               </div>
             ))}
             {tiposFiltrados.length === 0 && (
-              <div className="px-6 py-8 text-center text-gray-500">
+              <div className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
                 Nenhum tipo de documento encontrado
               </div>
             )}
@@ -897,7 +897,7 @@ export const Configuracoes: React.FC = () => {
           <div className="divide-y divide-gray-200">
             <div className="bg-blue-50 px-6 py-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">
+                <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
                   {contasCorrente.length} conta(s) corrente(s) | {contasCorrente.length - totalContasExcluidas} ativa(s) | {totalContasExcluidas} excluida(s)
                 </span>
               </div>
@@ -905,18 +905,18 @@ export const Configuracoes: React.FC = () => {
             {contasFiltradas.map(conta => (
               <div
                 key={conta.id}
-                className={`flex items-center justify-between px-6 py-4 hover:bg-gray-50 ${
-                  conta.excluida ? 'bg-red-50' : ''
+                className={`flex items-center justify-between px-6 py-4 hover:bg-gray-50 dark:bg-slate-900 ${
+                  conta.excluida ? 'bg-red-50 dark:bg-red-900/20' : ''
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <span className={`text-sm font-medium ${conta.excluida ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                  <span className={`text-sm font-medium ${conta.excluida ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-slate-100'}`}>
                     {conta.nome}
                   </span>
                   <span className="text-xs text-gray-400">({conta.id})</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`text-xs font-medium ${conta.excluida ? 'text-red-600' : 'text-green-600'}`}>
+                  <span className={`text-xs font-medium ${conta.excluida ? 'text-red-600 dark:text-red-400' : 'text-green-600'}`}>
                     {conta.excluida ? 'Excluida' : 'Ativa'}
                   </span>
                   <button
@@ -930,7 +930,7 @@ export const Configuracoes: React.FC = () => {
               </div>
             ))}
             {contasFiltradas.length === 0 && (
-              <div className="px-6 py-8 text-center text-gray-500">
+              <div className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
                 Nenhuma conta corrente encontrada
               </div>
             )}
@@ -941,20 +941,20 @@ export const Configuracoes: React.FC = () => {
           <div className="divide-y divide-gray-200">
             <div className="bg-blue-50 px-6 py-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <span className="text-sm font-medium text-gray-700">
+                <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
                   {origensTitulo.length} origem(s) | {origensTitulo.filter(o => !o.configurado || o.incluir).length} ativa(s) | {totalOrigensExcluidas} excluida(s)
                 </span>
-                <span className="text-xs text-gray-500 bg-yellow-50 border border-yellow-200 rounded px-2 py-1">
+                <span className="text-xs text-gray-500 dark:text-slate-400 bg-yellow-50 border border-yellow-200 rounded px-2 py-1">
                   Afeta: <strong>Exposicao de Caixa</strong> (Tabela e Grafico) e <strong>Contas Pagas</strong>
                 </span>
               </div>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
                 Quando nenhuma origem estiver configurada, <strong>todas</strong> sao incluidas. Ao desativar ao menos uma, somente as ativas serao consideradas.
               </p>
             </div>
 
             {/* Cabecalho das colunas */}
-            <div className="flex items-center px-6 py-2 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            <div className="flex items-center px-6 py-2 bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
               <span className="w-16">Sigla</span>
               <span className="flex-1">Descricao</span>
               <div className="flex items-center gap-6">
@@ -968,12 +968,12 @@ export const Configuracoes: React.FC = () => {
             {origensFiltradas.map(origem => (
               <div
                 key={origem.id}
-                className={`flex items-center px-6 py-3 hover:bg-gray-50 transition-colors ${
-                  origem.configurado && !origem.incluir ? 'bg-red-50' : ''
+                className={`flex items-center px-6 py-3 hover:bg-gray-50 dark:bg-slate-900 transition-colors ${
+                  origem.configurado && !origem.incluir ? 'bg-red-50 dark:bg-red-900/20' : ''
                 }`}
               >
                 <span className="w-16 font-mono text-sm font-bold text-blue-700">{origem.sigla}</span>
-                <span className={`flex-1 text-sm ${origem.configurado && !origem.incluir ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                <span className={`flex-1 text-sm ${origem.configurado && !origem.incluir ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-slate-100'}`}>
                   {origem.descricao}
                 </span>
                 <div className="flex items-center gap-6">
@@ -993,7 +993,7 @@ export const Configuracoes: React.FC = () => {
                             !origem.incluir ? 'opacity-30 cursor-not-allowed' :
                             ativa ? 'bg-indigo-500' : 'bg-gray-300'
                           } ${salvando === loadKey ? 'opacity-50' : ''}`}>
-                            <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ${ativa ? 'translate-x-4' : 'translate-x-0'}`} />
+                            <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white dark:bg-slate-800 shadow ring-0 transition duration-200 ${ativa ? 'translate-x-4' : 'translate-x-0'}`} />
                           </div>
                         </button>
                       </div>
@@ -1013,7 +1013,7 @@ export const Configuracoes: React.FC = () => {
             ))}
 
             {origensFiltradas.length === 0 && (
-              <div className="px-6 py-8 text-center text-gray-500">
+              <div className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
                 Nenhuma origem encontrada
               </div>
             )}
@@ -1024,20 +1024,20 @@ export const Configuracoes: React.FC = () => {
           <div className="divide-y divide-gray-200">
             <div className="bg-blue-50 px-6 py-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <span className="text-sm font-medium text-gray-700">
+                <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
                   {tiposBaixaConfig.length} tipo(s) | {tiposBaixaConfig.filter(t => !t.configurado || t.incluir).length} ativo(s) | {totalTiposBaixaExcluidos} excluido(s)
                 </span>
-                <span className="text-xs text-gray-500 bg-yellow-50 border border-yellow-200 rounded px-2 py-1">
+                <span className="text-xs text-gray-500 dark:text-slate-400 bg-yellow-50 border border-yellow-200 rounded px-2 py-1">
                   Afeta: <strong>Exposicao de Caixa</strong> (coluna Pago)
                 </span>
               </div>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
                 Quando nenhum tipo estiver configurado, <strong>todos</strong> sao incluidos. Flag: <span className="font-mono">P</span>=Pagamento <span className="font-mono">R</span>=Recebimento <span className="font-mono">A</span>=Ajuste <span className="font-mono">S</span>=Sistema.
               </p>
             </div>
 
             {/* Cabecalho */}
-            <div className="flex items-center px-6 py-2 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            <div className="flex items-center px-6 py-2 bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
               <span className="w-10">Flag</span>
               <span className="flex-1">Nome</span>
               <div className="flex items-center gap-6">
@@ -1050,23 +1050,23 @@ export const Configuracoes: React.FC = () => {
 
             {tiposBaixaFiltrados.map(tipo => {
               const flagColors: Record<string, string> = {
-                P: 'bg-red-100 text-red-700',
+                P: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400',
                 R: 'bg-green-100 text-green-700',
                 A: 'bg-yellow-100 text-yellow-700',
                 S: 'bg-blue-100 text-blue-700',
               };
-              const flagClass = flagColors[tipo.flag] || 'bg-gray-100 text-gray-600';
+              const flagClass = flagColors[tipo.flag] || 'bg-gray-100 text-gray-600 dark:text-slate-400';
               return (
                 <div
                   key={tipo.id}
-                  className={`flex items-center px-6 py-3 hover:bg-gray-50 transition-colors ${
-                    tipo.configurado && !tipo.incluir ? 'bg-red-50' : ''
+                  className={`flex items-center px-6 py-3 hover:bg-gray-50 dark:bg-slate-900 transition-colors ${
+                    tipo.configurado && !tipo.incluir ? 'bg-red-50 dark:bg-red-900/20' : ''
                   }`}
                 >
                   <span className={`w-10 inline-flex items-center justify-center rounded text-xs font-bold px-1 py-0.5 mr-1 ${flagClass}`}>
                     {tipo.flag || '?'}
                   </span>
-                  <span className={`flex-1 text-sm ${tipo.configurado && !tipo.incluir ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                  <span className={`flex-1 text-sm ${tipo.configurado && !tipo.incluir ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-slate-100'}`}>
                     {tipo.nome}
                   </span>
                   <div className="flex items-center gap-6">
@@ -1086,7 +1086,7 @@ export const Configuracoes: React.FC = () => {
                               !tipo.incluir ? 'opacity-30 cursor-not-allowed' :
                               ativa ? 'bg-indigo-500' : 'bg-gray-300'
                             } ${salvando === loadKey ? 'opacity-50' : ''}`}>
-                              <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ${ativa ? 'translate-x-4' : 'translate-x-0'}`} />
+                              <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white dark:bg-slate-800 shadow ring-0 transition duration-200 ${ativa ? 'translate-x-4' : 'translate-x-0'}`} />
                             </div>
                           </button>
                         </div>
@@ -1107,7 +1107,7 @@ export const Configuracoes: React.FC = () => {
             })}
 
             {tiposBaixaFiltrados.length === 0 && (
-              <div className="px-6 py-8 text-center text-gray-500">
+              <div className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
                 Nenhum tipo de baixa encontrado
               </div>
             )}
@@ -1118,44 +1118,44 @@ export const Configuracoes: React.FC = () => {
           <div className="divide-y divide-gray-200">
             <div className="bg-blue-50 px-6 py-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">
+                <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
                   Snapshot Automatico de Contas a Pagar
                 </span>
-                <span className={`text-xs font-medium ${snapshotAtivo ? 'text-green-600' : 'text-gray-500'}`}>
+                <span className={`text-xs font-medium ${snapshotAtivo ? 'text-green-600' : 'text-gray-500 dark:text-slate-400'}`}>
                   {snapshotAtivo ? 'Ativo' : 'Desativado'}
                 </span>
               </div>
             </div>
             <div className="px-6 py-6">
-              <p className="text-sm text-gray-600 mb-6">
+              <p className="text-sm text-gray-600 dark:text-slate-400 mb-6">
                 O sistema salva automaticamente um snapshot dos valores dos cards de Contas a Pagar no horario configurado abaixo. 
                 Voce pode usar esses snapshots para comparar valores e detectar se novos titulos foram inseridos em periodos ja verificados.
               </p>
 
               <div className="flex flex-col gap-6">
                 <div className="flex items-center gap-4">
-                  <label className="text-sm font-medium text-gray-700 w-40">Ativar/Desativar:</label>
+                  <label className="text-sm font-medium text-gray-700 dark:text-slate-300 w-40">Ativar/Desativar:</label>
                   <button
                     type="button"
                     onClick={() => setSnapshotAtivo(!snapshotAtivo)}
                   >
                     {renderToggle(snapshotAtivo, false)}
                   </button>
-                  <span className={`text-sm ${snapshotAtivo ? 'text-green-600' : 'text-gray-500'}`}>
+                  <span className={`text-sm ${snapshotAtivo ? 'text-green-600' : 'text-gray-500 dark:text-slate-400'}`}>
                     {snapshotAtivo ? 'Snapshot automatico ativo' : 'Snapshot automatico desativado'}
                   </span>
                 </div>
 
                 <div className="flex items-center gap-4">
-                  <label className="text-sm font-medium text-gray-700 w-40">Horario diario:</label>
+                  <label className="text-sm font-medium text-gray-700 dark:text-slate-300 w-40">Horario diario:</label>
                   <input
                     type="time"
                     value={snapshotHorario}
                     onChange={(e) => setSnapshotHorario(e.target.value)}
-                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                    className="rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                     disabled={!snapshotAtivo}
                   />
-                  <span className="text-xs text-gray-500">Horario em que o snapshot sera salvo automaticamente</span>
+                  <span className="text-xs text-gray-500 dark:text-slate-400">Horario em que o snapshot sera salvo automaticamente</span>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -1168,7 +1168,7 @@ export const Configuracoes: React.FC = () => {
                     {snapshotSalvando ? 'Salvando...' : 'Salvar Configuracao'}
                   </button>
                   {snapshotMsg && (
-                    <span className={`text-sm ${snapshotMsg.includes('Erro') ? 'text-red-600' : 'text-green-600'}`}>
+                    <span className={`text-sm ${snapshotMsg.includes('Erro') ? 'text-red-600 dark:text-red-400' : 'text-green-600'}`}>
                       {snapshotMsg}
                     </span>
                   )}
@@ -1176,14 +1176,14 @@ export const Configuracoes: React.FC = () => {
               </div>
 
               {snapshotsDisponiveis.length > 0 && (
-                <div className="mt-8 border-t border-gray-200 pt-6">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">Ultimos Snapshots Salvos</h3>
-                  <div className="rounded-lg border border-gray-200 overflow-hidden">
+                <div className="mt-8 border-t border-gray-200 dark:border-slate-700 pt-6">
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">Ultimos Snapshots Salvos</h3>
+                  <div className="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
                     <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
+                      <thead className="bg-gray-50 dark:bg-slate-900">
                         <tr>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Data</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Salvo em</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400">Data</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400">Salvo em</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
@@ -1196,9 +1196,9 @@ export const Configuracoes: React.FC = () => {
                             criado = d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
                           }
                           return (
-                            <tr key={s.data_snapshot} className="hover:bg-gray-50">
-                              <td className="px-4 py-2 text-sm text-gray-900">{dia}/{mes}/{ano}</td>
-                              <td className="px-4 py-2 text-sm text-gray-500">{criado}</td>
+                            <tr key={s.data_snapshot} className="hover:bg-gray-50 dark:bg-slate-900">
+                              <td className="px-4 py-2 text-sm text-gray-900 dark:text-slate-100">{dia}/{mes}/{ano}</td>
+                              <td className="px-4 py-2 text-sm text-gray-500 dark:text-slate-400">{criado}</td>
                             </tr>
                           );
                         })}
@@ -1212,9 +1212,9 @@ export const Configuracoes: React.FC = () => {
         )}
         {abaAtiva === 'diagnostico' && (
           <div>
-            <div className="bg-purple-50 px-6 py-3 border-b border-gray-200">
+            <div className="bg-purple-50 px-6 py-3 border-b border-gray-200 dark:border-slate-700">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">
+                <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
                   {empresasCentros.length} empresa(s) cadastrada(s) com seus centros de custo
                 </span>
                 <button
@@ -1228,9 +1228,9 @@ export const Configuracoes: React.FC = () => {
               </div>
             </div>
             {loadingDiagnostico ? (
-              <div className="px-6 py-8 text-center text-gray-500">Carregando...</div>
+              <div className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">Carregando...</div>
             ) : empresasCentros.length === 0 ? (
-              <div className="px-6 py-8 text-center text-gray-500">Nenhuma empresa encontrada</div>
+              <div className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">Nenhuma empresa encontrada</div>
             ) : (
               <div className="divide-y divide-gray-200">
                 {empresasCentros
@@ -1242,14 +1242,14 @@ export const Configuracoes: React.FC = () => {
                       <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
                         ID {empresa.id}
                       </span>
-                      <span className="font-semibold text-gray-900">{empresa.nome}</span>
+                      <span className="font-semibold text-gray-900 dark:text-slate-100">{empresa.nome}</span>
                       <span className="text-xs text-gray-400">{empresa.centros.length} centro(s)</span>
                     </div>
                     <div className="ml-4 flex flex-wrap gap-2">
                       {empresa.centros.map(cc => (
                         <span
                           key={cc.id}
-                          className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700"
+                          className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700 dark:text-slate-300"
                         >
                           <span className="font-mono text-gray-400">{cc.id}</span>
                           {cc.nome}
@@ -1265,8 +1265,8 @@ export const Configuracoes: React.FC = () => {
 
         {abaAtiva === 'feriados' && (
           <div>
-            <div className="bg-blue-50 px-6 py-4 border-b border-gray-200">
-              <p className="text-sm text-gray-600 mb-3">
+            <div className="bg-blue-50 px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+              <p className="text-sm text-gray-600 dark:text-slate-400 mb-3">
                 Cadastre feriados nacionais, estaduais e municipais. No dia seguinte a um feriado, contas com vencimento no feriado aparecem como "Vence Hoje" nas telas de Contas a Pagar.
               </p>
               <div className="flex items-center gap-3 flex-wrap">
@@ -1274,14 +1274,14 @@ export const Configuracoes: React.FC = () => {
                   type="date"
                   value={novoFeriadoData}
                   onChange={(e) => setNovoFeriadoData(e.target.value)}
-                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                  className="rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                 />
                 <input
                   type="text"
                   value={novoFeriadoDescricao}
                   onChange={(e) => setNovoFeriadoDescricao(e.target.value)}
                   placeholder="Ex: Tiradentes, Aniversário de Porto Velho..."
-                  className="flex-1 min-w-[200px] rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                  className="flex-1 min-w-[200px] rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                   onKeyDown={(e) => { if (e.key === 'Enter') adicionarFeriado(); }}
                 />
                 <button
@@ -1293,14 +1293,14 @@ export const Configuracoes: React.FC = () => {
                   {feriadosSalvando ? 'Salvando...' : '+ Adicionar'}
                 </button>
                 {feriadosMsg && (
-                  <span className={`text-sm ${feriadosMsg.includes('Erro') ? 'text-red-600' : 'text-green-600'}`}>
+                  <span className={`text-sm ${feriadosMsg.includes('Erro') ? 'text-red-600 dark:text-red-400' : 'text-green-600'}`}>
                     {feriadosMsg}
                   </span>
                 )}
               </div>
             </div>
             {feriadosList.length === 0 ? (
-              <div className="px-6 py-8 text-center text-gray-500">Nenhum feriado cadastrado</div>
+              <div className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">Nenhum feriado cadastrado</div>
             ) : (
               <div className="divide-y divide-gray-200">
                 {feriadosList
@@ -1312,16 +1312,16 @@ export const Configuracoes: React.FC = () => {
                     const d = new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia));
                     const diaSemana = d.toLocaleDateString('pt-BR', { weekday: 'long' });
                     return (
-                      <div key={f.id} className="flex items-center justify-between px-6 py-3 hover:bg-gray-50">
+                      <div key={f.id} className="flex items-center justify-between px-6 py-3 hover:bg-gray-50 dark:bg-slate-900">
                         <div className="flex items-center gap-4">
-                          <span className="text-sm font-mono font-medium text-gray-700 w-24">{dataFormatada}</span>
+                          <span className="text-sm font-mono font-medium text-gray-700 dark:text-slate-300 w-24">{dataFormatada}</span>
                           <span className="text-xs text-gray-400 w-24 capitalize">{diaSemana}</span>
-                          <span className="text-sm text-gray-900">{f.descricao}</span>
+                          <span className="text-sm text-gray-900 dark:text-slate-100">{f.descricao}</span>
                         </div>
                         <button
                           type="button"
                           onClick={() => removerFeriado(f.id)}
-                          className="text-red-400 hover:text-red-600 transition-colors"
+                          className="text-red-400 hover:text-red-600 dark:text-red-400 transition-colors"
                           title="Remover feriado"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -1339,9 +1339,9 @@ export const Configuracoes: React.FC = () => {
         {abaAtiva === 'orcamentos' && (
           <div>
             {/* CUB/RO info bar */}
-            <div className="bg-blue-50 px-6 py-3 border-b border-gray-200">
+            <div className="bg-blue-50 px-6 py-3 border-b border-gray-200 dark:border-slate-700">
               <div className="flex items-center gap-4 flex-wrap">
-                <span className="text-sm font-medium text-gray-700">CUB/RO (R$/m²):</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-slate-300">CUB/RO (R$/m²):</span>
                 <input
                   type="number"
                   step="0.01"
@@ -1349,7 +1349,7 @@ export const Configuracoes: React.FC = () => {
                   onChange={(e) => setCubValor(parseFloat(e.target.value) || 0)}
                   className="w-32 text-sm font-semibold border border-blue-200 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
                 />
-                <span className="text-sm text-gray-500">Referência:</span>
+                <span className="text-sm text-gray-500 dark:text-slate-400">Referência:</span>
                 <input
                   type="text"
                   value={cubReferencia}
@@ -1361,22 +1361,22 @@ export const Configuracoes: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-green-50 px-6 py-3 border-b border-gray-200">
+            <div className="bg-green-50 px-6 py-3 border-b border-gray-200 dark:border-slate-700">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-gray-700">
+                  <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
                     {empreendimentosConfig.length} empreendimento(s)
                   </span>
                   <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
                     {empreendimentosConfig.filter(e => e.status === 'ativa').length} ativa(s)
                   </span>
-                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:text-slate-400">
                     {empreendimentosConfig.filter(e => e.status === 'finalizada').length} finalizada(s)
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   {orcamentosMsg && (
-                    <span className={`text-sm ${orcamentosMsg.includes('Erro') ? 'text-red-600' : 'text-green-600'}`}>
+                    <span className={`text-sm ${orcamentosMsg.includes('Erro') ? 'text-red-600 dark:text-red-400' : 'text-green-600'}`}>
                       {orcamentosMsg}
                     </span>
                   )}
@@ -1400,9 +1400,9 @@ export const Configuracoes: React.FC = () => {
             </div>
 
             {loadingOrcamentos ? (
-              <div className="px-6 py-8 text-center text-gray-500">Carregando...</div>
+              <div className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">Carregando...</div>
             ) : empreendimentosConfig.length === 0 ? (
-              <div className="px-6 py-8 text-center text-gray-500">Nenhum empreendimento configurado</div>
+              <div className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">Nenhum empreendimento configurado</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 table-fixed">
@@ -1416,30 +1416,30 @@ export const Configuracoes: React.FC = () => {
                     <col className="w-40" />
                     <col className="w-12" />
                   </colgroup>
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-50 dark:bg-slate-900">
                     <tr>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cod</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empreendimento</th>
-                      <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">CC</th>
-                      <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">M²</th>
-                      <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Fator</th>
-                      <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Orçamento (R$)</th>
-                      <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Cod</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Empreendimento</th>
+                      <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">CC</th>
+                      <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
+                      <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">M²</th>
+                      <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Fator</th>
+                      <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Orçamento (R$)</th>
+                      <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
+                  <tbody className="divide-y divide-gray-200 bg-white dark:bg-slate-800">
                     {empreendimentosConfig
                       .filter(e => !busca || e.nome.toLowerCase().includes(busca.toLowerCase()) || e.codigo.toLowerCase().includes(busca.toLowerCase()))
                       .map(emp => (
-                      <tr key={emp.id} className={`hover:bg-gray-50 ${emp.status === 'finalizada' ? 'bg-gray-50' : ''}`}>
-                        <td className="px-3 py-3 text-sm text-gray-500 font-mono">{emp.id}</td>
+                      <tr key={emp.id} className={`hover:bg-gray-50 dark:bg-slate-900 ${emp.status === 'finalizada' ? 'bg-gray-50 dark:bg-slate-900' : ''}`}>
+                        <td className="px-3 py-3 text-sm text-gray-500 dark:text-slate-400 font-mono">{emp.id}</td>
                         <td className="px-3 py-3">
                           <input
                             type="text"
                             value={emp.nome}
                             onChange={(e) => updateEmpreendimentoField(emp.id, 'nome', e.target.value)}
-                            className={`w-full text-sm border-0 bg-transparent focus:ring-1 focus:ring-blue-500 rounded px-1 py-0.5 ${emp.status === 'finalizada' ? 'text-gray-400' : 'text-gray-900'}`}
+                            className={`w-full text-sm border-0 bg-transparent focus:ring-1 focus:ring-blue-500 rounded px-1 py-0.5 ${emp.status === 'finalizada' ? 'text-gray-400' : 'text-gray-900 dark:text-slate-100'}`}
                           />
                         </td>
                         <td className="px-3 py-3">
@@ -1447,7 +1447,7 @@ export const Configuracoes: React.FC = () => {
                             type="number"
                             value={emp.centro_custo_id ?? ''}
                             onChange={(e) => updateEmpreendimentoField(emp.id, 'centro_custo_id', e.target.value ? parseInt(e.target.value) : null)}
-                            className="w-full text-sm text-center border border-gray-200 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
+                            className="w-full text-sm text-center border border-gray-200 dark:border-slate-700 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
                             placeholder="CC"
                           />
                         </td>
@@ -1458,7 +1458,7 @@ export const Configuracoes: React.FC = () => {
                             className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium cursor-pointer ${
                               emp.status === 'ativa'
                                 ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                : 'bg-gray-100 text-gray-600 dark:text-slate-400 hover:bg-gray-200'
                             }`}
                           >
                             {emp.status === 'ativa' ? 'Ativa' : 'Finalizada'}
@@ -1470,7 +1470,7 @@ export const Configuracoes: React.FC = () => {
                             step="0.01"
                             value={emp.metragem}
                             onChange={(e) => updateEmpreendimentoField(emp.id, 'metragem', parseFloat(e.target.value) || 0)}
-                            className="w-full text-sm text-right border border-gray-200 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
+                            className="w-full text-sm text-right border border-gray-200 dark:border-slate-700 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
                           />
                         </td>
                         <td className="px-3 py-3">
@@ -1479,17 +1479,17 @@ export const Configuracoes: React.FC = () => {
                             step="0.01"
                             value={emp.fator}
                             onChange={(e) => updateEmpreendimentoField(emp.id, 'fator', parseFloat(e.target.value) || 0)}
-                            className="w-full text-sm text-right border border-gray-200 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
+                            className="w-full text-sm text-right border border-gray-200 dark:border-slate-700 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
                           />
                         </td>
-                        <td className="px-3 py-3 text-right text-sm font-medium text-gray-700 whitespace-nowrap">
+                        <td className="px-3 py-3 text-right text-sm font-medium text-gray-700 dark:text-slate-300 whitespace-nowrap">
                           {((emp.metragem || 0) * (emp.fator || 1) * cubValor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-3 py-3 text-center">
                           <button
                             type="button"
                             onClick={() => removerEmpreendimento(emp.id)}
-                            className="text-red-400 hover:text-red-600 transition-colors"
+                            className="text-red-400 hover:text-red-600 dark:text-red-400 transition-colors"
                             title="Remover empreendimento"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">

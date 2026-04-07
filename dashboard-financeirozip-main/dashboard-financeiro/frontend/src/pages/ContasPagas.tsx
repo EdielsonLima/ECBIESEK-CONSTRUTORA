@@ -984,7 +984,7 @@ export const ContasPagas: React.FC = () => {
       <div className="flex h-96 items-center justify-center">
         <div className="text-center">
           <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-green-600 border-r-transparent"></div>
-          <p className="text-gray-600">Carregando contas...</p>
+          <p className="text-gray-600 dark:text-slate-400">Carregando contas...</p>
         </div>
       </div>
     );
@@ -992,15 +992,15 @@ export const ContasPagas: React.FC = () => {
 
   if (error) {
     return (
-      <div className="rounded-lg bg-red-50 p-4">
+      <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-4">
         <p className="text-red-800">{error}</p>
       </div>
     );
   }
 
   const renderFiltros = () => (
-    <div className="mt-6 rounded-lg bg-white p-6 shadow">
-      <h3 className="mb-4 text-lg font-semibold text-gray-900">Filtros Avancados</h3>
+    <div className="mt-6 rounded-lg bg-white dark:bg-slate-800 p-6 shadow">
+      <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-slate-100">Filtros Avancados</h3>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <SearchableMultiSelect
@@ -1084,22 +1084,22 @@ export const ContasPagas: React.FC = () => {
         />
 
         <div className="relative">
-          <label className="mb-2 block text-sm font-medium text-gray-700">
+          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-300">
             Ano
           </label>
           <button
             type="button"
             onClick={() => setMostrarDropdownAnos(!mostrarDropdownAnos)}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-blue-500 focus:outline-none"
+            className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-left focus:border-blue-500 focus:outline-none"
           >
             {filtroAno.length > 0 ? `${filtroAno.length} ano(s) selecionado(s)` : 'Todos os anos'}
           </button>
           {mostrarDropdownAnos && (
-            <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-300 bg-white shadow-lg">
+            <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-lg">
               {anos.map((ano) => (
                 <label
                   key={ano}
-                  className="flex cursor-pointer items-center px-3 py-2 hover:bg-gray-50"
+                  className="flex cursor-pointer items-center px-3 py-2 hover:bg-gray-50 dark:bg-slate-900"
                 >
                   <input
                     type="checkbox"
@@ -1111,9 +1111,9 @@ export const ContasPagas: React.FC = () => {
                         setFiltroAno(filtroAno.filter((a) => a !== ano));
                       }
                     }}
-                    className="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="mr-2 h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm text-gray-700">{ano}</span>
+                  <span className="text-sm text-gray-700 dark:text-slate-300">{ano}</span>
                 </label>
               ))}
             </div>
@@ -1121,22 +1121,22 @@ export const ContasPagas: React.FC = () => {
         </div>
 
         <div className="relative">
-          <label className="mb-2 block text-sm font-medium text-gray-700">
+          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-300">
             Mês
           </label>
           <button
             type="button"
             onClick={() => setMostrarDropdownMeses(!mostrarDropdownMeses)}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-blue-500 focus:outline-none"
+            className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-left focus:border-blue-500 focus:outline-none"
           >
             {filtroMes.length > 0 ? `${filtroMes.length} mês(es) selecionado(s)` : 'Todos os meses'}
           </button>
           {mostrarDropdownMeses && (
-            <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-300 bg-white shadow-lg">
+            <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-lg">
               {meses.map((mes) => (
                 <label
                   key={mes.valor}
-                  className="flex cursor-pointer items-center px-3 py-2 hover:bg-gray-50"
+                  className="flex cursor-pointer items-center px-3 py-2 hover:bg-gray-50 dark:bg-slate-900"
                 >
                   <input
                     type="checkbox"
@@ -1148,9 +1148,9 @@ export const ContasPagas: React.FC = () => {
                         setFiltroMes(filtroMes.filter((m) => m !== mes.valor));
                       }
                     }}
-                    className="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="mr-2 h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm text-gray-700">{mes.nome}</span>
+                  <span className="text-sm text-gray-700 dark:text-slate-300">{mes.nome}</span>
                 </label>
               ))}
             </div>
@@ -1158,7 +1158,7 @@ export const ContasPagas: React.FC = () => {
         </div>
 
         <div>
-          <label htmlFor="data-inicio" className="mb-2 block text-sm font-medium text-gray-700">
+          <label htmlFor="data-inicio" className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-300">
             Data Inicio
           </label>
           <input
@@ -1168,12 +1168,12 @@ export const ContasPagas: React.FC = () => {
             onChange={(e) => setFiltroDataInicio(e.target.value)}
             min="2000-01-01"
             max="2099-12-31"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            className="w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 focus:border-blue-500 focus:outline-none"
           />
         </div>
 
         <div>
-          <label htmlFor="data-fim" className="mb-2 block text-sm font-medium text-gray-700">
+          <label htmlFor="data-fim" className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-300">
             Data Fim
           </label>
           <input
@@ -1183,7 +1183,7 @@ export const ContasPagas: React.FC = () => {
             onChange={(e) => setFiltroDataFim(e.target.value)}
             min="2000-01-01"
             max="2099-12-31"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            className="w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 focus:border-blue-500 focus:outline-none"
           />
         </div>
       </div>
@@ -1215,7 +1215,7 @@ export const ContasPagas: React.FC = () => {
             limparFiltros();
             setTimeout(buscarContas, 100);
           }}
-          className="rounded-lg border border-gray-300 px-6 py-2 text-gray-700 hover:bg-gray-50"
+          className="rounded-lg border border-gray-300 dark:border-slate-600 px-6 py-2 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:bg-slate-900"
         >
           Limpar Filtros
         </button>
@@ -1233,7 +1233,7 @@ export const ContasPagas: React.FC = () => {
           <button
             type="button"
             onClick={removerFiltrosPadrao}
-            className="flex items-center rounded-lg border border-red-300 px-5 py-2 text-red-600 hover:bg-red-50"
+            className="flex items-center rounded-lg border border-red-300 px-5 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:bg-red-900/20"
           >
             <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -1304,10 +1304,10 @@ export const ContasPagas: React.FC = () => {
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
                 Pagamentos por Fornecedor
               </h2>
-              <p className="mt-1 text-sm text-gray-600">
+              <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
                 Ref.: {refDateFormatted} &middot; {dadosFornecedores?.total_fornecedores || 0} fornecedor(es)
                 {(buscaFornecedor || filtroPeriodo !== 'todos') && ` \u00b7 ${fornecedoresFiltrados.length} exibido(s)`}
               </p>
@@ -1345,7 +1345,7 @@ export const ContasPagas: React.FC = () => {
                 </svg>
                 {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
                 {filtrosAtivos.length > 0 && (
-                  <span className="ml-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-bold text-blue-600">
+                  <span className="ml-2 flex h-6 w-6 items-center justify-center rounded-full bg-white dark:bg-slate-800 text-xs font-bold text-blue-600">
                     {filtrosAtivos.length}
                   </span>
                 )}
@@ -1369,7 +1369,7 @@ export const ContasPagas: React.FC = () => {
                   limparFiltros();
                   setTimeout(buscarContas, 100);
                 }}
-                className="text-sm text-gray-500 hover:text-gray-700 underline"
+                className="text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300 underline"
               >
                 Limpar todos
               </button>
@@ -1386,9 +1386,9 @@ export const ContasPagas: React.FC = () => {
             value={buscaFornecedor}
             onChange={(e) => setBuscaFornecedor(e.target.value)}
             placeholder="Buscar fornecedor..."
-            className="w-full max-w-md rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-green-500 focus:outline-none"
+            className="w-full max-w-md rounded-lg border border-gray-300 dark:border-slate-600 px-4 py-2 text-sm focus:border-green-500 focus:outline-none"
           />
-          <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+          <div className="flex rounded-lg border border-gray-300 dark:border-slate-600 overflow-hidden">
             {([
               { key: 'todos' as const, label: 'Todos' },
               { key: '7d' as const, label: '7 Dias' },
@@ -1402,8 +1402,8 @@ export const ContasPagas: React.FC = () => {
                 className={`px-4 py-2 text-sm font-medium transition-colors ${
                   filtroPeriodo === key
                     ? 'bg-green-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-100'
-                } ${key !== 'todos' ? 'border-l border-gray-300' : ''}`}
+                    : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-100'
+                } ${key !== 'todos' ? 'border-l border-gray-300 dark:border-slate-600' : ''}`}
               >
                 {label}
               </button>
@@ -1461,27 +1461,27 @@ export const ContasPagas: React.FC = () => {
             });
           };
 
-          const thClsFornecedor = "px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100";
-          const thClsDetalhe = "px-3 py-2 text-xs font-medium uppercase text-gray-500 cursor-pointer hover:bg-gray-200";
+          const thClsFornecedor = "px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100";
+          const thClsDetalhe = "px-3 py-2 text-xs font-medium uppercase text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-gray-200";
 
           let acumulado = 0;
 
           return (
-            <div className="rounded-lg bg-white shadow overflow-visible">
+            <div className="rounded-lg bg-white dark:bg-slate-800 shadow overflow-visible">
               <div>
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-green-50 sticky top-[85px] z-30 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
                     <tr>
-                      <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-8"></th>
-                      <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">#</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 w-8"></th>
+                      <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">#</th>
                       <th onClick={() => toggleOrdFornecedor('credor')} className={`${thClsFornecedor} text-left`}>Fornecedor{sortIconFornecedor('credor')}</th>
                       <th onClick={() => toggleOrdFornecedor('titulos_total')} className={`${thClsFornecedor} text-center`}>Qtd Titulos{sortIconFornecedor('titulos_total')}</th>
                       <th onClick={() => toggleOrdFornecedor('valor_total')} className={`${thClsFornecedor} text-right`}>Valor Pago{sortIconFornecedor('valor_total')}</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">% do Total</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">% Acumulado</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">% do Total</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">% Acumulado</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
+                  <tbody className="divide-y divide-gray-200 bg-white dark:bg-slate-800">
                     {fornecedoresOrdenados.map((f, index) => {
                       const isExpanded = fornecedorExpandido === f.credor;
                       const pctDoTotal = totais.valor_total > 0 ? (f.valor_total / totais.valor_total) * 100 : 0;
@@ -1523,16 +1523,16 @@ export const ContasPagas: React.FC = () => {
                         <React.Fragment key={f.credor}>
                           <tr
                             onClick={handleExpandFornecedor}
-                            className={`cursor-pointer transition-colors duration-150 ${isExpanded ? 'bg-green-100 border-l-4 border-l-green-600' : `${classePareto} hover:bg-gray-50`}`}
+                            className={`cursor-pointer transition-colors duration-150 ${isExpanded ? 'bg-green-100 border-l-4 border-l-green-600' : `${classePareto} hover:bg-gray-50 dark:bg-slate-900`}`}
                           >
                             <td className="px-2 py-3 text-center text-sm text-gray-400">
                               <span className={`inline-block transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>&#9654;</span>
                             </td>
-                            <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-500">{index + 1}</td>
-                            <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 max-w-[400px] truncate" title={f.credor}>{f.credor}</td>
-                            <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-700 font-semibold">{f.titulos_total}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-500 dark:text-slate-400">{index + 1}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-slate-100 max-w-[400px] truncate" title={f.credor}>{f.credor}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-700 dark:text-slate-300 font-semibold">{f.titulos_total}</td>
                             <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-bold text-green-700 font-mono">{formatCurrency(f.valor_total)}</td>
-                            <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-600">
+                            <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-600 dark:text-slate-400">
                               <div className="flex items-center justify-end gap-2">
                                 <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
                                   <div className="h-full bg-green-500 rounded-full" style={{ width: `${Math.min(pctDoTotal, 100)}%` }}></div>
@@ -1540,7 +1540,7 @@ export const ContasPagas: React.FC = () => {
                                 <span className="font-mono">{pctDoTotal.toFixed(2)}%</span>
                               </div>
                             </td>
-                            <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-mono text-gray-600">{acumulado.toFixed(2)}%</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-mono text-gray-600 dark:text-slate-400">{acumulado.toFixed(2)}%</td>
                           </tr>
                           {isExpanded && (
                             <tr>
@@ -1549,17 +1549,17 @@ export const ContasPagas: React.FC = () => {
                                   {fornecedorDetalheLoading === f.credor ? (
                                     <div className="flex items-center justify-center py-6">
                                       <div className="h-6 w-6 animate-spin rounded-full border-2 border-green-600 border-t-transparent"></div>
-                                      <span className="ml-2 text-sm text-gray-500">Carregando pagamentos...</span>
+                                      <span className="ml-2 text-sm text-gray-500 dark:text-slate-400">Carregando pagamentos...</span>
                                     </div>
                                   ) : fornecedorDetalhe[f.credor] ? (
                                     <>
                                       <div className="mb-3 flex items-center justify-between">
-                                        <h4 className="text-sm font-semibold text-gray-900">
+                                        <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-100">
                                           Pagamentos de <span className="text-green-700">{f.credor}</span>
                                           <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">{fornecedorDetalhe[f.credor].length} registro(s)</span>
                                         </h4>
                                       </div>
-                                      <div className="max-h-[400px] overflow-y-auto rounded-lg border border-gray-200">
+                                      <div className="max-h-[400px] overflow-y-auto rounded-lg border border-gray-200 dark:border-slate-700">
                                         <table className="min-w-full divide-y divide-gray-200">
                                           <thead className="bg-gray-100 sticky top-0">
                                             <tr>
@@ -1576,23 +1576,23 @@ export const ContasPagas: React.FC = () => {
                                               <th onClick={() => toggleOrdDetalhe('valor_total')} className={`${thClsDetalhe} text-right`}>Valor Pago{sortIconDetalhe('valor_total')}</th>
                                             </tr>
                                           </thead>
-                                          <tbody className="divide-y divide-gray-100 bg-white">
+                                          <tbody className="divide-y divide-gray-100 bg-white dark:bg-slate-800">
                                             {ordenarDetalheContas(fornecedorDetalhe[f.credor]).map((conta, ci) => {
                                               const diasAtraso = conta.dias_atraso;
-                                              const corAtraso = diasAtraso == null ? 'text-gray-400' : diasAtraso > 0 ? 'text-red-600' : 'text-green-600';
+                                              const corAtraso = diasAtraso == null ? 'text-gray-400' : diasAtraso > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600';
                                               return (
-                                                <tr key={ci} className="hover:bg-gray-50">
-                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-500">{formatDate(conta.data_vencimento)}</td>
-                                                  <td className="whitespace-nowrap px-3 py-2 text-xs font-semibold text-gray-700 font-mono">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
-                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-500">{formatDate(conta.data_pagamento)}</td>
+                                                <tr key={ci} className="hover:bg-gray-50 dark:bg-slate-900">
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-500 dark:text-slate-400">{formatDate(conta.data_vencimento)}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs font-semibold text-gray-700 dark:text-slate-300 font-mono">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-500 dark:text-slate-400">{formatDate(conta.data_pagamento)}</td>
                                                   <td className={`whitespace-nowrap px-3 py-2 text-xs font-semibold text-center ${corAtraso}`}>
                                                     {diasAtraso == null ? '-' : diasAtraso > 0 ? `${diasAtraso}d` : diasAtraso === 0 ? 'No prazo' : `${Math.abs(diasAtraso)}d antecip.`}
                                                   </td>
-                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600 max-w-[150px] truncate" title={`${(conta as any).codigo_centrocusto || ''} - ${conta.nome_centrocusto || ''}`}>{(conta as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(conta as any).codigo_centrocusto}</span> : null}{(conta as any).codigo_centrocusto ? ' ' : ''}{conta.nome_centrocusto || '-'}</td>
-                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600 max-w-[150px] truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
-                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-gray-700">{formatCurrency((conta as any).valor_baixa || 0)}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600 dark:text-slate-400 max-w-[150px] truncate" title={`${(conta as any).codigo_centrocusto || ''} - ${conta.nome_centrocusto || ''}`}>{(conta as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(conta as any).codigo_centrocusto}</span> : null}{(conta as any).codigo_centrocusto ? ' ' : ''}{conta.nome_centrocusto || '-'}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600 dark:text-slate-400 max-w-[150px] truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-gray-700 dark:text-slate-300">{formatCurrency((conta as any).valor_baixa || 0)}</td>
                                                   <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-orange-600">{(conta as any).valor_juros ? formatCurrency((conta as any).valor_juros) : '-'}</td>
-                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-red-600">{(conta as any).valor_acrescimo ? formatCurrency((conta as any).valor_acrescimo) : '-'}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-red-600 dark:text-red-400">{(conta as any).valor_acrescimo ? formatCurrency((conta as any).valor_acrescimo) : '-'}</td>
                                                   <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-blue-600">{(conta as any).valor_desconto ? formatCurrency((conta as any).valor_desconto) : '-'}</td>
                                                   <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono font-bold text-green-700">{formatCurrency(conta.valor_total || 0)}</td>
                                                 </tr>
@@ -1601,10 +1601,10 @@ export const ContasPagas: React.FC = () => {
                                           </tbody>
                                           <tfoot className="bg-gray-100">
                                             <tr>
-                                              <td colSpan={6} className="px-3 py-2 text-xs font-bold text-gray-700">SUBTOTAL</td>
-                                              <td className="px-3 py-2 text-xs text-right font-mono font-bold text-gray-700">{formatCurrency(fornecedorDetalhe[f.credor].reduce((s, c) => s + ((c as any).valor_baixa || 0), 0))}</td>
+                                              <td colSpan={6} className="px-3 py-2 text-xs font-bold text-gray-700 dark:text-slate-300">SUBTOTAL</td>
+                                              <td className="px-3 py-2 text-xs text-right font-mono font-bold text-gray-700 dark:text-slate-300">{formatCurrency(fornecedorDetalhe[f.credor].reduce((s, c) => s + ((c as any).valor_baixa || 0), 0))}</td>
                                               <td className="px-3 py-2 text-xs text-right font-mono font-bold text-orange-600">{formatCurrency(fornecedorDetalhe[f.credor].reduce((s, c) => s + ((c as any).valor_juros || 0), 0))}</td>
-                                              <td className="px-3 py-2 text-xs text-right font-mono font-bold text-red-600">{formatCurrency(fornecedorDetalhe[f.credor].reduce((s, c) => s + ((c as any).valor_acrescimo || 0), 0))}</td>
+                                              <td className="px-3 py-2 text-xs text-right font-mono font-bold text-red-600 dark:text-red-400">{formatCurrency(fornecedorDetalhe[f.credor].reduce((s, c) => s + ((c as any).valor_acrescimo || 0), 0))}</td>
                                               <td className="px-3 py-2 text-xs text-right font-mono font-bold text-blue-600">{formatCurrency(fornecedorDetalhe[f.credor].reduce((s, c) => s + ((c as any).valor_desconto || 0), 0))}</td>
                                               <td className="px-3 py-2 text-xs text-right font-mono font-bold text-green-700">{formatCurrency(fornecedorDetalhe[f.credor].reduce((s, c) => s + (c.valor_total || 0), 0))}</td>
                                             </tr>
@@ -1623,11 +1623,11 @@ export const ContasPagas: React.FC = () => {
                   </tbody>
                   <tfoot className="bg-green-50">
                     <tr>
-                      <td colSpan={3} className="px-4 py-3 text-sm font-bold text-gray-900">TOTAL GERAL</td>
-                      <td className="px-4 py-3 text-center text-sm font-bold text-gray-900">{totais.titulos_total}</td>
+                      <td colSpan={3} className="px-4 py-3 text-sm font-bold text-gray-900 dark:text-slate-100">TOTAL GERAL</td>
+                      <td className="px-4 py-3 text-center text-sm font-bold text-gray-900 dark:text-slate-100">{totais.titulos_total}</td>
                       <td className="px-4 py-3 text-right text-sm font-bold text-green-700 font-mono">{formatCurrency(totais.valor_total)}</td>
-                      <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">100%</td>
-                      <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">-</td>
+                      <td className="px-4 py-3 text-right text-sm font-bold text-gray-900 dark:text-slate-100">100%</td>
+                      <td className="px-4 py-3 text-right text-sm font-bold text-gray-900 dark:text-slate-100">-</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -1723,9 +1723,9 @@ export const ContasPagas: React.FC = () => {
 
   const renderAbaConfiguracoes = () => (
     <div className="space-y-6">
-      <div className="rounded-lg bg-white p-6 shadow">
-        <h2 className="mb-4 text-xl font-bold text-gray-900">Configurações de Filtros Padrão</h2>
-        <p className="mb-6 text-sm text-gray-600">
+      <div className="rounded-lg bg-white dark:bg-slate-800 p-6 shadow">
+        <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-slate-100">Configurações de Filtros Padrão</h2>
+        <p className="mb-6 text-sm text-gray-600 dark:text-slate-400">
           Selecione as empresas e seus respectivos centros de custo que devem ser usados por padrão nos cálculos e consultas.
           As configurações serão salvas no seu navegador.
         </p>
@@ -1733,7 +1733,7 @@ export const ContasPagas: React.FC = () => {
         <div className="space-y-6">
           <div>
             <div className="mb-3 flex items-center justify-between">
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">
                 Empresas e Centros de Custo
               </label>
               <div className="flex gap-2">
@@ -1774,7 +1774,7 @@ export const ContasPagas: React.FC = () => {
               </div>
             </div>
 
-            <div className="max-h-[600px] space-y-1 overflow-auto rounded-lg border border-gray-200 p-3">
+            <div className="max-h-[600px] space-y-1 overflow-auto rounded-lg border border-gray-200 dark:border-slate-700 p-3">
               {empresas.map((empresa) => {
                 const centrosDaEmpresa = getCentrosCustoPorEmpresa(empresa.id);
                 const isExpandida = empresasExpandidas.includes(empresa.id);
@@ -1789,8 +1789,8 @@ export const ContasPagas: React.FC = () => {
                   centrosDaEmpresa.some(c => centrosCustoPadrao.includes(c.id));
 
                 return (
-                  <div key={empresa.id} className="rounded border border-gray-200 bg-white">
-                    <div className="flex items-center gap-2 bg-gray-50 p-3 hover:bg-gray-100">
+                  <div key={empresa.id} className="rounded border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+                    <div className="flex items-center gap-2 bg-gray-50 dark:bg-slate-900 p-3 hover:bg-gray-100">
                       <button
                         type="button"
                         onClick={() => toggleEmpresaExpandida(empresa.id)}
@@ -1813,7 +1813,7 @@ export const ContasPagas: React.FC = () => {
                           type="checkbox"
                           checked={todosOsCentrosSelecionados}
                           onChange={() => toggleEmpresaSelecionada(empresa.id)}
-                          className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          className="h-5 w-5 rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500"
                           style={algunsCentrosSelecionados && !todosOsCentrosSelecionados ? {
                             opacity: 0.6,
                             accentColor: '#FFA500'
@@ -1824,11 +1824,11 @@ export const ContasPagas: React.FC = () => {
                             <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-700">
                               {empresa.id}
                             </span>
-                            <span className="text-sm font-semibold text-gray-900">
+                            <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">
                               {empresa.nome}
                             </span>
                           </div>
-                          <div className="mt-1 text-xs text-gray-500">
+                          <div className="mt-1 text-xs text-gray-500 dark:text-slate-400">
                             {centrosDaEmpresa.length} centro(s) de custo • {' '}
                             {centrosDaEmpresa.filter(c => centrosCustoPadrao.includes(c.id)).length} selecionado(s)
                           </div>
@@ -1837,26 +1837,26 @@ export const ContasPagas: React.FC = () => {
                     </div>
 
                     {isExpandida && centrosDaEmpresa.length > 0 && (
-                      <div className="border-t border-gray-200 bg-white p-2">
+                      <div className="border-t border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2">
                         <div className="space-y-1">
                           {centrosDaEmpresa.map((centro) => (
                             <label
                               key={centro.id}
-                              className="flex cursor-pointer items-center gap-3 rounded p-2 hover:bg-gray-50"
+                              className="flex cursor-pointer items-center gap-3 rounded p-2 hover:bg-gray-50 dark:bg-slate-900"
                             >
                               <div className="w-6"></div>
                               <input
                                 type="checkbox"
                                 checked={centrosCustoPadrao.includes(centro.id)}
                                 onChange={() => toggleCentroCusto(empresa.id, centro.id)}
-                                className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                className="h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-green-600 focus:ring-green-500"
                               />
                               <div className="flex-1">
                                 <div className="flex items-center gap-2">
                                   <span className="rounded bg-green-100 px-2 py-0.5 text-xs font-bold text-green-700">
                                     {centro.id}
                                   </span>
-                                  <span className="text-xs text-gray-700">
+                                  <span className="text-xs text-gray-700 dark:text-slate-300">
                                     {centro.nome}
                                   </span>
                                 </div>
@@ -1868,8 +1868,8 @@ export const ContasPagas: React.FC = () => {
                     )}
 
                     {isExpandida && centrosDaEmpresa.length === 0 && (
-                      <div className="border-t border-gray-200 bg-gray-50 p-3 text-center">
-                        <span className="text-xs text-gray-500">Nenhum centro de custo encontrado</span>
+                      <div className="border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 p-3 text-center">
+                        <span className="text-xs text-gray-500 dark:text-slate-400">Nenhum centro de custo encontrado</span>
                       </div>
                     )}
                   </div>
@@ -1877,15 +1877,15 @@ export const ContasPagas: React.FC = () => {
               })}
             </div>
 
-            <div className="mt-3 flex items-center justify-between rounded-lg bg-gray-50 p-3">
-              <div className="text-sm text-gray-700">
+            <div className="mt-3 flex items-center justify-between rounded-lg bg-gray-50 dark:bg-slate-900 p-3">
+              <div className="text-sm text-gray-700 dark:text-slate-300">
                 <span className="font-semibold">{empresasPadrao.length}</span> empresa(s) • {' '}
                 <span className="font-semibold">{centrosCustoPadrao.length}</span> centro(s) de custo selecionado(s)
               </div>
             </div>
           </div>
 
-          <div className="flex gap-3 border-t border-gray-200 pt-6">
+          <div className="flex gap-3 border-t border-gray-200 dark:border-slate-700 pt-6">
             <button
               type="button"
               onClick={salvarConfiguracoes}
@@ -1927,11 +1927,11 @@ export const ContasPagas: React.FC = () => {
       </div>
 
       {/* Seção de Metas por Origem */}
-      <div className="rounded-lg bg-white p-6 shadow">
+      <div className="rounded-lg bg-white dark:bg-slate-800 p-6 shadow">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Metas por Origem</h2>
-            <p className="text-sm text-gray-600">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Metas por Origem</h2>
+            <p className="text-sm text-gray-600 dark:text-slate-400">
               Defina metas para grupos de origens de pagamento. O sistema calcula automaticamente se a meta foi atingida.
             </p>
           </div>
@@ -1954,33 +1954,33 @@ export const ContasPagas: React.FC = () => {
 
         {/* Formulário para criar/editar meta */}
         {mostrarFormMeta && (
-          <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <h3 className="mb-4 font-semibold text-gray-900">
+          <div className="mb-6 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 p-4">
+            <h3 className="mb-4 font-semibold text-gray-900 dark:text-slate-100">
               {editandoMeta ? 'Editar Meta' : 'Nova Meta'}
             </h3>
             <div className="grid gap-4 md:grid-cols-3">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Descrição</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">Descrição</label>
                 <input
                   type="text"
                   value={novaMetaDescricao}
                   onChange={(e) => setNovaMetaDescricao(e.target.value)}
                   placeholder="Ex: Meta AC + CF"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 focus:border-blue-500 focus:outline-none"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Origens (separadas por vírgula)</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">Origens (separadas por vírgula)</label>
                 <input
                   type="text"
                   value={novaMetaOrigens}
                   onChange={(e) => setNovaMetaOrigens(e.target.value)}
                   placeholder="Ex: AC, CF"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 focus:border-blue-500 focus:outline-none"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Meta (%)</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">Meta (%)</label>
                 <input
                   type="number"
                   value={novaMetaPercentual}
@@ -1989,7 +1989,7 @@ export const ContasPagas: React.FC = () => {
                   min="0"
                   max="100"
                   step="0.1"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 focus:border-blue-500 focus:outline-none"
                 />
               </div>
             </div>
@@ -2005,7 +2005,7 @@ export const ContasPagas: React.FC = () => {
                   setMostrarFormMeta(false);
                   setEditandoMeta(null);
                 }}
-                className="rounded-lg bg-gray-500 px-4 py-2 text-white hover:bg-gray-600"
+                className="rounded-lg bg-gray-50 dark:bg-slate-9000 px-4 py-2 text-white hover:bg-gray-600"
               >
                 Cancelar
               </button>
@@ -2017,20 +2017,20 @@ export const ContasPagas: React.FC = () => {
         {origemMetas.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-slate-900">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Descrição</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Origens</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Meta</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Ações</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Descrição</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Origens</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Meta</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
+              <tbody className="divide-y divide-gray-200 bg-white dark:bg-slate-800">
                 {origemMetas.map((meta) => (
                   <tr key={meta.id}>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900">{meta.descricao}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{meta.origens.join(', ')}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">{meta.meta_percentual}%</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900 dark:text-slate-100">{meta.descricao}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600 dark:text-slate-400">{meta.origens.join(', ')}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-slate-100">{meta.meta_percentual}%</td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm">
                       <button
                         onClick={() => editarMeta(meta)}
@@ -2040,7 +2040,7 @@ export const ContasPagas: React.FC = () => {
                       </button>
                       <button
                         onClick={() => excluirMeta(meta.id)}
-                        className="text-red-600 hover:text-red-800"
+                        className="text-red-600 dark:text-red-400 hover:text-red-800"
                       >
                         Excluir
                       </button>
@@ -2051,12 +2051,12 @@ export const ContasPagas: React.FC = () => {
             </table>
           </div>
         ) : (
-          <div className="rounded-lg bg-gray-50 p-8 text-center">
+          <div className="rounded-lg bg-gray-50 dark:bg-slate-900 p-8 text-center">
             <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
-            <p className="mt-2 text-gray-600">Nenhuma meta definida</p>
-            <p className="text-sm text-gray-500">Clique em "Nova Meta" para criar sua primeira meta</p>
+            <p className="mt-2 text-gray-600 dark:text-slate-400">Nenhuma meta definida</p>
+            <p className="text-sm text-gray-500 dark:text-slate-400">Clique em "Nova Meta" para criar sua primeira meta</p>
           </div>
         )}
 
@@ -2135,8 +2135,8 @@ export const ContasPagas: React.FC = () => {
       <>
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Pagamentos por Centro de Custo</h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Pagamentos por Centro de Custo</h2>
+            <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
               {totalRegistros > 0 ? `${registroInicio} - ${registroFim} de ${totalRegistros.toLocaleString('pt-BR')} registro(s)` : '0 registros'}
             </p>
           </div>
@@ -2152,7 +2152,7 @@ export const ContasPagas: React.FC = () => {
             <button type="button" onClick={() => setMostrarFiltros(!mostrarFiltros)} className="flex items-center rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
               <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
               {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
-              {filtrosAtivosCC.length > 0 && (<span className="ml-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-bold text-blue-600">{filtrosAtivosCC.length}</span>)}
+              {filtrosAtivosCC.length > 0 && (<span className="ml-2 flex h-6 w-6 items-center justify-center rounded-full bg-white dark:bg-slate-800 text-xs font-bold text-blue-600">{filtrosAtivosCC.length}</span>)}
             </button>
           </div>
         </div>
@@ -2160,47 +2160,47 @@ export const ContasPagas: React.FC = () => {
         {!mostrarFiltros && filtrosAtivosCC.length > 0 && (
           <div className="mb-4 flex flex-wrap gap-2">
             {filtrosAtivosCC.map((filtro, index) => (<span key={index} className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800">{filtro}</span>))}
-            <button type="button" onClick={() => { limparFiltros(); setTimeout(buscarContas, 100); }} className="text-sm text-gray-500 hover:text-gray-700 underline">Limpar todos</button>
+            <button type="button" onClick={() => { limparFiltros(); setTimeout(buscarContas, 100); }} className="text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300 underline">Limpar todos</button>
           </div>
         )}
 
         {mostrarFiltros && renderFiltros()}
 
-        <div className="rounded-lg bg-white shadow overflow-visible">
+        <div className="rounded-lg bg-white dark:bg-slate-800 shadow overflow-visible">
           <div>
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-green-50 sticky top-[85px] z-30 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
                 <tr>
-                  <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Centro de Custo{renderSortIcon('nome_centrocusto')}</th>
-                  <th onClick={() => toggleOrdenacao('data_vencimento')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Vencimento{renderSortIcon('data_vencimento')}</th>
-                  <th onClick={() => toggleOrdenacao('lancamento')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Titulo{renderSortIcon('lancamento')}</th>
-                  <th onClick={() => toggleOrdenacao('data_pagamento')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Pagamento{renderSortIcon('data_pagamento')}</th>
-                  <th onClick={() => toggleOrdenacao('dias_atraso')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Atraso{renderSortIcon('dias_atraso')}</th>
-                  <th onClick={() => toggleOrdenacao('credor')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Credor{renderSortIcon('credor')}</th>
-                  <th onClick={() => toggleOrdenacao('nome_plano_financeiro')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Plano Financeiro{renderSortIcon('nome_plano_financeiro')}</th>
-                  <th onClick={() => toggleOrdenacao('valor_baixa')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Valor Original{renderSortIcon('valor_baixa')}</th>
-                  <th onClick={() => toggleOrdenacao('valor_juros')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Juros{renderSortIcon('valor_juros')}</th>
-                  <th onClick={() => toggleOrdenacao('valor_acrescimo')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Acrescimos{renderSortIcon('valor_acrescimo')}</th>
-                  <th onClick={() => toggleOrdenacao('valor_desconto')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Descontos{renderSortIcon('valor_desconto')}</th>
-                  <th onClick={() => toggleOrdenacao('valor_total')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">Valor Pago{renderSortIcon('valor_total')}</th>
+                  <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">Centro de Custo{renderSortIcon('nome_centrocusto')}</th>
+                  <th onClick={() => toggleOrdenacao('data_vencimento')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">Vencimento{renderSortIcon('data_vencimento')}</th>
+                  <th onClick={() => toggleOrdenacao('lancamento')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">Titulo{renderSortIcon('lancamento')}</th>
+                  <th onClick={() => toggleOrdenacao('data_pagamento')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">Pagamento{renderSortIcon('data_pagamento')}</th>
+                  <th onClick={() => toggleOrdenacao('dias_atraso')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">Atraso{renderSortIcon('dias_atraso')}</th>
+                  <th onClick={() => toggleOrdenacao('credor')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">Credor{renderSortIcon('credor')}</th>
+                  <th onClick={() => toggleOrdenacao('nome_plano_financeiro')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">Plano Financeiro{renderSortIcon('nome_plano_financeiro')}</th>
+                  <th onClick={() => toggleOrdenacao('valor_baixa')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">Valor Original{renderSortIcon('valor_baixa')}</th>
+                  <th onClick={() => toggleOrdenacao('valor_juros')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">Juros{renderSortIcon('valor_juros')}</th>
+                  <th onClick={() => toggleOrdenacao('valor_acrescimo')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">Acrescimos{renderSortIcon('valor_acrescimo')}</th>
+                  <th onClick={() => toggleOrdenacao('valor_desconto')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">Descontos{renderSortIcon('valor_desconto')}</th>
+                  <th onClick={() => toggleOrdenacao('valor_total')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">Valor Pago{renderSortIcon('valor_total')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
+              <tbody className="divide-y divide-gray-200 bg-white dark:bg-slate-800">
                 {contasOrdenadas.map((conta, index) => {
                   const diasAtraso = (conta as any).dias_atraso;
-                  const corAtraso = diasAtraso == null ? 'text-gray-400' : diasAtraso > 0 ? 'text-red-600' : 'text-green-600';
+                  const corAtraso = diasAtraso == null ? 'text-gray-400' : diasAtraso > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600';
                   return (
-                    <tr key={index} className="hover:bg-gray-50 transition-colors duration-150">
-                      <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 max-w-[200px] truncate" title={`${(conta as any).codigo_centrocusto || ''} - ${conta.nome_centrocusto || ''}`}>{(conta as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(conta as any).codigo_centrocusto}</span> : null}{(conta as any).codigo_centrocusto ? ' ' : ''}{conta.nome_centrocusto || '-'}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">{formatDate(conta.data_vencimento)}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 font-mono">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">{formatDate(conta.data_pagamento)}</td>
+                    <tr key={index} className="hover:bg-gray-50 dark:bg-slate-900 transition-colors duration-150">
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-slate-100 max-w-[200px] truncate" title={`${(conta as any).codigo_centrocusto || ''} - ${conta.nome_centrocusto || ''}`}>{(conta as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(conta as any).codigo_centrocusto}</span> : null}{(conta as any).codigo_centrocusto ? ' ' : ''}{conta.nome_centrocusto || '-'}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-slate-400">{formatDate(conta.data_vencimento)}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-slate-400 font-mono">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-slate-400">{formatDate(conta.data_pagamento)}</td>
                       <td className={`whitespace-nowrap px-4 py-3 text-sm font-semibold ${corAtraso}`}>{diasAtraso == null ? '-' : diasAtraso > 0 ? `${diasAtraso}d` : diasAtraso === 0 ? 'No prazo' : `${Math.abs(diasAtraso)}d antecip.`}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900 max-w-[200px] truncate" title={conta.credor || '-'}>{conta.credor || '-'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-700 text-right font-mono">{formatCurrency((conta as any).valor_baixa || 0)}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900 dark:text-slate-100 max-w-[200px] truncate" title={conta.credor || '-'}>{conta.credor || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-500 dark:text-slate-400 max-w-[200px] truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-700 dark:text-slate-300 text-right font-mono">{formatCurrency((conta as any).valor_baixa || 0)}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm text-right font-mono text-orange-600">{(conta as any).valor_juros ? formatCurrency((conta as any).valor_juros) : '-'}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-sm text-right font-mono text-red-600">{(conta as any).valor_acrescimo ? formatCurrency((conta as any).valor_acrescimo) : '-'}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-right font-mono text-red-600 dark:text-red-400">{(conta as any).valor_acrescimo ? formatCurrency((conta as any).valor_acrescimo) : '-'}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm text-right font-mono text-blue-600">{(conta as any).valor_desconto ? formatCurrency((conta as any).valor_desconto) : '-'}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm font-bold text-green-700 text-right font-mono">{formatCurrency(conta.valor_total || 0)}</td>
                     </tr>
@@ -2209,10 +2209,10 @@ export const ContasPagas: React.FC = () => {
               </tbody>
               <tfoot className="bg-green-50">
                 <tr>
-                  <td colSpan={7} className="px-4 py-3 text-sm font-bold text-gray-900">SUBTOTAL PAGINA</td>
-                  <td className="px-4 py-3 text-sm font-bold text-gray-700 text-right font-mono">{formatCurrency(totalValorOriginal)}</td>
+                  <td colSpan={7} className="px-4 py-3 text-sm font-bold text-gray-900 dark:text-slate-100">SUBTOTAL PAGINA</td>
+                  <td className="px-4 py-3 text-sm font-bold text-gray-700 dark:text-slate-300 text-right font-mono">{formatCurrency(totalValorOriginal)}</td>
                   <td className="px-4 py-3 text-sm font-bold text-orange-600 text-right font-mono">-</td>
-                  <td className="px-4 py-3 text-sm font-bold text-red-600 text-right font-mono">-</td>
+                  <td className="px-4 py-3 text-sm font-bold text-red-600 dark:text-red-400 text-right font-mono">-</td>
                   <td className="px-4 py-3 text-sm font-bold text-blue-600 text-right font-mono">-</td>
                   <td className="px-4 py-3 text-sm font-bold text-green-700 text-right font-mono">{formatCurrency(totalValorPago)}</td>
                 </tr>
@@ -2223,7 +2223,7 @@ export const ContasPagas: React.FC = () => {
 
         {totalPaginas > 1 && (
           <div className="mt-4 flex items-center justify-between">
-            <p className="text-sm text-gray-500">Mostrando {registroInicio} - {registroFim} de {totalRegistros.toLocaleString('pt-BR')} registros</p>
+            <p className="text-sm text-gray-500 dark:text-slate-400">Mostrando {registroInicio} - {registroFim} de {totalRegistros.toLocaleString('pt-BR')} registros</p>
             <div className="flex items-center gap-1">
               <button onClick={() => carregarPagina(1)} disabled={paginaAtual === 1} className="rounded px-3 py-1 text-sm disabled:opacity-50 hover:bg-gray-100">Primeira</button>
               <button onClick={() => carregarPagina(paginaAtual - 1)} disabled={paginaAtual === 1} className="rounded px-3 py-1 text-sm disabled:opacity-50 hover:bg-gray-100">Anterior</button>
@@ -2304,10 +2304,10 @@ export const ContasPagas: React.FC = () => {
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
                 Pagamentos por Origem
               </h2>
-              <p className="mt-1 text-sm text-gray-600">
+              <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
                 Ref.: {refDateFormatted} &middot; {dadosOrigemTab?.total_origens || 0} origem(ns)
                 {(buscaOrigem || filtroPeriodoOrigem !== 'todos') && ` · ${origensFiltradas.length} exibido(s)`}
               </p>
@@ -2345,7 +2345,7 @@ export const ContasPagas: React.FC = () => {
                 </svg>
                 {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
                 {filtrosAtivosOrigem.length > 0 && (
-                  <span className="ml-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-bold text-blue-600">
+                  <span className="ml-2 flex h-6 w-6 items-center justify-center rounded-full bg-white dark:bg-slate-800 text-xs font-bold text-blue-600">
                     {filtrosAtivosOrigem.length}
                   </span>
                 )}
@@ -2358,7 +2358,7 @@ export const ContasPagas: React.FC = () => {
               {filtrosAtivosOrigem.map((filtro, index) => (
                 <span key={index} className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800">{filtro}</span>
               ))}
-              <button type="button" onClick={() => { limparFiltros(); setTimeout(buscarContas, 100); }} className="text-sm text-gray-500 hover:text-gray-700 underline">Limpar todos</button>
+              <button type="button" onClick={() => { limparFiltros(); setTimeout(buscarContas, 100); }} className="text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300 underline">Limpar todos</button>
             </div>
           )}
 
@@ -2371,9 +2371,9 @@ export const ContasPagas: React.FC = () => {
             value={buscaOrigem}
             onChange={(e) => setBuscaOrigem(e.target.value)}
             placeholder="Buscar origem..."
-            className="w-full max-w-md rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-green-500 focus:outline-none"
+            className="w-full max-w-md rounded-lg border border-gray-300 dark:border-slate-600 px-4 py-2 text-sm focus:border-green-500 focus:outline-none"
           />
-          <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+          <div className="flex rounded-lg border border-gray-300 dark:border-slate-600 overflow-hidden">
             {([
               { key: 'todos' as const, label: 'Todos' },
               { key: '7d' as const, label: '7 Dias' },
@@ -2387,8 +2387,8 @@ export const ContasPagas: React.FC = () => {
                 className={`px-4 py-2 text-sm font-medium transition-colors ${
                   filtroPeriodoOrigem === key
                     ? 'bg-green-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-100'
-                } ${key !== 'todos' ? 'border-l border-gray-300' : ''}`}
+                    : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-100'
+                } ${key !== 'todos' ? 'border-l border-gray-300 dark:border-slate-600' : ''}`}
               >
                 {label}
               </button>
@@ -2446,26 +2446,26 @@ export const ContasPagas: React.FC = () => {
             });
           };
 
-          const thClsOrig = "px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100";
-          const thClsOrigDet = "px-3 py-2 text-xs font-medium uppercase text-gray-500 cursor-pointer hover:bg-gray-200";
+          const thClsOrig = "px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100";
+          const thClsOrigDet = "px-3 py-2 text-xs font-medium uppercase text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-gray-200";
 
           let acumulado = 0;
 
           return (
-            <div className="rounded-lg bg-white shadow overflow-visible">
+            <div className="rounded-lg bg-white dark:bg-slate-800 shadow overflow-visible">
               <div>
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-green-50 sticky top-[85px] z-30 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
                     <tr>
-                      <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-8"></th>
-                      <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">#</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 w-8"></th>
+                      <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">#</th>
                       <th onClick={() => toggleOrdOrigem('origem')} className={`${thClsOrig} text-left`}>Origem{sortIconOrigem('origem')}</th>
                       <th onClick={() => toggleOrdOrigem('valor_total')} className={`${thClsOrig} text-right`}>Valor Pago{sortIconOrigem('valor_total')}</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">% do Total</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">% Acumulado</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">% do Total</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">% Acumulado</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
+                  <tbody className="divide-y divide-gray-200 bg-white dark:bg-slate-800">
                     {origensOrdenadas.map((o, index) => {
                       const isExpanded = origemExpandida === o.origem;
                       const pctDoTotal = totais.valor_total > 0 ? (o.valor_total / totais.valor_total) * 100 : 0;
@@ -2507,15 +2507,15 @@ export const ContasPagas: React.FC = () => {
                         <React.Fragment key={o.origem}>
                           <tr
                             onClick={handleExpandOrigem}
-                            className={`cursor-pointer transition-colors duration-150 ${isExpanded ? 'bg-green-100 border-l-4 border-l-green-600' : `${classePareto} hover:bg-gray-50`}`}
+                            className={`cursor-pointer transition-colors duration-150 ${isExpanded ? 'bg-green-100 border-l-4 border-l-green-600' : `${classePareto} hover:bg-gray-50 dark:bg-slate-900`}`}
                           >
                             <td className="px-2 py-3 text-center text-sm text-gray-400">
                               <span className={`inline-block transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>&#9654;</span>
                             </td>
-                            <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-500">{index + 1}</td>
-                            <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">{o.origem}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-gray-500 dark:text-slate-400">{index + 1}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-slate-100">{o.origem}</td>
                             <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-bold text-green-700 font-mono">{formatCurrency(o.valor_total)}</td>
-                            <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-600">
+                            <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-600 dark:text-slate-400">
                               <div className="flex items-center justify-end gap-2">
                                 <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
                                   <div className="h-full bg-green-500 rounded-full" style={{ width: `${Math.min(pctDoTotal, 100)}%` }}></div>
@@ -2523,7 +2523,7 @@ export const ContasPagas: React.FC = () => {
                                 <span className="font-mono">{pctDoTotal.toFixed(2)}%</span>
                               </div>
                             </td>
-                            <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-mono text-gray-600">{acumulado.toFixed(2)}%</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-mono text-gray-600 dark:text-slate-400">{acumulado.toFixed(2)}%</td>
                           </tr>
                           {isExpanded && (
                             <tr>
@@ -2532,17 +2532,17 @@ export const ContasPagas: React.FC = () => {
                                   {origemDetalheLoading === o.origem ? (
                                     <div className="flex items-center justify-center py-6">
                                       <div className="h-6 w-6 animate-spin rounded-full border-2 border-green-600 border-t-transparent"></div>
-                                      <span className="ml-2 text-sm text-gray-500">Carregando pagamentos...</span>
+                                      <span className="ml-2 text-sm text-gray-500 dark:text-slate-400">Carregando pagamentos...</span>
                                     </div>
                                   ) : origemDetalhe[o.origem] ? (
                                     <>
                                       <div className="mb-3 flex items-center justify-between">
-                                        <h4 className="text-sm font-semibold text-gray-900">
+                                        <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-100">
                                           Pagamentos - Origem <span className="text-green-700">{o.origem}</span>
                                           <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">{origemDetalhe[o.origem].length} registro(s)</span>
                                         </h4>
                                       </div>
-                                      <div className="max-h-[400px] overflow-y-auto rounded-lg border border-gray-200">
+                                      <div className="max-h-[400px] overflow-y-auto rounded-lg border border-gray-200 dark:border-slate-700">
                                         <table className="min-w-full divide-y divide-gray-200">
                                           <thead className="bg-gray-100 sticky top-0">
                                             <tr>
@@ -2560,24 +2560,24 @@ export const ContasPagas: React.FC = () => {
                                               <th onClick={() => toggleOrdOrigDetalhe('valor_total')} className={`${thClsOrigDet} text-right`}>Valor Pago{sortIconOrigDetalhe('valor_total')}</th>
                                             </tr>
                                           </thead>
-                                          <tbody className="divide-y divide-gray-100 bg-white">
+                                          <tbody className="divide-y divide-gray-100 bg-white dark:bg-slate-800">
                                             {ordenarOrigDetalhe(origemDetalhe[o.origem]).map((conta, ci) => {
                                               const diasAtraso = conta.dias_atraso;
-                                              const corAtraso = diasAtraso == null ? 'text-gray-400' : diasAtraso > 0 ? 'text-red-600' : 'text-green-600';
+                                              const corAtraso = diasAtraso == null ? 'text-gray-400' : diasAtraso > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600';
                                               return (
-                                                <tr key={ci} className="hover:bg-gray-50">
-                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-500">{formatDate(conta.data_vencimento)}</td>
-                                                  <td className="whitespace-nowrap px-3 py-2 text-xs font-semibold text-gray-700 font-mono">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
-                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-500">{formatDate(conta.data_pagamento)}</td>
+                                                <tr key={ci} className="hover:bg-gray-50 dark:bg-slate-900">
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-500 dark:text-slate-400">{formatDate(conta.data_vencimento)}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs font-semibold text-gray-700 dark:text-slate-300 font-mono">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-500 dark:text-slate-400">{formatDate(conta.data_pagamento)}</td>
                                                   <td className={`whitespace-nowrap px-3 py-2 text-xs font-semibold text-center ${corAtraso}`}>
                                                     {diasAtraso == null ? '-' : diasAtraso > 0 ? `${diasAtraso}d` : diasAtraso === 0 ? 'No prazo' : `${Math.abs(diasAtraso)}d antecip.`}
                                                   </td>
-                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-900 max-w-[150px] truncate" title={conta.credor || '-'}>{conta.credor || '-'}</td>
-                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600 max-w-[150px] truncate" title={`${(conta as any).codigo_centrocusto || ''} - ${conta.nome_centrocusto || ''}`}>{(conta as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(conta as any).codigo_centrocusto}</span> : null}{(conta as any).codigo_centrocusto ? ' ' : ''}{conta.nome_centrocusto || '-'}</td>
-                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600 max-w-[150px] truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
-                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-gray-700">{formatCurrency((conta as any).valor_baixa || 0)}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-900 dark:text-slate-100 max-w-[150px] truncate" title={conta.credor || '-'}>{conta.credor || '-'}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600 dark:text-slate-400 max-w-[150px] truncate" title={`${(conta as any).codigo_centrocusto || ''} - ${conta.nome_centrocusto || ''}`}>{(conta as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(conta as any).codigo_centrocusto}</span> : null}{(conta as any).codigo_centrocusto ? ' ' : ''}{conta.nome_centrocusto || '-'}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600 dark:text-slate-400 max-w-[150px] truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-gray-700 dark:text-slate-300">{formatCurrency((conta as any).valor_baixa || 0)}</td>
                                                   <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-orange-600">{(conta as any).valor_juros ? formatCurrency((conta as any).valor_juros) : '-'}</td>
-                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-red-600">{(conta as any).valor_acrescimo ? formatCurrency((conta as any).valor_acrescimo) : '-'}</td>
+                                                  <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-red-600 dark:text-red-400">{(conta as any).valor_acrescimo ? formatCurrency((conta as any).valor_acrescimo) : '-'}</td>
                                                   <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono text-blue-600">{(conta as any).valor_desconto ? formatCurrency((conta as any).valor_desconto) : '-'}</td>
                                                   <td className="whitespace-nowrap px-3 py-2 text-xs text-right font-mono font-bold text-green-700">{formatCurrency(conta.valor_total || 0)}</td>
                                                 </tr>
@@ -2586,10 +2586,10 @@ export const ContasPagas: React.FC = () => {
                                           </tbody>
                                           <tfoot className="bg-gray-100">
                                             <tr>
-                                              <td colSpan={7} className="px-3 py-2 text-xs font-bold text-gray-700">SUBTOTAL</td>
-                                              <td className="px-3 py-2 text-xs text-right font-mono font-bold text-gray-700">{formatCurrency(origemDetalhe[o.origem].reduce((s, c) => s + ((c as any).valor_baixa || 0), 0))}</td>
+                                              <td colSpan={7} className="px-3 py-2 text-xs font-bold text-gray-700 dark:text-slate-300">SUBTOTAL</td>
+                                              <td className="px-3 py-2 text-xs text-right font-mono font-bold text-gray-700 dark:text-slate-300">{formatCurrency(origemDetalhe[o.origem].reduce((s, c) => s + ((c as any).valor_baixa || 0), 0))}</td>
                                               <td className="px-3 py-2 text-xs text-right font-mono font-bold text-orange-600">{formatCurrency(origemDetalhe[o.origem].reduce((s, c) => s + ((c as any).valor_juros || 0), 0))}</td>
-                                              <td className="px-3 py-2 text-xs text-right font-mono font-bold text-red-600">{formatCurrency(origemDetalhe[o.origem].reduce((s, c) => s + ((c as any).valor_acrescimo || 0), 0))}</td>
+                                              <td className="px-3 py-2 text-xs text-right font-mono font-bold text-red-600 dark:text-red-400">{formatCurrency(origemDetalhe[o.origem].reduce((s, c) => s + ((c as any).valor_acrescimo || 0), 0))}</td>
                                               <td className="px-3 py-2 text-xs text-right font-mono font-bold text-blue-600">{formatCurrency(origemDetalhe[o.origem].reduce((s, c) => s + ((c as any).valor_desconto || 0), 0))}</td>
                                               <td className="px-3 py-2 text-xs text-right font-mono font-bold text-green-700">{formatCurrency(origemDetalhe[o.origem].reduce((s, c) => s + (c.valor_total || 0), 0))}</td>
                                             </tr>
@@ -2608,10 +2608,10 @@ export const ContasPagas: React.FC = () => {
                   </tbody>
                   <tfoot className="bg-green-50">
                     <tr>
-                      <td colSpan={3} className="px-4 py-3 text-sm font-bold text-gray-900">TOTAL GERAL</td>
+                      <td colSpan={3} className="px-4 py-3 text-sm font-bold text-gray-900 dark:text-slate-100">TOTAL GERAL</td>
                       <td className="px-4 py-3 text-right text-sm font-bold text-green-700 font-mono">{formatCurrency(totais.valor_total)}</td>
-                      <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">100%</td>
-                      <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">-</td>
+                      <td className="px-4 py-3 text-right text-sm font-bold text-gray-900 dark:text-slate-100">100%</td>
+                      <td className="px-4 py-3 text-right text-sm font-bold text-gray-900 dark:text-slate-100">-</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -2662,7 +2662,7 @@ export const ContasPagas: React.FC = () => {
               </svg>
               {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
               {filtrosAtivos.length > 0 && (
-                <span className="ml-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-bold text-blue-600">
+                <span className="ml-2 flex h-6 w-6 items-center justify-center rounded-full bg-white dark:bg-slate-800 text-xs font-bold text-blue-600">
                   {filtrosAtivos.length}
                 </span>
               )}
@@ -2692,9 +2692,9 @@ export const ContasPagas: React.FC = () => {
           });
 
           return (
-            <div className="rounded-lg bg-white p-6 shadow">
-              <h3 className="mb-2 text-xl font-semibold text-gray-900">Comparativo Anual: {anoAtual} vs {anoAnterior}</h3>
-              <p className="mb-4 text-sm text-gray-500">
+            <div className="rounded-lg bg-white dark:bg-slate-800 p-6 shadow">
+              <h3 className="mb-2 text-xl font-semibold text-gray-900 dark:text-slate-100">Comparativo Anual: {anoAtual} vs {anoAnterior}</h3>
+              <p className="mb-4 text-sm text-gray-500 dark:text-slate-400">
                 Evolucao mensal dos pagamentos comparando os dois ultimos anos
                 <span className="ml-4 text-xs text-gray-400">(% variacao acima das barras)</span>
               </p>
@@ -2714,17 +2714,17 @@ export const ContasPagas: React.FC = () => {
                           const diferencaAbsoluta = anoAtualValue - anoAnteriorValue;
 
                           return (
-                            <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
-                              <p className="mb-2 font-semibold text-gray-900">Mes: {label}</p>
+                            <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 shadow-lg">
+                              <p className="mb-2 font-semibold text-gray-900 dark:text-slate-100">Mes: {label}</p>
                               {payload.map((entry, idx) => (
                                 <p key={idx} className="text-sm" style={{ color: entry.color }}>
                                   {entry.name}: {formatCurrency(entry.value || 0)}
                                 </p>
                               ))}
-                              <p className={`mt-1 text-sm ${diferencaAbsoluta >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              <p className={`mt-1 text-sm ${diferencaAbsoluta >= 0 ? 'text-green-600' : 'text-red-600 dark:text-red-400'}`}>
                                 Diferenca: {formatCurrency(Math.abs(diferencaAbsoluta))} {diferencaAbsoluta >= 0 ? '↑' : '↓'}
                               </p>
-                              <p className={`mt-1 text-sm font-bold ${variacao >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              <p className={`mt-1 text-sm font-bold ${variacao >= 0 ? 'text-green-600' : 'text-red-600 dark:text-red-400'}`}>
                                 Variacao: {variacao >= 0 ? '+' : ''}{variacao.toFixed(1)}%
                               </p>
                             </div>
@@ -2758,9 +2758,9 @@ export const ContasPagas: React.FC = () => {
         })()}
 
         {comparacaoMensal.length > 0 && (
-          <div className="rounded-lg bg-white p-6 shadow">
-            <h3 className="mb-2 text-xl font-semibold text-gray-900">Evolucao Mensal com Variacao</h3>
-            <p className="mb-4 text-sm text-gray-500">Ultimos 12 meses com variacao percentual em relacao ao mes anterior</p>
+          <div className="rounded-lg bg-white dark:bg-slate-800 p-6 shadow">
+            <h3 className="mb-2 text-xl font-semibold text-gray-900 dark:text-slate-100">Evolucao Mensal com Variacao</h3>
+            <p className="mb-4 text-sm text-gray-500 dark:text-slate-400">Ultimos 12 meses com variacao percentual em relacao ao mes anterior</p>
             <div className="h-96">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={comparacaoMensal} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
@@ -2779,17 +2779,17 @@ export const ContasPagas: React.FC = () => {
                         const valorAnterior = currentIndex > 0 ? comparacaoMensal[currentIndex - 1].valor : null;
 
                         return (
-                          <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
-                            <p className="mb-2 font-semibold text-gray-900">Periodo: {label}</p>
+                          <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 shadow-lg">
+                            <p className="mb-2 font-semibold text-gray-900 dark:text-slate-100">Periodo: {label}</p>
                             <p className="text-sm text-blue-600">
                               Valor Atual: {formatCurrency(valorAtual)}
                             </p>
                             {valorAnterior !== null && (
-                              <p className="text-sm text-gray-600">
+                              <p className="text-sm text-gray-600 dark:text-slate-400">
                                 Mes Anterior: {formatCurrency(valorAnterior)}
                               </p>
                             )}
-                            <p className={`mt-2 text-sm font-bold ${variacao >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            <p className={`mt-2 text-sm font-bold ${variacao >= 0 ? 'text-green-600' : 'text-red-600 dark:text-red-400'}`}>
                               Variacao: {variacao >= 0 ? '+' : ''}{variacao.toFixed(1)}%
                             </p>
                           </div>
@@ -2851,9 +2851,9 @@ export const ContasPagas: React.FC = () => {
           };
 
           return (
-            <div className="rounded-lg bg-white p-6 shadow">
-              <h3 className="mb-2 text-xl font-semibold text-gray-900">Pagamentos por Mes</h3>
-              <p className="mb-4 text-sm text-gray-500">
+            <div className="rounded-lg bg-white dark:bg-slate-800 p-6 shadow">
+              <h3 className="mb-2 text-xl font-semibold text-gray-900 dark:text-slate-100">Pagamentos por Mes</h3>
+              <p className="mb-4 text-sm text-gray-500 dark:text-slate-400">
                 Distribuicao de valores pagos ao longo do periodo selecionado
                 <span className="ml-4 inline-flex items-center gap-4">
                   <span className="flex items-center gap-1">
@@ -2861,7 +2861,7 @@ export const ContasPagas: React.FC = () => {
                     <span className="text-xs">Maior</span>
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="inline-block h-3 w-3 rounded bg-red-500"></span>
+                    <span className="inline-block h-3 w-3 rounded bg-red-50 dark:bg-red-900/200"></span>
                     <span className="text-xs">Menor</span>
                   </span>
                 </span>
@@ -2882,17 +2882,17 @@ export const ContasPagas: React.FC = () => {
                           const valorAnterior = currentIndex > 0 ? dadosComVariacao[currentIndex - 1].valor : null;
 
                           return (
-                            <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
-                              <p className="mb-2 font-semibold text-gray-900">Periodo: {label}</p>
+                            <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 shadow-lg">
+                              <p className="mb-2 font-semibold text-gray-900 dark:text-slate-100">Periodo: {label}</p>
                               <p className="text-sm text-blue-600">
                                 Valor Atual: {formatCurrency(valorAtual)}
                               </p>
                               {valorAnterior !== null && (
                                 <>
-                                  <p className="text-sm text-gray-600">
+                                  <p className="text-sm text-gray-600 dark:text-slate-400">
                                     Mes Anterior: {formatCurrency(valorAnterior)}
                                   </p>
-                                  <p className={`mt-2 text-sm font-bold ${variacao >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  <p className={`mt-2 text-sm font-bold ${variacao >= 0 ? 'text-green-600' : 'text-red-600 dark:text-red-400'}`}>
                                     Variacao: {variacao >= 0 ? '+' : ''}{variacao.toFixed(1)}%
                                   </p>
                                 </>
@@ -2931,9 +2931,9 @@ export const ContasPagas: React.FC = () => {
         })()}
 
         {dadosPorEmpresa.length > 0 && (
-          <div className="rounded-lg bg-white p-6 shadow">
-            <h3 className="mb-2 text-xl font-semibold text-gray-900">Pagamentos por Empresa</h3>
-            <p className="mb-4 text-sm text-gray-500">Ranking das empresas por volume de pagamentos</p>
+          <div className="rounded-lg bg-white dark:bg-slate-800 p-6 shadow">
+            <h3 className="mb-2 text-xl font-semibold text-gray-900 dark:text-slate-100">Pagamentos por Empresa</h3>
+            <p className="mb-4 text-sm text-gray-500 dark:text-slate-400">Ranking das empresas por volume de pagamentos</p>
             <div className="h-96">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={dadosPorEmpresa} layout="vertical" margin={{ top: 5, right: 120, left: 200, bottom: 5 }}>
@@ -2961,9 +2961,9 @@ export const ContasPagas: React.FC = () => {
         )}
 
         {dadosPorOrigem.length > 0 && (
-          <div className="rounded-lg bg-white p-6 shadow">
-            <h3 className="mb-2 text-xl font-semibold text-gray-900">Pagamentos por Origem</h3>
-            <p className="mb-4 text-sm text-gray-500">Distribuicao de pagamentos por tipo de origem</p>
+          <div className="rounded-lg bg-white dark:bg-slate-800 p-6 shadow">
+            <h3 className="mb-2 text-xl font-semibold text-gray-900 dark:text-slate-100">Pagamentos por Origem</h3>
+            <p className="mb-4 text-sm text-gray-500 dark:text-slate-400">Distribuicao de pagamentos por tipo de origem</p>
             <div className="grid gap-6 lg:grid-cols-2">
               <div className="h-[500px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -2990,31 +2990,31 @@ export const ContasPagas: React.FC = () => {
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-50 dark:bg-slate-900">
                     <tr>
-                      <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">Origem</th>
-                      <th className="py-3 px-4 text-right text-sm font-medium text-gray-700">Quantidade</th>
-                      <th className="py-3 px-4 text-right text-sm font-medium text-gray-700">Valor Total</th>
-                      <th className="py-3 px-4 text-right text-sm font-medium text-gray-700">%</th>
+                      <th className="py-3 px-4 text-left text-sm font-medium text-gray-700 dark:text-slate-300">Origem</th>
+                      <th className="py-3 px-4 text-right text-sm font-medium text-gray-700 dark:text-slate-300">Quantidade</th>
+                      <th className="py-3 px-4 text-right text-sm font-medium text-gray-700 dark:text-slate-300">Valor Total</th>
+                      <th className="py-3 px-4 text-right text-sm font-medium text-gray-700 dark:text-slate-300">%</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(() => {
                       const totalValor = dadosPorOrigem.reduce((acc, item) => acc + item.valor, 0);
                       return dadosPorOrigem.map((item, index) => (
-                        <tr key={`origem-row-${index}`} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="py-3 px-4 text-sm font-medium text-gray-900">{item.origem}</td>
-                          <td className="py-3 px-4 text-right text-sm text-gray-600">{item.quantidade.toLocaleString('pt-BR')}</td>
+                        <tr key={`origem-row-${index}`} className="border-b border-gray-100 dark:border-slate-700/50 hover:bg-gray-50 dark:bg-slate-900">
+                          <td className="py-3 px-4 text-sm font-medium text-gray-900 dark:text-slate-100">{item.origem}</td>
+                          <td className="py-3 px-4 text-right text-sm text-gray-600 dark:text-slate-400">{item.quantidade.toLocaleString('pt-BR')}</td>
                           <td className="py-3 px-4 text-right text-sm font-semibold text-purple-600">{formatCurrency(item.valor)}</td>
-                          <td className="py-3 px-4 text-right text-sm text-gray-600">{((item.valor / totalValor) * 100).toFixed(1)}%</td>
+                          <td className="py-3 px-4 text-right text-sm text-gray-600 dark:text-slate-400">{((item.valor / totalValor) * 100).toFixed(1)}%</td>
                         </tr>
                       ));
                     })()}
                     <tr className="bg-gray-100 font-semibold">
-                      <td className="py-3 px-4 text-sm text-gray-900">Total</td>
-                      <td className="py-3 px-4 text-right text-sm text-gray-900">{dadosPorOrigem.reduce((acc, item) => acc + item.quantidade, 0).toLocaleString('pt-BR')}</td>
+                      <td className="py-3 px-4 text-sm text-gray-900 dark:text-slate-100">Total</td>
+                      <td className="py-3 px-4 text-right text-sm text-gray-900 dark:text-slate-100">{dadosPorOrigem.reduce((acc, item) => acc + item.quantidade, 0).toLocaleString('pt-BR')}</td>
                       <td className="py-3 px-4 text-right text-sm text-purple-700">{formatCurrency(dadosPorOrigem.reduce((acc, item) => acc + item.valor, 0))}</td>
-                      <td className="py-3 px-4 text-right text-sm text-gray-900">100%</td>
+                      <td className="py-3 px-4 text-right text-sm text-gray-900 dark:text-slate-100">100%</td>
                     </tr>
                   </tbody>
                 </table>
@@ -3025,11 +3025,11 @@ export const ContasPagas: React.FC = () => {
 
         {/* Painel de Status das Metas por Origem */}
         {origemMetasStatus.length > 0 && (
-          <div className="rounded-lg bg-white p-6 shadow">
+          <div className="rounded-lg bg-white dark:bg-slate-800 p-6 shadow">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h3 className="text-xl font-semibold text-gray-900">Metas por Origem</h3>
-                <p className="text-sm text-gray-500">Acompanhamento do atingimento das metas definidas</p>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-slate-100">Metas por Origem</h3>
+                <p className="text-sm text-gray-500 dark:text-slate-400">Acompanhamento do atingimento das metas definidas</p>
               </div>
               <button
                 onClick={() => setAbaAtiva('configuracoes')}
@@ -3045,22 +3045,22 @@ export const ContasPagas: React.FC = () => {
                   className={`rounded-lg border-2 p-4 ${
                     meta.meta_atingida
                       ? 'border-green-500 bg-green-50'
-                      : 'border-red-500 bg-red-50'
+                      : 'border-red-500 bg-red-50 dark:bg-red-900/20'
                   }`}
                 >
                   <div className="mb-2 flex items-center justify-between">
-                    <h4 className="font-semibold text-gray-900">{meta.descricao}</h4>
+                    <h4 className="font-semibold text-gray-900 dark:text-slate-100">{meta.descricao}</h4>
                     <span
                       className={`rounded-full px-2 py-1 text-xs font-bold ${
                         meta.meta_atingida
                           ? 'bg-green-500 text-white'
-                          : 'bg-red-500 text-white'
+                          : 'bg-red-50 dark:bg-red-900/200 text-white'
                       }`}
                     >
                       {meta.meta_atingida ? 'Atingida' : 'Não Atingida'}
                     </span>
                   </div>
-                  <p className="mb-2 text-sm text-gray-600">
+                  <p className="mb-2 text-sm text-gray-600 dark:text-slate-400">
                     Origens: <span className="font-medium">{meta.origens.join(', ')}</span>
                   </p>
                   <div className="mb-2">
@@ -3071,13 +3071,13 @@ export const ContasPagas: React.FC = () => {
                     <div className="mt-1 h-3 w-full overflow-hidden rounded-full bg-gray-200">
                       <div
                         className={`h-full transition-all ${
-                          meta.meta_atingida ? 'bg-green-500' : 'bg-red-500'
+                          meta.meta_atingida ? 'bg-green-500' : 'bg-red-50 dark:bg-red-900/200'
                         }`}
                         style={{ width: `${Math.min(meta.percentual_atingido, 100)}%` }}
                       />
                     </div>
                   </div>
-                  <div className="mt-2 text-xs text-gray-500">
+                  <div className="mt-2 text-xs text-gray-500 dark:text-slate-400">
                     <span>{formatCurrency(meta.valor_origens)}</span>
                     <span className="mx-1">de</span>
                     <span>{formatCurrency(meta.valor_total)}</span>
@@ -3150,9 +3150,9 @@ export const ContasPagas: React.FC = () => {
               </div>
             </div>
 
-            <div className="rounded-lg bg-white p-6 shadow">
-              <h3 className="mb-2 text-xl font-semibold text-gray-900">Grafico de Pareto - Credores</h3>
-              <p className="mb-4 text-sm text-gray-500">Analise de concentracao de pagamentos por credor</p>
+            <div className="rounded-lg bg-white dark:bg-slate-800 p-6 shadow">
+              <h3 className="mb-2 text-xl font-semibold text-gray-900 dark:text-slate-100">Grafico de Pareto - Credores</h3>
+              <p className="mb-4 text-sm text-gray-500 dark:text-slate-400">Analise de concentracao de pagamentos por credor</p>
               <div className="h-96">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart 
@@ -3186,15 +3186,15 @@ export const ContasPagas: React.FC = () => {
                           const credorData = payload[0]?.payload as RankingCredor | undefined;
                           if (!credorData) return null;
                           return (
-                            <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
-                              <p className="mb-2 font-semibold text-gray-900">{label}</p>
+                            <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 shadow-lg">
+                              <p className="mb-2 font-semibold text-gray-900 dark:text-slate-100">{label}</p>
                               <p className="text-sm text-blue-600">
                                 Valor Pago: {formatCurrency(credorData.valor_pago)}
                               </p>
                               <p className="text-sm text-purple-600">
                                 Percentual: {credorData.percentual.toFixed(2)}%
                               </p>
-                              <p className="text-sm text-red-600">
+                              <p className="text-sm text-red-600 dark:text-red-400">
                                 % Acumulado: {credorData.percentual_acumulado.toFixed(2)}%
                               </p>
                             </div>
@@ -3285,8 +3285,8 @@ export const ContasPagas: React.FC = () => {
       <>
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Detalhamento de Pagamentos</h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Detalhamento de Pagamentos</h2>
+            <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
               {totalRegistros > 0 ? `${registroInicio} - ${registroFim} de ${totalRegistros.toLocaleString('pt-BR')} registro(s)` : '0 registros'}
             </p>
           </div>
@@ -3323,7 +3323,7 @@ export const ContasPagas: React.FC = () => {
               </svg>
               {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
               {filtrosAtivosDados.length > 0 && (
-                <span className="ml-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-bold text-blue-600">
+                <span className="ml-2 flex h-6 w-6 items-center justify-center rounded-full bg-white dark:bg-slate-800 text-xs font-bold text-blue-600">
                   {filtrosAtivosDados.length}
                 </span>
               )}
@@ -3347,7 +3347,7 @@ export const ContasPagas: React.FC = () => {
                 limparFiltros();
                 setTimeout(buscarContas, 100);
               }}
-              className="text-sm text-gray-500 hover:text-gray-700 underline"
+              className="text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300 underline"
             >
               Limpar todos
             </button>
@@ -3356,85 +3356,85 @@ export const ContasPagas: React.FC = () => {
 
         {mostrarFiltros && renderFiltros()}
 
-        <div className="rounded-lg bg-white shadow overflow-visible">
+        <div className="rounded-lg bg-white dark:bg-slate-800 shadow overflow-visible">
           <div>
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-green-50 sticky top-[85px] z-30 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
                 <tr>
-                  <th onClick={() => toggleOrdenacao('credor')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                  <th onClick={() => toggleOrdenacao('credor')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">
                     Credor{renderSortIcon('credor')}
                   </th>
-                  <th onClick={() => toggleOrdenacao('data_vencimento')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                  <th onClick={() => toggleOrdenacao('data_vencimento')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">
                     Vencimento{renderSortIcon('data_vencimento')}
                   </th>
-                  <th onClick={() => toggleOrdenacao('lancamento')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                  <th onClick={() => toggleOrdenacao('lancamento')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">
                     Titulo{renderSortIcon('lancamento')}
                   </th>
-                  <th onClick={() => toggleOrdenacao('data_pagamento')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                  <th onClick={() => toggleOrdenacao('data_pagamento')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">
                     Pagamento{renderSortIcon('data_pagamento')}
                   </th>
-                  <th onClick={() => toggleOrdenacao('dias_atraso')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                  <th onClick={() => toggleOrdenacao('dias_atraso')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">
                     Atraso{renderSortIcon('dias_atraso')}
                   </th>
-                  <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                  <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">
                     Centro de Custo{renderSortIcon('nome_centrocusto')}
                   </th>
-                  <th onClick={() => toggleOrdenacao('nome_plano_financeiro')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                  <th onClick={() => toggleOrdenacao('nome_plano_financeiro')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">
                     Plano Financeiro{renderSortIcon('nome_plano_financeiro')}
                   </th>
-                  <th onClick={() => toggleOrdenacao('valor_baixa')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                  <th onClick={() => toggleOrdenacao('valor_baixa')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">
                     Valor Original{renderSortIcon('valor_baixa')}
                   </th>
-                  <th onClick={() => toggleOrdenacao('valor_juros')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                  <th onClick={() => toggleOrdenacao('valor_juros')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">
                     Juros{renderSortIcon('valor_juros')}
                   </th>
-                  <th onClick={() => toggleOrdenacao('valor_acrescimo')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                  <th onClick={() => toggleOrdenacao('valor_acrescimo')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">
                     Acrescimos{renderSortIcon('valor_acrescimo')}
                   </th>
-                  <th onClick={() => toggleOrdenacao('valor_desconto')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                  <th onClick={() => toggleOrdenacao('valor_desconto')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">
                     Descontos{renderSortIcon('valor_desconto')}
                   </th>
-                  <th onClick={() => toggleOrdenacao('valor_total')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-green-100">
+                  <th onClick={() => toggleOrdenacao('valor_total')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">
                     Valor Pago{renderSortIcon('valor_total')}
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
+              <tbody className="divide-y divide-gray-200 bg-white dark:bg-slate-800">
                 {contasOrdenadas.map((conta, index) => {
                   const diasAtraso = (conta as any).dias_atraso;
-                  const corAtraso = diasAtraso == null ? 'text-gray-400' : diasAtraso > 0 ? 'text-red-600' : diasAtraso === 0 ? 'text-green-600' : 'text-green-600';
+                  const corAtraso = diasAtraso == null ? 'text-gray-400' : diasAtraso > 0 ? 'text-red-600 dark:text-red-400' : diasAtraso === 0 ? 'text-green-600' : 'text-green-600';
 
                   return (
-                    <tr key={index} className="hover:bg-gray-50 transition-colors duration-150">
-                      <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 max-w-[250px] truncate" title={conta.credor || '-'}>
+                    <tr key={index} className="hover:bg-gray-50 dark:bg-slate-900 transition-colors duration-150">
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-slate-100 max-w-[250px] truncate" title={conta.credor || '-'}>
                         {conta.credor || '-'}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-slate-400">
                         {formatDate(conta.data_vencimento)}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 font-mono">
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-slate-400 font-mono">
                         {conta.lancamento ? conta.lancamento.split('/')[0] : '-'}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-slate-400">
                         {formatDate(conta.data_pagamento)}
                       </td>
                       <td className={`whitespace-nowrap px-4 py-3 text-sm font-semibold ${corAtraso}`}>
                         {diasAtraso == null ? '-' : diasAtraso > 0 ? `${diasAtraso}d` : diasAtraso === 0 ? 'No prazo' : `${Math.abs(diasAtraso)}d antecip.`}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 max-w-[180px] truncate" title={`${(conta as any).codigo_centrocusto || ''} - ${conta.nome_centrocusto || ''}`}>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-slate-400 max-w-[180px] truncate" title={`${(conta as any).codigo_centrocusto || ''} - ${conta.nome_centrocusto || ''}`}>
                         {(conta as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(conta as any).codigo_centrocusto}</span> : null}
                         {(conta as any).codigo_centrocusto ? ' ' : ''}{conta.nome_centrocusto || '-'}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate" title={(conta as any).nome_plano_financeiro || '-'}>
+                      <td className="px-4 py-3 text-sm text-gray-500 dark:text-slate-400 max-w-[200px] truncate" title={(conta as any).nome_plano_financeiro || '-'}>
                         {(conta as any).nome_plano_financeiro || '-'}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-700 text-right font-mono">
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-700 dark:text-slate-300 text-right font-mono">
                         {formatCurrency((conta as any).valor_baixa)}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm text-right font-mono text-orange-600">
                         {(conta as any).valor_juros ? formatCurrency((conta as any).valor_juros) : '-'}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-sm text-right font-mono text-red-600">
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-right font-mono text-red-600 dark:text-red-400">
                         {(conta as any).valor_acrescimo ? formatCurrency((conta as any).valor_acrescimo) : '-'}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm text-right font-mono text-blue-600">
@@ -3449,10 +3449,10 @@ export const ContasPagas: React.FC = () => {
               </tbody>
               <tfoot className="bg-green-50">
                 <tr>
-                  <td colSpan={7} className="px-4 py-3 text-sm font-bold text-gray-900">SUBTOTAL PAGINA</td>
-                  <td className="px-4 py-3 text-sm font-bold text-gray-700 text-right font-mono">{formatCurrency(totalValorOriginal)}</td>
+                  <td colSpan={7} className="px-4 py-3 text-sm font-bold text-gray-900 dark:text-slate-100">SUBTOTAL PAGINA</td>
+                  <td className="px-4 py-3 text-sm font-bold text-gray-700 dark:text-slate-300 text-right font-mono">{formatCurrency(totalValorOriginal)}</td>
                   <td className="px-4 py-3 text-sm font-bold text-orange-600 text-right font-mono">-</td>
-                  <td className="px-4 py-3 text-sm font-bold text-red-600 text-right font-mono">-</td>
+                  <td className="px-4 py-3 text-sm font-bold text-red-600 dark:text-red-400 text-right font-mono">-</td>
                   <td className="px-4 py-3 text-sm font-bold text-blue-600 text-right font-mono">-</td>
                   <td className="px-4 py-3 text-sm font-bold text-green-700 text-right font-mono">{formatCurrency(totalValorPago)}</td>
                 </tr>
@@ -3463,7 +3463,7 @@ export const ContasPagas: React.FC = () => {
 
         {totalPaginas > 1 && (
           <div className="mt-4 flex items-center justify-between">
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               Mostrando {registroInicio} - {registroFim} de {totalRegistros.toLocaleString('pt-BR')} registros
             </p>
             <div className="flex items-center gap-1">
@@ -3471,7 +3471,7 @@ export const ContasPagas: React.FC = () => {
                 type="button"
                 onClick={() => carregarPagina(1)}
                 disabled={paginaAtual === 1}
-                className="px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Primeira
               </button>
@@ -3479,7 +3479,7 @@ export const ContasPagas: React.FC = () => {
                 type="button"
                 onClick={() => carregarPagina(paginaAtual - 1)}
                 disabled={paginaAtual === 1}
-                className="px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Anterior
               </button>
@@ -3492,7 +3492,7 @@ export const ContasPagas: React.FC = () => {
                   className={`px-3 py-2 text-sm rounded-lg border ${
                     p === paginaAtual
                       ? 'bg-green-600 text-white border-green-600'
-                      : 'border-gray-300 bg-white hover:bg-gray-50 text-gray-700'
+                      : 'border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:bg-slate-900 text-gray-700 dark:text-slate-300'
                   }`}
                 >
                   {p}
@@ -3503,7 +3503,7 @@ export const ContasPagas: React.FC = () => {
                 type="button"
                 onClick={() => carregarPagina(paginaAtual + 1)}
                 disabled={paginaAtual === totalPaginas}
-                className="px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Proxima
               </button>
@@ -3511,7 +3511,7 @@ export const ContasPagas: React.FC = () => {
                 type="button"
                 onClick={() => carregarPagina(totalPaginas)}
                 disabled={paginaAtual === totalPaginas}
-                className="px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Ultima
               </button>
@@ -3568,7 +3568,7 @@ export const ContasPagas: React.FC = () => {
         })()}
 
       <div className="mb-6">
-        <div className="border-b border-gray-200">
+        <div className="border-b border-gray-200 dark:border-slate-700">
           <nav className="-mb-px flex space-x-8">
             <button
               type="button"
@@ -3576,7 +3576,7 @@ export const ContasPagas: React.FC = () => {
               className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
                 abaAtiva === 'dados'
                   ? 'border-green-500 text-green-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  : 'border-transparent text-gray-500 dark:text-slate-400 hover:border-gray-300 dark:border-slate-600 hover:text-gray-700 dark:text-slate-300'
               }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3590,7 +3590,7 @@ export const ContasPagas: React.FC = () => {
               className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
                 abaAtiva === 'fornecedor'
                   ? 'border-green-500 text-green-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  : 'border-transparent text-gray-500 dark:text-slate-400 hover:border-gray-300 dark:border-slate-600 hover:text-gray-700 dark:text-slate-300'
               }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3604,7 +3604,7 @@ export const ContasPagas: React.FC = () => {
               className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
                 abaAtiva === 'centro-custo'
                   ? 'border-green-500 text-green-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  : 'border-transparent text-gray-500 dark:text-slate-400 hover:border-gray-300 dark:border-slate-600 hover:text-gray-700 dark:text-slate-300'
               }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3618,7 +3618,7 @@ export const ContasPagas: React.FC = () => {
               className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
                 abaAtiva === 'origem'
                   ? 'border-green-500 text-green-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  : 'border-transparent text-gray-500 dark:text-slate-400 hover:border-gray-300 dark:border-slate-600 hover:text-gray-700 dark:text-slate-300'
               }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3632,7 +3632,7 @@ export const ContasPagas: React.FC = () => {
               className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
                 abaAtiva === 'analises'
                   ? 'border-green-500 text-green-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  : 'border-transparent text-gray-500 dark:text-slate-400 hover:border-gray-300 dark:border-slate-600 hover:text-gray-700 dark:text-slate-300'
               }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3646,7 +3646,7 @@ export const ContasPagas: React.FC = () => {
               className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
                 abaAtiva === 'configuracoes'
                   ? 'border-green-500 text-green-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  : 'border-transparent text-gray-500 dark:text-slate-400 hover:border-gray-300 dark:border-slate-600 hover:text-gray-700 dark:text-slate-300'
               }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

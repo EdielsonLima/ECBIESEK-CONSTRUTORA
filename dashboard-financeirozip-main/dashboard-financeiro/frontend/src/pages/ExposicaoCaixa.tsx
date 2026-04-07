@@ -54,12 +54,12 @@ function mesKeyToLabel(mesKey: string): string {
 const TooltipGrafico = ({ active, payload, label }: any) => {
   if (!active || !payload || !payload.length) return null;
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-4 min-w-[220px]">
-      <p className="font-bold text-gray-700 mb-2 text-sm">{label}</p>
+    <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-lg p-4 min-w-[220px]">
+      <p className="font-bold text-gray-700 dark:text-slate-300 mb-2 text-sm">{label}</p>
       {payload.map((entry: any) => (
         <div key={entry.name} className="flex items-center gap-2 text-sm mb-1">
           <span className="w-3 h-3 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: entry.color }} />
-          <span className="text-gray-600 flex-1">{entry.name}</span>
+          <span className="text-gray-600 dark:text-slate-400 flex-1">{entry.name}</span>
           <span className="font-semibold" style={{ color: entry.color }}>
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(entry.value)}
           </span>
@@ -110,23 +110,23 @@ const SelectPesquisavel = ({
       <button
         type="button"
         onClick={() => setAberto(v => !v)}
-        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+        className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white dark:bg-slate-800"
       >
-        <span className="truncate text-gray-700">{nomeAtual}</span>
+        <span className="truncate text-gray-700 dark:text-slate-300">{nomeAtual}</span>
         <svg className={`h-4 w-4 text-gray-400 flex-shrink-0 transition-transform ${aberto ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
       {aberto && (
-        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden">
-          <div className="p-2 border-b border-gray-100">
+        <div className="absolute z-50 mt-1 w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-xl overflow-hidden">
+          <div className="p-2 border-b border-gray-100 dark:border-slate-700/50">
             <input
               autoFocus
               type="text"
               placeholder="Pesquisar..."
               value={busca}
               onChange={e => setBusca(e.target.value)}
-              className="w-full border border-gray-200 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full border border-gray-200 dark:border-slate-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
           </div>
           <div className="max-h-56 overflow-y-auto">
@@ -137,7 +137,7 @@ const SelectPesquisavel = ({
                 key={c.id}
                 type="button"
                 onClick={() => { onChange(c.id === 0 ? null : c.id); setAberto(false); setBusca(''); }}
-                className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-colors ${(c.id === 0 ? null : c.id) === valor ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-700'
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-colors ${(c.id === 0 ? null : c.id) === valor ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-700 dark:text-slate-300'
                   }`}
               >
                 {c.nome}
@@ -394,7 +394,7 @@ export const ExposicaoCaixa: React.FC = () => {
   }, [grafLinhas]);
 
   const centroCustoNome = centrosCusto.find(c => c.id === centroCustoId)?.nome ?? 'Todos os centros de custo';
-  const corRes = (v: number) => v >= 0 ? 'text-green-700 font-semibold' : 'text-red-600 font-semibold';
+  const corRes = (v: number) => v >= 0 ? 'text-green-700 font-semibold' : 'text-red-600 dark:text-red-400 font-semibold';
 
   return (
     <div className="p-6 space-y-5">
@@ -412,8 +412,8 @@ export const ExposicaoCaixa: React.FC = () => {
         <button
           onClick={() => setAba('tabela')}
           className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${aba === 'tabela'
-              ? 'bg-white text-blue-700 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
+              ? 'bg-white dark:bg-slate-800 text-blue-700 shadow-sm'
+              : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300'
             }`}
         >
           Tabela
@@ -421,8 +421,8 @@ export const ExposicaoCaixa: React.FC = () => {
         <button
           onClick={() => setAba('comparativo')}
           className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${aba === 'comparativo'
-              ? 'bg-white text-blue-700 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
+              ? 'bg-white dark:bg-slate-800 text-blue-700 shadow-sm'
+              : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300'
             }`}
         >
           Comparativo
@@ -430,8 +430,8 @@ export const ExposicaoCaixa: React.FC = () => {
         <button
           onClick={() => setAba('grafico')}
           className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${aba === 'grafico'
-              ? 'bg-white text-blue-700 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
+              ? 'bg-white dark:bg-slate-800 text-blue-700 shadow-sm'
+              : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300'
             }`}
         >
           Gráfico
@@ -442,12 +442,12 @@ export const ExposicaoCaixa: React.FC = () => {
       {aba === 'tabela' && (
         <>
           {/* Filtros */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Filtros e Premissas</h3>
+          <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-5 shadow-sm">
+            <h3 className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-4">Filtros e Premissas</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Centro de Custo</label>
+                <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Centro de Custo</label>
                 <SelectPesquisavel
                   centros={centrosCusto}
                   valor={centroCustoId}
@@ -456,16 +456,16 @@ export const ExposicaoCaixa: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Período Início</label>
+                <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Período Início</label>
                 <input type="month" value={dataInicio} onChange={e => setDataInicio(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Período Fim</label>
+                <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Período Fim</label>
                 <input type="month" value={dataFim} onChange={e => setDataFim(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
               </div>
 
@@ -481,13 +481,13 @@ export const ExposicaoCaixa: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Modo do Custo</label>
-                <div className="flex bg-gray-100 rounded-lg p-1 w-fit border border-gray-200">
+                <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Modo do Custo</label>
+                <div className="flex bg-gray-100 rounded-lg p-1 w-fit border border-gray-200 dark:border-slate-700">
                   <button
                     onClick={() => setTipoCusto('simples')}
                     className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${tipoCusto === 'simples'
-                        ? 'bg-white shadow-sm text-purple-700'
-                        : 'text-gray-500 hover:text-gray-700'
+                        ? 'bg-white dark:bg-slate-800 shadow-sm text-purple-700'
+                        : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300'
                       }`}
                   >
                     Simples
@@ -495,8 +495,8 @@ export const ExposicaoCaixa: React.FC = () => {
                   <button
                     onClick={() => setTipoCusto('composto')}
                     className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${tipoCusto === 'composto'
-                        ? 'bg-white shadow-sm text-purple-700'
-                        : 'text-gray-500 hover:text-gray-700'
+                        ? 'bg-white dark:bg-slate-800 shadow-sm text-purple-700'
+                        : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300'
                       }`}
                   >
                     Composto
@@ -519,20 +519,20 @@ export const ExposicaoCaixa: React.FC = () => {
                   <><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> Carregar Dados Reais</>
                 )}
               </button>
-              {erro && <span className="text-red-600 text-sm">{erro}</span>}
+              {erro && <span className="text-red-600 dark:text-red-400 text-sm">{erro}</span>}
               {origensConfigurado && (
-                <span className={`text-xs px-2 py-1 rounded border ${origensSiglas.length > 0 ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                <span className={`text-xs px-2 py-1 rounded border ${origensSiglas.length > 0 ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-red-50 dark:bg-red-900/20 border-red-200 text-red-700 dark:text-red-400'}`}>
                   {origensSiglas.length > 0 ? `Origens: ${origensSiglas.join(', ')}` : 'Sem origens ativas'}
                 </span>
               )}
               {tiposBaixaConfigurado && (
-                <span className={`text-xs px-2 py-1 rounded border ${tiposBaixaIds.length > 0 ? 'bg-teal-50 border-teal-200 text-teal-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                <span className={`text-xs px-2 py-1 rounded border ${tiposBaixaIds.length > 0 ? 'bg-teal-50 border-teal-200 text-teal-700' : 'bg-red-50 dark:bg-red-900/20 border-red-200 text-red-700 dark:text-red-400'}`}>
                   {tiposBaixaIds.length > 0 ? `Tipos baixa: ${tiposBaixaIds.join(', ')}` : 'Sem tipos de baixa ativos'}
                 </span>
               )}
             </div>
 
-            <p className="mt-3 text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
+            <p className="mt-3 text-xs text-gray-500 dark:text-slate-400 bg-gray-50 dark:bg-slate-900 rounded-lg px-3 py-2">
               <strong>Regra:</strong> Quando o acumulado é negativo, a empresa financia as obras com capital próprio.
               <br />
               <strong className="text-purple-600 mt-1 inline-block">Simples: </strong> Reverte e isola apenas o custo do mês atual <span className="opacity-70">( |Exposição| × Taxa )</span>
@@ -548,13 +548,13 @@ export const ExposicaoCaixa: React.FC = () => {
                 <p className="text-xs text-green-600 font-semibold uppercase mb-1">Total Recebido</p>
                 <p className="text-base font-bold text-green-700">{fmt(totais.totalRecebido)}</p>
               </div>
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
-                <p className="text-xs text-red-600 font-semibold uppercase mb-1">Total Pago</p>
-                <p className="text-base font-bold text-red-700">{fmt(totais.totalPago)}</p>
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 rounded-xl p-4 text-center">
+                <p className="text-xs text-red-600 dark:text-red-400 font-semibold uppercase mb-1">Total Pago</p>
+                <p className="text-base font-bold text-red-700 dark:text-red-400">{fmt(totais.totalPago)}</p>
               </div>
-              <div className={`${totais.resultadoFinal >= 0 ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200'} border rounded-xl p-4 text-center`}>
-                <p className={`text-xs font-semibold uppercase mb-1 ${totais.resultadoFinal >= 0 ? 'text-blue-600' : 'text-red-600'}`}>Resultado Final</p>
-                <p className={`text-base font-bold ${totais.resultadoFinal >= 0 ? 'text-blue-700' : 'text-red-700'}`}>{fmt(totais.resultadoFinal)}</p>
+              <div className={`${totais.resultadoFinal >= 0 ? 'bg-blue-50 border-blue-200' : 'bg-red-50 dark:bg-red-900/20 border-red-200'} border rounded-xl p-4 text-center`}>
+                <p className={`text-xs font-semibold uppercase mb-1 ${totais.resultadoFinal >= 0 ? 'text-blue-600' : 'text-red-600 dark:text-red-400'}`}>Resultado Final</p>
+                <p className={`text-base font-bold ${totais.resultadoFinal >= 0 ? 'text-blue-700' : 'text-red-700 dark:text-red-400'}`}>{fmt(totais.resultadoFinal)}</p>
               </div>
               <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 text-center">
                 <p className="text-xs text-purple-600 font-semibold uppercase mb-1">Custo de Oportunidade</p>
@@ -564,18 +564,18 @@ export const ExposicaoCaixa: React.FC = () => {
                 <p className="text-xs text-orange-600 font-semibold uppercase mb-1">Pico Exposição Negativa</p>
                 <p className="text-base font-bold text-orange-700">({fmt(Math.abs(totais.picoExposicao))})</p>
               </div>
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center">
-                <p className="text-xs text-gray-500 font-semibold uppercase mb-1">Meses em Exposição</p>
-                <p className="text-2xl font-bold text-gray-700">{totais.mesesNegativos}</p>
+              <div className="bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl p-4 text-center">
+                <p className="text-xs text-gray-500 dark:text-slate-400 font-semibold uppercase mb-1">Meses em Exposição</p>
+                <p className="text-2xl font-bold text-gray-700 dark:text-slate-300">{totais.mesesNegativos}</p>
                 <p className="text-xs text-gray-400">{totais.mesZero ? `Equilíbrio: mês ${totais.mesZero}` : 'Nunca positivo'}</p>
               </div>
             </div>
           )}
 
           {/* Tabela */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50">
-              <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 dark:border-slate-700/50 bg-gray-50 dark:bg-slate-900">
+              <h3 className="text-sm font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider">
                 Fluxo de Caixa Mensal
                 {linhas.length > 0 && <span className="ml-2 text-gray-400 font-normal text-xs">({linhas.length} meses)</span>}
               </h3>
@@ -608,15 +608,15 @@ export const ExposicaoCaixa: React.FC = () => {
                   <tbody>
                     {linhas.map((linha, i) => {
                       const c = calculado[i];
-                      const zebra = i % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                      const zebra = i % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-gray-50 dark:bg-slate-900';
                       return (
                         <tr key={linha.mesKey} className={`${zebra} hover:bg-blue-50 transition-colors`}>
                           <td className="px-3 py-2 text-center text-gray-400 text-xs">{i + 1}</td>
-                          <td className="px-3 py-2 font-medium text-gray-700">{linha.periodo}</td>
+                          <td className="px-3 py-2 font-medium text-gray-700 dark:text-slate-300">{linha.periodo}</td>
                           <td className="px-3 py-2 bg-green-50 text-right text-sm">
                             {fmtNum(linha.recebido)}
                           </td>
-                          <td className="px-3 py-2 bg-red-50 text-right text-sm">
+                          <td className="px-3 py-2 bg-red-50 dark:bg-red-900/20 text-right text-sm">
                             {fmtNum(linha.pago)}
                           </td>
                           <td className={`px-3 py-2 text-right ${corRes(c.resultadoMensal)}`}>
@@ -667,22 +667,22 @@ export const ExposicaoCaixa: React.FC = () => {
       {aba === 'comparativo' && (
         <>
           {/* Filtros (mesmos da aba Tabela) */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Filtros e Premissas</h3>
+          <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-5 shadow-sm">
+            <h3 className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-4">Filtros e Premissas</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Centro de Custo</label>
+                <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Centro de Custo</label>
                 <SelectPesquisavel centros={centrosCusto} valor={centroCustoId} onChange={setCentroCustoId} />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Período Início</label>
+                <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Período Início</label>
                 <input type="month" value={dataInicio} onChange={e => setDataInicio(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Período Fim</label>
+                <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Período Fim</label>
                 <input type="month" value={dataFim} onChange={e => setDataFim(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-amber-700 mb-1">Taxa Mensal (%)</label>
@@ -703,14 +703,14 @@ export const ExposicaoCaixa: React.FC = () => {
                 </button>
               </div>
             </div>
-            {erro && <p className="mt-2 text-red-600 text-sm">{erro}</p>}
+            {erro && <p className="mt-2 text-red-600 dark:text-red-400 text-sm">{erro}</p>}
           </div>
 
           {linhas.length > 0 && (
             <>
               {/* Resumo Executivo Comparativo */}
-              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">
+              <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-5 shadow-sm">
+                <h3 className="text-sm font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-4">
                   Resumo Executivo — Comparativo Simples vs Composto
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
@@ -718,13 +718,13 @@ export const ExposicaoCaixa: React.FC = () => {
                     <p className="text-xs text-green-600 font-semibold uppercase mb-1">Total Recebido</p>
                     <p className="text-sm font-bold text-green-700">{fmt(totais.totalRecebido)}</p>
                   </div>
-                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
-                    <p className="text-xs text-red-600 font-semibold uppercase mb-1">Total Pago</p>
-                    <p className="text-sm font-bold text-red-700">{fmt(totais.totalPago)}</p>
+                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 rounded-xl p-3 text-center">
+                    <p className="text-xs text-red-600 dark:text-red-400 font-semibold uppercase mb-1">Total Pago</p>
+                    <p className="text-sm font-bold text-red-700 dark:text-red-400">{fmt(totais.totalPago)}</p>
                   </div>
-                  <div className={`${totais.resultadoFinal >= 0 ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200'} border rounded-xl p-3 text-center`}>
-                    <p className={`text-xs font-semibold uppercase mb-1 ${totais.resultadoFinal >= 0 ? 'text-blue-600' : 'text-red-600'}`}>Resultado Final</p>
-                    <p className={`text-sm font-bold ${totais.resultadoFinal >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                  <div className={`${totais.resultadoFinal >= 0 ? 'bg-blue-50 border-blue-200' : 'bg-red-50 dark:bg-red-900/20 border-red-200'} border rounded-xl p-3 text-center`}>
+                    <p className={`text-xs font-semibold uppercase mb-1 ${totais.resultadoFinal >= 0 ? 'text-blue-600' : 'text-red-600 dark:text-red-400'}`}>Resultado Final</p>
+                    <p className={`text-sm font-bold ${totais.resultadoFinal >= 0 ? 'text-blue-700' : 'text-red-700 dark:text-red-400'}`}>
                       {totais.resultadoFinal >= 0 ? fmt(totais.resultadoFinal) : `(${fmt(Math.abs(totais.resultadoFinal))})`}
                     </p>
                   </div>
@@ -736,9 +736,9 @@ export const ExposicaoCaixa: React.FC = () => {
                     <p className="text-xs text-indigo-600 font-semibold uppercase mb-1">Pico Exposição Ajustada</p>
                     <p className="text-sm font-bold text-indigo-700">({fmt(totais.picoExposicaoAjustada)})</p>
                   </div>
-                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
-                    <p className="text-xs text-gray-500 font-semibold uppercase mb-1">Meses em Exposição</p>
-                    <p className="text-xl font-bold text-gray-700">{totais.mesesNegativos}</p>
+                  <div className="bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl p-3 text-center">
+                    <p className="text-xs text-gray-500 dark:text-slate-400 font-semibold uppercase mb-1">Meses em Exposição</p>
+                    <p className="text-xl font-bold text-gray-700 dark:text-slate-300">{totais.mesesNegativos}</p>
                     <p className="text-xs text-gray-400">{totais.mesZero ? `Equilíbrio: mês ${totais.mesZero}` : 'Nunca positivo'}</p>
                   </div>
                 </div>
@@ -759,13 +759,13 @@ export const ExposicaoCaixa: React.FC = () => {
 
                 {totais.totalCustoSimples > 0 && (
                   <div className="mt-3 grid grid-cols-2 gap-4">
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-between">
-                      <span className="text-sm text-gray-600 font-medium">Diferença (Composto − Simples)</span>
-                      <span className="text-sm font-bold text-gray-800">{fmt(totais.totalCustoComposto - totais.totalCustoSimples)}</span>
+                    <div className="bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg p-3 flex items-center justify-between">
+                      <span className="text-sm text-gray-600 dark:text-slate-400 font-medium">Diferença (Composto − Simples)</span>
+                      <span className="text-sm font-bold text-gray-800 dark:text-slate-200">{fmt(totais.totalCustoComposto - totais.totalCustoSimples)}</span>
                     </div>
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-between">
-                      <span className="text-sm text-gray-600 font-medium">Impacto % do Composto sobre o Simples</span>
-                      <span className="text-sm font-bold text-gray-800">
+                    <div className="bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg p-3 flex items-center justify-between">
+                      <span className="text-sm text-gray-600 dark:text-slate-400 font-medium">Impacto % do Composto sobre o Simples</span>
+                      <span className="text-sm font-bold text-gray-800 dark:text-slate-200">
                         {((totais.totalCustoComposto - totais.totalCustoSimples) / totais.totalCustoSimples * 100).toFixed(1)}%
                       </span>
                     </div>
@@ -774,9 +774,9 @@ export const ExposicaoCaixa: React.FC = () => {
               </div>
 
               {/* Tabela Comparativa Completa */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
-                  <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <div className="px-5 py-3 border-b border-gray-100 dark:border-slate-700/50 bg-gray-50 dark:bg-slate-900">
+                  <h3 className="text-sm font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider">
                     Memória de Cálculo — Simples vs Composto
                     <span className="ml-2 text-gray-400 font-normal text-xs">({linhas.length} meses · taxa {taxaMensal}% a.m.)</span>
                   </h3>
@@ -801,13 +801,13 @@ export const ExposicaoCaixa: React.FC = () => {
                     <tbody>
                       {linhas.map((linha, i) => {
                         const c = calculado[i];
-                        const zebra = i % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                        const zebra = i % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-gray-50 dark:bg-slate-900';
                         return (
                           <tr key={linha.mesKey} className={`${zebra} hover:bg-blue-50 transition-colors`}>
                             <td className="px-2 py-1.5 text-center text-gray-400">{i + 1}</td>
-                            <td className="px-2 py-1.5 font-medium text-gray-700">{linha.periodo}</td>
+                            <td className="px-2 py-1.5 font-medium text-gray-700 dark:text-slate-300">{linha.periodo}</td>
                             <td className="px-2 py-1.5 bg-green-50 text-right text-green-700">{fmtNum(linha.recebido)}</td>
-                            <td className="px-2 py-1.5 bg-red-50 text-right text-red-700">{fmtNum(linha.pago)}</td>
+                            <td className="px-2 py-1.5 bg-red-50 dark:bg-red-900/20 text-right text-red-700 dark:text-red-400">{fmtNum(linha.pago)}</td>
                             <td className={`px-2 py-1.5 text-right ${corRes(c.resultadoMensal)}`}>
                               {c.resultadoMensal >= 0 ? fmtNum(c.resultadoMensal) : `(${fmtNum(Math.abs(c.resultadoMensal))})`}
                             </td>
@@ -866,7 +866,7 @@ export const ExposicaoCaixa: React.FC = () => {
           )}
 
           {linhas.length === 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 py-20 text-center text-gray-400">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 py-20 text-center text-gray-400">
               <svg className="h-12 w-12 mx-auto mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
@@ -880,12 +880,12 @@ export const ExposicaoCaixa: React.FC = () => {
       {aba === 'grafico' && (
         <>
           {/* Filtros do gráfico */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Filtros do Gráfico</h3>
+          <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-5 shadow-sm">
+            <h3 className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-4">Filtros do Gráfico</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Centro de Custo</label>
+                <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Centro de Custo</label>
                 <SelectPesquisavel
                   centros={centrosCusto}
                   valor={grafCentroCustoId}
@@ -894,16 +894,16 @@ export const ExposicaoCaixa: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Período Início (AAAA-MM)</label>
+                <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Período Início (AAAA-MM)</label>
                 <input type="month" value={grafDataInicio} onChange={e => setGrafDataInicio(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Período Fim (AAAA-MM)</label>
+                <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Período Fim (AAAA-MM)</label>
                 <input type="month" value={grafDataFim} onChange={e => setGrafDataFim(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
               </div>
 
@@ -918,15 +918,15 @@ export const ExposicaoCaixa: React.FC = () => {
                 </button>
               </div>
             </div>
-            {grafErro && <p className="mt-2 text-red-600 text-sm">{grafErro}</p>}
+            {grafErro && <p className="mt-2 text-red-600 dark:text-red-400 text-sm">{grafErro}</p>}
             <div className="mt-2 flex flex-wrap gap-2">
               {origensConfigurado && (
-                <span className={`text-xs px-2 py-1 rounded border ${origensSiglas.length > 0 ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                <span className={`text-xs px-2 py-1 rounded border ${origensSiglas.length > 0 ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-red-50 dark:bg-red-900/20 border-red-200 text-red-700 dark:text-red-400'}`}>
                   {origensSiglas.length > 0 ? `Origens: ${origensSiglas.join(', ')}` : 'Sem origens ativas'}
                 </span>
               )}
               {tiposBaixaConfigurado && (
-                <span className={`text-xs px-2 py-1 rounded border ${tiposBaixaIds.length > 0 ? 'bg-teal-50 border-teal-200 text-teal-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                <span className={`text-xs px-2 py-1 rounded border ${tiposBaixaIds.length > 0 ? 'bg-teal-50 border-teal-200 text-teal-700' : 'bg-red-50 dark:bg-red-900/20 border-red-200 text-red-700 dark:text-red-400'}`}>
                   {tiposBaixaIds.length > 0 ? `Tipos baixa: ${tiposBaixaIds.join(', ')}` : 'Sem tipos de baixa ativos'}
                 </span>
               )}
@@ -938,11 +938,11 @@ export const ExposicaoCaixa: React.FC = () => {
             const ult = dadosGrafico[dadosGrafico.length - 1];
             return (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-4">
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 rounded-xl p-4 flex items-center gap-4">
                   <div className="w-4 h-4 rounded-full bg-red-400 flex-shrink-0" />
                   <div>
-                    <p className="text-xs text-red-600 font-semibold uppercase">Pago Acumulado</p>
-                    <p className="text-lg font-bold text-red-700">{fmt(ult['Pago Acumulado'])}</p>
+                    <p className="text-xs text-red-600 dark:text-red-400 font-semibold uppercase">Pago Acumulado</p>
+                    <p className="text-lg font-bold text-red-700 dark:text-red-400">{fmt(ult['Pago Acumulado'])}</p>
                     <p className="text-xs text-red-400">até {ult.periodo}</p>
                   </div>
                 </div>
@@ -967,7 +967,7 @@ export const ExposicaoCaixa: React.FC = () => {
           })()}
 
           {/* Gráfico */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-5">
             {dadosGrafico.length === 0 ? (
               <div className="py-24 text-center text-gray-400">
                 <svg className="h-16 w-16 mx-auto mb-4 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -979,7 +979,7 @@ export const ExposicaoCaixa: React.FC = () => {
             ) : (
               <>
                 <div className="mb-4">
-                  <h3 className="text-sm font-bold text-gray-700">
+                  <h3 className="text-sm font-bold text-gray-700 dark:text-slate-300">
                     Pago Acumulado, Recebido Acumulado e Exposição Acumulada por Período
                   </h3>
                   <p className="text-xs text-gray-400 mt-0.5">

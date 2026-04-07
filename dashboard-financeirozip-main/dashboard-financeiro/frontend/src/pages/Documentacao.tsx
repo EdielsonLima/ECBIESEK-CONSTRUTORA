@@ -112,8 +112,8 @@ export const Documentacao: React.FC = () => {
   if (!data) {
     return (
       <div className="p-8">
-        <div className="rounded-2xl bg-red-50 border border-red-200 p-6 text-center">
-          <p className="text-red-700">Erro ao carregar documentação.</p>
+        <div className="rounded-2xl bg-red-50 dark:bg-red-900/20 border border-red-200 p-6 text-center">
+          <p className="text-red-700 dark:text-red-400">Erro ao carregar documentação.</p>
         </div>
       </div>
     );
@@ -163,12 +163,12 @@ export const Documentacao: React.FC = () => {
             className={`rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
               abaAtiva === tab.id
                 ? 'bg-blue-600 text-white shadow-md'
-                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-100 border border-gray-200 dark:border-slate-700'
             }`}
           >
             {tab.label}
             <span className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs ${
-              abaAtiva === tab.id ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-500'
+              abaAtiva === tab.id ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-500 dark:text-slate-400'
             }`}>
               {tab.count}
             </span>
@@ -179,22 +179,22 @@ export const Documentacao: React.FC = () => {
       {/* Aba Fluxo de Dados */}
       {abaAtiva === 'fluxo' && (
         <div className="space-y-3">
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-slate-400">
             Clique em uma pagina para ver de onde vem cada valor exibido.
           </p>
           {data.paginas.map((pagina, idx) => (
-            <div key={idx} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div key={idx} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
               {/* Accordion Header */}
               <button
                 onClick={() => toggleExpandido(idx)}
-                className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
+                className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 dark:bg-slate-900 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${expandido[idx] ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
+                  <div className={`p-2 rounded-lg ${expandido[idx] ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500 dark:text-slate-400'}`}>
                     {iconMap[pagina.icone] || iconMap['file-text']}
                   </div>
-                  <span className="font-semibold text-gray-800">{pagina.nome}</span>
-                  <span className="text-xs bg-gray-100 text-gray-500 rounded-full px-2 py-0.5">
+                  <span className="font-semibold text-gray-800 dark:text-slate-200">{pagina.nome}</span>
+                  <span className="text-xs bg-gray-100 text-gray-500 dark:text-slate-400 rounded-full px-2 py-0.5">
                     {pagina.valores.length} {pagina.valores.length === 1 ? 'valor' : 'valores'}
                   </span>
                 </div>
@@ -208,17 +208,17 @@ export const Documentacao: React.FC = () => {
 
               {/* Accordion Content */}
               {expandido[idx] && (
-                <div className="border-t border-gray-100 px-5 py-4 space-y-4 bg-gray-50/50">
+                <div className="border-t border-gray-100 dark:border-slate-700/50 px-5 py-4 space-y-4 bg-gray-50/50">
                   {pagina.valores.map((valor, vi) => (
-                    <div key={vi} className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+                    <div key={vi} className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-4 shadow-sm">
                       <div className="flex items-start justify-between mb-3">
-                        <h4 className="font-semibold text-gray-900 text-base">{valor.nome}</h4>
+                        <h4 className="font-semibold text-gray-900 dark:text-slate-100 text-base">{valor.nome}</h4>
                         <span className="text-xs bg-blue-50 text-blue-600 rounded px-2 py-1 font-mono">
                           {valor.arquivo}
                         </span>
                       </div>
 
-                      <p className="text-sm text-gray-600 mb-3">{valor.descricao}</p>
+                      <p className="text-sm text-gray-600 dark:text-slate-400 mb-3">{valor.descricao}</p>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                         {/* Fonte */}
@@ -229,8 +229,8 @@ export const Documentacao: React.FC = () => {
                             </svg>
                           </span>
                           <div>
-                            <span className="font-medium text-gray-500">Fonte:</span>
-                            <span className="ml-1 font-mono text-xs bg-gray-100 rounded px-1.5 py-0.5 text-gray-700">{valor.fonte}</span>
+                            <span className="font-medium text-gray-500 dark:text-slate-400">Fonte:</span>
+                            <span className="ml-1 font-mono text-xs bg-gray-100 rounded px-1.5 py-0.5 text-gray-700 dark:text-slate-300">{valor.fonte}</span>
                           </div>
                         </div>
 
@@ -242,7 +242,7 @@ export const Documentacao: React.FC = () => {
                             </svg>
                           </span>
                           <div>
-                            <span className="font-medium text-gray-500">Endpoint:</span>
+                            <span className="font-medium text-gray-500 dark:text-slate-400">Endpoint:</span>
                             <span className="ml-1 font-mono text-xs bg-green-50 text-green-700 rounded px-1.5 py-0.5">{valor.endpoint}</span>
                           </div>
                         </div>
@@ -251,7 +251,7 @@ export const Documentacao: React.FC = () => {
                       {/* Filtros */}
                       {valor.filtros.length > 0 && (
                         <div className="mt-3">
-                          <span className="text-xs font-medium text-gray-500">Filtros automaticos:</span>
+                          <span className="text-xs font-medium text-gray-500 dark:text-slate-400">Filtros automaticos:</span>
                           <div className="flex flex-wrap gap-1.5 mt-1">
                             {valor.filtros.map((f, fi) => (
                               <span key={fi} className="inline-flex items-center rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs text-amber-700">
@@ -294,13 +294,13 @@ export const Documentacao: React.FC = () => {
                 placeholder="Buscar por rota, descricao ou tabela..."
                 value={buscaEndpoint}
                 onChange={e => setBuscaEndpoint(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 dark:border-slate-600 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
             <select
               value={filtroArea}
               onChange={e => setFiltroArea(e.target.value)}
-              className="px-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-blue-500 bg-white"
+              className="px-4 py-2.5 rounded-lg border border-gray-300 dark:border-slate-600 text-sm focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800"
             >
               <option value="">Todas as areas</option>
               {areas.map(a => (
@@ -310,34 +310,34 @@ export const Documentacao: React.FC = () => {
           </div>
 
           {/* Contagem */}
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-slate-400">
             {endpointsFiltrados.length} de {data.endpoints_resumo.length} endpoints
           </p>
 
           {/* Tabela */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Area</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Rota</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Descricao</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Tabelas</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Filtros Auto</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase">Area</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase">Rota</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase">Descricao</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase">Tabelas</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase">Filtros Auto</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {endpointsFiltrados.map((ep, i) => (
-                    <tr key={i} className="hover:bg-gray-50">
+                    <tr key={i} className="hover:bg-gray-50 dark:bg-slate-900">
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
                           {ep.area}
                         </span>
                       </td>
                       <td className="px-4 py-3 font-mono text-xs text-green-700 whitespace-nowrap">{ep.rota}</td>
-                      <td className="px-4 py-3 text-gray-700">{ep.descricao}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-gray-500">{ep.tabelas}</td>
+                      <td className="px-4 py-3 text-gray-700 dark:text-slate-300">{ep.descricao}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-gray-500 dark:text-slate-400">{ep.tabelas}</td>
                       <td className="px-4 py-3">
                         {ep.filtros_auto ? (
                           <span className="text-xs text-amber-600">{ep.filtros_auto}</span>
@@ -367,20 +367,20 @@ export const Documentacao: React.FC = () => {
               placeholder="Buscar termo..."
               value={buscaGlossario}
               onChange={e => setBuscaGlossario(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 dark:border-slate-600 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {glossarioFiltrado.map((item, i) => (
-              <div key={i} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+              <div key={i} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-2 mb-2">
                   <svg className="h-4 w-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                   </svg>
-                  <h3 className="font-bold text-gray-900">{item.termo}</h3>
+                  <h3 className="font-bold text-gray-900 dark:text-slate-100">{item.termo}</h3>
                 </div>
-                <p className="text-sm text-gray-600 leading-relaxed">{item.definicao}</p>
+                <p className="text-sm text-gray-600 dark:text-slate-400 leading-relaxed">{item.definicao}</p>
               </div>
             ))}
           </div>
@@ -388,7 +388,7 @@ export const Documentacao: React.FC = () => {
       )}
 
       {/* Footer */}
-      <div className="text-center text-xs text-gray-400 pt-4 border-t border-gray-100">
+      <div className="text-center text-xs text-gray-400 pt-4 border-t border-gray-100 dark:border-slate-700/50">
         Documentacao gerada automaticamente pelo sistema. Dados servidos por <code className="bg-gray-100 px-1 rounded">/api/documentacao/fluxo-dados</code>
       </div>
     </div>

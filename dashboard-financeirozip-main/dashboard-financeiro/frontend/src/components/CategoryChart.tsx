@@ -30,8 +30,8 @@ export const CategoryChart: React.FC<CategoryChartProps> = ({ data }) => {
   };
 
   return (
-    <div className="rounded-lg border-2 border-gray-200 bg-white p-6">
-      <h2 className="mb-4 text-xl font-bold text-gray-800">Despesas por Categoria</h2>
+    <div className="rounded-lg border-2 border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
+      <h2 className="mb-4 text-xl font-bold text-gray-800 dark:text-slate-200">Despesas por Categoria</h2>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data} layout="vertical">
           <CartesianGrid strokeDasharray="3 3" />

@@ -29,13 +29,13 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ label, items,
 
   return (
     <div className="relative">
-      <label className="mb-2 block text-sm font-medium text-gray-700">{label}</label>
+      <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-300">{label}</label>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-left focus:border-blue-500 focus:outline-none"
+        className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-left focus:border-blue-500 focus:outline-none"
       >
-        <span className={selected.length > 0 ? 'text-gray-900' : 'text-gray-500'}>
+        <span className={selected.length > 0 ? 'text-gray-900 dark:text-slate-100' : 'text-gray-500 dark:text-slate-400'}>
           {selected.length === 0 ? 'Todos' : selected.length === items.length ? 'Todos' : `${selected.length} selecionado(s)`}
         </span>
         <svg
@@ -48,20 +48,20 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ label, items,
         </svg>
       </button>
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-full min-w-[250px] rounded-lg border border-gray-300 bg-white shadow-lg">
+        <div className="absolute z-50 mt-1 w-full min-w-[250px] rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-lg">
           {searchable && (
-            <div className="border-b border-gray-200 p-2">
+            <div className="border-b border-gray-200 dark:border-slate-700 p-2">
               <input
                 ref={searchInputRef}
                 type="text"
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
                 placeholder="Buscar..."
-                className="w-full rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none"
+                className="w-full rounded border border-gray-200 dark:border-slate-700 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none"
               />
             </div>
           )}
-          <div className="border-b border-gray-200 p-2 flex gap-2">
+          <div className="border-b border-gray-200 dark:border-slate-700 p-2 flex gap-2">
             <button
               type="button"
               onClick={() => setSelected(items.map(i => i.id))}
@@ -72,14 +72,14 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ label, items,
             <button
               type="button"
               onClick={() => { setSelected([]); setBusca(''); if (searchInputRef.current) searchInputRef.current.focus(); }}
-              className="text-xs text-gray-500 hover:underline"
+              className="text-xs text-gray-500 dark:text-slate-400 hover:underline"
             >
               Limpar
             </button>
           </div>
           <div className="max-h-48 overflow-y-auto p-2">
             {itensFiltrados.map((item) => (
-              <label key={item.id} className="flex cursor-pointer items-center gap-2 py-1 hover:bg-gray-50 rounded px-1">
+              <label key={item.id} className="flex cursor-pointer items-center gap-2 py-1 hover:bg-gray-50 dark:bg-slate-900 rounded px-1">
                 <input
                   type="checkbox"
                   checked={selected.includes(item.id)}
@@ -90,9 +90,9 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ label, items,
                       setSelected([...selected, item.id]);
                     }
                   }}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500"
                 />
-                <span className="text-sm text-gray-700">{item.nome}</span>
+                <span className="text-sm text-gray-700 dark:text-slate-300">{item.nome}</span>
               </label>
             ))}
           </div>
@@ -1122,7 +1122,7 @@ export const ContasAPagar: React.FC = () => {
       <div className="flex h-96 items-center justify-center">
         <div className="text-center">
           <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
-          <p className="text-gray-600">Carregando dados...</p>
+          <p className="text-gray-600 dark:text-slate-400">Carregando dados...</p>
         </div>
       </div>
     );
@@ -1130,14 +1130,14 @@ export const ContasAPagar: React.FC = () => {
 
   if (error) {
     return (
-      <div className="rounded-lg bg-red-50 p-4">
+      <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-4">
         <p className="text-red-800">{error}</p>
       </div>
     );
   }
 
   const renderFiltros = () => (
-    <div className="mb-6 rounded-lg bg-gray-50 p-4 shadow">
+    <div className="mb-6 rounded-lg bg-gray-50 dark:bg-slate-900 p-4 shadow">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
         <MultiSelectDropdown
           label="Empresa"
@@ -1184,11 +1184,11 @@ export const ContasAPagar: React.FC = () => {
           setIsOpen={setAnoDropdownAberto}
         />
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">Prazo de Vencimento</label>
+          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-300">Prazo de Vencimento</label>
           <select
             value={filtroPrazo}
             onChange={(e) => setFiltroPrazo(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+            className="w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 focus:border-blue-500 focus:outline-none"
           >
             <option value="todos">Todos</option>
             <option value="hoje">Vence Hoje</option>
@@ -1252,16 +1252,16 @@ export const ContasAPagar: React.FC = () => {
         />
       </div>
       <div className="mt-4">
-        <label className="mb-2 block text-sm font-medium text-gray-700">Destacar novos apos</label>
+        <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-300">Destacar novos apos</label>
         <div className="flex items-center gap-2">
           <input
             type="date"
             value={dataReferencia}
             onChange={(e) => setDataReferencia(e.target.value)}
-            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
+            className="rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
           />
           {dataReferencia && (
-            <button type="button" onClick={() => setDataReferencia('')} className="text-xs text-gray-500 hover:underline">Limpar</button>
+            <button type="button" onClick={() => setDataReferencia('')} className="text-xs text-gray-500 dark:text-slate-400 hover:underline">Limpar</button>
           )}
         </div>
       </div>
@@ -1276,7 +1276,7 @@ export const ContasAPagar: React.FC = () => {
         <button
           type="button"
           onClick={limparFiltros}
-          className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
+          className="rounded-lg border border-gray-300 dark:border-slate-600 px-4 py-2 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:bg-slate-900"
         >
           Limpar
         </button>
@@ -1294,7 +1294,7 @@ export const ContasAPagar: React.FC = () => {
           <button
             type="button"
             onClick={removerFiltrosPadrao}
-            className="flex items-center rounded-lg border border-red-300 px-4 py-2 text-red-600 hover:bg-red-50"
+            className="flex items-center rounded-lg border border-red-300 px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:bg-red-900/20"
           >
             <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -1407,7 +1407,7 @@ export const ContasAPagar: React.FC = () => {
           <button
             type="button"
             onClick={limparFiltros}
-            className="text-sm text-gray-500 hover:text-gray-700 underline"
+            className="text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300 underline"
           >
             Limpar todos
           </button>
@@ -1421,8 +1421,8 @@ export const ContasAPagar: React.FC = () => {
       <div className="mb-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Contas a Pagar</h2>
-            <p className="mt-1 text-sm text-gray-600">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Contas a Pagar</h2>
+            <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
               {calcularTitulosUnicos(contas)} título(s) pendente(s)
             </p>
           </div>
@@ -1466,7 +1466,7 @@ export const ContasAPagar: React.FC = () => {
           <div className="mb-4 rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 flex items-center gap-3">
             <span className="inline-flex items-center rounded-full bg-yellow-200 px-2.5 py-1 text-xs font-bold text-yellow-800">{qtd}</span>
             <span className="text-sm text-yellow-800">
-              titulo(s) inserido(s) apos <strong>{dataRef}</strong> | Impacto: <strong className="text-red-600">+ {valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong>
+              titulo(s) inserido(s) apos <strong>{dataRef}</strong> | Impacto: <strong className="text-red-600 dark:text-red-400">+ {valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong>
             </span>
           </div>
         ) : (
@@ -1476,7 +1476,7 @@ export const ContasAPagar: React.FC = () => {
         );
       })()}
 
-      <div className="rounded-lg bg-white shadow overflow-visible">
+      <div className="rounded-lg bg-white dark:bg-slate-800 shadow overflow-visible">
         <div>
           <table className="w-full divide-y divide-gray-200 table-fixed text-[11px]">
             <colgroup>
@@ -1495,48 +1495,48 @@ export const ContasAPagar: React.FC = () => {
             </colgroup>
             <thead className="bg-blue-50 sticky top-[85px] z-30 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
               <tr>
-                <th onClick={() => toggleOrdenacao('credor')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                <th onClick={() => toggleOrdenacao('credor')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">
                   Credor{renderSortIcon('credor')}
                 </th>
-                <th onClick={() => toggleOrdenacao('data_cadastro')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                <th onClick={() => toggleOrdenacao('data_cadastro')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">
                   Cadastro{renderSortIcon('data_cadastro')}
                 </th>
-                <th onClick={() => toggleOrdenacao('data_vencimento')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                <th onClick={() => toggleOrdenacao('data_vencimento')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">
                   Vencimento{renderSortIcon('data_vencimento')}
                 </th>
-                <th onClick={() => toggleOrdenacao('prazo_cadastro')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                <th onClick={() => toggleOrdenacao('prazo_cadastro')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">
                   Prazo{renderSortIcon('prazo_cadastro')}
                 </th>
-                <th onClick={() => toggleOrdenacao('dias')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                <th onClick={() => toggleOrdenacao('dias')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">
                   Dias{renderSortIcon('dias')}
                 </th>
-                <th onClick={() => toggleOrdenacao('lancamento')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                <th onClick={() => toggleOrdenacao('lancamento')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">
                   Titulo{renderSortIcon('lancamento')}
                 </th>
-                <th onClick={() => toggleOrdenacao('id_documento')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                <th onClick={() => toggleOrdenacao('id_documento')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">
                   Doc.{renderSortIcon('id_documento')}
                 </th>
-                <th onClick={() => toggleOrdenacao('flautorizacao')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                <th onClick={() => toggleOrdenacao('flautorizacao')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">
                   Aut.{renderSortIcon('flautorizacao')}
                 </th>
-                <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                <th onClick={() => toggleOrdenacao('nome_centrocusto')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">
                   C. Custo{renderSortIcon('nome_centrocusto')}
                 </th>
-                <th onClick={() => toggleOrdenacao('nome_plano_financeiro')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                <th onClick={() => toggleOrdenacao('nome_plano_financeiro')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">
                   Plano Fin.{renderSortIcon('nome_plano_financeiro')}
                 </th>
-                <th onClick={() => toggleOrdenacao('nome_tipo_pagamento')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                <th onClick={() => toggleOrdenacao('nome_tipo_pagamento')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">
                   Tipo Pag.{renderSortIcon('nome_tipo_pagamento')}
                 </th>
-                <th onClick={() => toggleOrdenacao('valor_total')} className="px-1.5 py-2 text-right text-[10px] font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">
+                <th onClick={() => toggleOrdenacao('valor_total')} className="px-1.5 py-2 text-right text-[10px] font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">
                   Valor{renderSortIcon('valor_total')}
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 bg-white">
+            <tbody className="divide-y divide-gray-200 bg-white dark:bg-slate-800">
               {ordenarContas(contas).slice(0, 100).map((conta, index) => {
                 const dias = calcularDiasAteVencimento(conta.data_vencimento as any);
-                const corDias = dias < 0 ? 'text-red-600' : dias <= 7 ? 'text-orange-600' : 'text-green-600';
+                const corDias = dias < 0 ? 'text-red-600 dark:text-red-400' : dias <= 7 ? 'text-orange-600' : 'text-green-600';
                 const isExpanded = linhaExpandida === index;
                 const tituloId = conta.lancamento ? parseInt(conta.lancamento.split('/')[0]) : null;
                 const detalhe = tituloId ? detalheCache[tituloId] : null;
@@ -1564,8 +1564,8 @@ export const ContasAPagar: React.FC = () => {
 
                 return (
                   <React.Fragment key={index}>
-                    <tr className={`${isExpanded ? 'bg-blue-100 border-l-4 border-l-blue-600' : isNovoAposRef ? 'bg-yellow-50 hover:bg-yellow-100' : 'hover:bg-gray-50'} cursor-pointer transition-colors duration-150`} onClick={handleExpand}>
-                      <td className="px-1.5 py-2 font-medium text-gray-900">
+                    <tr className={`${isExpanded ? 'bg-blue-100 border-l-4 border-l-blue-600' : isNovoAposRef ? 'bg-yellow-50 hover:bg-yellow-100' : 'hover:bg-gray-50 dark:bg-slate-900'} cursor-pointer transition-colors duration-150`} onClick={handleExpand}>
+                      <td className="px-1.5 py-2 font-medium text-gray-900 dark:text-slate-100">
                         <div className="flex items-center gap-1">
                           <span className={`text-gray-400 text-[10px] transition-transform flex-shrink-0 ${isExpanded ? 'rotate-90' : ''}`}>&#9654;</span>
                           <span className="truncate" title={conta.credor || '-'}>{conta.credor || '-'}</span>
@@ -1573,13 +1573,13 @@ export const ContasAPagar: React.FC = () => {
                         </div>
                       </td>
                       <td className="whitespace-nowrap px-1.5 py-2 text-gray-400">{conta.data_cadastro ? formatDate(conta.data_cadastro as any) : '-'}</td>
-                      <td className="whitespace-nowrap px-1.5 py-2 text-gray-500">{formatDate(conta.data_vencimento as any)}</td>
-                      <td className="whitespace-nowrap px-1.5 py-2 text-gray-500">
+                      <td className="whitespace-nowrap px-1.5 py-2 text-gray-500 dark:text-slate-400">{formatDate(conta.data_vencimento as any)}</td>
+                      <td className="whitespace-nowrap px-1.5 py-2 text-gray-500 dark:text-slate-400">
                         {conta.data_cadastro && conta.data_vencimento
                           ? (() => {
                               const prazoDias = Math.round((new Date(conta.data_vencimento as any).getTime() - new Date(conta.data_cadastro as any).getTime()) / (1000 * 60 * 60 * 24));
                               return prazoDias <= 2
-                                ? <span className="inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">{prazoDias}d</span>
+                                ? <span className="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/40 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 dark:text-red-400">{prazoDias}d</span>
                                 : `${prazoDias}d`;
                             })()
                           : '-'}
@@ -1587,23 +1587,23 @@ export const ContasAPagar: React.FC = () => {
                       <td className={`whitespace-nowrap px-1.5 py-2 font-semibold ${corDias}`}>
                         {dias < 0 ? `${Math.abs(dias)}d atraso` : dias === 0 ? 'Hoje' : `${dias}d`}
                       </td>
-                      <td className="whitespace-nowrap px-1.5 py-2 text-gray-500">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
-                      <td className="whitespace-nowrap px-1.5 py-2 text-gray-500 font-mono">{conta.id_documento || '-'}</td>
+                      <td className="whitespace-nowrap px-1.5 py-2 text-gray-500 dark:text-slate-400">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
+                      <td className="whitespace-nowrap px-1.5 py-2 text-gray-500 dark:text-slate-400 font-mono">{conta.id_documento || '-'}</td>
                       <td className="whitespace-nowrap px-1.5 py-2 text-center">
                         {(() => {
                           const authApi = conta.lancamento ? autorizacoesBulk[conta.lancamento] : undefined;
                           const auth = authApi || (conta as any).flautorizacao;
                           return auth === 'S'
                             ? <span className="inline-flex items-center rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-700">Sim</span>
-                            : <span className="inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">Nao</span>;
+                            : <span className="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/40 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 dark:text-red-400">Nao</span>;
                         })()}
                       </td>
-                      <td className="px-1.5 py-2 text-gray-500 truncate" title={`${(conta as any).codigo_centrocusto || ''} - ${(conta as any).nome_centrocusto || ''}`}>
+                      <td className="px-1.5 py-2 text-gray-500 dark:text-slate-400 truncate" title={`${(conta as any).codigo_centrocusto || ''} - ${(conta as any).nome_centrocusto || ''}`}>
                         {(conta as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(conta as any).codigo_centrocusto}</span> : null}
                         {(conta as any).codigo_centrocusto ? ' ' : ''}{(conta as any).nome_centrocusto || '-'}
                       </td>
-                      <td className="px-1.5 py-2 text-gray-500 truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
-                      <td className="px-1.5 py-2 text-gray-500 truncate" title={(conta as any).nome_tipo_pagamento || '-'}>{(conta as any).nome_tipo_pagamento || '-'}</td>
+                      <td className="px-1.5 py-2 text-gray-500 dark:text-slate-400 truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
+                      <td className="px-1.5 py-2 text-gray-500 dark:text-slate-400 truncate" title={(conta as any).nome_tipo_pagamento || '-'}>{(conta as any).nome_tipo_pagamento || '-'}</td>
                       <td className="whitespace-nowrap px-1.5 py-2 font-semibold text-blue-600 text-right">{formatCurrency(conta.valor_total)}</td>
                     </tr>
                     {isExpanded && (
@@ -1616,14 +1616,14 @@ export const ContasAPagar: React.FC = () => {
                                   {conta.lancamento ? conta.lancamento.split('/')[0] : '#'}
                                 </div>
                                 <div>
-                                  <h3 className="text-base font-bold text-gray-900">{conta.credor || 'Sem credor'}</h3>
-                                  <p className="text-xs text-gray-500">Titulo {conta.lancamento || '-'} | {formatCurrency(conta.valor_total)}</p>
+                                  <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">{conta.credor || 'Sem credor'}</h3>
+                                  <p className="text-xs text-gray-500 dark:text-slate-400">Titulo {conta.lancamento || '-'} | {formatCurrency(conta.valor_total)}</p>
                                 </div>
                               </div>
                               <span className="text-xs text-blue-600 font-medium bg-blue-100 px-2 py-1 rounded">Detalhes do Titulo</span>
                             </div>
                             {detalheCarregando && !detalhe ? (
-                              <div className="flex items-center gap-2 text-sm text-gray-500">
+                              <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-slate-400">
                                 <svg className="animate-spin h-4 w-4 text-blue-500" viewBox="0 0 24 24">
                                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -1633,63 +1633,63 @@ export const ContasAPagar: React.FC = () => {
                             ) : (
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 {detalhe?.registeredBy && (
-                                  <div className="bg-white rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
-                                    <p className="text-xs text-gray-500 uppercase font-medium">Cadastrado por</p>
-                                    <p className="text-sm font-semibold text-gray-900 mt-1">{detalhe.registeredBy}</p>
+                                  <div className="bg-white dark:bg-slate-800 rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
+                                    <p className="text-xs text-gray-500 dark:text-slate-400 uppercase font-medium">Cadastrado por</p>
+                                    <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 mt-1">{detalhe.registeredBy}</p>
                                   </div>
                                 )}
                                 {detalhe?.registeredDate && (
-                                  <div className="bg-white rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
-                                    <p className="text-xs text-gray-500 uppercase font-medium">Data Cadastro</p>
-                                    <p className="text-sm font-semibold text-gray-900 mt-1">
+                                  <div className="bg-white dark:bg-slate-800 rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
+                                    <p className="text-xs text-gray-500 dark:text-slate-400 uppercase font-medium">Data Cadastro</p>
+                                    <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 mt-1">
                                       {new Date(detalhe.registeredDate).toLocaleString('pt-BR')}
                                     </p>
                                   </div>
                                 )}
                                 {detalhe?.changedBy && (
-                                  <div className="bg-white rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
-                                    <p className="text-xs text-gray-500 uppercase font-medium">Alterado por</p>
-                                    <p className="text-sm font-semibold text-gray-900 mt-1">{detalhe.changedBy}</p>
+                                  <div className="bg-white dark:bg-slate-800 rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
+                                    <p className="text-xs text-gray-500 dark:text-slate-400 uppercase font-medium">Alterado por</p>
+                                    <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 mt-1">{detalhe.changedBy}</p>
                                   </div>
                                 )}
                                 {detalhe?.changedDate && (
-                                  <div className="bg-white rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
-                                    <p className="text-xs text-gray-500 uppercase font-medium">Data Alteracao</p>
-                                    <p className="text-sm font-semibold text-gray-900 mt-1">
+                                  <div className="bg-white dark:bg-slate-800 rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
+                                    <p className="text-xs text-gray-500 dark:text-slate-400 uppercase font-medium">Data Alteracao</p>
+                                    <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 mt-1">
                                       {new Date(detalhe.changedDate).toLocaleString('pt-BR')}
                                     </p>
                                   </div>
                                 )}
-                                <div className="bg-white rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
-                                  <p className="text-xs text-gray-500 uppercase font-medium">Data Emissao</p>
-                                  <p className="text-sm font-semibold text-gray-900 mt-1">
+                                <div className="bg-white dark:bg-slate-800 rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
+                                  <p className="text-xs text-gray-500 dark:text-slate-400 uppercase font-medium">Data Emissao</p>
+                                  <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 mt-1">
                                     {(conta as any).data_emissao ? formatDate((conta as any).data_emissao) : detalhe?.issueDate ? formatDate(detalhe.issueDate) : '-'}
                                   </p>
                                 </div>
-                                <div className="bg-white rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
-                                  <p className="text-xs text-gray-500 uppercase font-medium">N Documento</p>
-                                  <p className="text-sm font-semibold text-gray-900 mt-1">{conta.numero_documento || '-'}</p>
+                                <div className="bg-white dark:bg-slate-800 rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
+                                  <p className="text-xs text-gray-500 dark:text-slate-400 uppercase font-medium">N Documento</p>
+                                  <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 mt-1">{conta.numero_documento || '-'}</p>
                                 </div>
-                                <div className="bg-white rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
-                                  <p className="text-xs text-gray-500 uppercase font-medium">Parcela</p>
-                                  <p className="text-sm font-semibold text-gray-900 mt-1">
+                                <div className="bg-white dark:bg-slate-800 rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
+                                  <p className="text-xs text-gray-500 dark:text-slate-400 uppercase font-medium">Parcela</p>
+                                  <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 mt-1">
                                     {conta.lancamento ? conta.lancamento.split('/')[1] || '1' : '-'}
                                   </p>
                                 </div>
-                                <div className="bg-white rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
-                                  <p className="text-xs text-gray-500 uppercase font-medium">Origem</p>
-                                  <p className="text-sm font-semibold text-gray-900 mt-1">
+                                <div className="bg-white dark:bg-slate-800 rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
+                                  <p className="text-xs text-gray-500 dark:text-slate-400 uppercase font-medium">Origem</p>
+                                  <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 mt-1">
                                     {detalhe?.origem_nome || conta.id_origem || '-'}
                                   </p>
                                 </div>
-                                <div className="bg-white rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
-                                  <p className="text-xs text-gray-500 uppercase font-medium">Empresa</p>
-                                  <p className="text-sm font-semibold text-gray-900 mt-1">{(conta as any).nome_empresa || '-'}</p>
+                                <div className="bg-white dark:bg-slate-800 rounded-lg p-3 shadow-md border border-blue-200 hover:shadow-lg transition-shadow">
+                                  <p className="text-xs text-gray-500 dark:text-slate-400 uppercase font-medium">Empresa</p>
+                                  <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 mt-1">{(conta as any).nome_empresa || '-'}</p>
                                 </div>
                                 {(detalhe?.observation || (conta as any).descricao_observacao) && (
-                                  <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100 col-span-2 md:col-span-4">
-                                    <p className="text-xs text-gray-500 uppercase font-medium">Observacao</p>
-                                    <p className="text-sm text-gray-900 mt-1">{detalhe?.observation || (conta as any).descricao_observacao}</p>
+                                  <div className="bg-white dark:bg-slate-800 rounded-lg p-3 shadow-sm border border-blue-100 col-span-2 md:col-span-4">
+                                    <p className="text-xs text-gray-500 dark:text-slate-400 uppercase font-medium">Observacao</p>
+                                    <p className="text-sm text-gray-900 dark:text-slate-100 mt-1">{detalhe?.observation || (conta as any).descricao_observacao}</p>
                                   </div>
                                 )}
                                 {!detalhe && !detalheCarregando && (
@@ -1732,9 +1732,9 @@ export const ContasAPagar: React.FC = () => {
       </div>
 
       {dadosPorVencimento.length > 0 && (
-        <div className="rounded-lg bg-white p-6 shadow">
-          <h3 className="mb-2 text-xl font-semibold text-gray-900">Distribuicao por Prazo de Vencimento</h3>
-          <p className="mb-4 text-sm text-gray-500">Valores a pagar agrupados por faixa de vencimento</p>
+        <div className="rounded-lg bg-white dark:bg-slate-800 p-6 shadow">
+          <h3 className="mb-2 text-xl font-semibold text-gray-900 dark:text-slate-100">Distribuicao por Prazo de Vencimento</h3>
+          <p className="mb-4 text-sm text-gray-500 dark:text-slate-400">Valores a pagar agrupados por faixa de vencimento</p>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dadosPorVencimento} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
@@ -1746,10 +1746,10 @@ export const ContasAPagar: React.FC = () => {
                     if (active && payload && payload.length) {
                       const data = payload[0].payload;
                       return (
-                        <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
-                          <p className="mb-2 font-semibold text-gray-900">{label}</p>
+                        <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 shadow-lg">
+                          <p className="mb-2 font-semibold text-gray-900 dark:text-slate-100">{label}</p>
                           <p className="text-sm text-blue-600">Valor: {formatCurrency(data.valor)}</p>
-                          <p className="text-sm text-gray-600">Quantidade: {data.quantidade} titulo(s)</p>
+                          <p className="text-sm text-gray-600 dark:text-slate-400">Quantidade: {data.quantidade} titulo(s)</p>
                         </div>
                       );
                     }
@@ -2140,8 +2140,8 @@ export const ContasAPagar: React.FC = () => {
       })()}
 
       {snapshotComparacao && snapshotComparacao.resumo && (snapshotComparacao.resumo.qtd_adicionados > 0 || snapshotComparacao.resumo.qtd_removidos > 0 || snapshotComparacao.resumo.qtd_alterados > 0) && (
-        <div className="mb-6 rounded-lg border border-blue-200 bg-white p-4 shadow">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">Comparacao detalhada vs snapshot {snapshotSelecionado ? new Date(snapshotSelecionado + 'T00:00:00').toLocaleDateString('pt-BR') : ''}</h3>
+        <div className="mb-6 rounded-lg border border-blue-200 bg-white dark:bg-slate-800 p-4 shadow">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-3">Comparacao detalhada vs snapshot {snapshotSelecionado ? new Date(snapshotSelecionado + 'T00:00:00').toLocaleDateString('pt-BR') : ''}</h3>
           <div className="flex gap-4 mb-3 text-sm">
             {snapshotComparacao.resumo.qtd_adicionados > 0 && (
               <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-green-800 font-medium">
@@ -2149,7 +2149,7 @@ export const ContasAPagar: React.FC = () => {
               </span>
             )}
             {snapshotComparacao.resumo.qtd_removidos > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-red-800 font-medium">
+              <span className="inline-flex items-center gap-1 rounded-full bg-red-100 dark:bg-red-900/40 px-3 py-1 text-red-800 font-medium">
                 -{snapshotComparacao.resumo.qtd_removidos} removido(s) ({formatCurrency(snapshotComparacao.resumo.valor_removidos)})
               </span>
             )}
@@ -2161,40 +2161,40 @@ export const ContasAPagar: React.FC = () => {
           </div>
           <div className="max-h-60 overflow-y-auto">
             <table className="min-w-full text-sm">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-slate-900">
                 <tr>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Status</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Credor</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Titulo</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Vencimento</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Valor</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400">Status</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400">Credor</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400">Titulo</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400">Vencimento</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-slate-400">Valor</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {snapshotComparacao.adicionados?.map((t: any, i: number) => (
                   <tr key={`add-${i}`} className="bg-green-50">
                     <td className="px-3 py-1"><span className="rounded-full bg-green-200 px-2 py-0.5 text-xs font-semibold text-green-800">NOVO</span></td>
-                    <td className="px-3 py-1 text-gray-900">{t.credor}</td>
-                    <td className="px-3 py-1 text-gray-500">{t.lancamento}</td>
-                    <td className="px-3 py-1 text-gray-500">{t.data_vencimento ? new Date(t.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</td>
+                    <td className="px-3 py-1 text-gray-900 dark:text-slate-100">{t.credor}</td>
+                    <td className="px-3 py-1 text-gray-500 dark:text-slate-400">{t.lancamento}</td>
+                    <td className="px-3 py-1 text-gray-500 dark:text-slate-400">{t.data_vencimento ? new Date(t.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</td>
                     <td className="px-3 py-1 text-right font-semibold text-green-700">{formatCurrency(t.valor_total)}</td>
                   </tr>
                 ))}
                 {snapshotComparacao.removidos?.map((t: any, i: number) => (
-                  <tr key={`rem-${i}`} className="bg-red-50">
+                  <tr key={`rem-${i}`} className="bg-red-50 dark:bg-red-900/20">
                     <td className="px-3 py-1"><span className="rounded-full bg-red-200 px-2 py-0.5 text-xs font-semibold text-red-800">REMOVIDO</span></td>
-                    <td className="px-3 py-1 text-gray-900">{t.credor}</td>
-                    <td className="px-3 py-1 text-gray-500">{t.lancamento}</td>
-                    <td className="px-3 py-1 text-gray-500">{t.data_vencimento ? new Date(t.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</td>
-                    <td className="px-3 py-1 text-right font-semibold text-red-700">{formatCurrency(t.valor_total)}</td>
+                    <td className="px-3 py-1 text-gray-900 dark:text-slate-100">{t.credor}</td>
+                    <td className="px-3 py-1 text-gray-500 dark:text-slate-400">{t.lancamento}</td>
+                    <td className="px-3 py-1 text-gray-500 dark:text-slate-400">{t.data_vencimento ? new Date(t.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</td>
+                    <td className="px-3 py-1 text-right font-semibold text-red-700 dark:text-red-400">{formatCurrency(t.valor_total)}</td>
                   </tr>
                 ))}
                 {snapshotComparacao.alterados?.map((t: any, i: number) => (
                   <tr key={`alt-${i}`} className="bg-yellow-50">
                     <td className="px-3 py-1"><span className="rounded-full bg-yellow-200 px-2 py-0.5 text-xs font-semibold text-yellow-800">ALTERADO</span></td>
-                    <td className="px-3 py-1 text-gray-900">{t.credor}</td>
-                    <td className="px-3 py-1 text-gray-500">{t.lancamento}</td>
-                    <td className="px-3 py-1 text-gray-500">{t.data_vencimento ? new Date(t.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</td>
+                    <td className="px-3 py-1 text-gray-900 dark:text-slate-100">{t.credor}</td>
+                    <td className="px-3 py-1 text-gray-500 dark:text-slate-400">{t.lancamento}</td>
+                    <td className="px-3 py-1 text-gray-500 dark:text-slate-400">{t.data_vencimento ? new Date(t.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</td>
                     <td className="px-3 py-1 text-right font-semibold text-yellow-700">{formatCurrency(t.valor_total)} <span className="text-xs text-gray-400">(era {formatCurrency(t.valor_anterior)})</span></td>
                   </tr>
                 ))}
@@ -2205,14 +2205,14 @@ export const ContasAPagar: React.FC = () => {
       )}
 
       <div className="mb-6">
-        <div className="border-b border-gray-200">
+        <div className="border-b border-gray-200 dark:border-slate-700">
           <nav className="-mb-px flex space-x-8">
             <button
               type="button"
               onClick={() => setAbaAtiva('dados')}
               className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'dados'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:border-gray-300 dark:border-slate-600 hover:text-gray-700 dark:text-slate-300'
                 }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2225,7 +2225,7 @@ export const ContasAPagar: React.FC = () => {
               onClick={() => setAbaAtiva('analises')}
               className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'analises'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:border-gray-300 dark:border-slate-600 hover:text-gray-700 dark:text-slate-300'
                 }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2238,7 +2238,7 @@ export const ContasAPagar: React.FC = () => {
               onClick={() => setAbaAtiva('por-credor')}
               className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'por-credor'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:border-gray-300 dark:border-slate-600 hover:text-gray-700 dark:text-slate-300'
                 }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2251,7 +2251,7 @@ export const ContasAPagar: React.FC = () => {
               onClick={() => setAbaAtiva('por-centro-custo')}
               className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'por-centro-custo'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:border-gray-300 dark:border-slate-600 hover:text-gray-700 dark:text-slate-300'
                 }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2264,7 +2264,7 @@ export const ContasAPagar: React.FC = () => {
               onClick={() => setAbaAtiva('por-semana')}
               className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'por-semana'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:border-gray-300 dark:border-slate-600 hover:text-gray-700 dark:text-slate-300'
                 }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2277,7 +2277,7 @@ export const ContasAPagar: React.FC = () => {
               onClick={() => setAbaAtiva('por-origem')}
               className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'por-origem'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:border-gray-300 dark:border-slate-600 hover:text-gray-700 dark:text-slate-300'
                 }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2290,7 +2290,7 @@ export const ContasAPagar: React.FC = () => {
               onClick={() => setAbaAtiva('mudancas')}
               className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${abaAtiva === 'mudancas'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:border-gray-300 dark:border-slate-600 hover:text-gray-700 dark:text-slate-300'
                 }`}
             >
               <svg className="mr-2 inline-block h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2347,8 +2347,8 @@ export const ContasAPagar: React.FC = () => {
             <div className="mb-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Contas a Pagar por Credor</h2>
-                  <p className="mt-1 text-sm text-gray-600">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Contas a Pagar por Credor</h2>
+                  <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
                     {credoresComPareto.length} credor(es) | Total: {formatCurrency(totalGeral)}
                   </p>
                 </div>
@@ -2364,16 +2364,16 @@ export const ContasAPagar: React.FC = () => {
                 </button>
               </div>
 
-              <div className="mt-4 flex gap-2 border-b border-gray-200 pb-2">
+              <div className="mt-4 flex gap-2 border-b border-gray-200 dark:border-slate-700 pb-2">
                 <button
                   onClick={() => setSubAbaCredor('tabela')}
-                  className={`rounded-t-lg px-4 py-2 text-sm font-medium ${subAbaCredor === 'tabela' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                  className={`rounded-t-lg px-4 py-2 text-sm font-medium ${subAbaCredor === 'tabela' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 dark:text-slate-400 hover:bg-gray-200'}`}
                 >
                   Tabela
                 </button>
                 <button
                   onClick={() => setSubAbaCredor('grafico')}
-                  className={`rounded-t-lg px-4 py-2 text-sm font-medium ${subAbaCredor === 'grafico' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                  className={`rounded-t-lg px-4 py-2 text-sm font-medium ${subAbaCredor === 'grafico' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 dark:text-slate-400 hover:bg-gray-200'}`}
                 >
                   Grafico
                 </button>
@@ -2384,34 +2384,34 @@ export const ContasAPagar: React.FC = () => {
             </div>
 
             {subAbaCredor === 'tabela' && (
-              <div className="overflow-hidden rounded-lg bg-white shadow">
+              <div className="overflow-hidden rounded-lg bg-white dark:bg-slate-800 shadow">
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-blue-50">
                       <tr>
-                        <th onClick={() => toggleOrdenacao('rank')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-12 cursor-pointer hover:bg-blue-100">#{renderSortIcon('rank')}</th>
-                        <th onClick={() => toggleOrdenacao('credor')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Credor{renderSortIcon('credor')}</th>
-                        <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Qtd Titulos{renderSortIcon('quantidade')}</th>
-                        <th onClick={() => toggleOrdenacao('valor')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Valor{renderSortIcon('valor')}</th>
-                        <th onClick={() => toggleOrdenacao('percentual')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">% do Total{renderSortIcon('percentual')}</th>
-                        <th onClick={() => toggleOrdenacao('acumulado')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">% Acumulado{renderSortIcon('acumulado')}</th>
+                        <th onClick={() => toggleOrdenacao('rank')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 w-12 cursor-pointer hover:bg-blue-100">#{renderSortIcon('rank')}</th>
+                        <th onClick={() => toggleOrdenacao('credor')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">Credor{renderSortIcon('credor')}</th>
+                        <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">Qtd Titulos{renderSortIcon('quantidade')}</th>
+                        <th onClick={() => toggleOrdenacao('valor')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">Valor{renderSortIcon('valor')}</th>
+                        <th onClick={() => toggleOrdenacao('percentual')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">% do Total{renderSortIcon('percentual')}</th>
+                        <th onClick={() => toggleOrdenacao('acumulado')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">% Acumulado{renderSortIcon('acumulado')}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200 bg-white">
+                    <tbody className="divide-y divide-gray-200 bg-white dark:bg-slate-800">
                       {credoresExibidos.map((c, index) => (
                         <React.Fragment key={index}>
                           <tr
                             onClick={() => setCredorExpandido(credorExpandido === c.credor ? null : c.credor)}
-                            className={`cursor-pointer hover:bg-gray-50 transition-colors ${credorExpandido === c.credor ? 'bg-blue-50/50' : c.acumulado <= 80 ? 'bg-green-50/30' : c.acumulado <= 95 ? 'bg-yellow-50/30' : ''}`}
+                            className={`cursor-pointer hover:bg-gray-50 dark:bg-slate-900 transition-colors ${credorExpandido === c.credor ? 'bg-blue-50/50' : c.acumulado <= 80 ? 'bg-green-50/30' : c.acumulado <= 95 ? 'bg-yellow-50/30' : ''}`}
                           >
                             <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-400 font-mono">
                               <span className={`inline-block transition-transform mr-2 text-[10px] ${credorExpandido === c.credor ? 'rotate-90' : ''}`}>▶</span>
                               {c.rank}
                             </td>
-                            <td className="whitespace-nowrap px-6 py-3 text-sm font-medium text-gray-900">{c.credor}</td>
-                            <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500 text-center">{c.quantidade}</td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm font-medium text-gray-900 dark:text-slate-100">{c.credor}</td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500 dark:text-slate-400 text-center">{c.quantidade}</td>
                             <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-blue-600 text-right">{formatCurrency(c.valor)}</td>
-                            <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-700 text-right">
+                            <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-700 dark:text-slate-300 text-right">
                               <div className="flex items-center justify-end gap-2">
                                 <div className="w-20 bg-gray-200 rounded-full h-2">
                                   <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${Math.min(c.percentual * 2, 100)}%` }}></div>
@@ -2422,44 +2422,44 @@ export const ContasAPagar: React.FC = () => {
                             <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-right">
                               <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${c.acumulado <= 80 ? 'bg-green-100 text-green-700' :
                                 c.acumulado <= 95 ? 'bg-yellow-100 text-yellow-700' :
-                                  'bg-red-100 text-red-700'
+                                  'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
                                 }`}>
                                 {c.acumulado.toFixed(2)}%
                               </span>
                             </td>
                           </tr>
                           {credorExpandido === c.credor && (
-                            <tr className="bg-gray-50">
+                            <tr className="bg-gray-50 dark:bg-slate-900">
                               <td colSpan={6} className="px-8 py-4">
-                                <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-inner">
+                                <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-inner">
                                   <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50">
+                                    <thead className="bg-gray-50 dark:bg-slate-900">
                                       <tr>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vencimento</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Título</th>
-                                        <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Parcela</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nº Doc.</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Centro de Custo</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Observação</th>
-                                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Vencimento</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Título</th>
+                                        <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Parcela</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Nº Doc.</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Centro de Custo</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Observação</th>
+                                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Valor</th>
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
                                       {contas.filter(conta => (conta.credor || 'Sem Credor') === c.credor).map((conta, j) => {
                                         const dias = calcularDiasAteVencimento(conta.data_vencimento as any);
-                                        const corDias = dias < 0 ? 'text-red-600' : dias === 0 ? 'text-orange-600' : 'text-green-600';
+                                        const corDias = dias < 0 ? 'text-red-600 dark:text-red-400' : dias === 0 ? 'text-orange-600' : 'text-green-600';
                                         return (
                                           <tr key={j} className="hover:bg-blue-50/50">
-                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{formatDate(conta.data_vencimento as any)}</td>
-                                            <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-gray-900">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
-                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500 text-center">{conta.numero_parcela || '-'}</td>
-                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">{conta.numero_documento || '-'}</td>
+                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500 dark:text-slate-400">{formatDate(conta.data_vencimento as any)}</td>
+                                            <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-gray-900 dark:text-slate-100">{conta.lancamento ? conta.lancamento.split('/')[0] : '-'}</td>
+                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500 dark:text-slate-400 text-center">{conta.numero_parcela || '-'}</td>
+                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500 dark:text-slate-400">{conta.numero_documento || '-'}</td>
                                             <td className={`whitespace-nowrap px-4 py-2 text-sm font-semibold ${corDias}`}>
                                               {dias < 0 ? `${Math.abs(dias)}d atraso` : dias === 0 ? 'Hoje' : `${dias}d`}
                                             </td>
-                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500" title={`${(conta as any).codigo_centrocusto || ''} - ${(conta as any).nome_centrocusto || ''}`}>{(conta as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(conta as any).codigo_centrocusto}</span> : null}{(conta as any).codigo_centrocusto ? ' ' : ''}{(conta as any).nome_centrocusto || '-'}</td>
-                                            <td className="px-4 py-2 text-xs text-gray-600 max-w-xs truncate" title={conta.descricao_observacao || ''}>{conta.descricao_observacao || '-'}</td>
+                                            <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500 dark:text-slate-400" title={`${(conta as any).codigo_centrocusto || ''} - ${(conta as any).nome_centrocusto || ''}`}>{(conta as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(conta as any).codigo_centrocusto}</span> : null}{(conta as any).codigo_centrocusto ? ' ' : ''}{(conta as any).nome_centrocusto || '-'}</td>
+                                            <td className="px-4 py-2 text-xs text-gray-600 dark:text-slate-400 max-w-xs truncate" title={conta.descricao_observacao || ''}>{conta.descricao_observacao || '-'}</td>
                                             <td className="whitespace-nowrap px-4 py-2 text-sm text-blue-600 font-semibold text-right">{formatCurrency(conta.valor_total || 0)}</td>
                                           </tr>
                                         );
@@ -2476,10 +2476,10 @@ export const ContasAPagar: React.FC = () => {
                     <tfoot className="bg-gray-100">
                       <tr className="font-bold">
                         <td className="px-4 py-3 text-sm"></td>
-                        <td className="px-6 py-3 text-sm text-gray-900">TOTAL</td>
-                        <td className="px-6 py-3 text-sm text-gray-900 text-center">{contas.length}</td>
+                        <td className="px-6 py-3 text-sm text-gray-900 dark:text-slate-100">TOTAL</td>
+                        <td className="px-6 py-3 text-sm text-gray-900 dark:text-slate-100 text-center">{contas.length}</td>
                         <td className="px-6 py-3 text-sm text-blue-700 text-right">{formatCurrency(totalGeral)}</td>
-                        <td className="px-6 py-3 text-sm text-gray-900 text-right">100,00%</td>
+                        <td className="px-6 py-3 text-sm text-gray-900 dark:text-slate-100 text-right">100,00%</td>
                         <td className="px-6 py-3 text-sm"></td>
                       </tr>
                     </tfoot>
@@ -2489,8 +2489,8 @@ export const ContasAPagar: React.FC = () => {
             )}
 
             {subAbaCredor === 'grafico' && (
-              <div className="mb-6 rounded-lg bg-white p-6 shadow">
-                <p className="mb-4 text-sm text-gray-500">Distribuição de valores pendentes por credor</p>
+              <div className="mb-6 rounded-lg bg-white dark:bg-slate-800 p-6 shadow">
+                <p className="mb-4 text-sm text-gray-500 dark:text-slate-400">Distribuição de valores pendentes por credor</p>
                 <div style={{ height: Math.max(300, credoresExibidos.length * 45) }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
@@ -2506,11 +2506,11 @@ export const ContasAPagar: React.FC = () => {
                           if (active && payload && payload.length) {
                             const data = payload[0].payload;
                             return (
-                              <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
-                                <p className="mb-1 font-semibold text-gray-900">{data.credor}</p>
+                              <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 shadow-lg">
+                                <p className="mb-1 font-semibold text-gray-900 dark:text-slate-100">{data.credor}</p>
                                 <p className="text-sm font-semibold text-blue-600">Valor: {formatCurrency(data.valor)}</p>
-                                <p className="text-sm text-gray-600">Representatividade: {data.percentual.toFixed(2)}%</p>
-                                <p className="text-sm text-gray-600">Títulos: {data.quantidade}</p>
+                                <p className="text-sm text-gray-600 dark:text-slate-400">Representatividade: {data.percentual.toFixed(2)}%</p>
+                                <p className="text-sm text-gray-600 dark:text-slate-400">Títulos: {data.quantidade}</p>
                               </div>
                             );
                           }
@@ -2532,7 +2532,7 @@ export const ContasAPagar: React.FC = () => {
             )}
 
             {/* Legenda Pareto */}
-            <div className="mt-4 flex items-center gap-6 text-xs text-gray-500">
+            <div className="mt-4 flex items-center gap-6 text-xs text-gray-500 dark:text-slate-400">
               <div className="flex items-center gap-1.5">
                 <span className="inline-block w-3 h-3 rounded-full bg-green-100 border border-green-300"></span>
                 A (ate 80%) - Principais credores
@@ -2542,7 +2542,7 @@ export const ContasAPagar: React.FC = () => {
                 B (80-95%) - Credores intermediarios
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="inline-block w-3 h-3 rounded-full bg-red-100 border border-red-300"></span>
+                <span className="inline-block w-3 h-3 rounded-full bg-red-100 dark:bg-red-900/40 border border-red-300"></span>
                 C (95-100%) - Credores menores
               </div>
             </div>
@@ -2589,8 +2589,8 @@ export const ContasAPagar: React.FC = () => {
             <div className="mb-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Contas a Pagar por Centro de Custo</h2>
-                  <p className="mt-1 text-sm text-gray-600">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Contas a Pagar por Centro de Custo</h2>
+                  <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
                     {ccComPareto.length} centro(s) de custo | Total: {formatCurrency(totalGeral)}
                   </p>
                 </div>
@@ -2606,16 +2606,16 @@ export const ContasAPagar: React.FC = () => {
                 </button>
               </div>
 
-              <div className="mt-4 flex gap-2 border-b border-gray-200 pb-2">
+              <div className="mt-4 flex gap-2 border-b border-gray-200 dark:border-slate-700 pb-2">
                 <button
                   onClick={() => setSubAbaCentroCusto('tabela')}
-                  className={`rounded-t-lg px-4 py-2 text-sm font-medium ${subAbaCentroCusto === 'tabela' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                  className={`rounded-t-lg px-4 py-2 text-sm font-medium ${subAbaCentroCusto === 'tabela' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 dark:text-slate-400 hover:bg-gray-200'}`}
                 >
                   Tabela
                 </button>
                 <button
                   onClick={() => setSubAbaCentroCusto('grafico')}
-                  className={`rounded-t-lg px-4 py-2 text-sm font-medium ${subAbaCentroCusto === 'grafico' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                  className={`rounded-t-lg px-4 py-2 text-sm font-medium ${subAbaCentroCusto === 'grafico' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 dark:text-slate-400 hover:bg-gray-200'}`}
                 >
                   Grafico
                 </button>
@@ -2627,27 +2627,27 @@ export const ContasAPagar: React.FC = () => {
 
             {subAbaCentroCusto === 'tabela' && (
 
-              <div className="overflow-hidden rounded-lg bg-white shadow">
+              <div className="overflow-hidden rounded-lg bg-white dark:bg-slate-800 shadow">
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-blue-50">
                       <tr>
-                        <th onClick={() => toggleOrdenacao('rank')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-12 cursor-pointer hover:bg-blue-100">#{renderSortIcon('rank')}</th>
-                        <th onClick={() => toggleOrdenacao('centroCusto')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Centro de Custo{renderSortIcon('centroCusto')}</th>
-                        <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Qtd Titulos{renderSortIcon('quantidade')}</th>
-                        <th onClick={() => toggleOrdenacao('valor')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Valor{renderSortIcon('valor')}</th>
-                        <th onClick={() => toggleOrdenacao('percentual')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">% do Total{renderSortIcon('percentual')}</th>
-                        <th onClick={() => toggleOrdenacao('acumulado')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">% Acumulado{renderSortIcon('acumulado')}</th>
+                        <th onClick={() => toggleOrdenacao('rank')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 w-12 cursor-pointer hover:bg-blue-100">#{renderSortIcon('rank')}</th>
+                        <th onClick={() => toggleOrdenacao('centroCusto')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">Centro de Custo{renderSortIcon('centroCusto')}</th>
+                        <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">Qtd Titulos{renderSortIcon('quantidade')}</th>
+                        <th onClick={() => toggleOrdenacao('valor')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">Valor{renderSortIcon('valor')}</th>
+                        <th onClick={() => toggleOrdenacao('percentual')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">% do Total{renderSortIcon('percentual')}</th>
+                        <th onClick={() => toggleOrdenacao('acumulado')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">% Acumulado{renderSortIcon('acumulado')}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200 bg-white">
+                    <tbody className="divide-y divide-gray-200 bg-white dark:bg-slate-800">
                       {ccExibidos.map((c, index) => (
-                        <tr key={index} className={`hover:bg-gray-50 ${c.acumulado <= 80 ? 'bg-green-50/30' : c.acumulado <= 95 ? 'bg-yellow-50/30' : ''}`}>
+                        <tr key={index} className={`hover:bg-gray-50 dark:bg-slate-900 ${c.acumulado <= 80 ? 'bg-green-50/30' : c.acumulado <= 95 ? 'bg-yellow-50/30' : ''}`}>
                           <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-400 font-mono">{c.rank}</td>
-                          <td className="whitespace-nowrap px-6 py-3 text-sm font-medium text-gray-900">{c.centroCusto}</td>
-                          <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500 text-center">{c.quantidade}</td>
+                          <td className="whitespace-nowrap px-6 py-3 text-sm font-medium text-gray-900 dark:text-slate-100">{c.centroCusto}</td>
+                          <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500 dark:text-slate-400 text-center">{c.quantidade}</td>
                           <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-blue-600 text-right">{formatCurrency(c.valor)}</td>
-                          <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-700 text-right">
+                          <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-700 dark:text-slate-300 text-right">
                             <div className="flex items-center justify-end gap-2">
                               <div className="w-20 bg-gray-200 rounded-full h-2">
                                 <div className="bg-teal-500 h-2 rounded-full" style={{ width: `${Math.min(c.percentual * 2, 100)}%` }}></div>
@@ -2658,7 +2658,7 @@ export const ContasAPagar: React.FC = () => {
                           <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-right">
                             <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${c.acumulado <= 80 ? 'bg-green-100 text-green-700' :
                               c.acumulado <= 95 ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-red-100 text-red-700'
+                                'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
                               }`}>
                               {c.acumulado.toFixed(2)}%
                             </span>
@@ -2669,10 +2669,10 @@ export const ContasAPagar: React.FC = () => {
                     <tfoot className="bg-gray-100">
                       <tr className="font-bold">
                         <td className="px-4 py-3 text-sm"></td>
-                        <td className="px-6 py-3 text-sm text-gray-900">TOTAL</td>
-                        <td className="px-6 py-3 text-sm text-gray-900 text-center">{contas.length}</td>
+                        <td className="px-6 py-3 text-sm text-gray-900 dark:text-slate-100">TOTAL</td>
+                        <td className="px-6 py-3 text-sm text-gray-900 dark:text-slate-100 text-center">{contas.length}</td>
                         <td className="px-6 py-3 text-sm text-blue-700 text-right">{formatCurrency(totalGeral)}</td>
-                        <td className="px-6 py-3 text-sm text-gray-900 text-right">100,00%</td>
+                        <td className="px-6 py-3 text-sm text-gray-900 dark:text-slate-100 text-right">100,00%</td>
                         <td className="px-6 py-3 text-sm"></td>
                       </tr>
                     </tfoot>
@@ -2682,8 +2682,8 @@ export const ContasAPagar: React.FC = () => {
             )}
 
             {subAbaCentroCusto === 'grafico' && (
-              <div className="mb-6 rounded-lg bg-white p-6 shadow">
-                <p className="mb-4 text-sm text-gray-500">Distribuição de valores pendentes por centro de custo</p>
+              <div className="mb-6 rounded-lg bg-white dark:bg-slate-800 p-6 shadow">
+                <p className="mb-4 text-sm text-gray-500 dark:text-slate-400">Distribuição de valores pendentes por centro de custo</p>
                 <div style={{ height: Math.max(300, ccExibidos.length * 45) }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
@@ -2699,11 +2699,11 @@ export const ContasAPagar: React.FC = () => {
                           if (active && payload && payload.length) {
                             const data = payload[0].payload;
                             return (
-                              <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
-                                <p className="mb-1 font-semibold text-gray-900">{data.centroCusto}</p>
+                              <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 shadow-lg">
+                                <p className="mb-1 font-semibold text-gray-900 dark:text-slate-100">{data.centroCusto}</p>
                                 <p className="text-sm font-semibold text-blue-600">Valor: {formatCurrency(data.valor)}</p>
-                                <p className="text-sm text-gray-600">Representatividade: {data.percentual.toFixed(2)}%</p>
-                                <p className="text-sm text-gray-600">Títulos: {data.quantidade}</p>
+                                <p className="text-sm text-gray-600 dark:text-slate-400">Representatividade: {data.percentual.toFixed(2)}%</p>
+                                <p className="text-sm text-gray-600 dark:text-slate-400">Títulos: {data.quantidade}</p>
                               </div>
                             );
                           }
@@ -2725,7 +2725,7 @@ export const ContasAPagar: React.FC = () => {
             )}
 
             {/* Legenda Pareto */}
-            <div className="mt-4 flex items-center gap-6 text-xs text-gray-500">
+            <div className="mt-4 flex items-center gap-6 text-xs text-gray-500 dark:text-slate-400">
               <div className="flex items-center gap-1.5">
                 <span className="inline-block w-3 h-3 rounded-full bg-green-100 border border-green-300"></span>
                 A (ate 80%) - Principais centros de custo
@@ -2735,7 +2735,7 @@ export const ContasAPagar: React.FC = () => {
                 B (80-95%) - Centros intermediarios
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="inline-block w-3 h-3 rounded-full bg-red-100 border border-red-300"></span>
+                <span className="inline-block w-3 h-3 rounded-full bg-red-100 dark:bg-red-900/40 border border-red-300"></span>
                 C (95-100%) - Centros menores
               </div>
             </div>
@@ -2778,7 +2778,7 @@ export const ContasAPagar: React.FC = () => {
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Carregando dados do ano {filtroAnoSemana}...</p>
+                <p className="text-gray-600 dark:text-slate-400">Carregando dados do ano {filtroAnoSemana}...</p>
               </div>
             </div>
           );
@@ -2917,8 +2917,8 @@ export const ContasAPagar: React.FC = () => {
             <div className="mb-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Contas a Pagar por Semana do Ano</h2>
-                  <p className="mt-1 text-sm text-gray-600">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Contas a Pagar por Semana do Ano</h2>
+                  <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
                     {semanasComPareto.length} semana(s) | Total: {formatCurrency(totalGeral)}
                   </p>
                 </div>
@@ -2927,11 +2927,11 @@ export const ContasAPagar: React.FC = () => {
               {/* Filtros de Ano e Semana */}
               <div className="mt-4 flex flex-wrap items-end gap-4">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">Ano</label>
+                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-300">Ano</label>
                   <select
                     value={filtroAnoSemana}
                     onChange={(e) => { setFiltroAnoSemana(Number(e.target.value)); setFiltroSemanas([]); }}
-                    className="rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                    className="rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 focus:border-blue-500 focus:outline-none"
                   >
                     {anosArray.map(a => (
                       <option key={a} value={a}>{a}</option>
@@ -2939,8 +2939,8 @@ export const ContasAPagar: React.FC = () => {
                   </select>
                 </div>
                 <div className="flex-1 min-w-[200px]">
-                  <label className="mb-2 block text-sm font-medium text-gray-700">Semanas ({filtroSemanas.length > 0 ? filtroSemanas.length + ' selecionada(s)' : 'Todas'})</label>
-                  <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto p-2 border rounded-lg bg-gray-50">
+                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-300">Semanas ({filtroSemanas.length > 0 ? filtroSemanas.length + ' selecionada(s)' : 'Todas'})</label>
+                  <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto p-2 border rounded-lg bg-gray-50 dark:bg-slate-900">
                     {semanasParaFiltro.map(s => (
                       <button
                         key={s}
@@ -2954,7 +2954,7 @@ export const ContasAPagar: React.FC = () => {
                           ? 'bg-blue-600 text-white'
                           : s === semanaAtual
                             ? 'bg-orange-100 text-orange-700 border border-orange-300'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            : 'bg-gray-200 text-gray-700 dark:text-slate-300 hover:bg-gray-300'
                           }`}
                       >
                         S{s}
@@ -2966,7 +2966,7 @@ export const ContasAPagar: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setFiltroSemanas([])}
-                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    className="rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:bg-slate-900"
                   >
                     Limpar semanas
                   </button>
@@ -3035,16 +3035,16 @@ export const ContasAPagar: React.FC = () => {
               });
 
               return (
-                <div className="mb-6 rounded-lg bg-white p-6 shadow">
+                <div className="mb-6 rounded-lg bg-white dark:bg-slate-800 p-6 shadow">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">{tituloGrafico}</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">{tituloGrafico}</h3>
                     {!semanaSelecionadaUnica && (
-                      <div className="flex items-center gap-4 text-xs text-gray-500">
+                      <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-slate-400">
                         <div className="flex items-center gap-1.5">
                           <span className="inline-block w-3 h-3 rounded bg-blue-400"></span> Valor semanal
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <span className="inline-block w-6 h-0.5 bg-red-500"></span> Media movel (4 sem.)
+                          <span className="inline-block w-6 h-0.5 bg-red-50 dark:bg-red-900/200"></span> Media movel (4 sem.)
                         </div>
                       </div>
                     )}
@@ -3060,11 +3060,11 @@ export const ContasAPagar: React.FC = () => {
                             if (active && payload && payload.length) {
                               const data = payload[0].payload;
                               return (
-                                <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
-                                  <p className="mb-1 font-semibold text-gray-900">{data.name}</p>
+                                <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 shadow-lg">
+                                  <p className="mb-1 font-semibold text-gray-900 dark:text-slate-100">{data.name}</p>
                                   <p className="text-sm text-blue-600">Valor: {formatCurrency(data.valor)}</p>
-                                  <p className="text-sm text-gray-600">Titulos: {data.quantidade}</p>
-                                  {data.media && <p className="text-sm text-red-500">Media movel: {formatCurrency(data.media)}</p>}
+                                  <p className="text-sm text-gray-600 dark:text-slate-400">Titulos: {data.quantidade}</p>
+                                  {data.media && <p className="text-sm text-red-500 dark:text-red-400">Media movel: {formatCurrency(data.media)}</p>}
                                 </div>
                               );
                             }
@@ -3094,21 +3094,21 @@ export const ContasAPagar: React.FC = () => {
             })()}
 
             {/* Tabela */}
-            <div className="overflow-hidden rounded-lg bg-white shadow">
+            <div className="overflow-hidden rounded-lg bg-white dark:bg-slate-800 shadow">
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-blue-50">
                     <tr>
-                      <th onClick={() => toggleOrdenacao('semana')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Sem.{renderSortIcon('semana')}</th>
-                      <th onClick={() => toggleOrdenacao('periodo')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Periodo{renderSortIcon('periodo')}</th>
-                      <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Qtd{renderSortIcon('quantidade')}</th>
-                      <th onClick={() => toggleOrdenacao('valor')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Valor{renderSortIcon('valor')}</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">Var.</th>
-                      <th onClick={() => toggleOrdenacao('percentual')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">%{renderSortIcon('percentual')}</th>
-                      <th onClick={() => toggleOrdenacao('acumulado')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">% Acum{renderSortIcon('acumulado')}</th>
+                      <th onClick={() => toggleOrdenacao('semana')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">Sem.{renderSortIcon('semana')}</th>
+                      <th onClick={() => toggleOrdenacao('periodo')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">Periodo{renderSortIcon('periodo')}</th>
+                      <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">Qtd{renderSortIcon('quantidade')}</th>
+                      <th onClick={() => toggleOrdenacao('valor')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">Valor{renderSortIcon('valor')}</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Var.</th>
+                      <th onClick={() => toggleOrdenacao('percentual')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">%{renderSortIcon('percentual')}</th>
+                      <th onClick={() => toggleOrdenacao('acumulado')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">% Acum{renderSortIcon('acumulado')}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
+                  <tbody className="divide-y divide-gray-200 bg-white dark:bg-slate-800">
                     {semanasExibidas.map((s, index) => {
                       // Calcular variacao com semana anterior
                       const semanaAnterior = semanasComPareto.find(x => x.semana === s.semana - 1);
@@ -3119,9 +3119,9 @@ export const ContasAPagar: React.FC = () => {
                         <React.Fragment key={index}>
                           <tr
                             onClick={() => s.valor > 0 ? setSemanaExpandida(semanaExpandida === s.semana ? null : s.semana) : null}
-                            className={`${s.valor > 0 ? 'cursor-pointer' : ''} hover:bg-gray-50 ${s.semana === semanaAtual ? 'bg-orange-50/50 border-l-4 border-l-orange-400' : s.acumulado <= 80 ? 'bg-green-50/30' : s.acumulado <= 95 ? 'bg-yellow-50/30' : ''}`}
+                            className={`${s.valor > 0 ? 'cursor-pointer' : ''} hover:bg-gray-50 dark:bg-slate-900 ${s.semana === semanaAtual ? 'bg-orange-50/50 border-l-4 border-l-orange-400' : s.acumulado <= 80 ? 'bg-green-50/30' : s.acumulado <= 95 ? 'bg-yellow-50/30' : ''}`}
                           >
-                            <td className="whitespace-nowrap px-4 py-3 text-sm font-mono font-semibold text-gray-700">
+                            <td className="whitespace-nowrap px-4 py-3 text-sm font-mono font-semibold text-gray-700 dark:text-slate-300">
                               <div className="flex items-center gap-1.5">
                                 {s.valor > 0 && (
                                   <span className={`text-gray-400 text-xs transition-transform ${semanaExpandida === s.semana ? 'rotate-90' : ''}`}>{'\u25B6'}</span>
@@ -3132,24 +3132,24 @@ export const ContasAPagar: React.FC = () => {
                                 )}
                               </div>
                             </td>
-                            <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-600">{s.periodo}</td>
-                            <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500 text-center">{s.quantidade > 0 ? s.quantidade : ''}</td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-600 dark:text-slate-400">{s.periodo}</td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500 dark:text-slate-400 text-center">{s.quantidade > 0 ? s.quantidade : ''}</td>
                             <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-blue-600 text-right">{s.valor > 0 ? formatCurrency(s.valor) : ''}</td>
                             <td className="whitespace-nowrap px-4 py-3 text-center">
                               {variacao !== null && (
-                                <span className={`text-xs font-semibold ${variacao > 0 ? 'text-red-500' : variacao < 0 ? 'text-green-500' : 'text-gray-400'
+                                <span className={`text-xs font-semibold ${variacao > 0 ? 'text-red-500 dark:text-red-400' : variacao < 0 ? 'text-green-500' : 'text-gray-400'
                                   }`}>
                                   {variacao > 0 ? "\u2191" : variacao < 0 ? "\u2193" : "\u2192"}
                                   {Math.abs(variacao).toFixed(0)}%
                                 </span>
                               )}
                             </td>
-                            <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-700 text-right">{s.percentual > 0 ? s.percentual.toFixed(2) + '%' : ''}</td>
+                            <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-700 dark:text-slate-300 text-right">{s.percentual > 0 ? s.percentual.toFixed(2) + '%' : ''}</td>
                             <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-right">
                               {s.acumulado > 0 && (
                                 <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${s.acumulado <= 80 ? 'bg-green-100 text-green-700' :
                                   s.acumulado <= 95 ? 'bg-yellow-100 text-yellow-700' :
-                                    'bg-red-100 text-red-700'
+                                    'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
                                   }`}>
                                   {s.acumulado.toFixed(2)}%
                                 </span>
@@ -3167,8 +3167,8 @@ export const ContasAPagar: React.FC = () => {
                             return (
                               <tr>
                                 <td colSpan={7} className="p-0">
-                                  <div className="bg-gray-50 border-t border-b border-gray-200 px-8 py-3">
-                                    <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider">Titulos da Semana {s.semana} ({titulosSemana.length} registro(s))</p>
+                                  <div className="bg-gray-50 dark:bg-slate-900 border-t border-b border-gray-200 dark:border-slate-700 px-8 py-3">
+                                    <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-2 uppercase tracking-wider">Titulos da Semana {s.semana} ({titulosSemana.length} registro(s))</p>
                                     <div className="max-h-60 overflow-y-auto">
                                       <table className="w-full text-sm">
                                         <thead>
@@ -3182,13 +3182,13 @@ export const ContasAPagar: React.FC = () => {
                                         </thead>
                                         <tbody>
                                           {titulosSemana.map((t, ti) => (
-                                            <tr key={ti} className="border-t border-gray-100 hover:bg-gray-100">
-                                              <td className="py-1.5 pr-3 text-gray-700 max-w-[250px] truncate" title={t.credor}>{t.credor}</td>
-                                              <td className="py-1.5 pr-3 text-gray-500">
+                                            <tr key={ti} className="border-t border-gray-100 dark:border-slate-700/50 hover:bg-gray-100">
+                                              <td className="py-1.5 pr-3 text-gray-700 dark:text-slate-300 max-w-[250px] truncate" title={t.credor}>{t.credor}</td>
+                                              <td className="py-1.5 pr-3 text-gray-500 dark:text-slate-400">
                                                 {t.data_vencimento ? new Date(t.data_vencimento.toString().split('T')[0] + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}
                                               </td>
-                                              <td className="py-1.5 pr-3 text-gray-500 font-mono text-xs">{t.numero_documento || '-'}</td>
-                                              <td className="py-1.5 pr-3 text-gray-500 max-w-[200px] truncate" title={`${(t as any).codigo_centrocusto || ''} - ${t.nome_centrocusto || ''}`}>{(t as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(t as any).codigo_centrocusto}</span> : null}{(t as any).codigo_centrocusto ? ' ' : ''}{t.nome_centrocusto || '-'}</td>
+                                              <td className="py-1.5 pr-3 text-gray-500 dark:text-slate-400 font-mono text-xs">{t.numero_documento || '-'}</td>
+                                              <td className="py-1.5 pr-3 text-gray-500 dark:text-slate-400 max-w-[200px] truncate" title={`${(t as any).codigo_centrocusto || ''} - ${t.nome_centrocusto || ''}`}>{(t as any).codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{(t as any).codigo_centrocusto}</span> : null}{(t as any).codigo_centrocusto ? ' ' : ''}{t.nome_centrocusto || '-'}</td>
                                               <td className="py-1.5 text-right font-semibold text-blue-600">{formatCurrency(t.valor_total || 0)}</td>
                                             </tr>
                                           ))}
@@ -3207,12 +3207,12 @@ export const ContasAPagar: React.FC = () => {
                   <tfoot className="bg-gray-100">
                     <tr className="font-bold">
                       <td className="px-4 py-3 text-sm">Total</td>
-                      <td className="px-6 py-3 text-sm text-gray-500">-</td>
-                      <td className="px-6 py-3 text-sm text-gray-900 text-center">{contasAno.length}</td>
+                      <td className="px-6 py-3 text-sm text-gray-500 dark:text-slate-400">-</td>
+                      <td className="px-6 py-3 text-sm text-gray-900 dark:text-slate-100 text-center">{contasAno.length}</td>
                       <td className="px-6 py-3 text-sm text-blue-700 text-right">{formatCurrency(totalGeral)}</td>
                       <td className="px-4 py-3 text-sm"></td>
-                      <td className="px-6 py-3 text-sm text-gray-900 text-right">100,00%</td>
-                      <td className="px-6 py-3 text-sm text-gray-900 text-right">100,00%</td>
+                      <td className="px-6 py-3 text-sm text-gray-900 dark:text-slate-100 text-right">100,00%</td>
+                      <td className="px-6 py-3 text-sm text-gray-900 dark:text-slate-100 text-right">100,00%</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -3284,8 +3284,8 @@ export const ContasAPagar: React.FC = () => {
             <div className="mb-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Contas a Pagar por Origem</h2>
-                  <p className="mt-1 text-sm text-gray-600">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Contas a Pagar por Origem</h2>
+                  <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
                     {origensComPareto.length} origem(s) | Total: {formatCurrency(totalGeral)}
                   </p>
                 </div>
@@ -3305,8 +3305,8 @@ export const ContasAPagar: React.FC = () => {
             </div>
 
             {dadosGrafico.length > 0 && (
-              <div className="mb-6 rounded-lg bg-white p-6 shadow">
-                <h3 className="mb-4 text-lg font-semibold text-gray-900">Distribuicao por Origem</h3>
+              <div className="mb-6 rounded-lg bg-white dark:bg-slate-800 p-6 shadow">
+                <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-slate-100">Distribuicao por Origem</h3>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={dadosGrafico} layout="vertical" margin={{ top: 5, right: 30, left: 60, bottom: 5 }}>
@@ -3318,11 +3318,11 @@ export const ContasAPagar: React.FC = () => {
                           if (active && payload && payload.length) {
                             const data = payload[0].payload;
                             return (
-                              <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
-                                <p className="mb-1 font-semibold text-gray-900">{data.name} - {data.nomeCompleto}</p>
+                              <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 shadow-lg">
+                                <p className="mb-1 font-semibold text-gray-900 dark:text-slate-100">{data.name} - {data.nomeCompleto}</p>
                                 <p className="text-sm text-blue-600">Valor: {formatCurrency(data.valor)}</p>
-                                <p className="text-sm text-gray-600">Titulos: {data.quantidade}</p>
-                                <p className="text-sm text-gray-600">{data.percentual.toFixed(2)}% do total</p>
+                                <p className="text-sm text-gray-600 dark:text-slate-400">Titulos: {data.quantidade}</p>
+                                <p className="text-sm text-gray-600 dark:text-slate-400">{data.percentual.toFixed(2)}% do total</p>
                               </div>
                             );
                           }
@@ -3341,38 +3341,38 @@ export const ContasAPagar: React.FC = () => {
               </div>
             )}
 
-            <div className="overflow-hidden rounded-lg bg-white shadow">
+            <div className="overflow-hidden rounded-lg bg-white dark:bg-slate-800 shadow">
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-blue-50">
                     <tr>
-                      <th onClick={() => toggleOrdenacao('rank')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">#</th>
-                      <th onClick={() => toggleOrdenacao('credor')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Origem{renderSortIcon('credor')}</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Descricao</th>
-                      <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Qtd{renderSortIcon('quantidade')}</th>
-                      <th onClick={() => toggleOrdenacao('valor')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">Valor{renderSortIcon('valor')}</th>
-                      <th onClick={() => toggleOrdenacao('percentual')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">%{renderSortIcon('percentual')}</th>
-                      <th onClick={() => toggleOrdenacao('acumulado')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-blue-100">% Acum{renderSortIcon('acumulado')}</th>
+                      <th onClick={() => toggleOrdenacao('rank')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">#</th>
+                      <th onClick={() => toggleOrdenacao('credor')} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">Origem{renderSortIcon('credor')}</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Descricao</th>
+                      <th onClick={() => toggleOrdenacao('quantidade')} className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">Qtd{renderSortIcon('quantidade')}</th>
+                      <th onClick={() => toggleOrdenacao('valor')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">Valor{renderSortIcon('valor')}</th>
+                      <th onClick={() => toggleOrdenacao('percentual')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">%{renderSortIcon('percentual')}</th>
+                      <th onClick={() => toggleOrdenacao('acumulado')} className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">% Acum{renderSortIcon('acumulado')}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
+                  <tbody className="divide-y divide-gray-200 bg-white dark:bg-slate-800">
                     {origensExibidas.map((o, index) => (
-                      <tr key={index} className={`hover:bg-gray-50 ${o.acumulado <= 80 ? 'bg-green-50/30' : o.acumulado <= 95 ? 'bg-yellow-50/30' : ''}`}>
+                      <tr key={index} className={`hover:bg-gray-50 dark:bg-slate-900 ${o.acumulado <= 80 ? 'bg-green-50/30' : o.acumulado <= 95 ? 'bg-yellow-50/30' : ''}`}>
                         <td className="whitespace-nowrap px-4 py-3 text-sm font-mono font-semibold text-gray-400">{o.rank}</td>
                         <td className="whitespace-nowrap px-6 py-3">
                           <span className="inline-flex items-center gap-2">
                             <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[(o.rank - 1) % COLORS.length] }}></span>
-                            <span className="text-sm font-bold text-gray-900">{o.origem}</span>
+                            <span className="text-sm font-bold text-gray-900 dark:text-slate-100">{o.origem}</span>
                           </span>
                         </td>
-                        <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500">{NOMES_ORIGEM[o.origem] || '-'}</td>
-                        <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500 text-center">{o.quantidade}</td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500 dark:text-slate-400">{NOMES_ORIGEM[o.origem] || '-'}</td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500 dark:text-slate-400 text-center">{o.quantidade}</td>
                         <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-blue-600 text-right">{formatCurrency(o.valor)}</td>
-                        <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-700 text-right">{o.percentual.toFixed(2)}%</td>
+                        <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-700 dark:text-slate-300 text-right">{o.percentual.toFixed(2)}%</td>
                         <td className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-right">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${o.acumulado <= 80 ? 'bg-green-100 text-green-700' :
                             o.acumulado <= 95 ? 'bg-yellow-100 text-yellow-700' :
-                              'bg-red-100 text-red-700'
+                              'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
                             }`}>
                             {o.acumulado.toFixed(2)}%
                           </span>
@@ -3383,17 +3383,17 @@ export const ContasAPagar: React.FC = () => {
                   <tfoot className="bg-gray-100">
                     <tr className="font-bold">
                       <td className="px-4 py-3 text-sm">Total</td>
-                      <td className="px-6 py-3 text-sm text-gray-500" colSpan={2}>-</td>
-                      <td className="px-6 py-3 text-sm text-gray-900 text-center">{origensComPareto.reduce((a, o) => a + o.quantidade, 0)}</td>
+                      <td className="px-6 py-3 text-sm text-gray-500 dark:text-slate-400" colSpan={2}>-</td>
+                      <td className="px-6 py-3 text-sm text-gray-900 dark:text-slate-100 text-center">{origensComPareto.reduce((a, o) => a + o.quantidade, 0)}</td>
                       <td className="px-6 py-3 text-sm text-blue-700 text-right">{formatCurrency(totalGeral)}</td>
-                      <td className="px-6 py-3 text-sm text-gray-900 text-right">100,00%</td>
-                      <td className="px-6 py-3 text-sm text-gray-900 text-right">100,00%</td>
+                      <td className="px-6 py-3 text-sm text-gray-900 dark:text-slate-100 text-right">100,00%</td>
+                      <td className="px-6 py-3 text-sm text-gray-900 dark:text-slate-100 text-right">100,00%</td>
                     </tr>
                   </tfoot>
                 </table>
               </div>
 
-              <div className="flex items-center gap-4 px-6 py-3 border-t border-gray-200 bg-gray-50">
+              <div className="flex items-center gap-4 px-6 py-3 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
                 <span className="flex items-center gap-1.5 text-xs">
                   <span className="inline-block w-3 h-3 rounded bg-green-100 border border-green-300"></span> A (ate 80%)
                 </span>
@@ -3401,7 +3401,7 @@ export const ContasAPagar: React.FC = () => {
                   <span className="inline-block w-3 h-3 rounded bg-yellow-100 border border-yellow-300"></span> B (80-95%)
                 </span>
                 <span className="flex items-center gap-1.5 text-xs">
-                  <span className="inline-block w-3 h-3 rounded bg-red-100 border border-red-300"></span> C (95-100%)
+                  <span className="inline-block w-3 h-3 rounded bg-red-100 dark:bg-red-900/40 border border-red-300"></span> C (95-100%)
                 </span>
               </div>
             </div>
@@ -3412,29 +3412,29 @@ export const ContasAPagar: React.FC = () => {
       {abaAtiva === 'mudancas' && (
         <div>
           <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Relatório de Mudanças</h2>
-            <p className="mt-1 text-sm text-gray-600">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Relatório de Mudanças</h2>
+            <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
               Títulos criados ou alterados em um período (via API Sienge /bills/by-change-date)
             </p>
           </div>
 
-          <div className="mb-4 flex flex-wrap items-end gap-4 rounded-lg bg-white p-4 shadow">
+          <div className="mb-4 flex flex-wrap items-end gap-4 rounded-lg bg-white dark:bg-slate-800 p-4 shadow">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Data Início</label>
               <input
                 type="date"
                 value={mudancasDataInicio}
                 onChange={(e) => setMudancasDataInicio(e.target.value)}
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data Fim</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Data Fim</label>
               <input
                 type="date"
                 value={mudancasDataFim}
                 onChange={(e) => setMudancasDataFim(e.target.value)}
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
             <button
@@ -3469,45 +3469,45 @@ export const ContasAPagar: React.FC = () => {
           {mudancasLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
-              <span className="ml-3 text-gray-600">Buscando alterações...</span>
+              <span className="ml-3 text-gray-600 dark:text-slate-400">Buscando alterações...</span>
             </div>
           ) : mudancasResultados.length > 0 ? (
-            <div className="overflow-hidden rounded-lg bg-white shadow">
+            <div className="overflow-hidden rounded-lg bg-white dark:bg-slate-800 shadow">
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-blue-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Tipo</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Título</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Credor</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Valor</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Alterado por</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Data Alteração</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Cadastrado por</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Data Cadastro</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Doc</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Origem</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Tipo</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Título</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Credor</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Valor</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Alterado por</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Data Alteração</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Cadastrado por</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Data Cadastro</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Doc</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Origem</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
+                  <tbody className="divide-y divide-gray-200 bg-white dark:bg-slate-800">
                     {mudancasResultados.map((t, idx) => {
                       const isCriado = t.registeredDate && t.changedDate && t.registeredDate.split('T')[0] === t.changedDate.split('T')[0];
                       return (
-                        <tr key={`${t.id}-${idx}`} className={`hover:bg-gray-50 ${isCriado ? 'bg-green-50' : 'bg-yellow-50'}`}>
+                        <tr key={`${t.id}-${idx}`} className={`hover:bg-gray-50 dark:bg-slate-900 ${isCriado ? 'bg-green-50' : 'bg-yellow-50'}`}>
                           <td className="px-4 py-3 text-sm">
                             <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${isCriado ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                               {isCriado ? 'Criado' : 'Alterado'}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{t.id}</td>
-                          <td className="px-4 py-3 text-sm text-gray-700">{t.creditorName || `Credor ${t.creditorId}`}</td>
-                          <td className="px-4 py-3 text-sm text-right font-medium text-gray-900">{formatCurrency(t.totalInvoiceAmount || 0)}</td>
-                          <td className="px-4 py-3 text-sm text-gray-700">{t.changedBy || '-'}</td>
-                          <td className="px-4 py-3 text-sm text-gray-700">{t.changedDate ? new Date(t.changedDate).toLocaleString('pt-BR') : '-'}</td>
-                          <td className="px-4 py-3 text-sm text-gray-700">{t.registeredBy || '-'}</td>
-                          <td className="px-4 py-3 text-sm text-gray-700">{t.registeredDate ? new Date(t.registeredDate).toLocaleString('pt-BR') : '-'}</td>
-                          <td className="px-4 py-3 text-sm text-gray-700">{t.documentNumber || '-'}</td>
-                          <td className="px-4 py-3 text-sm text-gray-700">{t.originId || '-'}</td>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-slate-100">{t.id}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300">{t.creditorName || `Credor ${t.creditorId}`}</td>
+                          <td className="px-4 py-3 text-sm text-right font-medium text-gray-900 dark:text-slate-100">{formatCurrency(t.totalInvoiceAmount || 0)}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300">{t.changedBy || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300">{t.changedDate ? new Date(t.changedDate).toLocaleString('pt-BR') : '-'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300">{t.registeredBy || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300">{t.registeredDate ? new Date(t.registeredDate).toLocaleString('pt-BR') : '-'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300">{t.documentNumber || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300">{t.originId || '-'}</td>
                         </tr>
                       );
                     })}
@@ -3516,12 +3516,12 @@ export const ContasAPagar: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="rounded-lg bg-white p-8 text-center shadow">
+            <div className="rounded-lg bg-white dark:bg-slate-800 p-8 text-center shadow">
               <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">Selecione um período e clique em Buscar</h3>
-              <p className="mt-1 text-sm text-gray-500">Os títulos criados ou alterados no período serão exibidos aqui.</p>
+              <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-slate-100">Selecione um período e clique em Buscar</h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">Os títulos criados ou alterados no período serão exibidos aqui.</p>
             </div>
           )}
         </div>

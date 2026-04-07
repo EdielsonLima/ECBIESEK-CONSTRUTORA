@@ -635,15 +635,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
           onClick={() => setChangelogAberto(false)}
         >
           <div
-            className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl"
+            className="w-full max-w-lg overflow-hidden rounded-2xl bg-white dark:bg-slate-800 dark:bg-slate-800 shadow-2xl border border-transparent dark:border-slate-700"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="relative bg-gradient-to-r from-blue-700 to-indigo-600 px-6 py-5 text-white">
-              <button type="button" onClick={() => setChangelogAberto(false)} className="absolute right-4 top-4 rounded-full p-1 text-white/70 hover:bg-white/20 hover:text-white">
+              <button type="button" onClick={() => setChangelogAberto(false)} className="absolute right-4 top-4 rounded-full p-1 text-white/70 hover:bg-white dark:bg-slate-800/20 hover:text-white">
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white dark:bg-slate-800/20">
                   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                 </div>
                 <div>
@@ -654,17 +654,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
             </div>
             <div className="max-h-[60vh] overflow-y-auto px-6 py-5 space-y-6">
               {changelogDados.map((versao: any, vi: number) => (
-                <div key={vi} className={vi > 0 ? 'border-t border-gray-200 pt-5' : ''}>
+                <div key={vi} className={vi > 0 ? 'border-t border-gray-200 dark:border-slate-700 dark:border-slate-700 pt-5' : ''}>
                   <div className="mb-3 flex items-center gap-2">
-                    <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-blue-700">v{versao.versao}</span>
-                    <span className="text-xs text-gray-400">{new Date(versao.data + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                    <span className="rounded-full bg-blue-100 dark:bg-blue-900/40 px-2.5 py-0.5 text-xs font-bold text-blue-700 dark:text-blue-300">v{versao.versao}</span>
+                    <span className="text-xs text-gray-400 dark:text-slate-500">{new Date(versao.data + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
                   </div>
                   {versao.secoes?.map((secao: any, si: number) => (
                     <div key={si} className="mb-3">
-                      <h4 className="text-sm font-bold text-gray-800 mb-1">{secao.titulo}</h4>
+                      <h4 className="text-sm font-bold text-gray-800 dark:text-slate-200 dark:text-slate-200 mb-1">{secao.titulo}</h4>
                       <ul className="space-y-1 ml-3">
                         {secao.itens?.map((item: string, ii: number) => (
-                          <li key={ii} className="flex items-start gap-2 text-sm text-gray-600">
+                          <li key={ii} className="flex items-start gap-2 text-sm text-gray-600 dark:text-slate-400 dark:text-slate-400">
                             <svg className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                             <span>{item}</span>
                           </li>
@@ -675,7 +675,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
                 </div>
               ))}
             </div>
-            <div className="border-t border-gray-100 bg-gray-50 px-6 py-3">
+            <div className="border-t border-gray-100 dark:border-slate-700/50 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 dark:bg-slate-800/80 px-6 py-3">
               <button type="button" onClick={() => setChangelogAberto(false)} className="w-full rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:from-blue-700 hover:to-indigo-700">
                 Fechar
               </button>

@@ -253,8 +253,8 @@ export const Validacao: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Validacao de Dados</h2>
-          <p className="text-sm text-gray-500 mt-1">Gerencie checkpoints e verifique integridade dos dados por pagina</p>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Validacao de Dados</h2>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">Gerencie checkpoints e verifique integridade dos dados por pagina</p>
         </div>
         <button
           onClick={handleVerificarTodos}
@@ -274,33 +274,33 @@ export const Validacao: React.FC = () => {
 
       {/* Resultado da verificacao */}
       {verificacaoResult && (
-        <div className={`rounded-lg p-4 border ${verificacaoResult.failed > 0 || verificacaoResult.errors > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
+        <div className={`rounded-lg p-4 border ${verificacaoResult.failed > 0 || verificacaoResult.errors > 0 ? 'bg-red-50 dark:bg-red-900/20 border-red-200' : 'bg-green-50 border-green-200'}`}>
           <div className="flex items-center gap-4 mb-3">
-            <h3 className="font-semibold text-gray-900">Resultado da Verificacao</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-slate-100">Resultado da Verificacao</h3>
             <div className="flex gap-3 text-sm">
               <span className="text-green-700 font-medium">{verificacaoResult.passed} passaram</span>
-              {verificacaoResult.failed > 0 && <span className="text-red-700 font-medium">{verificacaoResult.failed} falharam</span>}
+              {verificacaoResult.failed > 0 && <span className="text-red-700 dark:text-red-400 font-medium">{verificacaoResult.failed} falharam</span>}
               {verificacaoResult.errors > 0 && <span className="text-orange-700 font-medium">{verificacaoResult.errors} erros</span>}
             </div>
           </div>
           {verificacaoResult.details.filter(d => d.status !== 'pass').length > 0 && (
             <div className="space-y-2">
               {verificacaoResult.details.filter(d => d.status !== 'pass').map((d, i) => (
-                <div key={i} className="bg-white rounded p-3 border border-red-100">
+                <div key={i} className="bg-white dark:bg-slate-800 rounded p-3 border border-red-100">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${d.status === 'fail' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${d.status === 'fail' ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400' : 'bg-orange-100 text-orange-700'}`}>
                       {d.status === 'fail' ? 'DRIFT' : 'ERRO'}
                     </span>
-                    <span className="text-sm font-medium text-gray-900">{d.label}</span>
-                    <span className="text-xs text-gray-500">({d.page_id})</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-slate-100">{d.label}</span>
+                    <span className="text-xs text-gray-500 dark:text-slate-400">({d.page_id})</span>
                   </div>
-                  {d.message && <p className="text-xs text-red-600">{d.message}</p>}
+                  {d.message && <p className="text-xs text-red-600 dark:text-red-400">{d.message}</p>}
                   {d.diffs && (
                     <div className="mt-2 space-y-1">
                       {Object.entries(d.diffs).filter(([, v]) => v.status !== 'pass').map(([key, val]) => (
-                        <div key={key} className="text-xs text-gray-700">
-                          <span className="font-mono font-medium">{key}</span>: esperado <span className="font-semibold text-blue-600">{formatValue(val.expected)}</span> / atual <span className="font-semibold text-red-600">{formatValue(val.actual)}</span>
-                          {val.diff_pct !== undefined && <span className="text-gray-500 ml-1">({val.diff_pct}% diff)</span>}
+                        <div key={key} className="text-xs text-gray-700 dark:text-slate-300">
+                          <span className="font-mono font-medium">{key}</span>: esperado <span className="font-semibold text-blue-600">{formatValue(val.expected)}</span> / atual <span className="font-semibold text-red-600 dark:text-red-400">{formatValue(val.actual)}</span>
+                          {val.diff_pct !== undefined && <span className="text-gray-500 dark:text-slate-400 ml-1">({val.diff_pct}% diff)</span>}
                         </div>
                       ))}
                     </div>
@@ -309,31 +309,31 @@ export const Validacao: React.FC = () => {
               ))}
             </div>
           )}
-          <button onClick={() => setVerificacaoResult(null)} className="mt-2 text-xs text-gray-500 hover:underline">Fechar</button>
+          <button onClick={() => setVerificacaoResult(null)} className="mt-2 text-xs text-gray-500 dark:text-slate-400 hover:underline">Fechar</button>
         </div>
       )}
 
       {/* Tabela de paginas */}
-      <div className="rounded-lg bg-white shadow overflow-hidden">
+      <div className="rounded-lg bg-white dark:bg-slate-800 shadow overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 dark:bg-slate-900">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Pagina</th>
-              <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Validado por</th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Data</th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Ultima verificacao</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Acoes</th>
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Pagina</th>
+              <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Validado por</th>
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Data</th>
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Ultima verificacao</th>
+              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Acoes</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
             {paginas.map((p) => (
               <tr
                 key={p.page_id}
-                className={`hover:bg-gray-50 cursor-pointer ${selectedPage === p.page_id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}`}
+                className={`hover:bg-gray-50 dark:bg-slate-900 cursor-pointer ${selectedPage === p.page_id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}`}
                 onClick={() => setSelectedPage(selectedPage === p.page_id ? null : p.page_id)}
               >
-                <td className="px-6 py-3 text-sm font-medium text-gray-900">{p.page_label}</td>
+                <td className="px-6 py-3 text-sm font-medium text-gray-900 dark:text-slate-100">{p.page_label}</td>
                 <td className="px-4 py-3 text-center">
                   <div className="flex items-center justify-center gap-2">
                     <ValidationBadge status={p.status} size="md" />
@@ -342,11 +342,11 @@ export const Validacao: React.FC = () => {
                     </span>
                   </div>
                 </td>
-                <td className="px-6 py-3 text-sm text-gray-500">{p.validated_by || '-'}</td>
-                <td className="px-6 py-3 text-sm text-gray-500">{formatDate(p.validated_at)}</td>
+                <td className="px-6 py-3 text-sm text-gray-500 dark:text-slate-400">{p.validated_by || '-'}</td>
+                <td className="px-6 py-3 text-sm text-gray-500 dark:text-slate-400">{formatDate(p.validated_at)}</td>
                 <td className="px-6 py-3 text-sm">
                   {p.last_check_at ? (
-                    <span className={p.last_check_result === 'ok' ? 'text-green-600' : p.last_check_result === 'drift' ? 'text-yellow-600' : 'text-gray-500'}>
+                    <span className={p.last_check_result === 'ok' ? 'text-green-600' : p.last_check_result === 'drift' ? 'text-yellow-600' : 'text-gray-500 dark:text-slate-400'}>
                       {formatDate(p.last_check_at)} - {p.last_check_result === 'ok' ? 'OK' : p.last_check_result === 'drift' ? 'Drift' : p.last_check_result || '-'}
                     </span>
                   ) : '-'}
@@ -378,15 +378,15 @@ export const Validacao: React.FC = () => {
 
       {/* Checkpoints da pagina selecionada */}
       {selectedPage && selectedPageData && (
-        <div className="rounded-lg bg-white shadow p-6">
+        <div className="rounded-lg bg-white dark:bg-slate-800 shadow p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <h3 className="text-lg font-bold text-gray-900">Checkpoints: {selectedPageData.page_label}</h3>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100">Checkpoints: {selectedPageData.page_label}</h3>
               <ValidationBadge status={selectedPageData.status} size="md" />
             </div>
             <button
               onClick={() => { setShowForm(!showForm); setCapturedValues(null); }}
-              className="flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+              className="flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-200 transition-colors"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={showForm ? "M6 18L18 6M6 6l12 12" : "M12 4v16m8-8H4"} />
@@ -402,21 +402,21 @@ export const Validacao: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Nome do checkpoint</label>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">Nome do checkpoint</label>
                   <input
                     type="text"
                     value={novoLabel}
                     onChange={e => setNovoLabel(e.target.value)}
                     placeholder="Ex: Contas Pagas - Jan/2025 - Total"
-                    className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                    className="w-full rounded border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Endpoint</label>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">Endpoint</label>
                   <select
                     value={novoEndpoint}
                     onChange={e => setNovoEndpoint(e.target.value)}
-                    className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                    className="w-full rounded border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                   >
                     <option value="">Selecione...</option>
                     {availableEndpoints.map(ep => (
@@ -428,25 +428,25 @@ export const Validacao: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Parametros (JSON)</label>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">Parametros (JSON)</label>
                   <textarea
                     value={novoParams}
                     onChange={e => setNovoParams(e.target.value)}
                     placeholder='{"ano": "2025", "mes": "1", "empresa": "2"}'
                     rows={3}
-                    className="w-full rounded border border-gray-300 px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none"
+                    className="w-full rounded border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Tolerancia (%)</label>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">Tolerancia (%)</label>
                   <input
                     type="number"
                     step="0.01"
                     value={novoTolerance}
                     onChange={e => setNovoTolerance(e.target.value)}
-                    className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                    className="w-full rounded border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                   />
-                  <p className="text-[10px] text-gray-500 mt-1">0 = match exato. 0.01 = tolera 1% de variacao.</p>
+                  <p className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">0 = match exato. 0.01 = tolera 1% de variacao.</p>
                 </div>
               </div>
 
@@ -490,9 +490,9 @@ export const Validacao: React.FC = () => {
                   <h5 className="text-xs font-bold text-green-800 mb-2">Valores capturados (serao salvos como esperados):</h5>
                   <div className="grid grid-cols-3 gap-2">
                     {Object.entries(capturedValues).map(([key, val]) => (
-                      <div key={key} className="bg-white rounded px-2 py-1 border border-green-100">
-                        <span className="text-[10px] text-gray-500 font-mono">{key}</span>
-                        <p className="text-sm font-semibold text-gray-900">{formatValue(val)}</p>
+                      <div key={key} className="bg-white dark:bg-slate-800 rounded px-2 py-1 border border-green-100">
+                        <span className="text-[10px] text-gray-500 dark:text-slate-400 font-mono">{key}</span>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{formatValue(val)}</p>
                       </div>
                     ))}
                   </div>
@@ -517,21 +517,21 @@ export const Validacao: React.FC = () => {
                 const actual = parseJsonSafe(cp.last_actual_values);
                 const params = parseJsonSafe(cp.query_params);
                 return (
-                  <div key={cp.id} className={`rounded-lg border p-4 ${cp.last_check_status === 'pass' ? 'border-green-200 bg-green-50/50' : cp.last_check_status === 'fail' ? 'border-red-200 bg-red-50/50' : 'border-gray-200'}`}>
+                  <div key={cp.id} className={`rounded-lg border p-4 ${cp.last_check_status === 'pass' ? 'border-green-200 bg-green-50/50' : cp.last_check_status === 'fail' ? 'border-red-200 bg-red-50/50' : 'border-gray-200 dark:border-slate-700'}`}>
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-3">
                         {cp.last_check_status && (
-                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${cp.last_check_status === 'pass' ? 'bg-green-100 text-green-700' : cp.last_check_status === 'fail' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${cp.last_check_status === 'pass' ? 'bg-green-100 text-green-700' : cp.last_check_status === 'fail' ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400' : 'bg-orange-100 text-orange-700'}`}>
                             {cp.last_check_status === 'pass' ? 'PASS' : cp.last_check_status === 'fail' ? 'FAIL' : 'ERROR'}
                           </span>
                         )}
-                        <span className="text-sm font-semibold text-gray-900">{cp.checkpoint_label}</span>
+                        <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">{cp.checkpoint_label}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-gray-400 font-mono">{cp.endpoint}</span>
                         <button
                           onClick={() => handleDeletarCheckpoint(cp.id)}
-                          className="rounded p-1 text-gray-400 hover:bg-red-100 hover:text-red-600 transition-colors"
+                          className="rounded p-1 text-gray-400 hover:bg-red-100 dark:bg-red-900/40 hover:text-red-600 dark:text-red-400 transition-colors"
                           title="Remover checkpoint"
                         >
                           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -546,8 +546,8 @@ export const Validacao: React.FC = () => {
                       <div className="flex gap-2 mb-2 flex-wrap">
                         {Object.entries(params).map(([k, v]) => (
                           <span key={k} className="inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-0.5 text-[10px] font-mono">
-                            <span className="text-gray-500">{k}:</span>
-                            <span className="font-semibold text-gray-700">{String(v)}</span>
+                            <span className="text-gray-500 dark:text-slate-400">{k}:</span>
+                            <span className="font-semibold text-gray-700 dark:text-slate-300">{String(v)}</span>
                           </span>
                         ))}
                         {cp.tolerance_pct > 0 && (
@@ -565,14 +565,14 @@ export const Validacao: React.FC = () => {
                           const actVal = actual ? actual[key] : undefined;
                           const isMatch = actVal !== undefined && String(expVal) === String(actVal);
                           return (
-                            <div key={key} className="bg-white rounded px-2 py-1.5 border border-gray-100">
-                              <span className="text-[10px] text-gray-500 font-mono block">{key}</span>
+                            <div key={key} className="bg-white dark:bg-slate-800 rounded px-2 py-1.5 border border-gray-100 dark:border-slate-700/50">
+                              <span className="text-[10px] text-gray-500 dark:text-slate-400 font-mono block">{key}</span>
                               <div className="flex items-baseline gap-1.5">
                                 <span className="text-xs font-semibold text-blue-700">{formatValue(expVal)}</span>
                                 {actVal !== undefined && (
                                   <>
                                     <span className="text-[10px] text-gray-400">{'\u2192'}</span>
-                                    <span className={`text-xs font-semibold ${isMatch ? 'text-green-600' : 'text-red-600'}`}>{formatValue(actVal)}</span>
+                                    <span className={`text-xs font-semibold ${isMatch ? 'text-green-600' : 'text-red-600 dark:text-red-400'}`}>{formatValue(actVal)}</span>
                                   </>
                                 )}
                               </div>

@@ -89,7 +89,7 @@ export const GerenciarUsuarios: React.FC = () => {
   const badgePermissao = (p: string) =>
     p === 'admin'
       ? 'bg-blue-100 text-blue-700 border border-blue-200'
-      : 'bg-gray-100 text-gray-600 border border-gray-200';
+      : 'bg-gray-100 text-gray-600 dark:text-slate-400 border border-gray-200 dark:border-slate-700';
 
   const labelPermissao = (p: string) =>
     p === 'admin' ? 'Admin' : 'Somente leitura';
@@ -98,12 +98,12 @@ export const GerenciarUsuarios: React.FC = () => {
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
 
       {/* Novo Usuário */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <h2 className="text-lg font-bold text-gray-800 mb-1">Novo Usuário</h2>
-        <p className="text-sm text-gray-500 mb-5">Crie uma conta para dar acesso ao painel.</p>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700/50 p-6">
+        <h2 className="text-lg font-bold text-gray-800 dark:text-slate-200 mb-1">Novo Usuário</h2>
+        <p className="text-sm text-gray-500 dark:text-slate-400 mb-5">Crie uma conta para dar acesso ao painel.</p>
 
         {erroCriar && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">{erroCriar}</div>
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 rounded-lg text-sm text-red-600 dark:text-red-400">{erroCriar}</div>
         )}
         {sucesso && (
           <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">{sucesso}</div>
@@ -111,37 +111,37 @@ export const GerenciarUsuarios: React.FC = () => {
 
         <form onSubmit={handleCriar} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
           <div className="md:col-span-2">
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Email</label>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Email</label>
             <input
               type="email" required value={novoEmail}
               onChange={e => setNovoEmail(e.target.value)}
               placeholder="nome@email.com"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Nome</label>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Nome</label>
             <input
               type="text" required value={novoNome}
               onChange={e => setNovoNome(e.target.value)}
               placeholder="Nome completo"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
           </div>
           <div className="md:col-span-1">
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Senha (mín. 6)</label>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Senha (mín. 6)</label>
             <input
               type="password" required minLength={6} value={novaSenha}
               onChange={e => setNovaSenha(e.target.value)}
               placeholder="••••••"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
           </div>
           <div className="md:col-span-1">
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Permissão</label>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Permissão</label>
             <select
               value={novaPermissao} onChange={e => setNovaPermissao(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               <option value="somente_leitura">Somente leitura</option>
               <option value="admin">Admin</option>
@@ -166,20 +166,20 @@ export const GerenciarUsuarios: React.FC = () => {
       </div>
 
       {/* Lista de Usuários */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-gray-800">Usuários Cadastrados</h2>
-          <p className="text-xs text-gray-500 mt-0.5">Clique em "Editar" para alterar a permissão de um usuário</p>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700/50 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 dark:border-slate-700/50">
+          <h2 className="text-lg font-bold text-gray-800 dark:text-slate-200">Usuários Cadastrados</h2>
+          <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Clique em "Editar" para alterar a permissão de um usuário</p>
         </div>
 
         {loading ? (
           <div className="py-12 text-center text-gray-400 text-sm">Carregando...</div>
         ) : erro ? (
-          <div className="py-12 text-center text-red-500 text-sm">{erro}</div>
+          <div className="py-12 text-center text-red-500 dark:text-red-400 text-sm">{erro}</div>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wider">
+              <tr className="border-b border-gray-100 dark:border-slate-700/50 text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                 <th className="px-6 py-3 text-left">Usuário</th>
                 <th className="px-6 py-3 text-left">Nome</th>
                 <th className="px-6 py-3 text-left">Permissão</th>
@@ -189,9 +189,9 @@ export const GerenciarUsuarios: React.FC = () => {
             </thead>
             <tbody>
               {usuarios.map(u => (
-                <tr key={u.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-3 font-medium text-gray-800">{u.email}</td>
-                  <td className="px-6 py-3 text-gray-600">{u.nome}</td>
+                <tr key={u.id} className="border-b border-gray-50 hover:bg-gray-50 dark:bg-slate-900 transition-colors">
+                  <td className="px-6 py-3 font-medium text-gray-800 dark:text-slate-200">{u.email}</td>
+                  <td className="px-6 py-3 text-gray-600 dark:text-slate-400">{u.nome}</td>
                   <td className="px-6 py-3">
                     {editandoId === u.id ? (
                       <div className="flex items-center gap-2">
@@ -212,7 +212,7 @@ export const GerenciarUsuarios: React.FC = () => {
                         </button>
                         <button
                           onClick={cancelarEdicao}
-                          className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                          className="text-xs text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300 transition-colors"
                         >
                           Cancelar
                         </button>
@@ -228,7 +228,7 @@ export const GerenciarUsuarios: React.FC = () => {
                       </span>
                     )}
                   </td>
-                  <td className="px-6 py-3 text-gray-500">
+                  <td className="px-6 py-3 text-gray-500 dark:text-slate-400">
                     {u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '—'}
                   </td>
                   <td className="px-6 py-3 text-right">
@@ -244,7 +244,7 @@ export const GerenciarUsuarios: React.FC = () => {
                       )}
                       <button
                         onClick={() => handleDeletar(u.id, u.email)}
-                        className="text-red-500 hover:text-red-700 text-xs font-medium transition-colors"
+                        className="text-red-500 dark:text-red-400 hover:text-red-700 dark:text-red-400 text-xs font-medium transition-colors"
                         title="Remover usuário"
                       >
                         Remover

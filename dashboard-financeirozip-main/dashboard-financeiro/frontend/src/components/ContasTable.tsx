@@ -33,62 +33,62 @@ export const ContasTable: React.FC<ContasTableProps> = ({ contas, titulo }) => {
     const vencimento = new Date(ano, mes - 1, dia);
     
     if (vencimento < hoje) {
-      return <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-800">Em Atraso</span>;
+      return <span className="rounded-full bg-red-100 dark:bg-red-900/40 px-3 py-1 text-xs font-semibold text-red-800">Em Atraso</span>;
     }
     
     return <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800">A Pagar</span>;
   };
 
   return (
-    <div className="rounded-lg border-2 border-gray-200 bg-white p-6">
-      <h2 className="mb-4 text-xl font-bold text-gray-800">{titulo}</h2>
+    <div className="rounded-lg border-2 border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
+      <h2 className="mb-4 text-xl font-bold text-gray-800 dark:text-slate-200">{titulo}</h2>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 dark:bg-slate-900">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
                 Descrição
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
                 Fornecedor
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
                 Categoria
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
                 Vencimento
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
                 Valor
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
                 Status
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 bg-white">
+          <tbody className="divide-y divide-gray-200 bg-white dark:bg-slate-800">
             {contas.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
+                <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-slate-400">
                   Nenhuma conta encontrada
                 </td>
               </tr>
             ) : (
               contas.map((conta, index) => (
-                <tr key={`${conta.credor || conta.fornecedor}-${conta.data_vencimento}-${index}`} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm text-gray-900">
+                <tr key={`${conta.credor || conta.fornecedor}-${conta.data_vencimento}-${index}`} className="hover:bg-gray-50 dark:bg-slate-900">
+                  <td className="px-6 py-4 text-sm text-gray-900 dark:text-slate-100">
                     {conta.lancamento || conta.descricao || '-'}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
+                  <td className="px-6 py-4 text-sm text-gray-900 dark:text-slate-100">
                     {conta.credor || conta.fornecedor || '-'}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
+                  <td className="px-6 py-4 text-sm text-gray-900 dark:text-slate-100">
                     {conta.id_plano_financeiro || conta.categoria || '-'}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
+                  <td className="px-6 py-4 text-sm text-gray-900 dark:text-slate-100">
                     {formatDate(conta.data_vencimento)}
                   </td>
-                  <td className="px-6 py-4 text-sm font-semibold text-gray-900">
+                  <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-slate-100">
                     {formatCurrency(conta.valor_total || conta.valor || 0)}
                   </td>
                   <td className="px-6 py-4 text-sm">

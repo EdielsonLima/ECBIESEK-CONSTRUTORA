@@ -242,11 +242,11 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
     const isPositive = tendencia === 'subindo';
     const isNegative = tendencia === 'descendo';
     
-    let colorClass = 'text-gray-500';
+    let colorClass = 'text-gray-500 dark:text-slate-400';
     if (tipo_meta === 'maior') {
-      colorClass = isPositive ? 'text-green-500' : isNegative ? 'text-red-500' : 'text-gray-500';
+      colorClass = isPositive ? 'text-green-500' : isNegative ? 'text-red-500 dark:text-red-400' : 'text-gray-500 dark:text-slate-400';
     } else if (tipo_meta === 'menor') {
-      colorClass = isNegative ? 'text-green-500' : isPositive ? 'text-red-500' : 'text-gray-500';
+      colorClass = isNegative ? 'text-green-500' : isPositive ? 'text-red-500 dark:text-red-400' : 'text-gray-500 dark:text-slate-400';
     }
 
     return (
@@ -257,19 +257,19 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
   };
 
   const getVariacaoColor = (variacao?: number, tipo_meta?: string) => {
-    if (variacao === undefined || variacao === null) return 'text-gray-600';
+    if (variacao === undefined || variacao === null) return 'text-gray-600 dark:text-slate-400';
     if (tipo_meta === 'maior') {
-      return variacao > 0 ? 'text-green-600' : variacao < 0 ? 'text-red-600' : 'text-gray-600';
+      return variacao > 0 ? 'text-green-600' : variacao < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-slate-400';
     } else if (tipo_meta === 'menor') {
-      return variacao < 0 ? 'text-green-600' : variacao > 0 ? 'text-red-600' : 'text-gray-600';
+      return variacao < 0 ? 'text-green-600' : variacao > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-slate-400';
     }
-    return 'text-gray-600';
+    return 'text-gray-600 dark:text-slate-400';
   };
 
   const getStatusColor = (status?: string) => {
     if (status === 'ok') return 'text-green-600 bg-green-100';
-    if (status === 'atencao') return 'text-red-600 bg-red-100';
-    return 'text-gray-600 bg-gray-100';
+    if (status === 'atencao') return 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/40';
+    return 'text-gray-600 dark:text-slate-400 bg-gray-100';
   };
 
   const categorias = [...new Set(variacaoDiaria.map(k => k.categoria || 'Geral'))].sort();
@@ -355,7 +355,7 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div className="border-b border-gray-200 flex-1">
+        <div className="border-b border-gray-200 dark:border-slate-700 flex-1">
           <nav className="-mb-px flex space-x-8">
             {tabs.map((tab) => (
               <button
@@ -364,7 +364,7 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
                 className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium ${
                   activeTab === tab.id
                     ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                    : 'border-transparent text-gray-500 dark:text-slate-400 hover:border-gray-300 dark:border-slate-600 hover:text-gray-700 dark:text-slate-300'
                 }`}
               >
                 {tab.label}
@@ -390,14 +390,14 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
             <div className="space-y-6">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Monitoramento de KPIs</h2>
-                  <p className="text-sm text-gray-500 mt-1">Acompanhe a variação diária dos seus indicadores</p>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">Monitoramento de KPIs</h2>
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">Acompanhe a variação diária dos seus indicadores</p>
                 </div>
                 <div className="flex items-center gap-4">
                   <select
                     value={filtroCategoria}
                     onChange={(e) => setFiltroCategoria(e.target.value)}
-                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    className="rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm"
                   >
                     <option value="">Todas as Categorias</option>
                     {categorias.map((cat) => (
@@ -416,14 +416,14 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
               </div>
 
               {snapshotMensagem && (
-                <div className={`rounded-lg px-4 py-3 ${snapshotMensagem.includes('Erro') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                <div className={`rounded-lg px-4 py-3 ${snapshotMensagem.includes('Erro') ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400' : 'bg-green-100 text-green-700'}`}>
                   {snapshotMensagem}
                 </div>
               )}
 
               {kpisOrdenados.length === 0 ? (
-                <div className="rounded-lg bg-white p-8 text-center shadow">
-                  <p className="text-gray-500">Nenhum KPI ativo para monitoramento.</p>
+                <div className="rounded-lg bg-white dark:bg-slate-800 p-8 text-center shadow">
+                  <p className="text-gray-500 dark:text-slate-400">Nenhum KPI ativo para monitoramento.</p>
                   <p className="text-sm text-gray-400 mt-2">Cadastre KPIs na aba "Cadastro" para começar.</p>
                 </div>
               ) : (
@@ -431,7 +431,7 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
                   {kpisOrdenados.map((kpi) => (
                     <div 
                       key={kpi.id} 
-                      className="rounded-lg bg-white p-5 shadow hover:shadow-md transition-shadow cursor-pointer"
+                      className="rounded-lg bg-white dark:bg-slate-800 p-5 shadow hover:shadow-md transition-shadow cursor-pointer"
                       onClick={() => {
                         setSelectedKPIId(kpi.id);
                         setActiveTab('historico');
@@ -462,15 +462,15 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
                       </div>
                       
                       <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">{kpi.categoria || 'Geral'}</p>
-                      <h3 className="mt-1 text-sm font-semibold text-gray-900 line-clamp-2">{kpi.descricao}</h3>
+                      <h3 className="mt-1 text-sm font-semibold text-gray-900 dark:text-slate-100 line-clamp-2">{kpi.descricao}</h3>
                       
                       <div className="mt-4">
                         <div className="flex items-end gap-2">
-                          <span className="text-2xl font-bold text-gray-900">
+                          <span className="text-2xl font-bold text-gray-900 dark:text-slate-100">
                             {kpi.valor_hoje !== undefined ? formatNumber(kpi.valor_hoje, kpi.unidade) : '-'}
                           </span>
                           {kpi.unidade && kpi.unidade !== 'R$' && (
-                            <span className="text-gray-500 text-sm mb-0.5">{kpi.unidade}</span>
+                            <span className="text-gray-500 dark:text-slate-400 text-sm mb-0.5">{kpi.unidade}</span>
                           )}
                         </div>
                         
@@ -494,7 +494,7 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
                         )}
 
                         {kpi.meta !== undefined && (
-                          <p className="mt-2 text-xs text-gray-500">
+                          <p className="mt-2 text-xs text-gray-500 dark:text-slate-400">
                             Meta: {formatNumber(kpi.meta, kpi.unidade)}
                           </p>
                         )}
@@ -509,7 +509,7 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
           {activeTab === 'cadastro' && (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold text-gray-900">KPIs Cadastrados</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">KPIs Cadastrados</h2>
                 {isAdmin && (
                   <button
                     onClick={() => setShowForm(true)}
@@ -521,63 +521,63 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
               </div>
 
               {mensagemKPI && (
-                <div className={`rounded-lg px-4 py-3 ${mensagemKPI.tipo === 'erro' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                <div className={`rounded-lg px-4 py-3 ${mensagemKPI.tipo === 'erro' ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400' : 'bg-green-100 text-green-700'}`}>
                   {mensagemKPI.texto}
                 </div>
               )}
 
               {showForm && (
-                <div className="rounded-lg bg-white p-6 shadow">
+                <div className="rounded-lg bg-white dark:bg-slate-800 p-6 shadow">
                   <h3 className="mb-4 text-lg font-medium">
                     {editingKPI ? 'Editar KPI' : 'Novo KPI'}
                   </h3>
                   <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700">Descrição *</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">Descrição *</label>
                       <input
                         type="text"
                         required
                         value={formData.descricao}
                         onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                        className="mt-1 w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Categoria</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">Categoria</label>
                       <input
                         type="text"
                         value={formData.categoria}
                         onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
-                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                        className="mt-1 w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2"
                         placeholder="Ex: A Pagar, A Receber, Bancário"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Índice/Código</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">Índice/Código</label>
                       <input
                         type="text"
                         value={formData.indice}
                         onChange={(e) => setFormData({ ...formData, indice: e.target.value })}
-                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                        className="mt-1 w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2"
                         placeholder="Ex: 1, 2, 3..."
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Meta</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">Meta</label>
                       <input
                         type="number"
                         step="0.01"
                         value={formData.meta || ''}
                         onChange={(e) => setFormData({ ...formData, meta: e.target.value ? parseFloat(e.target.value) : undefined })}
-                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                        className="mt-1 w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Tipo de Meta</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">Tipo de Meta</label>
                       <select
                         value={formData.tipo_meta}
                         onChange={(e) => setFormData({ ...formData, tipo_meta: e.target.value })}
-                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                        className="mt-1 w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2"
                       >
                         <option value="maior">Quanto maior, melhor</option>
                         <option value="menor">Quanto menor, melhor</option>
@@ -585,27 +585,27 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Unidade</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">Unidade</label>
                       <input
                         type="text"
                         value={formData.unidade}
                         onChange={(e) => setFormData({ ...formData, unidade: e.target.value })}
-                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                        className="mt-1 w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2"
                         placeholder="Ex: %, R$, Qtd., dias"
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700">Fórmula/Descrição do Cálculo</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">Fórmula/Descrição do Cálculo</label>
                       <textarea
                         value={formData.formula}
                         onChange={(e) => setFormData({ ...formData, formula: e.target.value })}
-                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                        className="mt-1 w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2"
                         rows={2}
                         placeholder="Descrição de como o KPI é calculado"
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700">Vincular a Cálculo Automático</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">Vincular a Cálculo Automático</label>
                       <select
                         value={formData.calculo_automatico || ''}
                         onChange={(e) => {
@@ -617,7 +617,7 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
                             unidade: calculo ? calculo.unidade : formData.unidade
                           });
                         }}
-                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                        className="mt-1 w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2"
                       >
                         <option value="">Nenhum (valor manual)</option>
                         {calculosDisponiveis.map((calculo) => (
@@ -626,13 +626,13 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
                           </option>
                         ))}
                       </select>
-                      <p className="mt-1 text-xs text-gray-500">
+                      <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
                         Se selecionado, o valor será calculado automaticamente com base nos dados do sistema.
                       </p>
                     </div>
                     {formData.calculo_automatico && tiposDocumento.length > 0 && (
                       <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700">Tipos de Documento a Excluir</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">Tipos de Documento a Excluir</label>
                         <div className="mt-2 flex flex-wrap gap-2 max-h-40 overflow-y-auto">
                           {tiposDocumento.map((tipo) => (
                             <label
@@ -640,7 +640,7 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
                               className={`inline-flex items-center px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
                                 selectedDocumentos.includes(tipo.id)
                                   ? 'bg-blue-100 border-blue-500 text-blue-700'
-                                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                                  : 'bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:bg-slate-900'
                               }`}
                             >
                               <input
@@ -667,15 +667,15 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
                         id="ativo"
                         checked={formData.ativo}
                         onChange={(e) => setFormData({ ...formData, ativo: e.target.checked })}
-                        className="h-4 w-4 rounded border-gray-300"
+                        className="h-4 w-4 rounded border-gray-300 dark:border-slate-600"
                       />
-                      <label htmlFor="ativo" className="ml-2 text-sm text-gray-700">KPI Ativo</label>
+                      <label htmlFor="ativo" className="ml-2 text-sm text-gray-700 dark:text-slate-300">KPI Ativo</label>
                     </div>
                     <div className="md:col-span-2 flex justify-end gap-2">
                       <button
                         type="button"
                         onClick={resetForm}
-                        className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
+                        className="rounded-lg border border-gray-300 dark:border-slate-600 px-4 py-2 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:bg-slate-900"
                       >
                         Cancelar
                       </button>
@@ -691,23 +691,23 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
                 </div>
               )}
 
-              <div className="rounded-lg bg-white shadow overflow-hidden">
+              <div className="rounded-lg bg-white dark:bg-slate-800 shadow overflow-hidden">
                 <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-50 dark:bg-slate-900">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Índice</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Descrição</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Categoria</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Cálculo</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Meta</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Ações</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Índice</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Descrição</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Categoria</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Cálculo</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Meta</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Status</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Ações</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
+                  <tbody className="divide-y divide-gray-200 bg-white dark:bg-slate-800">
                     {kpis.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                        <td colSpan={7} className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
                           Nenhum KPI cadastrado. Clique em "Novo KPI" para começar.
                         </td>
                       </tr>
@@ -715,18 +715,18 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
                       kpis.map((kpi) => (
                         <tr key={kpi.id}>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">{kpi.indice || '-'}</td>
-                          <td className="px-6 py-4 text-sm text-gray-900">{kpi.descricao}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{kpi.categoria || '-'}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="px-6 py-4 text-sm text-gray-900 dark:text-slate-100">{kpi.descricao}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">{kpi.categoria || '-'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">
                             {kpi.calculo_automatico ? (
                               <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs">Automático</span>
                             ) : (
-                              <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">Manual</span>
+                              <span className="bg-gray-100 text-gray-600 dark:text-slate-400 px-2 py-1 rounded text-xs">Manual</span>
                             )}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatNumber(kpi.meta, kpi.unidade)}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">{formatNumber(kpi.meta, kpi.unidade)}</td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex rounded-full px-2 text-xs font-semibold ${kpi.ativo ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                            <span className={`inline-flex rounded-full px-2 text-xs font-semibold ${kpi.ativo ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800 dark:text-slate-200'}`}>
                               {kpi.ativo ? 'Ativo' : 'Inativo'}
                             </span>
                           </td>
@@ -741,7 +741,7 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
                                 </button>
                                 <button
                                   onClick={() => handleDelete(kpi.id)}
-                                  className="text-red-600 hover:text-red-900"
+                                  className="text-red-600 dark:text-red-400 hover:text-red-900"
                                 >
                                   Excluir
                                 </button>
@@ -760,9 +760,9 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
           {activeTab === 'historico' && (
             <div className="space-y-6">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <h2 className="text-xl font-semibold text-gray-900">Histórico de Variações</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">Histórico de Variações</h2>
                 <div className="flex items-center gap-2">
-                  <label className="text-sm text-gray-600">Selecionar KPI:</label>
+                  <label className="text-sm text-gray-600 dark:text-slate-400">Selecionar KPI:</label>
                   <select
                     value={selectedKPIId || ''}
                     onChange={(e) => {
@@ -770,7 +770,7 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
                       setSelectedKPIId(id);
                       loadHistoricoVariacao(id);
                     }}
-                    className="rounded-lg border border-gray-300 px-3 py-2"
+                    className="rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2"
                   >
                     {kpis.map((kpi) => (
                       <option key={kpi.id} value={kpi.id}>
@@ -783,15 +783,15 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
 
               {historicoVariacao && (
                 <div className="space-y-6">
-                  <div className="rounded-lg bg-white p-6 shadow">
+                  <div className="rounded-lg bg-white dark:bg-slate-800 p-6 shadow">
                     <div className="flex items-center justify-between mb-4">
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900">{historicoVariacao.kpi.descricao}</h3>
-                        <p className="text-sm text-gray-500">{historicoVariacao.kpi.categoria || 'Geral'}</p>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">{historicoVariacao.kpi.descricao}</h3>
+                        <p className="text-sm text-gray-500 dark:text-slate-400">{historicoVariacao.kpi.categoria || 'Geral'}</p>
                       </div>
                       {historicoVariacao.kpi.meta && (
                         <div className="text-right">
-                          <p className="text-sm text-gray-500">Meta</p>
+                          <p className="text-sm text-gray-500 dark:text-slate-400">Meta</p>
                           <p className="text-lg font-semibold text-blue-600">
                             {formatNumber(historicoVariacao.kpi.meta, historicoVariacao.kpi.unidade)}
                           </p>
@@ -844,28 +844,28 @@ export const KPIs: React.FC<{ isAdmin?: boolean }> = ({ isAdmin = true }) => {
                     </div>
                   </div>
 
-                  <div className="rounded-lg bg-white shadow overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-200">
-                      <h3 className="text-lg font-medium text-gray-900">Tabela de Variações</h3>
+                  <div className="rounded-lg bg-white dark:bg-slate-800 shadow overflow-hidden">
+                    <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100">Tabela de Variações</h3>
                     </div>
                     <div className="max-h-96 overflow-y-auto">
                       <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50 sticky top-0">
+                        <thead className="bg-gray-50 dark:bg-slate-900 sticky top-0">
                           <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Data</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Valor</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Variação</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">%</th>
-                            <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">Tendência</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Data</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Valor</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Variação</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">%</th>
+                            <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">Tendência</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200 bg-white">
+                        <tbody className="divide-y divide-gray-200 bg-white dark:bg-slate-800">
                           {[...historicoVariacao.historico].reverse().map((item, index) => (
                             <tr key={index}>
-                              <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
+                              <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-slate-100">
                                 {(() => { const p = (item.data || '').split('T')[0].split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : '-'; })()}
                               </td>
-                              <td className="px-6 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
+                              <td className="px-6 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900 dark:text-slate-100">
                                 {formatNumber(item.valor, historicoVariacao.kpi.unidade)}
                               </td>
                               <td className={`px-6 py-3 whitespace-nowrap text-sm text-right font-medium ${
