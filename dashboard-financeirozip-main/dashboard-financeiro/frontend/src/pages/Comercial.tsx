@@ -287,8 +287,19 @@ export const Comercial: React.FC = () => {
                     <XAxis dataKey="ano" tick={{ fontSize: 12, fill: '#6b7280', fontWeight: 600 }} />
                     <YAxis tickFormatter={formatCurrencyShort} tick={{ fontSize: 10, fill: '#9ca3af' }} />
                     <Tooltip
-                      formatter={(value: number, name: string) => name === 'valor' ? [formatCurrency(value), 'Valor'] : [value, 'Quantidade']}
-                      contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb' }}
+                      cursor={{ fill: 'rgba(16, 185, 129, 0.05)' }}
+                      contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                      content={({ active, payload, label }: any) => {
+                        if (!active || !payload || !payload[0]) return null;
+                        const item = payload[0].payload;
+                        return (
+                          <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-lg">
+                            <p className="text-sm font-bold text-gray-900 mb-1">{label}</p>
+                            <p className="text-xs text-emerald-600 font-semibold">Quantidade: <span className="font-bold">{item.quantidade} {item.quantidade === 1 ? 'venda' : 'vendas'}</span></p>
+                            <p className="text-xs text-gray-700 font-semibold">Valor: <span className="font-bold">{formatCurrency(item.valor)}</span></p>
+                          </div>
+                        );
+                      }}
                     />
                     <Bar dataKey="valor" radius={[6, 6, 0, 0]} barSize={50}>
                       {d.vendas_por_ano.map((_, i) => (
