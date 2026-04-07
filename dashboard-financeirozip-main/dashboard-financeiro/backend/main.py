@@ -2772,7 +2772,7 @@ def get_tipos_imovel():
         conn.close()
 
 @app.get("/api/comercial/dashboard")
-def get_comercial_dashboard(centro_custo: Optional[str] = None, tipo_imovel: Optional[str] = None):
+def get_comercial_dashboard(centro_custo: Optional[str] = None, tipo_imovel: Optional[str] = None, ano: Optional[int] = None):
     """Dashboard comercial: cards, vendas por empreendimento, vendas por periodo"""
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -2941,9 +2941,9 @@ def get_comercial_dashboard(centro_custo: Optional[str] = None, tipo_imovel: Opt
         """, cr_params + car_params)
         vendas_por_ano = [{'ano': int(r['ano']), 'quantidade': int(r['quantidade']), 'valor': float(r['valor'])} for r in cursor.fetchall()]
 
-        # Vendas por mes (ano atual)
+        # Vendas por mes (do ano selecionado, ou ano atual)
         from datetime import datetime
-        ano_atual = datetime.now().year
+        ano_filtro = ano if ano else datetime.now().year
         cursor.execute(f"""
             {contratos_cte},
             vendas_cliente AS (
@@ -2957,7 +2957,7 @@ def get_comercial_dashboard(centro_custo: Optional[str] = None, tipo_imovel: Opt
             FROM vendas_cliente
             WHERE EXTRACT(YEAR FROM data_primeira_venda) = %s
             GROUP BY mes ORDER BY mes
-        """, cr_params + car_params + [ano_atual])
+        """, cr_params + car_params + [ano_filtro])
         meses_nomes = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
         vendas_por_mes = [{'mes': int(r['mes']), 'mes_nome': meses_nomes[int(r['mes'])], 'quantidade': int(r['quantidade']), 'valor': float(r['valor'])} for r in cursor.fetchall()]
 

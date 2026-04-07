@@ -44,6 +44,7 @@ export const Comercial: React.FC = () => {
   const [filtroCentroCusto, setFiltroCentroCusto] = useState<number | null>(null);
   const [tiposImovel, setTiposImovel] = useState<Array<{ id: number; nome: string }>>([]);
   const [filtroTipoImovel, setFiltroTipoImovel] = useState<number | null>(null);
+  const [anoGrafico, setAnoGrafico] = useState<number | null>(null);
   const [buscaCliente, setBuscaCliente] = useState('');
   const [ordenacao, setOrdenacao] = useState<{ campo: string; direcao: 'asc' | 'desc' }>({ campo: 'valor_total', direcao: 'desc' });
   const [clienteExpandido, setClienteExpandido] = useState<string | null>(null);
@@ -61,9 +62,12 @@ export const Comercial: React.FC = () => {
         const filtro: any = {};
         if (filtroCentroCusto) filtro.centro_custo = filtroCentroCusto;
         if (filtroTipoImovel) filtro.tipo_imovel = filtroTipoImovel;
+        const filtroDash = { ...filtro };
+        if (anoGrafico) filtroDash.ano = anoGrafico;
         const filtroObj = Object.keys(filtro).length > 0 ? filtro : undefined;
+        const filtroDashObj = Object.keys(filtroDash).length > 0 ? filtroDash : undefined;
         const [dash, cli] = await Promise.all([
-          apiService.getComercialDashboard(filtroObj),
+          apiService.getComercialDashboard(filtroDashObj),
           apiService.getComercialPorCliente(filtroObj),
         ]);
         setDashboard(dash);
@@ -75,7 +79,7 @@ export const Comercial: React.FC = () => {
       }
     };
     carregar();
-  }, [filtroCentroCusto, filtroTipoImovel]);
+  }, [filtroCentroCusto, filtroTipoImovel, anoGrafico]);
 
   const expandirCliente = async (cliente: string) => {
     if (clienteExpandido === cliente) { setClienteExpandido(null); return; }
@@ -98,7 +102,7 @@ export const Comercial: React.FC = () => {
       <div className="flex h-96 items-center justify-center">
         <div className="text-center">
           <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-emerald-600 border-r-transparent"></div>
-          <p className="text-gray-600">Carregando dados comerciais...</p>
+          <p className="text-gray-600 dark:text-slate-400">Carregando dados comerciais...</p>
         </div>
       </div>
     );
@@ -150,40 +154,40 @@ export const Comercial: React.FC = () => {
           />
         </div>
         {(filtroCentroCusto || filtroTipoImovel) && (
-          <button type="button" onClick={() => { setFiltroCentroCusto(null); setFiltroTipoImovel(null); }} className="mb-0.5 text-xs text-gray-500 hover:text-red-600 underline">Limpar filtros</button>
+          <button type="button" onClick={() => { setFiltroCentroCusto(null); setFiltroTipoImovel(null); }} className="mb-0.5 text-xs text-gray-500 dark:text-slate-400 hover:text-red-600 dark:text-red-400 underline">Limpar filtros</button>
         )}
       </div>
 
       {/* Cards */}
       <div className="mb-6 grid gap-4 md:grid-cols-4">
-        <div className="rounded-xl bg-blue-50 p-5 shadow-sm border border-blue-100">
+        <div className="rounded-xl bg-blue-50 dark:bg-slate-800 p-5 shadow-sm border border-blue-100 dark:border-slate-700">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-blue-600 uppercase">Total Contratos</p>
-            <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
-              <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase">Total Contratos</p>
+            <div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
+              <svg className="h-5 w-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
             </div>
           </div>
-          <p className="text-3xl font-bold text-blue-900 mt-2">{d.total_contratos.toLocaleString('pt-BR')}</p>
+          <p className="text-3xl font-bold text-blue-900 dark:text-blue-100 mt-2">{d.total_contratos.toLocaleString('pt-BR')}</p>
         </div>
-        <div className="rounded-xl bg-emerald-50 p-5 shadow-sm border border-emerald-100">
+        <div className="rounded-xl bg-emerald-50 dark:bg-slate-800 p-5 shadow-sm border border-emerald-100 dark:border-slate-700">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-emerald-600 uppercase">Valor Vendido</p>
-            <div className="h-10 w-10 rounded-lg bg-emerald-100 flex items-center justify-center">
-              <svg className="h-5 w-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" /></svg>
+            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase">Valor Vendido</p>
+            <div className="h-10 w-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+              <svg className="h-5 w-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" /></svg>
             </div>
           </div>
-          <p className="text-3xl font-bold text-emerald-900 mt-2">{formatCurrency(d.valor_vendido)}</p>
+          <p className="text-3xl font-bold text-emerald-900 dark:text-emerald-100 mt-2">{formatCurrency(d.valor_vendido)}</p>
         </div>
-        <div className="rounded-xl bg-indigo-50 p-5 shadow-sm border border-indigo-100">
+        <div className="rounded-xl bg-indigo-50 dark:bg-slate-800 p-5 shadow-sm border border-indigo-100 dark:border-slate-700">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-indigo-600 uppercase">Ticket Medio</p>
-            <div className="h-10 w-10 rounded-lg bg-indigo-100 flex items-center justify-center">
-              <svg className="h-5 w-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
+            <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase">Ticket Medio</p>
+            <div className="h-10 w-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center">
+              <svg className="h-5 w-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
             </div>
           </div>
-          <p className="text-3xl font-bold text-indigo-900 mt-2">{formatCurrency(d.ticket_medio)}</p>
+          <p className="text-3xl font-bold text-indigo-900 dark:text-indigo-100 mt-2">{formatCurrency(d.ticket_medio)}</p>
         </div>
-        <div className="rounded-xl bg-amber-50 p-5 shadow-sm border border-amber-100">
+        <div className="rounded-xl bg-amber-50 dark:bg-slate-800 p-5 shadow-sm border border-amber-100 dark:border-slate-700">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-amber-600 uppercase">Estoque</p>
             <div className="h-10 w-10 rounded-lg bg-amber-100 flex items-center justify-center">
@@ -204,14 +208,14 @@ export const Comercial: React.FC = () => {
       </div>
 
       {/* Abas */}
-      <div className="mb-6 flex gap-1 border-b border-gray-200">
+      <div className="mb-6 flex gap-1 border-b border-gray-200 dark:border-slate-700">
         {abas.map(aba => (
           <button
             key={aba.id}
             type="button"
             onClick={() => setAbaAtiva(aba.id)}
             className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
-              abaAtiva === aba.id ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-gray-500 hover:text-gray-700'
+              abaAtiva === aba.id ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300'
             }`}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={aba.icon} /></svg>
@@ -225,17 +229,17 @@ export const Comercial: React.FC = () => {
         <div>
           <div className="grid gap-6 lg:grid-cols-2 mb-6">
             {/* Por Empreendimento */}
-            <div className="rounded-xl bg-white p-5 shadow-sm border border-gray-100">
-              <h3 className="text-base font-bold text-gray-900 mb-1">Por Empreendimento</h3>
-              <p className="text-xs text-gray-400 mb-4">Vendas e estoque por empreendimento</p>
+            <div className="rounded-xl bg-white dark:bg-slate-800 dark:bg-slate-800 p-5 shadow-sm border border-gray-100 dark:border-slate-700/50 dark:border-slate-700">
+              <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 dark:text-slate-100 mb-1">Por Empreendimento</h3>
+              <p className="text-xs text-gray-400 dark:text-slate-400 mb-4">Vendas e estoque por empreendimento</p>
               <div className="space-y-5">
                 {d.por_empreendimento.map((emp, i) => (
-                  <div key={i} className="rounded-lg border border-gray-100 p-3 bg-gray-50/50">
+                  <div key={i} className="rounded-lg border border-gray-100 dark:border-slate-700/50 p-3 bg-gray-50/50">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-bold text-gray-900">{emp.nome}</span>
+                      <span className="text-sm font-bold text-gray-900 dark:text-slate-100">{emp.nome}</span>
                       <span className="text-base font-bold text-emerald-600">{emp.percentual_vendido}%</span>
                     </div>
-                    <p className="text-xs text-gray-500 mb-2 font-medium">{formatCurrency(emp.valor_vendido)} vendido</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mb-2 font-medium">{formatCurrency(emp.valor_vendido)} vendido</p>
                     <div className="h-3 rounded-full bg-gray-200 overflow-hidden mb-3">
                       <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all" style={{ width: `${emp.percentual_vendido}%` }}></div>
                     </div>
@@ -261,8 +265,8 @@ export const Comercial: React.FC = () => {
                         </span>
                       )}
                       {emp.qtd_outros > 0 && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 text-gray-700 px-2.5 py-1 text-xs font-semibold">
-                          <span className="h-1.5 w-1.5 rounded-full bg-gray-500"></span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 text-gray-700 dark:text-slate-300 px-2.5 py-1 text-xs font-semibold">
+                          <span className="h-1.5 w-1.5 rounded-full bg-gray-50 dark:bg-slate-9000"></span>
                           Outros: {emp.qtd_outros}
                         </span>
                       )}
@@ -276,59 +280,86 @@ export const Comercial: React.FC = () => {
               </div>
             </div>
 
-            {/* Vendas por Ano */}
-            <div className="rounded-xl bg-white p-5 shadow-sm border border-gray-100">
-              <h3 className="text-base font-bold text-gray-900 mb-1">Vendas por Ano</h3>
-              <p className="text-xs text-gray-400 mb-4">Evolucao das vendas no periodo</p>
-              {d.vendas_por_ano.length > 0 ? (
-                <ResponsiveContainer width="100%" height={340}>
-                  <BarChart data={d.vendas_por_ano} margin={{ top: 35, right: 10, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="ano" tick={{ fontSize: 12, fill: '#6b7280', fontWeight: 600 }} />
-                    <YAxis tickFormatter={formatCurrencyShort} tick={{ fontSize: 10, fill: '#9ca3af' }} />
-                    <Tooltip
-                      cursor={{ fill: 'rgba(16, 185, 129, 0.05)' }}
-                      contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                      content={({ active, payload, label }: any) => {
-                        if (!active || !payload || !payload[0]) return null;
-                        const item = payload[0].payload;
-                        return (
-                          <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-lg">
-                            <p className="text-sm font-bold text-gray-900 mb-1">{label}</p>
-                            <p className="text-xs text-emerald-600 font-semibold">Quantidade: <span className="font-bold">{item.quantidade} {item.quantidade === 1 ? 'venda' : 'vendas'}</span></p>
-                            <p className="text-xs text-gray-700 font-semibold">Valor: <span className="font-bold">{formatCurrency(item.valor)}</span></p>
-                          </div>
-                        );
-                      }}
-                    />
-                    <Bar dataKey="valor" radius={[6, 6, 0, 0]} barSize={50}>
-                      {d.vendas_por_ano.map((_, i) => (
-                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                      ))}
-                      <LabelList
-                        position="top"
-                        content={(props: any) => {
-                          const { x, y, width, index } = props;
-                          const item = d.vendas_por_ano[index];
-                          if (!item) return null;
+            {/* Vendas por Ano / Mes */}
+            <div className="rounded-xl bg-white dark:bg-slate-800 p-5 shadow-sm border border-gray-100 dark:border-slate-700/50">
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">
+                  {anoGrafico ? `Vendas por Mes - ${anoGrafico}` : 'Vendas por Ano'}
+                </h3>
+                <div className="flex items-center gap-2">
+                  {anoGrafico && (
+                    <button type="button" onClick={() => setAnoGrafico(null)} className="text-xs text-gray-500 hover:text-emerald-600 underline">
+                      Voltar
+                    </button>
+                  )}
+                  <select
+                    value={anoGrafico || ''}
+                    onChange={e => setAnoGrafico(e.target.value ? parseInt(e.target.value) : null)}
+                    className="rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-medium focus:border-emerald-500 focus:outline-none"
+                  >
+                    <option value="">Todos os anos</option>
+                    {d.vendas_por_ano.map(va => (
+                      <option key={va.ano} value={va.ano}>{va.ano}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400 dark:text-slate-400 mb-4">
+                {anoGrafico ? `Vendas mensais de ${anoGrafico}` : 'Clique no seletor para ver vendas por mes'}
+              </p>
+              {(() => {
+                const dados = anoGrafico ? d.vendas_por_mes : d.vendas_por_ano;
+                const xKey = anoGrafico ? 'mes_nome' : 'ano';
+                if (dados.length === 0) {
+                  return <p className="text-sm text-gray-400 text-center py-12">Nenhuma venda em {anoGrafico || 'periodo'}</p>;
+                }
+                return (
+                  <ResponsiveContainer width="100%" height={340}>
+                    <BarChart data={dados as any[]} margin={{ top: 35, right: 10, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis dataKey={xKey} tick={{ fontSize: 12, fill: '#6b7280', fontWeight: 600 }} />
+                      <YAxis tickFormatter={formatCurrencyShort} tick={{ fontSize: 10, fill: '#9ca3af' }} />
+                      <Tooltip
+                        cursor={{ fill: 'rgba(16, 185, 129, 0.05)' }}
+                        content={({ active, payload, label }: any) => {
+                          if (!active || !payload || !payload[0]) return null;
+                          const item = payload[0].payload;
                           return (
-                            <g>
-                              <text x={x + width / 2} y={y - 22} textAnchor="middle" fontSize={11} fontWeight={700} fill="#10B981">
-                                {item.quantidade} {item.quantidade === 1 ? 'venda' : 'vendas'}
-                              </text>
-                              <text x={x + width / 2} y={y - 8} textAnchor="middle" fontSize={11} fontWeight={700} fill="#374151">
-                                {formatCurrencyShort(item.valor)}
-                              </text>
-                            </g>
+                            <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 shadow-lg">
+                              <p className="text-sm font-bold text-gray-900 dark:text-slate-100 mb-1">{anoGrafico ? `${label}/${anoGrafico}` : label}</p>
+                              <p className="text-xs text-emerald-600 font-semibold">Quantidade: <span className="font-bold">{item.quantidade} {item.quantidade === 1 ? 'venda' : 'vendas'}</span></p>
+                              <p className="text-xs text-gray-700 dark:text-slate-300 font-semibold">Valor: <span className="font-bold">{formatCurrency(item.valor)}</span></p>
+                            </div>
                           );
                         }}
                       />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className="text-sm text-gray-400 text-center py-12">Nenhum dado</p>
-              )}
+                      <Bar dataKey="valor" radius={[6, 6, 0, 0]} barSize={anoGrafico ? 30 : 50}>
+                        {(dados as any[]).map((_, i) => (
+                          <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                        ))}
+                        <LabelList
+                          position="top"
+                          content={(props: any) => {
+                            const { x, y, width, index } = props;
+                            const item = (dados as any[])[index];
+                            if (!item) return null;
+                            return (
+                              <g>
+                                <text x={x + width / 2} y={y - 22} textAnchor="middle" fontSize={11} fontWeight={700} fill="#10B981">
+                                  {item.quantidade} {item.quantidade === 1 ? 'venda' : 'vendas'}
+                                </text>
+                                <text x={x + width / 2} y={y - 8} textAnchor="middle" fontSize={11} fontWeight={700} fill="#374151">
+                                  {formatCurrencyShort(item.valor)}
+                                </text>
+                              </g>
+                            );
+                          }}
+                        />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -338,9 +369,9 @@ export const Comercial: React.FC = () => {
       {abaAtiva === 'por-cliente' && (
         <div>
           <div className="mb-4">
-            <input type="text" value={buscaCliente} onChange={e => setBuscaCliente(e.target.value)} placeholder="Buscar cliente..." className="w-full max-w-md rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-emerald-500 focus:outline-none" />
+            <input type="text" value={buscaCliente} onChange={e => setBuscaCliente(e.target.value)} placeholder="Buscar cliente..." className="w-full max-w-md rounded-lg border border-gray-300 dark:border-slate-600 dark:border-slate-700 bg-white dark:bg-slate-800 dark:bg-slate-800 text-gray-900 dark:text-slate-100 dark:text-slate-100 px-4 py-2 text-sm focus:border-emerald-500 focus:outline-none" />
           </div>
-          <div className="overflow-hidden rounded-xl bg-white shadow-sm border border-gray-100">
+          <div className="overflow-hidden rounded-xl bg-white dark:bg-slate-800 dark:bg-slate-800 shadow-sm border border-gray-100 dark:border-slate-700/50 dark:border-slate-700">
             <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
               <table className="min-w-full divide-y divide-gray-200 text-sm">
                 <thead className="bg-emerald-700 sticky top-0 z-10">
@@ -361,30 +392,30 @@ export const Comercial: React.FC = () => {
                     return clientesFiltrados.map((c, i) => {
                       const pct = totalClientesValor > 0 ? (c.valor_total / totalClientesValor) * 100 : 0;
                       acumulado += pct;
-                      const corAcum = acumulado <= 80 ? 'text-emerald-600' : acumulado <= 95 ? 'text-yellow-600' : 'text-red-600';
+                      const corAcum = acumulado <= 80 ? 'text-emerald-600' : acumulado <= 95 ? 'text-yellow-600' : 'text-red-600 dark:text-red-400';
                       const isExpandido = clienteExpandido === c.cliente;
                       const contratos = contratosCliente[c.cliente] || [];
                       return (
                         <React.Fragment key={i}>
-                          <tr className={`cursor-pointer transition-colors ${isExpandido ? 'bg-emerald-100 border-l-4 border-l-emerald-600' : i % 2 === 0 ? 'bg-white hover:bg-emerald-50' : 'bg-gray-50 hover:bg-emerald-50'}`} onClick={() => expandirCliente(c.cliente)}>
+                          <tr className={`cursor-pointer transition-colors ${isExpandido ? 'bg-emerald-100 border-l-4 border-l-emerald-600' : i % 2 === 0 ? 'bg-white dark:bg-slate-800 hover:bg-emerald-50' : 'bg-gray-50 dark:bg-slate-900 hover:bg-emerald-50'}`} onClick={() => expandirCliente(c.cliente)}>
                             <td className="px-4 py-2.5 text-center text-xs text-gray-400">{i + 1}</td>
-                            <td className="px-4 py-2.5 font-medium text-gray-900 max-w-xs truncate">
+                            <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-slate-100 max-w-xs truncate">
                               <span className={`text-gray-400 text-[10px] mr-1 transition-transform inline-block ${isExpandido ? 'rotate-90' : ''}`}>&#9654;</span>
                               {c.cliente || '-'}
                             </td>
-                            <td className="px-4 py-2.5 text-center font-semibold text-gray-700">{c.total_contratos}</td>
+                            <td className="px-4 py-2.5 text-center font-semibold text-gray-700 dark:text-slate-300">{c.total_contratos}</td>
                             <td className="px-4 py-2.5 text-right font-semibold text-emerald-700 font-mono">{formatCurrency(c.valor_total)}</td>
                             <td className="px-4 py-2.5 text-right">
                               <div className="flex items-center justify-end gap-2">
                                 <div className="w-16 h-1.5 rounded-full bg-gray-100 overflow-hidden">
                                   <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(pct, 100)}%` }}></div>
                                 </div>
-                                <span className="text-xs text-gray-600 w-12 text-right">{pct.toFixed(1)}%</span>
+                                <span className="text-xs text-gray-600 dark:text-slate-400 w-12 text-right">{pct.toFixed(1)}%</span>
                               </div>
                             </td>
                             <td className={`px-4 py-2.5 text-right text-xs font-semibold ${corAcum}`}>{acumulado.toFixed(1)}%</td>
-                            <td className="px-4 py-2.5 text-center text-xs text-gray-500">{formatDate(c.primeiro_contrato)}</td>
-                            <td className="px-4 py-2.5 text-center text-xs text-gray-500">{formatDate(c.ultimo_contrato)}</td>
+                            <td className="px-4 py-2.5 text-center text-xs text-gray-500 dark:text-slate-400">{formatDate(c.primeiro_contrato)}</td>
+                            <td className="px-4 py-2.5 text-center text-xs text-gray-500 dark:text-slate-400">{formatDate(c.ultimo_contrato)}</td>
                           </tr>
                           {isExpandido && (
                             <tr>
@@ -408,17 +439,17 @@ export const Comercial: React.FC = () => {
                                       <tbody>
                                         {contratos.map((ct: any, j: number) => (
                                           <tr key={j} className="border-b border-emerald-100 hover:bg-emerald-100/50">
-                                            <td className="py-1.5 font-mono font-bold text-gray-800">{ct.titulo}</td>
-                                            <td className="py-1.5 text-right font-mono text-gray-700">{formatCurrency(ct.valor_total || 0)}</td>
-                                            <td className="py-1.5 text-center text-gray-600">{formatDate(ct.data_vencimento)}</td>
-                                            <td className="py-1.5 text-gray-600">
+                                            <td className="py-1.5 font-mono font-bold text-gray-800 dark:text-slate-200">{ct.titulo}</td>
+                                            <td className="py-1.5 text-right font-mono text-gray-700 dark:text-slate-300">{formatCurrency(ct.valor_total || 0)}</td>
+                                            <td className="py-1.5 text-center text-gray-600 dark:text-slate-400">{formatDate(ct.data_vencimento)}</td>
+                                            <td className="py-1.5 text-gray-600 dark:text-slate-400">
                                               {ct.codigo_centrocusto ? <span className="inline-flex items-center justify-center rounded bg-blue-100 text-blue-700 font-bold font-mono text-[11px] px-1 min-w-[20px]">{ct.codigo_centrocusto}</span> : null}
                                               {ct.codigo_centrocusto ? ' ' : ''}{ct.nome_centrocusto || '-'}
                                             </td>
-                                            <td className="py-1.5 text-center text-gray-600">{ct.parcelas_recebidas}/{ct.total_parcelas}</td>
-                                            <td className="py-1.5 text-right font-mono text-gray-700">{formatCurrency(ct.valor_recebido || 0)}</td>
+                                            <td className="py-1.5 text-center text-gray-600 dark:text-slate-400">{ct.parcelas_recebidas}/{ct.total_parcelas}</td>
+                                            <td className="py-1.5 text-right font-mono text-gray-700 dark:text-slate-300">{formatCurrency(ct.valor_recebido || 0)}</td>
                                             <td className="py-1.5 text-center">
-                                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${ct.status === 'quitado' ? 'bg-green-100 text-green-700' : ct.status === 'atraso' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${ct.status === 'quitado' ? 'bg-green-100 text-green-700' : ct.status === 'atraso' ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400' : 'bg-blue-100 text-blue-700'}`}>
                                                 {ct.status === 'quitado' ? 'Quitado' : ct.status === 'atraso' ? 'Atraso' : 'Em Dia'}
                                               </span>
                                             </td>
@@ -453,15 +484,15 @@ export const Comercial: React.FC = () => {
       {abaAtiva === 'por-empreendimento' && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {d.por_empreendimento.map((emp, i) => (
-            <div key={i} className="rounded-xl bg-white p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <div key={i} className="rounded-xl bg-white dark:bg-slate-800 p-5 shadow-sm border border-gray-100 dark:border-slate-700/50 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <span className="inline-flex items-center justify-center rounded bg-emerald-100 text-emerald-700 font-bold font-mono text-xs px-1.5 py-0.5 mr-1">{emp.codigo_cc}</span>
-                  <h4 className="text-sm font-bold text-gray-900 mt-1">{emp.nome}</h4>
+                  <h4 className="text-sm font-bold text-gray-900 dark:text-slate-100 mt-1">{emp.nome}</h4>
                 </div>
                 <span className="text-lg font-bold text-emerald-600">{emp.percentual_vendido}%</span>
               </div>
-              <p className="text-xs text-gray-500 mb-3">{formatCurrency(emp.valor_vendido)} vendido de {formatCurrency(emp.valor_total)}</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">{formatCurrency(emp.valor_vendido)} vendido de {formatCurrency(emp.valor_total)}</p>
               <div className="h-3 rounded-full bg-gray-100 overflow-hidden mb-3">
                 <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all" style={{ width: `${emp.percentual_vendido}%` }}></div>
               </div>
@@ -496,7 +527,7 @@ export const Comercial: React.FC = () => {
             </div>
           ))}
           {d.por_empreendimento.length === 0 && (
-            <div className="col-span-full rounded-xl bg-white p-12 text-center shadow-sm">
+            <div className="col-span-full rounded-xl bg-white dark:bg-slate-800 p-12 text-center shadow-sm">
               <p className="text-gray-400">Nenhum empreendimento encontrado</p>
             </div>
           )}
