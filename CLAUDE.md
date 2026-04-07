@@ -6,6 +6,70 @@ Dashboard financeiro React 18 + TypeScript + Tailwind CSS (frontend) com FastAPI
 ## Regras
 - Sempre fazer commit + push após mudanças (deploy é automático via Railway)
 - Idioma do código: português (nomes de variáveis, comentários, commits)
+- **IMPORTANTE**: Sempre que descobrir uma nova regra de negócio, mapeamento de tabela, ou comportamento específico do sistema/Sienge, **adicionar à seção "Regras de Negócio" do CLAUDE.md** para preservar o conhecimento entre sessões.
+
+## Regras de Negócio
+
+### Centros de Custo (dim_centrocusto)
+- Tem **dois IDs** para cada centro:
+  - `id_interno_centrocusto`: ID interno do banco local (usado em queries de `contas_a_receber`, `contas_a_pagar`, `contas_recebidas`, `imovel_unidade`)
+  - `id_sienge_centrocusto`: ID do Sienge (mostrado ao usuário como "código")
+- **Mapeamento**: o frontend mostra `id_sienge` mas o filtro envia `id_interno` para o backend
+- **Exemplo**: Lake Boulevard tem `id_interno=19`, `id_sienge=16` → usuário vê "16 - Lake Boulevard"
+- Sempre que mostrar código de CC ao usuário, usar `id_sienge_centrocusto`
+- Para queries no banco, usar sempre `id_interno_centrocusto`
+- O filtro de CC **não deve filtrar por empresa excluída** (já corrigido em /filtros/centros-custo)
+
+### Unidades Imobiliárias (imovel_unidade)
+- Campo `flag_comercial` define o status da unidade:
+  - **`V`** = Vendido
+  - **`C`** = Vendido Pré-Contrato (também conta como vendido)
+  - **`D`** = Disponível
+  - **`R`** = Reserva Técnica
+  - **`A`** = Reservada (também conta como reserva)
+  - **`P`** = Permuta
+  - **`M`** = Mútuo
+  - **`O`** = Proposta
+  - **`L`** = Locado
+  - **`T`** = Transferido
+  - **`E`** = Terceiros
+  - **`G`** = Gravame
+- Campo `quantidade_indexador` = valor de tabela da unidade (não é o valor real do contrato)
+- Campo `id_tipo_imovel` → JOIN com tabela `tipo_imovel` para obter nome (Lote, Apartamento, etc)
+
+### Contratos / Vendas (contas_a_receber + contas_recebidas)
+- **REGRA CRÍTICA**: No Sienge, **cada venda gera múltiplos títulos** (TC = Tipo de Condição):
+  - **PM**: Parcelas Mensais
+  - **FI**: Financiamento (geralmente parcela única grande)
+  - **PE**: Parcelas Especiais
+  - **PS**: Parcelas Semestrais
+  - **RE**: Resíduo
+  - **AT**: Ato (entrada)
+  - **PB**: Parcela Balão
+- **Exemplo**: 1 venda no Lake = ~2 títulos no banco. 118 unidades vendidas → ~225 títulos
+- **Por isso**: para contar contratos use `qtd_vendido` de `imovel_unidade`, NÃO `COUNT(*)` em `contas_a_receber`
+- **Valor do contrato** = SOMA de TODAS as parcelas do título (combinar `contas_a_receber` pendentes + `contas_recebidas` pagas), NÃO o valor de uma parcela única
+- **Data da venda** = `MIN(data_recebimento)` da primeira parcela paga em `contas_recebidas`. Não usar `data_vencimento` (que pode ser futura)
+- Identificador do contrato no banco: `cliente + SPLIT_PART(lancamento, '/', 1)` (cliente + número do título sem a parcela)
+
+### Tipos de Baixa (config_tipos_baixa_exposicao_caixa)
+- Configuração que define quais tipos de baixa entram nos cálculos de Realizado/Contas Pagas:
+  - **Tipo 1 - Pagamento**: incluir
+  - **Tipo 10 - Adiantamento**: incluir
+  - **Tipo 3 - Cancelamento**: NÃO incluir (estorna pagamento)
+  - **Tipo 5 - Substituição**: NÃO incluir (gera duplicata)
+  - **Tipo 8 - Abatimento de Adiantamento**: avaliar
+- Sem essa configuração, valores ficam inflados (incluem cancelamentos)
+
+### Empresas Excluídas
+- Algumas empresas estão excluídas via `config_empresas_excluidas` por motivo administrativo
+- Empresas excluídas: dados delas NÃO aparecem nos painéis financeiros
+- **MAS**: o filtro de centros de custo NÃO deve excluir CCs de empresas excluídas (cada usuário pode ter visão diferente)
+
+### Fuso Horário
+- Banco PostgreSQL armazena timestamps em UTC
+- Frontend deve converter para `America/Sao_Paulo` ao exibir
+- Usar `toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' })` ou similar
 
 ## Release / Versionamento
 
