@@ -3326,6 +3326,7 @@ def criar_solicitacao(data: dict):
                     aprovado_em TIMESTAMP,
                     aprovado_por VARCHAR(255),
                     comentario_validacao TEXT,
+                    entregue_em TIMESTAMP,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
@@ -3335,6 +3336,7 @@ def criar_solicitacao(data: dict):
                 cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS aprovado_em TIMESTAMP")
                 cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS aprovado_por VARCHAR(255)")
                 cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS comentario_validacao TEXT")
+                cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS entregue_em TIMESTAMP")
             except Exception:
                 pass
             conn.commit()
@@ -3379,12 +3381,24 @@ def atualizar_solicitacao(id: int, data: dict):
     conn = get_config_db_connection()
     cursor = conn.cursor()
     try:
+        # Garante coluna entregue_em em tabelas antigas
+        try:
+            cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS entregue_em TIMESTAMP")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
         fields = []
         params = []
         for field in ['status', 'prioridade', 'resposta_dev', 'versao_implementada']:
             if field in data:
                 fields.append(f"{field} = %s")
                 params.append(data[field])
+
+        # Se o status mudou para aguardando_validacao, marca o momento da entrega do dev
+        if data.get('status') == 'aguardando_validacao':
+            fields.append("entregue_em = CURRENT_TIMESTAMP")
+
         if fields:
             fields.append("updated_at = CURRENT_TIMESTAMP")
             params.append(id)
@@ -3413,6 +3427,7 @@ def validar_solicitacao(id: int, data: dict):
             cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS aprovado_em TIMESTAMP")
             cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS aprovado_por VARCHAR(255)")
             cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS comentario_validacao TEXT")
+            cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS entregue_em TIMESTAMP")
             conn.commit()
         except Exception:
             conn.rollback()
@@ -8388,6 +8403,7 @@ def _ensure_config_tables_in_postgres():
                 cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS aprovado_em TIMESTAMP")
                 cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS aprovado_por VARCHAR(255)")
                 cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS comentario_validacao TEXT")
+                cursor.execute("ALTER TABLE solicitacoes_melhorias ADD COLUMN IF NOT EXISTS entregue_em TIMESTAMP")
             except Exception:
                 pass
 

@@ -36,6 +36,7 @@ interface Solicitacao {
   aprovado_em?: string | null;
   aprovado_por?: string | null;
   comentario_validacao?: string | null;
+  entregue_em?: string | null;
 }
 
 const STATUS_FINAIS = ['implementado', 'rejeitado'];
@@ -61,20 +62,56 @@ function formatarDataBR(d: string | null | undefined): string {
   return dt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 }
 
+function diasEntre(a: Date, b: Date): number {
+  return Math.max(0, Math.floor((b.getTime() - a.getTime()) / 86400000));
+}
+
 function calcularTempo(s: Solicitacao) {
   const criado = parseDataUTC(s.created_at);
-  if (!criado) return { diasDesdeC: 0, diasParaConcluir: null as number | null, concluido: false };
-  const agora = new Date();
-  const diasDesdeC = Math.max(0, Math.floor((agora.getTime() - criado.getTime()) / 86400000));
-  const concluido = STATUS_FINAIS.includes(s.status);
-  let diasParaConcluir: number | null = null;
-  if (concluido && s.updated_at) {
-    const fim = parseDataUTC(s.updated_at);
-    if (fim) {
-      diasParaConcluir = Math.max(0, Math.floor((fim.getTime() - criado.getTime()) / 86400000));
-    }
+  if (!criado) {
+    return {
+      diasDesdeC: 0,
+      diasParaConcluir: null as number | null,
+      diasDev: null as number | null,
+      diasValidacao: null as number | null,
+      diasAguardandoValidacao: null as number | null,
+      concluido: false,
+    };
   }
-  return { diasDesdeC, diasParaConcluir, concluido };
+  const agora = new Date();
+  const diasDesdeC = diasEntre(criado, agora);
+  const concluido = STATUS_FINAIS.includes(s.status);
+
+  const entregueEm = parseDataUTC(s.entregue_em || null);
+  const aprovadoEm = parseDataUTC(s.aprovado_em || null);
+  // Fallback: se nao tem entregue_em mas esta concluido, usa updated_at (registros antigos)
+  const updatedAt = parseDataUTC(s.updated_at);
+
+  let diasDev: number | null = null;
+  let diasValidacao: number | null = null;
+  let diasParaConcluir: number | null = null;
+  let diasAguardandoValidacao: number | null = null;
+
+  if (entregueEm) {
+    diasDev = diasEntre(criado, entregueEm);
+  } else if (concluido && updatedAt) {
+    diasDev = diasEntre(criado, updatedAt);
+  }
+
+  if (s.status === 'aguardando_validacao' && entregueEm) {
+    diasAguardandoValidacao = diasEntre(entregueEm, agora);
+  }
+
+  if (s.status === 'implementado' && aprovadoEm && entregueEm) {
+    diasValidacao = diasEntre(entregueEm, aprovadoEm);
+  }
+
+  if (concluido) {
+    const fim = aprovadoEm || updatedAt;
+    if (fim) diasParaConcluir = diasEntre(criado, fim);
+  }
+
+  return { diasDesdeC, diasParaConcluir, diasDev, diasValidacao, diasAguardandoValidacao, concluido };
 }
 
 function formatarDias(d: number): string {
@@ -578,14 +615,56 @@ export const Solicitacoes: React.FC = () => {
 
                       {(() => {
                         const t = calcularTempo(s);
-                        if (t.concluido && t.diasParaConcluir !== null) {
+
+                        // Concluida (implementado/rejeitado): mostra fases dev / validacao
+                        if (t.concluido) {
                           return (
-                            <div className="mt-1.5 inline-flex items-center gap-1 rounded bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300" title={`Criada em ${formatarDataBR(s.created_at)} e concluida em ${formatarDataBR(s.updated_at)}`}>
-                              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                              Entregue em {formatarDias(t.diasParaConcluir)}
+                            <div className="mt-1.5 flex flex-wrap gap-1">
+                              {t.diasDev !== null && (
+                                <div className="inline-flex items-center gap-1 rounded bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300" title="Tempo do dev: criacao ate entrega">
+                                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                  Dev: {formatarDias(t.diasDev)}
+                                </div>
+                              )}
+                              {t.diasValidacao !== null && (
+                                <div className="inline-flex items-center gap-1 rounded bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700 dark:text-indigo-300" title="Tempo de validacao: entrega ate aprovacao">
+                                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                                  Voce: {formatarDias(t.diasValidacao)}
+                                </div>
+                              )}
+                              {t.diasDev === null && t.diasParaConcluir !== null && (
+                                <div className="inline-flex items-center gap-1 rounded bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                  Entregue em {formatarDias(t.diasParaConcluir)}
+                                </div>
+                              )}
                             </div>
                           );
                         }
+
+                        // Aguardando validacao: mostra ha quantos dias o usuario nao valida
+                        if (s.status === 'aguardando_validacao' && t.diasAguardandoValidacao !== null) {
+                          const d = t.diasAguardandoValidacao;
+                          const cor = d <= 1 ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                                    : d <= 3 ? 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+                                    : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+                          return (
+                            <div className="mt-1.5 flex flex-wrap gap-1">
+                              {t.diasDev !== null && (
+                                <div className="inline-flex items-center gap-1 rounded bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300" title="Tempo do dev ate a entrega">
+                                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                  Dev: {formatarDias(t.diasDev)}
+                                </div>
+                              )}
+                              <div className={`inline-flex items-center gap-1 rounded ${cor} px-1.5 py-0.5 text-[10px] font-semibold`} title="Ha quanto tempo aguarda validacao">
+                                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                {d === 0 ? 'Aguardando voce' : `Aguardando voce ha ${formatarDias(d)}`}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // Em aberto (pendente, em_analise, em_desenvolvimento)
                         const cor = t.diasDesdeC <= 3 ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
                                  : t.diasDesdeC <= 10 ? 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
                                  : t.diasDesdeC <= 30 ? 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
@@ -710,11 +789,13 @@ export const Solicitacoes: React.FC = () => {
               )}
 
               <div className="mt-5 border-t border-gray-100 dark:border-slate-700/50 pt-4">
-                <h3 className="text-sm font-bold text-gray-700 dark:text-slate-300 mb-3">Tempo da Solicitacao</h3>
+                <h3 className="text-sm font-bold text-gray-700 dark:text-slate-300 mb-3">Linha do Tempo</h3>
                 {(() => {
                   const t = calcularTempo(detalheAberto);
+                  const entregueEm = detalheAberto.entregue_em || (t.concluido && !detalheAberto.aprovado_em ? detalheAberto.updated_at : null);
                   return (
                     <div className="space-y-2.5">
+                      {/* Etapa 1: Criada */}
                       <div className="flex items-start gap-3">
                         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 flex-shrink-0">
                           <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
@@ -727,21 +808,49 @@ export const Solicitacoes: React.FC = () => {
                         </div>
                       </div>
 
-                      {detalheAberto.status === 'aguardando_validacao' && (
+                      {/* Etapa 2: Entregue pelo dev */}
+                      {entregueEm && (
+                        <>
+                          <div className="flex items-start gap-3">
+                            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-300 flex-shrink-0">
+                              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-xs font-semibold text-gray-700 dark:text-slate-300">Entregue pelo dev</p>
+                              <p className="text-[11px] text-gray-500 dark:text-slate-400">
+                                {formatarDataHoraBR(entregueEm)}
+                              </p>
+                            </div>
+                          </div>
+                          {t.diasDev !== null && (
+                            <div className="ml-10 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/40 px-3 py-2">
+                              <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                                Dev levou {formatarDias(t.diasDev)} para entregar
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      {/* Etapa 3a: Aguardando validacao (status atual) */}
+                      {detalheAberto.status === 'aguardando_validacao' && t.diasAguardandoValidacao !== null && (
                         <div className="flex items-start gap-3">
-                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-300 flex-shrink-0">
-                            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg>
+                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-300 flex-shrink-0 animate-pulse">
+                            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                           </div>
                           <div className="flex-1">
-                            <p className="text-xs font-semibold text-gray-700 dark:text-slate-300">Aguardando sua validacao</p>
+                            <p className="text-xs font-semibold text-gray-700 dark:text-slate-300">
+                              Aguardando validacao do usuario
+                            </p>
                             <p className="text-[11px] text-gray-500 dark:text-slate-400">
-                              Implementado em {formatarDataHoraBR(detalheAberto.updated_at)}
+                              Faz {formatarDias(t.diasAguardandoValidacao)} esperando aceite
                             </p>
                           </div>
                         </div>
                       )}
 
-                      {detalheAberto.status === 'implementado' && detalheAberto.aprovado_em ? (
+                      {/* Etapa 3b: Aprovada */}
+                      {detalheAberto.status === 'implementado' && detalheAberto.aprovado_em && (
                         <>
                           <div className="flex items-start gap-3">
                             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-300 flex-shrink-0">
@@ -756,36 +865,35 @@ export const Solicitacoes: React.FC = () => {
                               </p>
                             </div>
                           </div>
-                          {t.diasParaConcluir !== null && (
-                            <div className="ml-10 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/40 px-3 py-2">
-                              <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
-                                Tempo total de entrega: {formatarDias(t.diasParaConcluir)}
+                          {t.diasValidacao !== null && (
+                            <div className="ml-10 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/40 px-3 py-2">
+                              <p className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-300">
+                                Usuario levou {formatarDias(t.diasValidacao)} para validar
                               </p>
                             </div>
                           )}
                         </>
-                      ) : t.concluido && t.diasParaConcluir !== null && detalheAberto.updated_at ? (
-                        <>
-                          <div className="flex items-start gap-3">
-                            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-300 flex-shrink-0">
-                              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                            </div>
-                            <div className="flex-1">
-                              <p className="text-xs font-semibold text-gray-700 dark:text-slate-300">
-                                {detalheAberto.status === 'implementado' ? 'Implementada' : 'Rejeitada'}
-                              </p>
-                              <p className="text-[11px] text-gray-500 dark:text-slate-400">
-                                {formatarDataHoraBR(detalheAberto.updated_at)}
-                              </p>
-                            </div>
+                      )}
+
+                      {/* Etapa 3c: Implementado/Rejeitado sem aprovacao formal (registros antigos) */}
+                      {t.concluido && !detalheAberto.aprovado_em && !entregueEm && detalheAberto.updated_at && (
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-300 flex-shrink-0">
+                            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                           </div>
-                          <div className="ml-10 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/40 px-3 py-2">
-                            <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
-                              Tempo total de entrega: {formatarDias(t.diasParaConcluir)}
+                          <div className="flex-1">
+                            <p className="text-xs font-semibold text-gray-700 dark:text-slate-300">
+                              {detalheAberto.status === 'implementado' ? 'Implementada' : 'Rejeitada'}
+                            </p>
+                            <p className="text-[11px] text-gray-500 dark:text-slate-400">
+                              {formatarDataHoraBR(detalheAberto.updated_at)}
                             </p>
                           </div>
-                        </>
-                      ) : detalheAberto.status !== 'aguardando_validacao' && (
+                        </div>
+                      )}
+
+                      {/* Etapa em aberto (pendente / em_analise / em_desenvolvimento) */}
+                      {!entregueEm && !t.concluido && detalheAberto.status !== 'aguardando_validacao' && (
                         <div className="flex items-start gap-3">
                           <div className="flex h-7 w-7 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900/40 text-yellow-600 dark:text-yellow-300 flex-shrink-0">
                             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -796,6 +904,18 @@ export const Solicitacoes: React.FC = () => {
                               Faz {formatarDias(t.diasDesdeC)} que a solicitacao foi criada
                             </p>
                           </div>
+                        </div>
+                      )}
+
+                      {/* Resumo total quando concluida */}
+                      {detalheAberto.status === 'implementado' && t.diasParaConcluir !== null && (t.diasDev !== null || t.diasValidacao !== null) && (
+                        <div className="ml-10 rounded-lg bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 px-3 py-2">
+                          <p className="text-[11px] font-semibold text-gray-700 dark:text-slate-300">
+                            Tempo total: {formatarDias(t.diasParaConcluir)}
+                            {t.diasDev !== null && t.diasValidacao !== null && (
+                              <span className="font-normal text-gray-500 dark:text-slate-400"> &nbsp;({formatarDias(t.diasDev)} dev + {formatarDias(t.diasValidacao)} validacao)</span>
+                            )}
+                          </p>
                         </div>
                       )}
 
