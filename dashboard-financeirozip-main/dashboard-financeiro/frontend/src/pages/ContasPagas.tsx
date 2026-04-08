@@ -446,7 +446,7 @@ export const ContasPagas: React.FC = () => {
 
       const [contasResp, estatData, fornecedoresData, centroCustoData, origemTabData, mesData, empresaData, origemData, compAnualData, compMensalData, rankingData] = await Promise.all([
         apiService.getContasPagasFiltradas(filtros),
-        apiService.getEstatisticasContasPagas(filtros),
+        apiService.getEstatisticasContasPagas({ ...filtros, incluir_inter_empresa: incluirInterEmpresa }),
         apiService.getContasPagasPorFornecedor(filtros),
         apiService.getContasPagasPorCentroCusto(filtros),
         apiService.getContasPagasPorOrigem(filtros),
@@ -3381,11 +3381,21 @@ export const ContasPagas: React.FC = () => {
         )}
 
         {interEmpresaOcultas && interEmpresaOcultas.incluindo && (
-          <div className="mb-4 flex items-center gap-2 rounded-lg border border-blue-200 dark:border-blue-800/40 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 text-xs text-blue-700 dark:text-blue-300">
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            <span>
-              Voce esta vendo <span className="font-semibold">todos os pagamentos</span>, inclusive transferencias entre empresas do grupo. Os valores podem estar duplicados no consolidado.
-            </span>
+          <div className="mb-4 flex items-center justify-between gap-2 rounded-lg border border-blue-200 dark:border-blue-800/40 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 text-xs text-blue-700 dark:text-blue-300">
+            <div className="flex items-center gap-2">
+              <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <span>
+                Voce esta vendo <span className="font-semibold">todos os pagamentos</span>, inclusive transferencias entre empresas do grupo (linhas destacadas em ambar com a tag <span className="font-bold">INTER</span>). Os valores podem estar duplicados no consolidado.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setIncluirInterEmpresa(false); setTimeout(buscarContas, 50); }}
+              className="flex-shrink-0 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+              title="Voltar a esconder transferencias inter-empresa"
+            >
+              Ocultar transferencias
+            </button>
           </div>
         )}
 
@@ -3461,10 +3471,20 @@ export const ContasPagas: React.FC = () => {
                 {contasOrdenadas.map((conta, index) => {
                   const diasAtraso = (conta as any).dias_atraso;
                   const corAtraso = diasAtraso == null ? 'text-gray-400' : diasAtraso > 0 ? 'text-red-600 dark:text-red-400' : diasAtraso === 0 ? 'text-green-600' : 'text-green-600';
+                  const isInter = (conta as any).is_inter_empresa === true;
+                  const rowBg = isInter
+                    ? 'bg-amber-50/60 dark:bg-amber-900/10 hover:bg-amber-100/70 dark:hover:bg-amber-900/20 border-l-4 border-amber-400'
+                    : 'hover:bg-gray-50 dark:bg-slate-900';
 
                   return (
-                    <tr key={index} className="hover:bg-gray-50 dark:bg-slate-900 transition-colors duration-150">
-                      <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-slate-100 max-w-[250px] truncate" title={conta.credor || '-'}>
+                    <tr key={index} className={`${rowBg} transition-colors duration-150`}>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-slate-100 max-w-[280px] truncate" title={isInter ? `${conta.credor} (transferencia inter-empresa)` : (conta.credor || '-')}>
+                        {isInter && (
+                          <span className="mr-1.5 inline-flex items-center gap-0.5 rounded bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-700 dark:text-amber-300 align-middle" title="Transferencia entre empresas do grupo">
+                            <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                            INTER
+                          </span>
+                        )}
                         {conta.credor || '-'}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-slate-400">

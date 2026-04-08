@@ -1591,6 +1591,9 @@ def get_contas_pagas_filtradas(
                          THEN CAST(SPLIT_PART(cp.lancamento, '/', 2) AS INTEGER)
                          ELSE NULL END as _parcela_num
                 FROM contas_pagas cp
+            ),
+            empresa_grupo AS (
+                SELECT DISTINCT TRIM(nome_empresa) as nome FROM dim_centrocusto WHERE nome_empresa IS NOT NULL
             )
             SELECT
                 TRIM(REGEXP_REPLACE(COALESCE(cp.credor, 'SEM CREDOR'), '^[0-9][0-9.\-/]+ ', '')) as credor,
@@ -1614,7 +1617,8 @@ def get_contas_pagas_filtradas(
                 CASE WHEN pp.data_vencimento IS NOT NULL
                      THEN ((cp.data_pagamento + INTERVAL '1 day')::date - pp.data_vencimento)
                      ELSE NULL END as dias_atraso,
-                TRIM(cp.id_documento) as id_documento
+                TRIM(cp.id_documento) as id_documento,
+                EXISTS (SELECT 1 FROM empresa_grupo eg WHERE TRIM(cp.credor) = eg.nome) as is_inter_empresa
             FROM cp_base cp
             LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
             LEFT JOIN ecpgparcela pp ON cp._titulo_id = pp.id_pg_titulo AND cp._parcela_num = pp.numero_parcela
@@ -2483,7 +2487,8 @@ def get_estatisticas_contas_pagas(
     ano: Optional[str] = None,
     mes: Optional[str] = None,
     data_inicio: Optional[str] = None,
-    data_fim: Optional[str] = None
+    data_fim: Optional[str] = None,
+    incluir_inter_empresa: bool = False
 ):
     """Retorna estatísticas das contas pagas com filtros"""
     conn = get_db_connection()
@@ -2529,15 +2534,17 @@ def get_estatisticas_contas_pagas(
             params.extend(tipos_baixa_config_stat)
 
         # Excluir transferências inter-empresa (credores que são nomes de empresas do grupo)
+        # Pode ser desativado via incluir_inter_empresa=true
+        empresa_names_stat = []
         try:
             cursor.execute("SELECT DISTINCT TRIM(nome_empresa) as nome FROM dim_centrocusto WHERE nome_empresa IS NOT NULL")
             empresa_names_stat = [r['nome'] for r in cursor.fetchall() if r['nome']]
-            if empresa_names_stat:
-                en_placeholders = ', '.join(['%s'] * len(empresa_names_stat))
-                conditions.append(f"TRIM(cp.credor) NOT IN ({en_placeholders})")
-                params.extend(empresa_names_stat)
         except Exception:
             pass
+        if empresa_names_stat and not incluir_inter_empresa:
+            en_placeholders = ', '.join(['%s'] * len(empresa_names_stat))
+            conditions.append(f"TRIM(cp.credor) NOT IN ({en_placeholders})")
+            params.extend(empresa_names_stat)
 
         if empresa:
             emp_ids = parse_csv_int(empresa)

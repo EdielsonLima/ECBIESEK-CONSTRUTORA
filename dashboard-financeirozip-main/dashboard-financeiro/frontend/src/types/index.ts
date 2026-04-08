@@ -31,6 +31,7 @@ export interface ContaPagar {
   valor_baixa?: number;
   valor_juros?: number;
   dias_atraso?: number;
+  is_inter_empresa?: boolean;
 }
 
 export interface TituloDetalhe {

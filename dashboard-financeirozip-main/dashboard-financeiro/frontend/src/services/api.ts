@@ -451,6 +451,7 @@ export const apiService = {
     mes?: string;
     data_inicio?: string;
     data_fim?: string;
+    incluir_inter_empresa?: boolean;
   }): Promise<{
     quantidade_titulos: number;
     valor_liquido: number;
@@ -472,6 +473,7 @@ export const apiService = {
     if (filtros.mes) params.append('mes', filtros.mes);
     if (filtros.data_inicio) params.append('data_inicio', filtros.data_inicio);
     if (filtros.data_fim) params.append('data_fim', filtros.data_fim);
+    if (filtros.incluir_inter_empresa) params.append('incluir_inter_empresa', 'true');
 
     const response = await api.get(`/estatisticas-contas-pagas?${params.toString()}`);
     return response.data;
