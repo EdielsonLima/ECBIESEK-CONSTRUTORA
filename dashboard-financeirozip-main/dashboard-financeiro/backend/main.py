@@ -3682,13 +3682,15 @@ def diagnostico_titulo(titulo_id: int):
         rows_cap = cursor.fetchall()
         resultados['contas_a_pagar'] = [dict(r) for r in rows_cap]
 
-        # Buscar em contas_pagas
+        # Buscar em contas_pagas (com tipo de baixa)
         cursor.execute("""
             SELECT cp.lancamento, cp.credor, cp.data_pagamento, cp.valor_liquido,
                    cp.id_interno_centro_custo, cp.id_interno_empresa,
+                   cp.id_tipo_baixa, tb.nome_tipo_baixa,
                    cc.nome_centrocusto, cc.nome_empresa, cc.id_sienge_empresa
             FROM contas_pagas cp
             LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
+            LEFT JOIN tipo_baixa tb ON cp.id_tipo_baixa = tb.id_tipo_baixa
             WHERE SPLIT_PART(cp.lancamento, '/', 1) = %s
         """, (str(titulo_id),))
         rows_cp = cursor.fetchall()
