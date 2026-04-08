@@ -1418,6 +1418,7 @@ def get_contas_pagas_filtradas(
     mes: Optional[str] = None,
     data_inicio: Optional[str] = None,
     data_fim: Optional[str] = None,
+    incluir_inter_empresa: bool = False,
     limite: int = 100,
     offset: int = 0
 ):
@@ -1464,16 +1465,19 @@ def get_contas_pagas_filtradas(
             conditions.append(f"cp.id_tipo_baixa IN ({tb_placeholders})")
             params.extend(tipos_baixa_config_filt)
 
-        # Excluir transferências inter-empresa (credores que são nomes de empresas do grupo)
+        # Lista de credores que sao nomes de empresas do grupo (transferencias inter-empresa)
+        empresa_names_filt = []
         try:
             cursor.execute("SELECT DISTINCT TRIM(nome_empresa) as nome FROM dim_centrocusto WHERE nome_empresa IS NOT NULL")
             empresa_names_filt = [r['nome'] for r in cursor.fetchall() if r['nome']]
-            if empresa_names_filt:
-                en_placeholders = ', '.join(['%s'] * len(empresa_names_filt))
-                conditions.append(f"TRIM(cp.credor) NOT IN ({en_placeholders})")
-                params.extend(empresa_names_filt)
         except Exception:
             pass
+
+        # Por padrao exclui essas transferencias; se incluir_inter_empresa=true, mantem
+        if empresa_names_filt and not incluir_inter_empresa:
+            en_placeholders = ', '.join(['%s'] * len(empresa_names_filt))
+            conditions.append(f"TRIM(cp.credor) NOT IN ({en_placeholders})")
+            params.extend(empresa_names_filt)
 
         if empresa:
             emp_ids = parse_csv_int(empresa)
@@ -1642,7 +1646,119 @@ def get_contas_pagas_filtradas(
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        return {"data": [dict(row) for row in rows], "total": total_count}
+
+        # Calcular quantos pagamentos foram excluidos por serem transferencias inter-empresa
+        # (mesmos filtros aplicados, MAS forcando incluir os credores-empresa)
+        inter_empresa_qtd = 0
+        inter_empresa_valor = 0.0
+        if empresa_names_filt and not incluir_inter_empresa:
+            try:
+                en_ph = ', '.join(['%s'] * len(empresa_names_filt))
+                # Pega as condicoes ja montadas, mas sem a exclusao de credor inter-empresa
+                # Isso so funciona porque a exclusao foi a ULTIMA condicao adicionada antes dos filtros do usuario.
+                # Para ser robusto, montamos manualmente: usa todas as conditions exceto a do NOT IN
+                conds_sem_inter = [c for c in conditions if 'NOT IN (' not in c or 'cp.credor' not in c]
+                # Os params correspondem 1:1 com as conditions na ordem em que foram criadas - precisa
+                # reextrair os params da exclusao. Mais simples: refazer sem a exclusao desde o inicio.
+                # Estrategia simples: roda uma nova query so com filtros do usuario + nova restricao
+                # de "credor IN (empresas)" para pegar exatamente os ocultos.
+                conds_ocultos = list(conds_sem_inter) + [f"TRIM(cp.credor) IN ({en_ph})"]
+                # Os params atuais ja foram modificados - precisamos refazer com cuidado.
+                # Como o controle de params junto com conditions ficou complexo, vamos rodar uma
+                # query mais direta usando os filtros do usuario aplicados via SQL dinamico.
+                # Em vez disso: faz uma query agregada simples reaplicando filtros principais.
+
+                # Query agregada: aplica os mesmos filtros do usuario, mas exige credor inter-empresa
+                ocult_conds = []
+                ocult_params = []
+
+                # Exclusoes basicas (mesmas)
+                ocult_conds.extend(excl_conds)
+                ocult_params.extend(excl_params)
+
+                # Origens excluidas
+                if origens_excluidas_cp:
+                    oe_ph2 = ', '.join(['%s'] * len(origens_excluidas_cp))
+                    ocult_conds.append(f"TRIM(UPPER(cp.id_origem)) NOT IN ({oe_ph2})")
+                    ocult_params.extend(origens_excluidas_cp)
+
+                # Tipo de baixa (config OU manual)
+                if tipo_baixa:
+                    tipos_o = [int(t.strip()) for t in tipo_baixa.split(',')]
+                    tb_ph2 = ', '.join(['%s'] * len(tipos_o))
+                    ocult_conds.append(f"cp.id_tipo_baixa IN ({tb_ph2})")
+                    ocult_params.extend(tipos_o)
+                elif tipos_baixa_config_filt:
+                    tb_ph3 = ', '.join(['%s'] * len(tipos_baixa_config_filt))
+                    ocult_conds.append(f"cp.id_tipo_baixa IN ({tb_ph3})")
+                    ocult_params.extend(tipos_baixa_config_filt)
+
+                # Filtros de usuario
+                if empresa:
+                    emp_ids2 = parse_csv_int(empresa)
+                    if emp_ids2:
+                        emp_ph2 = ', '.join(['%s'] * len(emp_ids2))
+                        ocult_conds.append(f"""cp.id_interno_empresa IN (
+                            SELECT DISTINCT cp2.id_interno_empresa FROM contas_pagas cp2
+                            JOIN dim_centrocusto cc2 ON cp2.id_interno_centro_custo = cc2.id_interno_centrocusto
+                            WHERE cc2.id_sienge_empresa IN ({emp_ph2})
+                        )""")
+                        ocult_params.extend(emp_ids2)
+                if centro_custo:
+                    cc_ids2 = parse_csv_int(centro_custo)
+                    if cc_ids2:
+                        cc_ph2 = ', '.join(['%s'] * len(cc_ids2))
+                        ocult_conds.append(f"cp.id_interno_centro_custo IN ({cc_ph2})")
+                        ocult_params.extend(cc_ids2)
+                if ano:
+                    anos_o = [int(a.strip()) for a in ano.split(',')]
+                    ano_ph2 = ', '.join(['%s'] * len(anos_o))
+                    ocult_conds.append(f"EXTRACT(YEAR FROM cp.data_pagamento) IN ({ano_ph2})")
+                    ocult_params.extend(anos_o)
+                if mes:
+                    meses_o = [int(m.strip()) for m in mes.split(',')]
+                    mes_ph2 = ', '.join(['%s'] * len(meses_o))
+                    ocult_conds.append(f"EXTRACT(MONTH FROM cp.data_pagamento) IN ({mes_ph2})")
+                    ocult_params.extend(meses_o)
+                if data_inicio:
+                    ocult_conds.append("(cp.data_pagamento + INTERVAL '1 day')::date >= %s")
+                    ocult_params.append(data_inicio)
+                if data_fim:
+                    ocult_conds.append("(cp.data_pagamento + INTERVAL '1 day')::date <= %s")
+                    ocult_params.append(data_fim)
+                if conta_corrente:
+                    cc_list = [c.strip() for c in conta_corrente.split(',')]
+                    cc_ph3 = ', '.join(['%s'] * len(cc_list))
+                    ocult_conds.append(f"cp.id_conta_corrente IN ({cc_ph3})")
+                    ocult_params.extend(cc_list)
+
+                # AGORA exige credor inter-empresa
+                ocult_conds.append(f"TRIM(cp.credor) IN ({en_ph})")
+                ocult_params.extend(empresa_names_filt)
+
+                ocult_where = ' AND '.join(ocult_conds) if ocult_conds else '1=1'
+                cursor.execute(f"""
+                    SELECT COUNT(*) as qtd, COALESCE(SUM(cp.valor_liquido), 0) as valor
+                    FROM contas_pagas cp
+                    LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
+                    WHERE {ocult_where}
+                """, ocult_params)
+                row_oc = cursor.fetchone()
+                if row_oc:
+                    inter_empresa_qtd = int(row_oc['qtd'] or 0)
+                    inter_empresa_valor = float(row_oc['valor'] or 0)
+            except Exception as e:
+                print(f"[WARN] erro ao calcular inter_empresa ocultas: {e}")
+
+        return {
+            "data": [dict(row) for row in rows],
+            "total": total_count,
+            "inter_empresa_ocultas": {
+                "qtd": inter_empresa_qtd,
+                "valor": inter_empresa_valor,
+                "incluindo": incluir_inter_empresa
+            }
+        }
 
     finally:
         cursor.close()

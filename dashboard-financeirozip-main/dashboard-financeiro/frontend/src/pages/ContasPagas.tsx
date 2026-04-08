@@ -198,6 +198,8 @@ export const ContasPagas: React.FC = () => {
   const [filtroMes, setFiltroMes] = useState<number[]>([]);
   const [filtroDataInicio, setFiltroDataInicio] = useState<string>('');
   const [filtroDataFim, setFiltroDataFim] = useState<string>('');
+  const [incluirInterEmpresa, setIncluirInterEmpresa] = useState<boolean>(false);
+  const [interEmpresaOcultas, setInterEmpresaOcultas] = useState<{ qtd: number; valor: number; incluindo: boolean } | null>(null);
 
   const [fornecedorExpandido, setFornecedorExpandido] = useState<string | null>(null);
   const [fornecedorDetalhe, setFornecedorDetalhe] = useState<Record<string, ContaPagar[]>>({});
@@ -437,6 +439,7 @@ export const ContasPagas: React.FC = () => {
         mes: filtroMes.length > 0 ? filtroMes.join(',') : undefined,
         data_inicio: filtroDataInicio || undefined,
         data_fim: filtroDataFim || undefined,
+        incluir_inter_empresa: incluirInterEmpresa,
         limite: itensPorPagina,
         offset: 0,
       };
@@ -510,6 +513,7 @@ export const ContasPagas: React.FC = () => {
 
       setContas(contasResp.data);
       setTotalRegistros(contasResp.total);
+      setInterEmpresaOcultas(contasResp.inter_empresa_ocultas || null);
       setPaginaAtual(1);
       setFornecedorExpandido(null);
       setFornecedorDetalhe({});
@@ -561,6 +565,7 @@ export const ContasPagas: React.FC = () => {
         mes: filtroMes.length > 0 ? filtroMes.join(',') : undefined,
         data_inicio: filtroDataInicio || undefined,
         data_fim: filtroDataFim || undefined,
+        incluir_inter_empresa: incluirInterEmpresa,
         limite: itensPorPagina,
         offset: (pagina - 1) * itensPorPagina,
       };
@@ -1186,6 +1191,25 @@ export const ContasPagas: React.FC = () => {
             className="w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 focus:border-blue-500 focus:outline-none"
           />
         </div>
+      </div>
+
+      {/* Toggle: incluir transferencias inter-empresa */}
+      <div className="mt-5 flex items-start gap-3 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 p-3">
+        <label htmlFor="toggle-inter-empresa" className="flex cursor-pointer items-center gap-2 select-none">
+          <input
+            id="toggle-inter-empresa"
+            type="checkbox"
+            checked={incluirInterEmpresa}
+            onChange={(e) => setIncluirInterEmpresa(e.target.checked)}
+            className="h-4 w-4 cursor-pointer rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500"
+          />
+          <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
+            Mostrar transferencias inter-empresa
+          </span>
+        </label>
+        <span className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+          Por padrao, pagamentos cujo credor e uma empresa do grupo Biesek (ex: transferencias entre SPEs) sao ocultados para evitar duplicar gastos no consolidado.
+        </span>
       </div>
 
       <div className="mt-6 flex flex-wrap gap-3">
@@ -3330,6 +3354,40 @@ export const ContasPagas: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {/* Aviso de transferencias inter-empresa ocultas */}
+        {interEmpresaOcultas && interEmpresaOcultas.qtd > 0 && !interEmpresaOcultas.incluindo && (
+          <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-900/20 p-3">
+            <svg className="h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div className="flex-1 text-sm">
+              <p className="font-semibold text-amber-800 dark:text-amber-200">
+                {interEmpresaOcultas.qtd} pagamento{interEmpresaOcultas.qtd !== 1 ? 's' : ''} oculto{interEmpresaOcultas.qtd !== 1 ? 's' : ''} nesta busca
+                {' '}({interEmpresaOcultas.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})
+              </p>
+              <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-300">
+                Sao transferencias entre empresas do grupo Biesek. Para ver, marque <span className="font-semibold">"Mostrar transferencias inter-empresa"</span> nos filtros e busque novamente.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setIncluirInterEmpresa(true); setMostrarFiltros(true); }}
+              className="flex-shrink-0 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
+            >
+              Marcar e mostrar
+            </button>
+          </div>
+        )}
+
+        {interEmpresaOcultas && interEmpresaOcultas.incluindo && (
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-blue-200 dark:border-blue-800/40 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 text-xs text-blue-700 dark:text-blue-300">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span>
+              Voce esta vendo <span className="font-semibold">todos os pagamentos</span>, inclusive transferencias entre empresas do grupo. Os valores podem estar duplicados no consolidado.
+            </span>
+          </div>
+        )}
 
         {!mostrarFiltros && filtrosAtivosDados.length > 0 && (
           <div className="mb-4 flex flex-wrap gap-2">

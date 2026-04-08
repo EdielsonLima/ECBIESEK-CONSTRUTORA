@@ -220,9 +220,10 @@ export const apiService = {
     mes?: string;
     data_inicio?: string;
     data_fim?: string;
+    incluir_inter_empresa?: boolean;
     limite?: number;
     offset?: number;
-  }): Promise<{ data: ContaPagar[]; total: number }> => {
+  }): Promise<{ data: ContaPagar[]; total: number; inter_empresa_ocultas?: { qtd: number; valor: number; incluindo: boolean } }> => {
     const params = new URLSearchParams();
     if (filtros.empresa) params.append('empresa', filtros.empresa.toString());
     if (filtros.centro_custo) params.append('centro_custo', filtros.centro_custo.toString());
@@ -238,10 +239,11 @@ export const apiService = {
     if (filtros.mes) params.append('mes', filtros.mes);
     if (filtros.data_inicio) params.append('data_inicio', filtros.data_inicio);
     if (filtros.data_fim) params.append('data_fim', filtros.data_fim);
+    if (filtros.incluir_inter_empresa) params.append('incluir_inter_empresa', 'true');
     if (filtros.limite) params.append('limite', filtros.limite.toString());
     if (filtros.offset) params.append('offset', filtros.offset.toString());
 
-    const response = await api.get<{ data: ContaPagar[]; total: number }>(`/contas-pagas-filtradas?${params.toString()}`);
+    const response = await api.get<{ data: ContaPagar[]; total: number; inter_empresa_ocultas?: { qtd: number; valor: number; incluindo: boolean } }>(`/contas-pagas-filtradas?${params.toString()}`);
     return response.data;
   },
 
