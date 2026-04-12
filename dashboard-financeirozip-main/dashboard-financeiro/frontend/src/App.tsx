@@ -48,10 +48,16 @@ function App() {
 
   useEffect(() => {
     checkAuth();
-    apiService.getUltimaAtualizacao()
-      .then(r => { if (r.data) setUltimaAtualizacao(formatarDataPt(r.data)); })
-      .catch(() => {});
   }, []);
+
+  // Carrega data da ultima atualizacao somente apos autenticacao
+  useEffect(() => {
+    if (isAuthenticated) {
+      apiService.getUltimaAtualizacao()
+        .then(r => { if (r.data) setUltimaAtualizacao(formatarDataPt(r.data)); })
+        .catch(() => {});
+    }
+  }, [isAuthenticated]);
 
   const checkAuth = async () => {
     try {
