@@ -1,16 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiService } from '../services/api';
-import axios from 'axios';
-
-const apiHttp = axios.create({
-  baseURL: '/api',
-  headers: { 'Content-Type': 'application/json' },
-});
-apiHttp.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+import { apiService, api as apiHttp } from '../services/api';
 
 interface EmpresaItem {
   id: number;

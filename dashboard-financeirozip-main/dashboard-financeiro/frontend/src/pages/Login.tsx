@@ -6,11 +6,8 @@ interface LoginProps {
 }
 
 export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
-  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
-  const [nome, setNome] = useState('');
   const [senha, setSenha] = useState('');
-  const [confirmarSenha, setConfirmarSenha] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,25 +17,11 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     setLoading(true);
 
     try {
-      if (isLogin) {
-        await authService.login(email, senha);
-      } else {
-        if (senha !== confirmarSenha) {
-          setError('As senhas não coincidem');
-          setLoading(false);
-          return;
-        }
-        if (senha.length < 8) {
-          setError('A senha deve ter pelo menos 8 caracteres');
-          setLoading(false);
-          return;
-        }
-        await authService.register(email, nome, senha);
-      }
+      await authService.login(email, senha);
       onLoginSuccess();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } } };
-      setError(error.response?.data?.detail || 'Erro ao processar solicitação');
+      setError(error.response?.data?.detail || 'E-mail ou senha incorretos');
     } finally {
       setLoading(false);
     }
@@ -89,20 +72,6 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                   </div>
                 </div>
 
-                {!isLogin && (
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">Nome completo</label>
-                    <input
-                      type="text"
-                      value={nome}
-                      onChange={(e) => setNome(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40 focus:border-blue-500 outline-none transition text-[15px]"
-                      placeholder="Digite seu nome"
-                      required={!isLogin}
-                    />
-                  </div>
-                )}
-
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">Senha</label>
@@ -132,20 +101,6 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                   </div>
                 </div>
 
-                {!isLogin && (
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">Confirmar senha</label>
-                    <input
-                      type="password"
-                      value={confirmarSenha}
-                      onChange={(e) => setConfirmarSenha(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40 focus:border-blue-500 outline-none transition text-[15px]"
-                      placeholder="Repita sua senha"
-                      required={!isLogin}
-                    />
-                  </div>
-                )}
-
                 <button
                   type="submit"
                   disabled={loading}
@@ -160,19 +115,12 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                       Processando...
                     </span>
                   ) : (
-                    isLogin ? 'Entrar' : 'Criar conta'
+                    'Entrar'
                   )}
                 </button>
 
-                <div className="text-sm text-slate-600 dark:text-slate-300 text-center">
-                  {isLogin ? 'Não tem conta?' : 'Já tem conta?'}{' '}
-                  <button
-                    type="button"
-                    onClick={() => { setIsLogin(!isLogin); setError(null); }}
-                    className="font-semibold text-blue-700 hover:text-blue-800"
-                  >
-                    {isLogin ? 'Cadastre-se' : 'Entre'}
-                  </button>
+                <div className="text-sm text-slate-500 dark:text-slate-400 text-center">
+                  Precisa de acesso? Solicite ao administrador do sistema.
                 </div>
               </form>
             </div>

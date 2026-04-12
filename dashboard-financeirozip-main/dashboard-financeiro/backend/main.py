@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from typing import List, Optional
@@ -134,17 +134,27 @@ if ANTHROPIC_API_KEY:
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
+# ==================== GLOBAL EXCEPTION HANDLER ====================
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Captura excecoes nao tratadas e retorna mensagem generica (nao vaza stack traces)."""
+    import traceback
+    print(f"[UNHANDLED] {request.method} {request.url.path}: {exc}")
+    traceback.print_exc()
+    return JSONResponse(status_code=500, content={"detail": "Erro interno do servidor"})
+
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
 
-# Configurar CORS — domínios permitidos via env var ou padrões seguros
+# Configurar CORS — domínios permitidos DEVEM ser configurados via env var
 _allowed_origins_env = os.environ.get('ALLOWED_ORIGINS', '')
-ALLOWED_ORIGINS = [o.strip() for o in _allowed_origins_env.split(',') if o.strip()] if _allowed_origins_env else [
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "http://localhost:8000",
-]
+if _allowed_origins_env:
+    ALLOWED_ORIGINS = [o.strip() for o in _allowed_origins_env.split(',') if o.strip()]
+else:
+    # Em producao sem ALLOWED_ORIGINS configurado: aceita apenas localhost (dev local)
+    ALLOWED_ORIGINS = ["http://localhost:5173", "http://localhost:3000"]
+    print("[SECURITY] AVISO: ALLOWED_ORIGINS nao configurado — usando apenas localhost. Configure no Railway!")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -152,6 +162,76 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
+
+# ==================== AUTH MIDDLEWARE (protege TODOS os endpoints /api/*) ====================
+# Endpoints publicos que NAO exigem autenticacao (allowlist explicita)
+PUBLIC_ENDPOINTS = {
+    "/health",
+    "/api/health",
+    "/api/auth/login",
+    "/api/auth/login-json",
+}
+
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    """Middleware global: exige JWT valido em toda rota /api/* exceto as publicas."""
+    path = request.url.path
+
+    # Rotas nao-API (SPA, static files) passam direto
+    if not path.startswith("/api/") and path != "/health":
+        return await call_next(request)
+
+    # Endpoints publicos passam direto
+    if path in PUBLIC_ENDPOINTS:
+        return await call_next(request)
+
+    # Preflight CORS passa direto
+    if request.method == "OPTIONS":
+        return await call_next(request)
+
+    # Validar JWT
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return JSONResponse(status_code=401, content={"detail": "Nao autenticado"})
+
+    token = auth_header[7:]
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        email = payload.get("sub")
+        if not email:
+            return JSONResponse(status_code=401, content={"detail": "Token invalido"})
+    except JWTError:
+        return JSONResponse(status_code=401, content={"detail": "Token invalido ou expirado"})
+
+    user = get_user_by_email(email)
+    if not user or not user.get("ativo"):
+        return JSONResponse(status_code=401, content={"detail": "Usuario invalido ou desativado"})
+
+    # Salva usuario validado no request.state para uso nas rotas
+    request.state.current_user = user
+    return await call_next(request)
+
+# ==================== HTTPS REDIRECT ====================
+@app.middleware("http")
+async def https_redirect(request: Request, call_next):
+    """Redireciona HTTP para HTTPS (Railway termina SSL mas clientes podem acessar via HTTP)."""
+    if request.headers.get("x-forwarded-proto") == "http":
+        url = str(request.url).replace("http://", "https://", 1)
+        return RedirectResponse(url=url, status_code=301)
+    return await call_next(request)
+
+# ==================== SECURITY HEADERS ====================
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    """Adiciona headers de seguranca em todas as respostas."""
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
 
 # Utilitário para conversão segura de int
 def _safe_int(val, default):
@@ -469,8 +549,12 @@ def log_atividade(email: str, acao: str, detalhes: str = None, ip: str = None):
     except Exception as e:
         print(f"Erro ao registrar log: {e}")
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
-    """Obtém usuário atual a partir do token JWT"""
+async def get_current_user(request: Request, token: str = Depends(oauth2_scheme)):
+    """Obtém usuário atual — reaproveita do middleware se disponivel, senao valida o token."""
+    # Se o middleware ja validou, reaproveita (evita decodificar JWT 2x)
+    if hasattr(request.state, 'current_user') and request.state.current_user:
+        return request.state.current_user
+
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -492,7 +576,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             detail="Token inválido ou expirado",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     user = get_user_by_email(email)
     if user is None:
         raise HTTPException(
@@ -523,8 +607,8 @@ async def get_current_user_optional(token: str = Depends(oauth2_scheme)):
 
 # Endpoints de autenticação
 @app.post("/api/auth/register")
-def register_user(user: UserCreate):
-    """Registra novo usuário"""
+def register_user(user: UserCreate, current_user: dict = Depends(require_admin)):
+    """Registra novo usuário (requer admin)"""
     
     existing_user = get_user_by_email(user.email)
     if existing_user:
@@ -546,7 +630,7 @@ def register_user(user: UserCreate):
         access_token = create_access_token(data={"sub": user.email.lower()})
         return {"access_token": access_token, "token_type": "bearer", "user": {"id": new_id, "email": user.email.lower(), "nome": user.nome}}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
     finally:
         conn.close()
 
@@ -614,7 +698,7 @@ async def alterar_senha(dados: dict, request: Request, current_user: dict = Depe
         log_atividade(current_user['email'], 'ALTERAR_SENHA', 'Senha alterada com sucesso', ip)
         return {"success": True, "message": "Senha alterada com sucesso"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
     finally:
         conn.close()
 
@@ -659,7 +743,7 @@ async def criar_usuario(dados: dict, request: Request, current_user: dict = Depe
         log_atividade(current_user['email'], 'CRIAR_USUARIO', f'Usuário {email} criado', ip)
         return {"success": True, "id": cursor.lastrowid, "email": email, "nome": nome, "permissao": permissao}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
     finally:
         conn.close()
 
@@ -776,7 +860,7 @@ Regra Importante: Responda as perguntas de forma direta, concisa e profissional.
         
     except Exception as e:
         print(f"Erro no chat da IA: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
 
 # Endpoints
 @app.get("/api/health")
@@ -3298,8 +3382,8 @@ def get_comercial_contratos(centro_custo: Optional[str] = None, cliente: Optiona
 # ============ USUÁRIOS ONLINE ============
 
 @app.post("/api/heartbeat")
-def registrar_heartbeat(data: dict):
-    """Registra heartbeat do usuário (chamado a cada 30s pelo frontend)"""
+def registrar_heartbeat(request: Request):
+    """Registra heartbeat do usuário — identidade extraida do token JWT, nao do body."""
     conn = get_config_db_connection()
     cursor = conn.cursor()
     try:
@@ -3324,10 +3408,12 @@ def registrar_heartbeat(data: dict):
             except Exception:
                 pass
 
-        user_id = data.get('user_id')
-        user_nome = data.get('user_nome', '')
-        user_email = data.get('user_email', '')
-        user_permissao = data.get('user_permissao', '')
+        # Identidade do usuario vem do middleware JWT (nao do body)
+        user = getattr(request.state, 'current_user', None) or {}
+        user_id = user.get('id')
+        user_nome = user.get('nome', '')
+        user_email = user.get('email', '')
+        user_permissao = user.get('permissao', '')
 
         # Upsert: atualiza heartbeat se existe, insere se não
         cursor.execute("""
@@ -3370,8 +3456,11 @@ def get_usuarios_online():
         conn.close()
 
 @app.delete("/api/heartbeat/{user_id}")
-def remover_heartbeat(user_id: int):
-    """Remove sessão ao fazer logout"""
+def remover_heartbeat(user_id: int, request: Request):
+    """Remove sessão ao fazer logout — so permite propria sessao ou admin"""
+    user = getattr(request.state, 'current_user', None) or {}
+    if user.get('id') != user_id and user.get('permissao') != 'admin':
+        raise HTTPException(status_code=403, detail="Acesso negado")
     conn = get_config_db_connection()
     cursor = conn.cursor()
     try:
@@ -3493,7 +3582,7 @@ def criar_solicitacao(data: dict):
         import traceback
         print(f"[ERRO] criar_solicitacao: {e}")
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
     finally:
         cursor.close()
         conn.close()
@@ -3530,7 +3619,7 @@ def atualizar_solicitacao(id: int, data: dict):
         return {"success": True}
     except Exception as e:
         print(f"[ERRO] atualizar_solicitacao: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
     finally:
         cursor.close()
         conn.close()
@@ -3585,7 +3674,7 @@ def validar_solicitacao(id: int, data: dict):
         return {"success": True, "aprovado": aprovado}
     except Exception as e:
         print(f"[ERRO] validar_solicitacao: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
     finally:
         cursor.close()
         conn.close()
@@ -3614,7 +3703,7 @@ def backfill_entregue_em():
         return {"success": True, "atualizadas": atualizadas}
     except Exception as e:
         print(f"[ERRO] backfill_entregue_em: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
     finally:
         cursor.close()
         conn.close()
@@ -3630,7 +3719,7 @@ def deletar_solicitacao(id: int):
         return {"success": True}
     except Exception as e:
         print(f"[ERRO] deletar_solicitacao: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
     finally:
         cursor.close()
         conn.close()
@@ -5127,7 +5216,7 @@ def get_todos_centros_custo(empresa: Optional[str] = None):
         return resultado
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
 
 @app.get("/api/centros-custo/classificacoes")
 def get_classificacoes_centros_custo():
@@ -5176,7 +5265,7 @@ def criar_classificacao_centro_custo(data: ClassificacaoCentroCustoCreate):
         
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
     finally:
         cursor.close()
         conn.close()
@@ -5206,7 +5295,7 @@ def atualizar_classificacao_centro_custo(id_interno_centrocusto: int, data: Clas
         raise
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
     finally:
         cursor.close()
         conn.close()
@@ -5233,7 +5322,7 @@ def remover_classificacao_centro_custo(id_interno_centrocusto: int):
         raise
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
     finally:
         cursor.close()
         conn.close()
@@ -7710,7 +7799,7 @@ def get_progress_titulos_cliente(
 
     except Exception as e:
         print(f"Erro ao buscar progress titulos: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
     finally:
         cursor.close()
         conn.close()
@@ -7806,7 +7895,7 @@ def create_origem_meta(meta: OrigemMetaCreate):
         return {'id': new_id, 'message': 'Meta criada com sucesso'}
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
     finally:
         cursor.close()
         conn.close()
@@ -7849,7 +7938,7 @@ def update_origem_meta(meta_id: int, meta: OrigemMetaUpdate):
         raise
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
     finally:
         cursor.close()
         conn.close()
@@ -7871,7 +7960,7 @@ def delete_origem_meta(meta_id: int):
         raise
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
     finally:
         cursor.close()
         conn.close()
@@ -9545,7 +9634,7 @@ def toggle_origem_exposicao(data: dict):
         return {"success": True}
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
     finally:
         cursor.close()
         conn.close()
@@ -9638,7 +9727,7 @@ def toggle_tipo_baixa_exposicao(data: dict):
         return {"success": True}
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
     finally:
         cursor.close()
         conn.close()
@@ -9670,7 +9759,7 @@ def seed_tipos_baixa_contas_pagas():
         return {"success": True, "configurados": ["1-Pagamento", "10-Adiantamento"]}
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
     finally:
         cursor.close()
         conn.close()
@@ -9782,7 +9871,7 @@ def salvar_snapshot_cards_pagar(dados: dict):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
     finally:
         cursor.close()
         conn.close()
@@ -9986,7 +10075,7 @@ def set_snapshot_horario(dados: dict):
         conn.commit()
         return {"success": True, "horario": horario, "ativo": ativo}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
     finally:
         cursor.close()
         conn.close()
@@ -10310,7 +10399,7 @@ def update_empreendimento_config(emp_id: int, data: dict):
     except Exception as e:
         conn.rollback()
         print(f"[ERRO] update_empreendimento_config: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
     finally:
         cursor.close()
         conn.close()
@@ -10343,7 +10432,7 @@ def create_empreendimento_config(data: dict):
     except Exception as e:
         conn.rollback()
         print(f"[ERRO] create_empreendimento_config: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
     finally:
         cursor.close()
         conn.close()
@@ -10360,7 +10449,7 @@ def delete_empreendimento_config(emp_id: int):
     except Exception as e:
         conn.rollback()
         print(f"[ERRO] delete_empreendimento_config: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
     finally:
         cursor.close()
         conn.close()
@@ -11110,7 +11199,7 @@ def update_cub_config(data: dict):
     except Exception as e:
         conn.rollback()
         print(f"[ERRO] update_cub_config: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
     finally:
         cursor.close()
         conn.close()
@@ -11368,7 +11457,10 @@ if FRONTEND_BUILD_DIR.exists():
     
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
-        file_path = FRONTEND_BUILD_DIR / full_path
+        file_path = (FRONTEND_BUILD_DIR / full_path).resolve()
+        # Previne path traversal: garante que o arquivo esta dentro do diretorio de build
+        if not str(file_path).startswith(str(FRONTEND_BUILD_DIR.resolve())):
+            return FileResponse(FRONTEND_BUILD_DIR / "index.html")
         if file_path.exists() and file_path.is_file():
             return FileResponse(file_path)
         return FileResponse(FRONTEND_BUILD_DIR / "index.html")
