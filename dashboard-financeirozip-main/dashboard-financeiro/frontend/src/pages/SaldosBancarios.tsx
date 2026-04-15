@@ -48,6 +48,8 @@ export const SaldosBancarios: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [mostrarPainelContas, setMostrarPainelContas] = useState(false);
+  const [buscaContas, setBuscaContas] = useState('');
+  const [salvandoPadrao, setSalvandoPadrao] = useState(false);
 
   // Carregar empresas e contas + padrão salvo
   useEffect(() => {
@@ -89,7 +91,8 @@ export const SaldosBancarios: React.FC = () => {
       contas: Array.from(contasSel),
       empresas: Array.from(empresasSel),
     }));
-    setMostrarPainelContas(false);
+    setSalvandoPadrao(true);
+    setTimeout(() => setSalvandoPadrao(false), 1800);
   };
 
   const resetarPadrao = () => {
@@ -129,6 +132,40 @@ export const SaldosBancarios: React.FC = () => {
   }, [resumo]);
 
   const totalContasSelecionadas = contasSel.size || contas.length;
+
+  // Mapa empresa_id -> nome_empresa
+  const empresasMap = useMemo(() => {
+    const m = new Map<number, string>();
+    empresas.forEach((e) => m.set(e.id, e.nome));
+    return m;
+  }, [empresas]);
+
+  // Contas agrupadas por empresa (com busca aplicada)
+  const contasAgrupadas = useMemo(() => {
+    const termo = buscaContas.trim().toLowerCase();
+    const grupos = new Map<string, ContaCorrenteOption[]>();
+    contas.forEach((c) => {
+      const nomeEmp = empresasMap.get(c.empresa_id) || 'Sem Empresa';
+      if (termo) {
+        const casa = c.nome.toLowerCase().includes(termo) || nomeEmp.toLowerCase().includes(termo);
+        if (!casa) return;
+      }
+      if (!grupos.has(nomeEmp)) grupos.set(nomeEmp, []);
+      grupos.get(nomeEmp)!.push(c);
+    });
+    return Array.from(grupos.entries()).sort(([a], [b]) => a.localeCompare(b, 'pt-BR'));
+  }, [contas, empresasMap, buscaContas]);
+
+  const toggleEmpresaGrupo = (contasDaEmpresa: ContaCorrenteOption[]) => {
+    const ids = contasDaEmpresa.map((c) => String(c.id));
+    const todosSel = ids.every((id) => contasSel.has(id));
+    setContasSel((prev) => {
+      const next = new Set(prev);
+      if (todosSel) ids.forEach((id) => next.delete(id));
+      else ids.forEach((id) => next.add(id));
+      return next;
+    });
+  };
   const dataAtual = new Date().toLocaleDateString('pt-BR');
 
   // Dados do gráfico de empresas
@@ -167,17 +204,166 @@ export const SaldosBancarios: React.FC = () => {
       {/* Header com filtros */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setMostrarPainelContas(!mostrarPainelContas)}
-            className="inline-flex items-center gap-2 rounded-full border border-violet-200 dark:border-violet-700 bg-violet-50 dark:bg-violet-900/30 px-4 py-2 text-sm font-semibold text-violet-700 dark:text-violet-300 hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors"
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            Contas
-            <span className="inline-flex items-center justify-center rounded-full bg-violet-600 text-white text-xs font-bold h-5 min-w-[20px] px-1.5">{totalContasSelecionadas}</span>
-          </button>
+          {/* Dropdown de Contas */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setMostrarPainelContas(!mostrarPainelContas)}
+              className="inline-flex items-center gap-2 rounded-full border border-violet-200 dark:border-violet-700 bg-violet-50 dark:bg-violet-900/30 px-4 py-2 text-sm font-semibold text-violet-700 dark:text-violet-300 hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Contas
+              <span className="inline-flex items-center justify-center rounded-full bg-violet-600 text-white text-xs font-bold h-5 min-w-[20px] px-1.5">{totalContasSelecionadas}</span>
+              <svg className={`h-3.5 w-3.5 transition-transform ${mostrarPainelContas ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {mostrarPainelContas && (
+              <>
+                {/* Overlay invisível para fechar ao clicar fora */}
+                <div className="fixed inset-0 z-40" onClick={() => setMostrarPainelContas(false)} />
+                {/* Dropdown */}
+                <div className="absolute left-0 top-full mt-2 z-50 w-[420px] rounded-2xl bg-white dark:bg-slate-800 shadow-2xl border border-gray-200 dark:border-slate-700 overflow-hidden">
+                  {/* Header do dropdown */}
+                  <div className="px-4 py-3 border-b border-gray-100 dark:border-slate-700 bg-gradient-to-r from-violet-50 to-indigo-50 dark:from-violet-950/30 dark:to-indigo-950/30">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100">Selecionar contas</h3>
+                      <span className="text-[11px] text-gray-500 dark:text-slate-400">{contasSel.size} de {contas.length}</span>
+                    </div>
+                    {/* Campo de busca */}
+                    <div className="relative">
+                      <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 104.5 4.5a7.5 7.5 0 0012.15 12.15z" />
+                      </svg>
+                      <input
+                        type="text"
+                        value={buscaContas}
+                        onChange={(e) => setBuscaContas(e.target.value)}
+                        placeholder="Buscar por conta ou empresa..."
+                        className="w-full pl-8 pr-8 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-200 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                        autoFocus
+                      />
+                      {buscaContas && (
+                        <button
+                          type="button"
+                          onClick={() => setBuscaContas('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Lista agrupada por empresa */}
+                  <div className="max-h-80 overflow-y-auto">
+                    {contasAgrupadas.length === 0 && (
+                      <p className="text-xs text-gray-500 dark:text-slate-400 text-center py-8">
+                        {buscaContas ? 'Nenhuma conta encontrada' : 'Nenhuma conta disponível'}
+                      </p>
+                    )}
+                    {contasAgrupadas.map(([nomeEmpresa, contasDaEmpresa]) => {
+                      const idsEmp = contasDaEmpresa.map((c) => String(c.id));
+                      const selNoGrupo = idsEmp.filter((id) => contasSel.has(id)).length;
+                      const todosSel = selNoGrupo === idsEmp.length && idsEmp.length > 0;
+                      const algunsSel = selNoGrupo > 0 && !todosSel;
+                      return (
+                        <div key={nomeEmpresa} className="border-b border-gray-100 dark:border-slate-700/50 last:border-b-0">
+                          {/* Cabeçalho da empresa (toggle todos do grupo) */}
+                          <button
+                            type="button"
+                            onClick={() => toggleEmpresaGrupo(contasDaEmpresa)}
+                            className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-slate-900/40 hover:bg-gray-100 dark:hover:bg-slate-900/60 transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={todosSel}
+                                ref={(el) => { if (el) el.indeterminate = algunsSel; }}
+                                readOnly
+                                className="rounded text-violet-600 pointer-events-none"
+                              />
+                              <span className="text-xs font-bold text-gray-700 dark:text-slate-200 truncate max-w-[280px]" title={nomeEmpresa}>
+                                {nomeEmpresa}
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-semibold text-gray-500 dark:text-slate-400">
+                              {selNoGrupo}/{idsEmp.length}
+                            </span>
+                          </button>
+                          {/* Contas da empresa */}
+                          <div className="divide-y divide-gray-50 dark:divide-slate-700/30">
+                            {contasDaEmpresa.map((c) => (
+                              <label
+                                key={c.id}
+                                className="flex items-center gap-2 px-5 py-1.5 hover:bg-violet-50/50 dark:hover:bg-violet-900/10 cursor-pointer transition-colors"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={contasSel.has(String(c.id))}
+                                  onChange={() => toggleConta(String(c.id))}
+                                  className="rounded text-violet-600"
+                                />
+                                <span className="text-[11px] text-gray-600 dark:text-slate-300 truncate">{c.nome}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Footer com ações */}
+                  <div className="px-4 py-3 border-t border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/40 flex items-center justify-between gap-2">
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setContasSel(new Set())}
+                        className="text-xs text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200"
+                      >
+                        Limpar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setContasSel(new Set(contas.map((c) => String(c.id))))}
+                        className="text-xs text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200"
+                      >
+                        Selecionar todas
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={salvarPadrao}
+                      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors ${
+                        salvandoPadrao ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-violet-600 hover:bg-violet-700'
+                      }`}
+                    >
+                      {salvandoPadrao ? (
+                        <>
+                          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Salvo!
+                        </>
+                      ) : (
+                        <>
+                          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                          </svg>
+                          Salvar Padrão
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
 
           <div className="text-sm text-gray-600 dark:text-slate-400">
             <span className="font-medium">Saldo do dia:</span>{' '}
@@ -196,50 +382,6 @@ export const SaldosBancarios: React.FC = () => {
           </button>
         </div>
       </div>
-
-      {/* Painel de seleção de contas */}
-      {mostrarPainelContas && (
-        <div className="rounded-2xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">Selecionar contas</h3>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => { setContasSel(new Set()); }}
-                className="text-xs text-gray-500 hover:text-gray-700 dark:text-slate-400"
-              >
-                Limpar
-              </button>
-              <button
-                type="button"
-                onClick={salvarPadrao}
-                className="rounded-lg bg-violet-600 hover:bg-violet-700 px-3 py-1.5 text-xs font-semibold text-white transition-colors"
-              >
-                Salvar como padrão
-              </button>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-64 overflow-y-auto">
-            {contas.map((c) => (
-              <label
-                key={c.id}
-                className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-slate-700 px-3 py-2 hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors"
-              >
-                <input
-                  type="checkbox"
-                  checked={contasSel.has(String(c.id))}
-                  onChange={() => toggleConta(String(c.id))}
-                  className="rounded text-violet-600"
-                />
-                <span className="text-xs text-gray-700 dark:text-slate-300 truncate">{c.nome}</span>
-              </label>
-            ))}
-            {contas.length === 0 && (
-              <p className="text-xs text-gray-500 dark:text-slate-400 col-span-full">Nenhuma conta disponível</p>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Card SALDO TOTAL */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-violet-950/40 dark:to-indigo-950/40 border border-violet-200 dark:border-violet-800 p-6 shadow-sm">

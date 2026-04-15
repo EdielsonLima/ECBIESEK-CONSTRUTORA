@@ -1,6 +1,22 @@
 {
-  "versao_atual": "1.5.0",
+  "versao_atual": "1.5.1",
   "historico": [
+    {
+      "versao": "1.5.1",
+      "data": "2026-04-15",
+      "titulo": "Novidades da Versao 1.5.1",
+      "secoes": [
+        {
+          "titulo": "Saldos Bancarios",
+          "icone": "settings",
+          "itens": [
+            "Novo filtro de contas pesquisavel com agrupamento por empresa",
+            "Selecione/desmarque todas as contas de uma empresa com um clique",
+            "Botao 'Salvar Padrao' guarda sua selecao e mantem quando voltar ao sistema"
+          ]
+        }
+      ]
+    },
     {
       "versao": "1.5.0",
       "data": "2026-04-05",
