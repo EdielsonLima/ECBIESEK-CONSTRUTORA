@@ -1,6 +1,24 @@
 {
-  "versao_atual": "1.5.1",
+  "versao_atual": "1.6.0",
   "historico": [
+    {
+      "versao": "1.6.0",
+      "data": "2026-04-15",
+      "titulo": "Novidades da Versao 1.6.0",
+      "secoes": [
+        {
+          "titulo": "Saldos Bancarios",
+          "icone": "settings",
+          "itens": [
+            "Valores agora batem com o relatorio oficial do Sienge (Posicao de Saldos)",
+            "Novos cards separados: Saldo Bancario, Permuta, Mutuo e Total Geral",
+            "Selecao de data para consultar saldo de qualquer dia do historico",
+            "Nova tabela com Saldo Anterior, Entradas, Saidas e Saldo Atual por conta",
+            "Contas marcadas automaticamente por tipo (permuta, mutuo, bancaria)"
+          ]
+        }
+      ]
+    },
     {
       "versao": "1.5.1",
       "data": "2026-04-15",

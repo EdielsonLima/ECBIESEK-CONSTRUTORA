@@ -50,6 +50,7 @@ export const SaldosBancarios: React.FC = () => {
   const [mostrarPainelContas, setMostrarPainelContas] = useState(false);
   const [buscaContas, setBuscaContas] = useState('');
   const [salvandoPadrao, setSalvandoPadrao] = useState(false);
+  const [dataRef, setDataRef] = useState<string>('');
 
   // Carregar empresas e contas + padrão salvo
   useEffect(() => {
@@ -75,8 +76,10 @@ export const SaldosBancarios: React.FC = () => {
       try {
         const empArr = Array.from(empresasSel);
         const conArr = Array.from(contasSel);
-        const r = await apiService.getSaldosResumo(empArr, conArr);
+        const r = await apiService.getSaldosResumo(empArr, conArr, dataRef || undefined);
         setResumo(r);
+        // Sincroniza a data de referencia com a retornada pelo backend (ultima disponivel)
+        if (!dataRef && r.data_referencia) setDataRef(r.data_referencia);
       } catch {
         setErro('Não foi possível carregar os saldos agora.');
       } finally {
@@ -84,7 +87,7 @@ export const SaldosBancarios: React.FC = () => {
       }
     };
     fetch();
-  }, [empresasSel, contasSel]);
+  }, [empresasSel, contasSel, dataRef]);
 
   const salvarPadrao = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -166,17 +169,14 @@ export const SaldosBancarios: React.FC = () => {
       return next;
     });
   };
-  const dataAtual = new Date().toLocaleDateString('pt-BR');
-
   // Dados do gráfico de empresas
   const empresasOrdenadas = useMemo(() => {
     if (!resumo?.empresas) return [];
     return [...resumo.empresas]
-      .sort((a, b) => (b.saldo || 0) - (a.saldo || 0))
-      .slice(0, 10);
+      .sort((a, b) => Math.abs(b.saldo || 0) - Math.abs(a.saldo || 0));
   }, [resumo]);
 
-  const maxSaldoEmpresa = Math.max(...empresasOrdenadas.map((e) => e.saldo || 0), 1);
+  const maxSaldoEmpresa = Math.max(...empresasOrdenadas.map((e) => Math.abs(e.saldo || 0)), 1);
 
   // Variação do saldo (primeiro vs último ponto da série)
   const variacao = useMemo(() => {
@@ -365,9 +365,18 @@ export const SaldosBancarios: React.FC = () => {
             )}
           </div>
 
-          <div className="text-sm text-gray-600 dark:text-slate-400">
-            <span className="font-medium">Saldo do dia:</span>{' '}
-            <span className="font-semibold text-gray-900 dark:text-slate-200">{dataAtual}</span>
+          {/* Seletor de data */}
+          <div className="flex items-center gap-2 rounded-xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 px-3 py-1.5 shadow-sm">
+            <svg className="h-4 w-4 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Data:</span>
+            <input
+              type="date"
+              value={dataRef}
+              onChange={(e) => setDataRef(e.target.value)}
+              className="bg-transparent text-sm font-semibold text-gray-800 dark:text-slate-200 outline-none cursor-pointer"
+            />
           </div>
 
           <button
@@ -383,118 +392,197 @@ export const SaldosBancarios: React.FC = () => {
         </div>
       </div>
 
-      {/* Card SALDO TOTAL */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-violet-950/40 dark:to-indigo-950/40 border border-violet-200 dark:border-violet-800 p-6 shadow-sm">
+      {/* Grid de cards: Total, Bancario, Permuta, Mutuo */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        {/* Card Saldo Bancario */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-950/40 dark:to-green-950/40 border border-emerald-200 dark:border-emerald-800 p-5 shadow-sm">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-green-500"></div>
+          <div className="flex items-center gap-2 mb-1">
+            <svg className="h-4 w-4 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <p className="text-[11px] uppercase tracking-wider font-bold text-emerald-700 dark:text-emerald-400">Saldo Bancário</p>
+          </div>
+          <p className="text-2xl font-extrabold text-gray-900 dark:text-white">{currency(resumo?.cards?.bancario ?? 0)}</p>
+          <p className="text-[10px] text-gray-500 dark:text-slate-500 mt-1">Contas em bancos e caixa</p>
+        </div>
+
+        {/* Card Permuta */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40 border border-amber-200 dark:border-amber-800 p-5 shadow-sm">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-orange-500"></div>
+          <div className="flex items-center gap-2 mb-1">
+            <svg className="h-4 w-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
+            <p className="text-[11px] uppercase tracking-wider font-bold text-amber-700 dark:text-amber-400">Saldo Permuta</p>
+          </div>
+          <p className="text-2xl font-extrabold text-gray-900 dark:text-white">{currency(resumo?.cards?.permuta ?? 0)}</p>
+          <p className="text-[10px] text-gray-500 dark:text-slate-500 mt-1">Permutas ativas</p>
+        </div>
+
+        {/* Card Mutuo */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-50 to-sky-50 dark:from-blue-950/40 dark:to-sky-950/40 border border-blue-200 dark:border-blue-800 p-5 shadow-sm">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-sky-500"></div>
+          <div className="flex items-center gap-2 mb-1">
+            <svg className="h-4 w-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <p className="text-[11px] uppercase tracking-wider font-bold text-blue-700 dark:text-blue-400">Saldo Mútuo</p>
+          </div>
+          <p className="text-2xl font-extrabold text-gray-900 dark:text-white">{currency(resumo?.cards?.mutuo ?? 0)}</p>
+          <p className="text-[10px] text-gray-500 dark:text-slate-500 mt-1">Empréstimos entre empresas</p>
+        </div>
+
+        {/* Card Saldo Total Geral */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-violet-950/40 dark:to-indigo-950/40 border border-violet-200 dark:border-violet-800 p-5 shadow-sm">
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-violet-500 to-indigo-500"></div>
-        <p className="text-xs uppercase tracking-wider font-bold text-violet-600 dark:text-violet-400 mb-1">Saldo Total</p>
-        <p className="text-4xl font-extrabold text-gray-900 dark:text-white">
-          {currency(resumo?.saldo_total ?? 0)}
-        </p>
-        <p className="text-xs text-gray-500 dark:text-slate-400 mt-2">
-          {(resumo?.contas ?? []).length} contas em {(resumo?.empresas ?? []).length} empresas
-        </p>
-        {erro && <p className="text-xs text-red-500 mt-2">{erro}</p>}
+          <div className="flex items-center gap-2 mb-1">
+            <svg className="h-4 w-4 text-violet-600 dark:text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-[11px] uppercase tracking-wider font-bold text-violet-700 dark:text-violet-400">Saldo Total Geral</p>
+          </div>
+          <p className="text-2xl font-extrabold text-gray-900 dark:text-white">{currency(resumo?.saldo_total ?? 0)}</p>
+          <p className="text-[10px] text-gray-500 dark:text-slate-500 mt-1">
+            Em {resumo?.data_referencia ? new Date(resumo.data_referencia + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
+          </p>
+        </div>
       </div>
 
-      {/* Layout 2 colunas: Gráfico + Tabela */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-        {/* Saldo por Empresa - Gráfico horizontal */}
-        <div className="rounded-2xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 p-5 shadow-sm">
-          <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 mb-4">Saldo por Empresa</h3>
-          {empresasOrdenadas.length > 0 ? (
-            <div className="space-y-3">
-              {empresasOrdenadas.map((emp, i) => {
-                const pct = ((emp.saldo || 0) / maxSaldoEmpresa) * 100;
+      <div className="flex items-center justify-between flex-wrap gap-2 px-1">
+        <p className="text-xs text-gray-500 dark:text-slate-400">
+          {(resumo?.contas ?? []).length} contas em {(resumo?.empresas ?? []).length} empresas
+        </p>
+        {erro && <p className="text-xs text-red-500">{erro}</p>}
+      </div>
+
+      {/* Tabela Posicao de Saldos (estilo relatorio oficial) */}
+      <div className="rounded-2xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+        <div className="px-5 pt-5 pb-3 flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">Posição de Saldos</h3>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">Clique na empresa para ver as contas — data: {resumo?.data_referencia ? new Date(resumo.data_referencia + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}</p>
+          </div>
+        </div>
+        <div className="max-h-[600px] overflow-y-auto overflow-x-auto">
+          <table className="w-full text-sm min-w-[780px]">
+            <thead className="bg-slate-800 dark:bg-slate-900 sticky top-0 z-10">
+              <tr>
+                <th className="text-left text-[11px] font-bold text-white uppercase px-4 py-2.5">Conta / Nome</th>
+                <th className="text-right text-[11px] font-bold text-white uppercase px-3 py-2.5">Saldo Anterior</th>
+                <th className="text-right text-[11px] font-bold text-white uppercase px-3 py-2.5">Entradas</th>
+                <th className="text-right text-[11px] font-bold text-white uppercase px-3 py-2.5">Saídas</th>
+                <th className="text-right text-[11px] font-bold text-white uppercase px-4 py-2.5">Saldo Atual</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+              {Array.from(contasPorEmpresa.entries()).map(([empNome, contasEmp], i) => {
+                const totalAnterior = contasEmp.reduce((s, c) => s + (c.saldo_anterior || 0), 0);
+                const totalEntrada = contasEmp.reduce((s, c) => s + (c.entrada || 0), 0);
+                const totalSaida = contasEmp.reduce((s, c) => s + (c.saida || 0), 0);
+                const totalAtual = contasEmp.reduce((s, c) => s + (c.saldo_atual ?? c.saldo ?? 0), 0);
+                const expandida = empresasExpandidas.has(empNome);
                 return (
-                  <div key={i}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-semibold text-gray-700 dark:text-slate-300 truncate max-w-[60%]" title={emp.empresa_nome}>
-                        {emp.empresa_nome}
-                      </span>
-                      <span className="text-xs font-bold text-violet-600 dark:text-violet-400">
-                        {currencyShort(emp.saldo)}
-                      </span>
-                    </div>
-                    <div className="h-3 rounded-full bg-gray-100 dark:bg-slate-700 overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-violet-400 to-indigo-500 transition-all"
-                        style={{ width: `${pct}%` }}
-                      ></div>
-                    </div>
-                  </div>
+                  <React.Fragment key={i}>
+                    <tr
+                      className="cursor-pointer hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors bg-violet-50/60 dark:bg-violet-950/10"
+                      onClick={() => toggleEmpresa(empNome)}
+                    >
+                      <td className="px-4 py-2.5 font-bold text-gray-900 dark:text-slate-200">
+                        <span className={`inline-block mr-2 text-gray-400 text-[10px] transition-transform ${expandida ? 'rotate-90' : ''}`}>▶</span>
+                        {empNome}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-semibold text-gray-700 dark:text-slate-300 font-mono">{currency(totalAnterior)}</td>
+                      <td className="px-3 py-2.5 text-right font-semibold text-emerald-600 dark:text-emerald-400 font-mono">{currency(totalEntrada)}</td>
+                      <td className="px-3 py-2.5 text-right font-semibold text-red-600 dark:text-red-400 font-mono">{currency(totalSaida)}</td>
+                      <td className={`px-4 py-2.5 text-right font-bold font-mono ${totalAtual >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>{currency(totalAtual)}</td>
+                    </tr>
+                    {expandida && contasEmp.map((c, j) => {
+                      const sa = c.saldo_anterior || 0;
+                      const en = c.entrada || 0;
+                      const sai = c.saida || 0;
+                      const at = c.saldo_atual ?? c.saldo ?? 0;
+                      const tipo = c.tipo;
+                      const tipoBadge = tipo === 'permuta' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                        : tipo === 'mutuo' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : tipo === 'reapropriacao' ? 'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-300'
+                        : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300';
+                      return (
+                        <tr key={`${i}-${j}`} className="bg-gray-50/60 dark:bg-slate-900/40">
+                          <td className="px-4 py-1.5 pl-10 text-xs text-gray-600 dark:text-slate-400">
+                            <span className="font-mono text-[10px] text-gray-400 mr-1.5">{c.conta_corrente}</span>
+                            {c.banco}
+                            {tipo && tipo !== 'bancaria' && (
+                              <span className={`ml-2 inline-block text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase ${tipoBadge}`}>{tipo}</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-1.5 text-right text-xs font-mono text-gray-500 dark:text-slate-400">{currency(sa)}</td>
+                          <td className="px-3 py-1.5 text-right text-xs font-mono text-emerald-600/80 dark:text-emerald-400/80">{en ? currency(en) : '—'}</td>
+                          <td className="px-3 py-1.5 text-right text-xs font-mono text-red-600/80 dark:text-red-400/80">{sai ? currency(sai) : '—'}</td>
+                          <td className={`px-4 py-1.5 text-right text-xs font-mono font-semibold ${at >= 0 ? 'text-gray-700 dark:text-slate-200' : 'text-red-600 dark:text-red-400'}`}>{currency(at)}</td>
+                        </tr>
+                      );
+                    })}
+                  </React.Fragment>
                 );
               })}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-400 text-center py-8">Nenhum dado</p>
-          )}
+              {contasPorEmpresa.size === 0 && (
+                <tr>
+                  <td colSpan={5} className="text-center text-sm text-gray-400 py-8">Nenhuma conta encontrada</td>
+                </tr>
+              )}
+            </tbody>
+            <tfoot className="bg-violet-50 dark:bg-violet-950/30 sticky bottom-0">
+              <tr>
+                <td className="px-4 py-3 font-bold text-gray-900 dark:text-slate-100">Total Geral</td>
+                <td className="px-3 py-3 text-right font-bold text-gray-700 dark:text-slate-300 font-mono">
+                  {currency((resumo?.contas ?? []).reduce((s, c) => s + (c.saldo_anterior || 0), 0))}
+                </td>
+                <td className="px-3 py-3 text-right font-bold text-emerald-700 dark:text-emerald-400 font-mono">
+                  {currency((resumo?.contas ?? []).reduce((s, c) => s + (c.entrada || 0), 0))}
+                </td>
+                <td className="px-3 py-3 text-right font-bold text-red-700 dark:text-red-400 font-mono">
+                  {currency((resumo?.contas ?? []).reduce((s, c) => s + (c.saida || 0), 0))}
+                </td>
+                <td className="px-4 py-3 text-right font-extrabold text-violet-700 dark:text-violet-300 font-mono">
+                  {currency(resumo?.saldo_total ?? 0)}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
+      </div>
 
-        {/* Contas por Empresa - Tabela expansível */}
-        <div className="rounded-2xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
-          <div className="px-5 pt-5 pb-3">
-            <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">Contas por Empresa</h3>
-            <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">Clique na empresa para ver as contas</p>
+      {/* Saldo por Empresa - Grafico horizontal */}
+      <div className="rounded-2xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 p-5 shadow-sm">
+        <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 mb-4">Saldo por Empresa</h3>
+        {empresasOrdenadas.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
+            {empresasOrdenadas.map((emp, i) => {
+              const pct = Math.abs((emp.saldo || 0) / (maxSaldoEmpresa || 1)) * 100;
+              return (
+                <div key={i}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-gray-700 dark:text-slate-300 truncate max-w-[60%]" title={emp.empresa_nome}>
+                      {emp.empresa_nome}
+                    </span>
+                    <span className={`text-xs font-bold font-mono ${emp.saldo >= 0 ? 'text-violet-600 dark:text-violet-400' : 'text-red-600 dark:text-red-400'}`}>
+                      {currencyShort(emp.saldo)}
+                    </span>
+                  </div>
+                  <div className="h-2.5 rounded-full bg-gray-100 dark:bg-slate-700 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${emp.saldo >= 0 ? 'bg-gradient-to-r from-violet-400 to-indigo-500' : 'bg-gradient-to-r from-red-400 to-orange-500'}`}
+                      style={{ width: `${Math.min(pct, 100)}%` }}
+                    ></div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <div className="max-h-[400px] overflow-y-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-800 dark:bg-slate-900 sticky top-0">
-                <tr>
-                  <th className="text-left text-xs font-bold text-white uppercase px-4 py-2.5">Empresa</th>
-                  <th className="text-right text-xs font-bold text-white uppercase px-4 py-2.5">Saldo Atual</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-                {Array.from(contasPorEmpresa.entries()).map(([empNome, contasEmp], i) => {
-                  const totalEmp = contasEmp.reduce((s, c) => s + (c.saldo || 0), 0);
-                  const expandida = empresasExpandidas.has(empNome);
-                  return (
-                    <React.Fragment key={i}>
-                      <tr
-                        className="cursor-pointer hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors"
-                        onClick={() => toggleEmpresa(empNome)}
-                      >
-                        <td className="px-4 py-2.5 font-semibold text-gray-900 dark:text-slate-200">
-                          <span className={`inline-block mr-2 text-gray-400 text-[10px] transition-transform ${expandida ? 'rotate-90' : ''}`}>▶</span>
-                          {empNome}
-                        </td>
-                        <td className="px-4 py-2.5 text-right font-bold text-emerald-600 dark:text-emerald-400 font-mono">
-                          {currency(totalEmp)}
-                        </td>
-                      </tr>
-                      {expandida && contasEmp.map((c, j) => (
-                        <tr key={`${i}-${j}`} className="bg-gray-50 dark:bg-slate-900/50">
-                          <td className="px-4 py-2 pl-10 text-xs text-gray-600 dark:text-slate-400">
-                            <svg className="h-3 w-3 inline mr-1.5 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 6h18M3 14h18M3 18h18" />
-                            </svg>
-                            {c.banco} <span className="text-gray-400">·</span> {c.conta_corrente}
-                          </td>
-                          <td className="px-4 py-2 text-right text-xs font-semibold text-gray-700 dark:text-slate-300 font-mono">
-                            {currency(c.saldo)}
-                          </td>
-                        </tr>
-                      ))}
-                    </React.Fragment>
-                  );
-                })}
-                {contasPorEmpresa.size === 0 && (
-                  <tr>
-                    <td colSpan={2} className="text-center text-sm text-gray-400 py-8">Nenhuma conta encontrada</td>
-                  </tr>
-                )}
-              </tbody>
-              <tfoot className="bg-violet-50 dark:bg-violet-950/30 sticky bottom-0">
-                <tr>
-                  <td className="px-4 py-3 font-bold text-gray-900 dark:text-slate-100">Total</td>
-                  <td className="px-4 py-3 text-right font-extrabold text-violet-700 dark:text-violet-300 font-mono">
-                    {currency(resumo?.saldo_total ?? 0)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
+        ) : (
+          <p className="text-sm text-gray-400 text-center py-8">Nenhum dado</p>
+        )}
       </div>
 
       {/* Evolução do Saldo */}

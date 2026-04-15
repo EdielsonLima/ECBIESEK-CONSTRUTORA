@@ -1185,22 +1185,32 @@ export const apiService = {
   },
 
   // Saldos bancários
-  getSaldosResumo: async (empresaIds: number[] = [], contaIds: string[] = []): Promise<SaldoBancarioResumo> => {
+  getSaldosResumo: async (empresaIds: number[] = [], contaIds: string[] = [], data?: string): Promise<SaldoBancarioResumo> => {
     const params = new URLSearchParams();
     if (empresaIds.length) params.append('empresas', empresaIds.join(','));
     if (contaIds.length) params.append('contas', contaIds.join(','));
+    if (data) params.append('data', data);
     try {
       const response = await api.get<SaldoBancarioResumo>(`/saldos-bancarios?${params.toString()}`);
-      const data = response.data || ({} as SaldoBancarioResumo);
+      const d = response.data || ({} as SaldoBancarioResumo);
       return {
-        saldo_total: typeof data.saldo_total === 'number' ? data.saldo_total : 0,
-        empresas: Array.isArray(data.empresas) ? data.empresas : [],
-        contas: Array.isArray(data.contas) ? data.contas : [],
-        serie: Array.isArray(data.serie) ? data.serie : [],
+        saldo_total: typeof d.saldo_total === 'number' ? d.saldo_total : 0,
+        data_referencia: d.data_referencia ?? null,
+        empresas: Array.isArray(d.empresas) ? d.empresas : [],
+        contas: Array.isArray(d.contas) ? d.contas : [],
+        serie: Array.isArray(d.serie) ? d.serie : [],
+        cards: d.cards || { bancario: 0, permuta: 0, mutuo: 0, reapropriacao: 0 },
       };
     } catch (err) {
       console.error('[saldos-bancarios] erro:', err);
-      return { saldo_total: 0, empresas: [], contas: [], serie: [] };
+      return {
+        saldo_total: 0,
+        data_referencia: null,
+        empresas: [],
+        contas: [],
+        serie: [],
+        cards: { bancario: 0, permuta: 0, mutuo: 0, reapropriacao: 0 },
+      };
     }
   },
 

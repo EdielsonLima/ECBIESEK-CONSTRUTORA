@@ -238,9 +238,27 @@ export interface SaldoBancarioRegistro {
 
 export interface SaldoBancarioResumo {
   saldo_total: number;
+  data_referencia?: string | null;
   empresas: Array<{ empresa_nome: string; empresa_id: number; saldo: number }>;
-  contas: Array<{ empresa_nome: string; conta_corrente: string; banco: string; saldo: number }>;
+  contas: Array<{
+    empresa_nome: string;
+    empresa_id?: number;
+    conta_corrente: string;
+    banco: string;
+    tipo?: 'bancaria' | 'permuta' | 'mutuo' | 'reapropriacao';
+    saldo_anterior?: number;
+    entrada?: number;
+    saida?: number;
+    saldo: number;
+    saldo_atual?: number;
+  }>;
   serie: Array<{ data: string; saldo: number }>;
+  cards?: {
+    bancario: number;
+    permuta: number;
+    mutuo: number;
+    reapropriacao: number;
+  };
 }
 
 export interface ContaReceber {
