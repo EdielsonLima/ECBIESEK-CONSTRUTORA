@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { api as axios } from '../services/api';
 
 interface ValorDoc {
   nome: string;

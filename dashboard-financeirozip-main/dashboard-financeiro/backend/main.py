@@ -189,6 +189,20 @@ async def auth_middleware(request: Request, call_next):
     if request.method == "OPTIONS":
         return await call_next(request)
 
+    # API Token (servico/MCP) - bypassa JWT se header X-API-Key bater com MCP_API_TOKEN
+    mcp_token = os.environ.get("MCP_API_TOKEN", "").strip()
+    api_key_header = request.headers.get("X-API-Key", "").strip()
+    if mcp_token and api_key_header and api_key_header == mcp_token:
+        # Cria usuario sintetico de servico para uso nas rotas
+        request.state.current_user = {
+            "id": 0,
+            "nome": "MCP Service",
+            "email": "mcp@service.local",
+            "permissao": "admin",
+            "ativo": True,
+        }
+        return await call_next(request)
+
     # Validar JWT
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
