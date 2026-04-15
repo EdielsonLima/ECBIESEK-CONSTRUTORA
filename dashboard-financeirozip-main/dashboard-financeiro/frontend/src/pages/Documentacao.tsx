@@ -84,7 +84,7 @@ export const Documentacao: React.FC = () => {
   useEffect(() => {
     const carregar = async () => {
       try {
-        const res = await axios.get('/api/documentacao/fluxo-dados');
+        const res = await axios.get('/documentacao/fluxo-dados');
         setData(res.data);
         // Abre o primeiro accordion por padrão
         setExpandido({ 0: true });
