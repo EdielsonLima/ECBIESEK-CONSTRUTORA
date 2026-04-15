@@ -1184,6 +1184,16 @@ export const apiService = {
     return response.data;
   },
 
+  getSaldosContasDisponiveis: async (): Promise<Array<{ id: string; nome: string; empresa_id: number; empresa_nome: string }>> => {
+    try {
+      const response = await api.get<Array<{ id: string; nome: string; empresa_id: number; empresa_nome: string }>>('/saldos-bancarios/contas-disponiveis');
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (err) {
+      console.error('[saldos/contas-disponiveis] erro:', err);
+      return [];
+    }
+  },
+
   // Saldos bancários
   getSaldosResumo: async (empresaIds: number[] = [], contaIds: string[] = [], data?: string): Promise<SaldoBancarioResumo> => {
     const params = new URLSearchParams();

@@ -52,11 +52,19 @@ export const SaldosBancarios: React.FC = () => {
   const [salvandoPadrao, setSalvandoPadrao] = useState(false);
   const [dataRef, setDataRef] = useState<string>('');
 
-  // Carregar empresas e contas + padrão salvo
+  const [contasEmpresaMap, setContasEmpresaMap] = useState<Record<string, string>>({});
+
+  // Carregar empresas e contas (da fonte correta: posicao_saldos) + padrão salvo
   useEffect(() => {
     apiService.getEmpresas().then(setEmpresas).catch(() => {});
-    apiService.getContasCorrente().then((cs) => {
-      setContas(cs);
+    apiService.getSaldosContasDisponiveis().then((cs) => {
+      // Converte para o formato ContaCorrenteOption esperado pelo dropdown
+      setContas(cs.map((c) => ({ id: c.id, nome: c.nome, empresa_id: c.empresa_id })));
+      // Mapa id_conta -> empresa_nome (fonte correta para agrupar no dropdown)
+      const mp: Record<string, string> = {};
+      cs.forEach((c) => { mp[String(c.id)] = c.empresa_nome || 'Sem Empresa'; });
+      setContasEmpresaMap(mp);
+
       const padrao = localStorage.getItem(STORAGE_KEY);
       if (padrao) {
         try {
@@ -143,12 +151,12 @@ export const SaldosBancarios: React.FC = () => {
     return m;
   }, [empresas]);
 
-  // Contas agrupadas por empresa (com busca aplicada)
+  // Contas agrupadas por empresa (com busca aplicada) — usa a empresa vinda da mesma fonte dos saldos
   const contasAgrupadas = useMemo(() => {
     const termo = buscaContas.trim().toLowerCase();
     const grupos = new Map<string, ContaCorrenteOption[]>();
     contas.forEach((c) => {
-      const nomeEmp = empresasMap.get(c.empresa_id) || 'Sem Empresa';
+      const nomeEmp = contasEmpresaMap[String(c.id)] || empresasMap.get(c.empresa_id) || 'Sem Empresa';
       if (termo) {
         const casa = c.nome.toLowerCase().includes(termo) || nomeEmp.toLowerCase().includes(termo);
         if (!casa) return;
@@ -157,7 +165,7 @@ export const SaldosBancarios: React.FC = () => {
       grupos.get(nomeEmp)!.push(c);
     });
     return Array.from(grupos.entries()).sort(([a], [b]) => a.localeCompare(b, 'pt-BR'));
-  }, [contas, empresasMap, buscaContas]);
+  }, [contas, empresasMap, contasEmpresaMap, buscaContas]);
 
   const toggleEmpresaGrupo = (contasDaEmpresa: ContaCorrenteOption[]) => {
     const ids = contasDaEmpresa.map((c) => String(c.id));

@@ -9315,6 +9315,59 @@ def get_todos_tipos_documento():
 
 # ============ SALDOS BANCÁRIOS ============
 
+@app.get("/api/saldos-bancarios/contas-disponiveis")
+def get_saldos_contas_disponiveis():
+    """Retorna contas distintas da tabela posicao_saldos (fonte dos saldos oficiais),
+    com a empresa agrupada conforme o proprio Sienge usa (id_interno_empresa do posicao_saldos
+    mapeado para id_sienge_empresa via dim_centrocusto)."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT DISTINCT ps.id_conta_corrente, ps.nome, ps.id_interno_empresa::text as id_interno_empresa
+            FROM posicao_saldos ps
+            WHERE ps.id_conta_corrente IS NOT NULL
+            ORDER BY ps.nome
+        """)
+        rows = cursor.fetchall()
+
+        # Mapa id_interno -> (id_sienge, nome_empresa)
+        cursor.execute("""
+            SELECT DISTINCT
+                id_interno_empresa::text as id_interno,
+                id_sienge_empresa,
+                nome_empresa
+            FROM dim_centrocusto
+            WHERE id_interno_empresa IS NOT NULL AND id_sienge_empresa IS NOT NULL
+        """)
+        mapa_emp = {}
+        for r in cursor.fetchall():
+            if r['id_interno'] not in mapa_emp:
+                mapa_emp[r['id_interno']] = {
+                    'id_sienge': r['id_sienge_empresa'],
+                    'nome': (r['nome_empresa'] or '').strip() or 'Sem Empresa',
+                }
+
+        result = []
+        for r in rows:
+            emp = mapa_emp.get(r['id_interno_empresa'], {})
+            result.append({
+                'id': r['id_conta_corrente'],
+                'nome': r['nome'] or '-',
+                'empresa_id': emp.get('id_sienge', 0),
+                'empresa_nome': emp.get('nome', 'Sem Empresa'),
+            })
+        return result
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"[ERRO] saldos-bancarios/contas-disponiveis: {e}")
+        return []
+    finally:
+        cursor.close()
+        conn.close()
+
+
 @app.get("/api/saldos-bancarios")
 def get_saldos_bancarios(
     empresas: Optional[str] = None,
