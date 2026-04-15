@@ -9345,8 +9345,8 @@ def diag_posicao_saldos(data: Optional[str] = None, empresa: Optional[int] = Non
             params = [data_q]
             emp_sql = ""
             if empresa:
-                emp_sql = " AND id_interno_empresa = %s"
-                params.append(empresa)
+                emp_sql = " AND id_interno_empresa::text = %s"
+                params.append(str(empresa))
             cursor.execute(f"""
                 SELECT id_conta_corrente, id_interno_empresa, nome,
                        data_movimento, saldo_anterior, entrada, saida, saldo_atual
