@@ -9383,158 +9383,209 @@ def diag_posicao_saldos(data: Optional[str] = None, empresa: Optional[int] = Non
 
 
 @app.get("/api/saldos-bancarios")
-def get_saldos_bancarios(empresas: Optional[str] = None, contas: Optional[str] = None):
-    """Retorna resumo de saldos bancarios.
-    Calcula saldo = SUM(contas_recebidas.valor_liquido) - SUM(contas_pagas.valor_liquido)
-    agrupado por empresa e conta corrente."""
+def get_saldos_bancarios(
+    empresas: Optional[str] = None,
+    contas: Optional[str] = None,
+    data: Optional[str] = None,
+):
+    """Retorna resumo de saldos bancarios baseado em posicao_saldos (espelho do Sienge).
+    - `data`: YYYY-MM-DD. Padrao: ultima data disponivel.
+    - `empresas`: lista de id_sienge_empresa separados por virgula (ex: 3,5,11).
+    - `contas`: lista de id_conta_corrente separados por virgula.
+    Retorna: saldo_total, cards (bancario/permuta/mutuo), empresas, contas detalhadas e serie 30 dias.
+    """
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
         exclusoes = get_exclusoes()
 
-        # Filtros
-        emp_filter = ""
-        emp_params: list = []
-        if empresas:
-            emp_ids = [int(x) for x in empresas.split(',') if x.strip()]
-            if emp_ids:
-                ph = ','.join(['%s'] * len(emp_ids))
-                emp_filter = f" AND cc.id_sienge_empresa IN ({ph})"
-                emp_params.extend(emp_ids)
+        # Descobre a data de referencia (ultima disponivel se nao informada)
+        if data:
+            data_ref = data
+        else:
+            cursor.execute("SELECT MAX(data_movimento) as ultima FROM posicao_saldos")
+            row = cursor.fetchone()
+            data_ref = row['ultima'].strftime('%Y-%m-%d') if row and row['ultima'] else None
 
-        conta_filter = ""
-        conta_params: list = []
+        if not data_ref:
+            return {'saldo_total': 0, 'empresas': [], 'contas': [], 'serie': [],
+                    'cards': {'bancario': 0, 'permuta': 0, 'mutuo': 0}, 'data_referencia': None}
+
+        # Mapa id_interno_empresa -> (id_sienge_empresa, nome_empresa)
+        cursor.execute("""
+            SELECT DISTINCT
+                id_interno_empresa::text as id_interno,
+                id_sienge_empresa,
+                nome_empresa
+            FROM dim_centrocusto
+            WHERE id_interno_empresa IS NOT NULL AND id_sienge_empresa IS NOT NULL
+        """)
+        mapa_emp = {}
+        for r in cursor.fetchall():
+            if r['id_interno'] not in mapa_emp:
+                mapa_emp[r['id_interno']] = {
+                    'id_sienge': r['id_sienge_empresa'],
+                    'nome': (r['nome_empresa'] or '').strip() or 'Sem Empresa',
+                }
+
+        # Filtros
+        params: list = [data_ref]
+        where_extra = ""
+
+        # Filtro por empresas (sienge -> converte para interno)
+        emp_sienge_sel: list = []
+        if empresas:
+            emp_sienge_sel = [int(x) for x in empresas.split(',') if x.strip()]
+        if emp_sienge_sel:
+            # Converte sienge -> interno
+            intern_sel = [k for k, v in mapa_emp.items() if v['id_sienge'] in emp_sienge_sel]
+            if intern_sel:
+                ph = ','.join(['%s'] * len(intern_sel))
+                where_extra += f" AND ps.id_interno_empresa::text IN ({ph})"
+                params.extend(intern_sel)
+
+        # Exclusoes (aplicadas sempre que nao ha filtro explicito)
+        if not emp_sienge_sel and exclusoes['empresas']:
+            intern_excl = [k for k, v in mapa_emp.items() if v['id_sienge'] in exclusoes['empresas']]
+            if intern_excl:
+                ph = ','.join(['%s'] * len(intern_excl))
+                where_extra += f" AND ps.id_interno_empresa::text NOT IN ({ph})"
+                params.extend(intern_excl)
+
+        # Filtro por contas
         if contas:
             conta_ids = [x.strip() for x in contas.split(',') if x.strip()]
             if conta_ids:
                 ph = ','.join(['%s'] * len(conta_ids))
-                conta_filter = f" AND cp.id_conta_corrente IN ({ph})"
-                conta_params.extend(conta_ids)
+                where_extra += f" AND ps.id_conta_corrente IN ({ph})"
+                params.extend(conta_ids)
 
-        # Exclusoes de empresas
-        excl_emp = ""
-        excl_emp_params: list = []
-        if exclusoes['empresas']:
-            ph = ','.join(['%s'] * len(exclusoes['empresas']))
-            excl_emp = f" AND cc.id_sienge_empresa NOT IN ({ph})"
-            excl_emp_params.extend(exclusoes['empresas'])
-
-        # Saldo por conta corrente: recebidas - pagas
         cursor.execute(f"""
-            WITH movimentos AS (
-                SELECT
-                    cp.id_conta_corrente,
-                    eccc.nome_conta_corrente,
-                    cc.id_sienge_empresa as empresa_id,
-                    cc.nome_empresa,
-                    -SUM(cp.valor_liquido) as valor
-                FROM contas_pagas cp
-                LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
-                LEFT JOIN ecadcontacorrente eccc ON cp.id_conta_corrente = eccc.id_conta_corrente
-                WHERE cp.id_conta_corrente IS NOT NULL
-                  AND cp.id_tipo_baixa = 1
-                  {excl_emp}
-                  {emp_filter}
-                  {conta_filter}
-                GROUP BY cp.id_conta_corrente, eccc.nome_conta_corrente, cc.id_sienge_empresa, cc.nome_empresa
-                UNION ALL
-                SELECT
-                    cr.id_conta_corrente,
-                    eccc.nome_conta_corrente,
-                    cc.id_sienge_empresa as empresa_id,
-                    cc.nome_empresa,
-                    SUM(cr.valor_liquido) as valor
-                FROM contas_recebidas cr
-                LEFT JOIN dim_centrocusto cc ON cr.id_interno_centro_custo = cc.id_interno_centrocusto
-                LEFT JOIN ecadcontacorrente eccc ON cr.id_conta_corrente = eccc.id_conta_corrente
-                WHERE cr.id_conta_corrente IS NOT NULL
-                  {excl_emp}
-                  {emp_filter}
-                  {conta_filter.replace('cp.', 'cr.')}
-                GROUP BY cr.id_conta_corrente, eccc.nome_conta_corrente, cc.id_sienge_empresa, cc.nome_empresa
-            )
-            SELECT id_conta_corrente, nome_conta_corrente, empresa_id, nome_empresa,
-                   COALESCE(SUM(valor), 0) as saldo
-            FROM movimentos
-            WHERE id_conta_corrente IS NOT NULL
-            GROUP BY id_conta_corrente, nome_conta_corrente, empresa_id, nome_empresa
-            ORDER BY saldo DESC
-        """, excl_emp_params + emp_params + conta_params + excl_emp_params + emp_params + conta_params)
-        rows_contas = cursor.fetchall()
+            SELECT
+                ps.id_conta_corrente,
+                ps.id_interno_empresa::text as id_interno_empresa,
+                ps.nome,
+                ps.saldo_anterior,
+                ps.entrada,
+                ps.saida,
+                ps.saldo_atual
+            FROM posicao_saldos ps
+            WHERE ps.data_movimento = %s
+              {where_extra}
+            ORDER BY ps.id_interno_empresa, ps.nome
+        """, params)
+        rows = cursor.fetchall()
+
+        def classifica(nome: str) -> str:
+            n = (nome or '').upper()
+            if 'MUTUO' in n or 'MÚTUO' in n or 'MUTU' in n:
+                return 'mutuo'
+            if 'PERMUTA' in n:
+                return 'permuta'
+            if 'REAPROP' in n:
+                return 'reapropriacao'
+            return 'bancaria'
 
         contas_list = []
         empresas_map: dict = {}
         saldo_total = 0.0
-        for r in rows_contas:
-            saldo = float(r['saldo'] or 0)
-            saldo_total += saldo
+        cards = {'bancario': 0.0, 'permuta': 0.0, 'mutuo': 0.0, 'reapropriacao': 0.0}
+
+        for r in rows:
+            emp_info = mapa_emp.get(r['id_interno_empresa'], {})
+            emp_sienge = emp_info.get('id_sienge', 0)
+            emp_nome = emp_info.get('nome', 'Sem Empresa')
+
+            saldo_atual = float(r['saldo_atual'] or 0)
+            saldo_anterior = float(r['saldo_anterior'] or 0)
+            entrada = float(r['entrada'] or 0)
+            saida = float(r['saida'] or 0)
+            tipo = classifica(r['nome'])
+
+            saldo_total += saldo_atual
+            if tipo == 'bancaria':
+                cards['bancario'] += saldo_atual
+            elif tipo == 'permuta':
+                cards['permuta'] += saldo_atual
+            elif tipo == 'mutuo':
+                cards['mutuo'] += saldo_atual
+            elif tipo == 'reapropriacao':
+                cards['reapropriacao'] += saldo_atual
+
             contas_list.append({
-                'empresa_nome': r['nome_empresa'] or 'Sem Empresa',
+                'empresa_nome': emp_nome,
+                'empresa_id': emp_sienge,
                 'conta_corrente': r['id_conta_corrente'] or '-',
-                'banco': r['nome_conta_corrente'] or '-',
-                'saldo': saldo,
+                'banco': r['nome'] or '-',
+                'tipo': tipo,
+                'saldo_anterior': saldo_anterior,
+                'entrada': entrada,
+                'saida': saida,
+                'saldo': saldo_atual,
+                'saldo_atual': saldo_atual,
             })
-            emp_key = r['empresa_id'] or 0
-            if emp_key not in empresas_map:
-                empresas_map[emp_key] = {
-                    'empresa_id': emp_key,
-                    'empresa_nome': r['nome_empresa'] or 'Sem Empresa',
+
+            if emp_sienge not in empresas_map:
+                empresas_map[emp_sienge] = {
+                    'empresa_id': emp_sienge,
+                    'empresa_nome': emp_nome,
                     'saldo': 0.0,
                 }
-            empresas_map[emp_key]['saldo'] += saldo
+            empresas_map[emp_sienge]['saldo'] += saldo_atual
 
         empresas_list = sorted(empresas_map.values(), key=lambda x: x['saldo'], reverse=True)
 
-        # Serie temporal: saldo acumulado dos ultimos 30 dias
+        # Serie temporal: saldo_atual por dia nos ultimos 30 dias (mesmos filtros)
+        serie_params: list = []
+        serie_where = ""
+        if emp_sienge_sel:
+            intern_sel = [k for k, v in mapa_emp.items() if v['id_sienge'] in emp_sienge_sel]
+            if intern_sel:
+                ph = ','.join(['%s'] * len(intern_sel))
+                serie_where += f" AND ps.id_interno_empresa::text IN ({ph})"
+                serie_params.extend(intern_sel)
+        if not emp_sienge_sel and exclusoes['empresas']:
+            intern_excl = [k for k, v in mapa_emp.items() if v['id_sienge'] in exclusoes['empresas']]
+            if intern_excl:
+                ph = ','.join(['%s'] * len(intern_excl))
+                serie_where += f" AND ps.id_interno_empresa::text NOT IN ({ph})"
+                serie_params.extend(intern_excl)
+        if contas:
+            conta_ids = [x.strip() for x in contas.split(',') if x.strip()]
+            if conta_ids:
+                ph = ','.join(['%s'] * len(conta_ids))
+                serie_where += f" AND ps.id_conta_corrente IN ({ph})"
+                serie_params.extend(conta_ids)
+
         cursor.execute(f"""
-            WITH dias AS (
-                SELECT generate_series(CURRENT_DATE - INTERVAL '29 days', CURRENT_DATE, INTERVAL '1 day')::date as data
-            ),
-            entradas AS (
-                SELECT cr.data_recebimento as data, SUM(cr.valor_liquido) as valor
-                FROM contas_recebidas cr
-                LEFT JOIN dim_centrocusto cc ON cr.id_interno_centro_custo = cc.id_interno_centrocusto
-                WHERE cr.data_recebimento >= CURRENT_DATE - INTERVAL '29 days'
-                  {excl_emp}
-                  {emp_filter}
-                GROUP BY cr.data_recebimento
-            ),
-            saidas AS (
-                SELECT cp.data_pagamento as data, SUM(cp.valor_liquido) as valor
-                FROM contas_pagas cp
-                LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
-                WHERE cp.data_pagamento >= CURRENT_DATE - INTERVAL '29 days'
-                  AND cp.id_tipo_baixa = 1
-                  {excl_emp}
-                  {emp_filter}
-                GROUP BY cp.data_pagamento
-            )
-            SELECT d.data,
-                   COALESCE(e.valor, 0) - COALESCE(s.valor, 0) as movimento_dia
-            FROM dias d
-            LEFT JOIN entradas e ON e.data = d.data
-            LEFT JOIN saidas s ON s.data = d.data
-            ORDER BY d.data
-        """, excl_emp_params + emp_params + excl_emp_params + emp_params)
-        rows_serie = cursor.fetchall()
+            SELECT ps.data_movimento as data, SUM(ps.saldo_atual) as saldo
+            FROM posicao_saldos ps
+            WHERE ps.data_movimento >= %s::date - INTERVAL '29 days'
+              AND ps.data_movimento <= %s::date
+              {serie_where}
+            GROUP BY ps.data_movimento
+            ORDER BY ps.data_movimento
+        """, [data_ref, data_ref] + serie_params)
 
         serie = []
-        acumulado = saldo_total
-        # subtrair movimentos passados para reconstruir saldo no inicio
-        for r in rows_serie:
-            acumulado -= float(r['movimento_dia'] or 0)
-        for r in rows_serie:
-            acumulado += float(r['movimento_dia'] or 0)
+        for r in cursor.fetchall():
             serie.append({
                 'data': r['data'].strftime('%Y-%m-%d') if r['data'] else '',
-                'saldo': acumulado,
+                'saldo': float(r['saldo'] or 0),
             })
 
         return {
             'saldo_total': saldo_total,
+            'data_referencia': data_ref,
             'empresas': empresas_list,
             'contas': contas_list,
             'serie': serie,
+            'cards': {
+                'bancario': cards['bancario'],
+                'permuta': cards['permuta'],
+                'mutuo': cards['mutuo'],
+                'reapropriacao': cards['reapropriacao'],
+            },
         }
     except Exception as e:
         import traceback
@@ -9545,6 +9596,8 @@ def get_saldos_bancarios(empresas: Optional[str] = None, contas: Optional[str] =
             'empresas': [],
             'contas': [],
             'serie': [],
+            'cards': {'bancario': 0, 'permuta': 0, 'mutuo': 0, 'reapropriacao': 0},
+            'data_referencia': None,
         }
     finally:
         cursor.close()
