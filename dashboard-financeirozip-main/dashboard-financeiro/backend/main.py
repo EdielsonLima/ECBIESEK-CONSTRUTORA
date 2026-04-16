@@ -11570,6 +11570,1197 @@ def get_endpoints_disponiveis(admin: dict = Depends(require_admin)):
     return PAGE_ENDPOINTS
 
 
+# ==================== MANUAL DO USUARIO ====================
+
+def init_manual_tables():
+    """Cria as tabelas do manual do usuario no banco de configuracao."""
+    is_pg = _CONFIG_USE_POSTGRES
+    serial = "SERIAL" if is_pg else "INTEGER"
+    ts = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP" if is_pg else "DATETIME DEFAULT CURRENT_TIMESTAMP"
+    pk_auto = "" if is_pg else " AUTOINCREMENT"
+    try:
+        conn = get_config_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS manual_secoes (
+                id            {serial} PRIMARY KEY{pk_auto},
+                slug          VARCHAR(100) UNIQUE NOT NULL,
+                titulo        VARCHAR(200) NOT NULL,
+                icone         VARCHAR(50),
+                ordem         INTEGER DEFAULT 0,
+                ativo         BOOLEAN DEFAULT TRUE,
+                apenas_admin  BOOLEAN DEFAULT FALSE,
+                created_at    {ts},
+                updated_at    {ts}
+            )
+        """)
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS manual_artigos (
+                id            {serial} PRIMARY KEY{pk_auto},
+                secao_id      INTEGER NOT NULL REFERENCES manual_secoes(id) ON DELETE CASCADE,
+                slug          VARCHAR(150) NOT NULL,
+                titulo        VARCHAR(200) NOT NULL,
+                resumo        VARCHAR(300),
+                conteudo_md   TEXT NOT NULL,
+                ordem         INTEGER DEFAULT 0,
+                ativo         BOOLEAN DEFAULT TRUE,
+                created_at    {ts},
+                updated_at    {ts},
+                UNIQUE(secao_id, slug)
+            )
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_manual_artigos_secao
+            ON manual_artigos(secao_id, ordem)
+        """)
+        conn.commit()
+        print("Tabelas do manual inicializadas com sucesso")
+    except Exception as e:
+        print(f"Erro ao inicializar tabelas do manual: {e}")
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except Exception:
+            pass
+
+
+init_manual_tables()
+
+
+@app.get("/api/manual")
+def get_manual(request: Request):
+    """Retorna toda a arvore do manual (secoes + artigos). Todos autenticados."""
+    user = getattr(request.state, 'current_user', {}) or {}
+    is_admin = user.get('permissao') == 'admin'
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Secoes ativas (ocultar apenas_admin para nao-admin)
+        if is_admin:
+            cursor.execute("""
+                SELECT id, slug, titulo, icone, ordem, ativo, apenas_admin
+                FROM manual_secoes WHERE ativo = TRUE
+                ORDER BY ordem, titulo
+            """)
+        else:
+            cursor.execute("""
+                SELECT id, slug, titulo, icone, ordem, ativo, apenas_admin
+                FROM manual_secoes WHERE ativo = TRUE AND apenas_admin = FALSE
+                ORDER BY ordem, titulo
+            """)
+        secoes = [dict(r) for r in cursor.fetchall()]
+        if not secoes:
+            return {'secoes': []}
+
+        # Artigos ativos de todas as secoes
+        ids = [s['id'] for s in secoes]
+        ph = ','.join(['%s'] * len(ids))
+        cursor.execute(f"""
+            SELECT id, secao_id, slug, titulo, resumo, conteudo_md, ordem, ativo,
+                   updated_at
+            FROM manual_artigos WHERE ativo = TRUE AND secao_id IN ({ph})
+            ORDER BY secao_id, ordem, titulo
+        """, ids)
+        artigos_by_secao: dict = {}
+        for r in cursor.fetchall():
+            d = dict(r)
+            if d.get('updated_at'):
+                d['updated_at'] = d['updated_at'].isoformat()
+            artigos_by_secao.setdefault(d['secao_id'], []).append(d)
+
+        for s in secoes:
+            s['artigos'] = artigos_by_secao.get(s['id'], [])
+
+        return {'secoes': secoes}
+    except Exception as e:
+        print(f"[ERRO] /api/manual: {e}")
+        return {'secoes': []}
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.post("/api/manual/secoes")
+def criar_secao(body: dict, admin: dict = Depends(require_admin)):
+    titulo = (body.get('titulo') or '').strip()
+    slug = (body.get('slug') or '').strip()
+    if not titulo or not slug:
+        raise HTTPException(status_code=400, detail="Titulo e slug sao obrigatorios")
+    icone = body.get('icone') or 'book'
+    ordem = int(body.get('ordem') or 0)
+    apenas_admin = bool(body.get('apenas_admin') or False)
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            INSERT INTO manual_secoes (slug, titulo, icone, ordem, apenas_admin)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id
+        """, [slug, titulo, icone, ordem, apenas_admin])
+        sid = cursor.fetchone()['id']
+        conn.commit()
+        return {'id': sid, 'slug': slug}
+    except psycopg2.errors.UniqueViolation:
+        conn.rollback()
+        raise HTTPException(status_code=409, detail="Ja existe uma secao com esse slug")
+    except Exception as e:
+        conn.rollback()
+        print(f"[ERRO] criar_secao: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.put("/api/manual/secoes/{secao_id}")
+def editar_secao(secao_id: int, body: dict, admin: dict = Depends(require_admin)):
+    campos = []
+    params: list = []
+    for k in ('titulo', 'slug', 'icone'):
+        if k in body:
+            campos.append(f"{k} = %s")
+            params.append(body[k])
+    if 'ordem' in body:
+        campos.append("ordem = %s")
+        params.append(int(body['ordem']))
+    if 'apenas_admin' in body:
+        campos.append("apenas_admin = %s")
+        params.append(bool(body['apenas_admin']))
+    if 'ativo' in body:
+        campos.append("ativo = %s")
+        params.append(bool(body['ativo']))
+    if not campos:
+        return {'ok': True}
+    campos.append("updated_at = CURRENT_TIMESTAMP")
+    params.append(secao_id)
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(f"UPDATE manual_secoes SET {', '.join(campos)} WHERE id = %s", params)
+        conn.commit()
+        return {'ok': True}
+    except Exception as e:
+        conn.rollback()
+        print(f"[ERRO] editar_secao: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.delete("/api/manual/secoes/{secao_id}")
+def excluir_secao(secao_id: int, admin: dict = Depends(require_admin)):
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM manual_secoes WHERE id = %s", [secao_id])
+        conn.commit()
+        return {'ok': True}
+    except Exception as e:
+        conn.rollback()
+        print(f"[ERRO] excluir_secao: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.post("/api/manual/artigos")
+def criar_artigo(body: dict, admin: dict = Depends(require_admin)):
+    secao_id = body.get('secao_id')
+    titulo = (body.get('titulo') or '').strip()
+    slug = (body.get('slug') or '').strip()
+    conteudo_md = body.get('conteudo_md') or ''
+    if not secao_id or not titulo or not slug:
+        raise HTTPException(status_code=400, detail="secao_id, titulo e slug sao obrigatorios")
+    resumo = body.get('resumo') or None
+    ordem = int(body.get('ordem') or 0)
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            INSERT INTO manual_artigos (secao_id, slug, titulo, resumo, conteudo_md, ordem)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """, [secao_id, slug, titulo, resumo, conteudo_md, ordem])
+        aid = cursor.fetchone()['id']
+        conn.commit()
+        return {'id': aid, 'slug': slug}
+    except psycopg2.errors.UniqueViolation:
+        conn.rollback()
+        raise HTTPException(status_code=409, detail="Ja existe um artigo com esse slug nessa secao")
+    except Exception as e:
+        conn.rollback()
+        print(f"[ERRO] criar_artigo: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.put("/api/manual/artigos/{artigo_id}")
+def editar_artigo(artigo_id: int, body: dict, admin: dict = Depends(require_admin)):
+    campos = []
+    params: list = []
+    for k in ('titulo', 'slug', 'resumo', 'conteudo_md'):
+        if k in body:
+            campos.append(f"{k} = %s")
+            params.append(body[k])
+    if 'secao_id' in body:
+        campos.append("secao_id = %s")
+        params.append(int(body['secao_id']))
+    if 'ordem' in body:
+        campos.append("ordem = %s")
+        params.append(int(body['ordem']))
+    if 'ativo' in body:
+        campos.append("ativo = %s")
+        params.append(bool(body['ativo']))
+    if not campos:
+        return {'ok': True}
+    campos.append("updated_at = CURRENT_TIMESTAMP")
+    params.append(artigo_id)
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(f"UPDATE manual_artigos SET {', '.join(campos)} WHERE id = %s", params)
+        conn.commit()
+        return {'ok': True}
+    except Exception as e:
+        conn.rollback()
+        print(f"[ERRO] editar_artigo: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.delete("/api/manual/artigos/{artigo_id}")
+def excluir_artigo(artigo_id: int, admin: dict = Depends(require_admin)):
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM manual_artigos WHERE id = %s", [artigo_id])
+        conn.commit()
+        return {'ok': True}
+    except Exception as e:
+        conn.rollback()
+        print(f"[ERRO] excluir_artigo: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.post("/api/manual/reordenar")
+def reordenar_manual(body: dict, admin: dict = Depends(require_admin)):
+    """Aceita {'secoes': [{id, ordem}], 'artigos': [{id, ordem}]} para atualizar em batch."""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        for s in (body.get('secoes') or []):
+            cursor.execute("UPDATE manual_secoes SET ordem = %s WHERE id = %s",
+                           [int(s.get('ordem') or 0), int(s.get('id'))])
+        for a in (body.get('artigos') or []):
+            cursor.execute("UPDATE manual_artigos SET ordem = %s WHERE id = %s",
+                           [int(a.get('ordem') or 0), int(a.get('id'))])
+        conn.commit()
+        return {'ok': True}
+    except Exception as e:
+        conn.rollback()
+        print(f"[ERRO] reordenar_manual: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.post("/api/manual/seed")
+def seed_manual(admin: dict = Depends(require_admin)):
+    """Popula o manual com conteudo inicial. Idempotente: so roda se tabela vazia."""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT COUNT(*) as c FROM manual_secoes")
+        if (cursor.fetchone()['c'] or 0) > 0:
+            return {'ok': False, 'motivo': 'Manual ja possui conteudo. Seed ignorado.'}
+
+        secoes_criadas = 0
+        artigos_criados = 0
+        for idx, secao in enumerate(MANUAL_SEED):
+            cursor.execute("""
+                INSERT INTO manual_secoes (slug, titulo, icone, ordem, apenas_admin)
+                VALUES (%s, %s, %s, %s, %s) RETURNING id
+            """, [secao['slug'], secao['titulo'], secao.get('icone', 'book'),
+                  idx, secao.get('apenas_admin', False)])
+            sid = cursor.fetchone()['id']
+            secoes_criadas += 1
+            for aidx, art in enumerate(secao.get('artigos', [])):
+                cursor.execute("""
+                    INSERT INTO manual_artigos (secao_id, slug, titulo, resumo, conteudo_md, ordem)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, [sid, art['slug'], art['titulo'], art.get('resumo'),
+                      art['conteudo_md'], aidx])
+                artigos_criados += 1
+        conn.commit()
+        return {'ok': True, 'secoes': secoes_criadas, 'artigos': artigos_criados}
+    except Exception as e:
+        conn.rollback()
+        print(f"[ERRO] seed_manual: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# Conteudo inicial do manual (seed). Cada dict: slug, titulo, icone, [apenas_admin], artigos[]
+# Artigos: slug, titulo, resumo, conteudo_md
+MANUAL_SEED: list = [
+    {
+        "slug": "comece-aqui",
+        "titulo": "Comece aqui",
+        "icone": "home",
+        "artigos": [
+            {
+                "slug": "visao-geral",
+                "titulo": "Visao geral do sistema",
+                "resumo": "O que e o ECBIESEK e como ele te ajuda no dia a dia",
+                "conteudo_md": """# Visao geral do sistema
+
+O **ECBIESEK-CONSTRUTORA** e um dashboard financeiro que centraliza as informacoes de todas as empresas do grupo, facilitando a gestao financeira, comercial e operacional.
+
+## O que voce pode fazer aqui
+
+- **Acompanhar contas a pagar e receber** em tempo real
+- **Ver saldos bancarios consolidados** de todas as empresas
+- **Analisar KPIs e metas** financeiras
+- **Consultar vendas e contratos** da area comercial
+- **Solicitar melhorias** e sugestoes direto para a equipe de desenvolvimento
+- **Conversar com a IA** para fazer analises e perguntas sobre seus dados
+
+## Como e organizado
+
+O menu lateral esquerdo agrupa as paginas em secoes:
+
+- **Financeiro** - Paineis, contas a pagar/receber, saldos, exposicao de caixa
+- **Comercial** - Vendas, contratos, unidades imobiliarias
+- **Suprimentos** - Compras e fornecedores (em breve)
+- **Engenharia** - Obras e medicoes (em breve)
+- **Ajuda** - Este manual e a documentacao tecnica
+
+No topo da pagina voce sempre ve a **data dos dados**, quantos **usuarios estao online** e tem acesso ao **botao de modo escuro**.
+
+## Primeiro acesso
+
+Se este e seu primeiro login, recomendamos:
+
+1. **Trocar sua senha** em "Alterar Senha" no menu do seu usuario
+2. **Explorar o Dashboard** para ter uma visao geral dos indicadores
+3. **Ler este manual** secao por secao conforme precisar usar cada area
+
+> Dica: voce pode voltar aqui a qualquer momento pelo menu "AJUDA > Manual do Usuario".
+"""
+            },
+            {
+                "slug": "login",
+                "titulo": "Login e primeiro acesso",
+                "resumo": "Como entrar no sistema e alterar sua senha",
+                "conteudo_md": """# Login e primeiro acesso
+
+## Como entrar
+
+1. Acesse a URL do sistema no navegador
+2. Digite seu **e-mail** (ou telefone cadastrado) e **senha**
+3. Clique em **Entrar**
+
+Sua sessao fica ativa por 8 horas. Apos esse tempo, voce precisara logar novamente com a mesma senha.
+
+## Esqueci a senha
+
+Clique em **"Esqueci minha senha"** na tela de login e siga as instrucoes, ou solicite ao administrador do sistema que resete sua senha.
+
+## Alterar a senha
+
+1. Clique no seu nome no canto inferior esquerdo do menu
+2. Escolha **"Alterar Senha"**
+3. Digite a senha atual
+4. Digite a nova senha (duas vezes para confirmar)
+5. Clique em **Salvar**
+
+> Recomendacao: use senhas com pelo menos 8 caracteres, misturando letras maiusculas, minusculas, numeros e simbolos.
+
+## Nao consigo acessar
+
+Se o sistema informar **"Usuario invalido ou desativado"**, seu acesso pode ter sido suspenso. Entre em contato com o administrador.
+"""
+            },
+            {
+                "slug": "navegacao",
+                "titulo": "Navegando pelo sistema",
+                "resumo": "Menu lateral, cabecalho, tema claro/escuro e usuarios online",
+                "conteudo_md": """# Navegando pelo sistema
+
+## Menu lateral
+
+O menu fica na **esquerda da tela** e agrupa as paginas por tema. Clique nos grupos (Financeiro, Comercial, etc) para expandir e ver as paginas de cada um.
+
+- Para **recolher o menu** e ganhar mais espaco na tela: clique na seta no topo
+- O item **ativo** aparece destacado em azul
+
+## Cabecalho (topo da pagina)
+
+No topo de cada pagina voce ve:
+
+- **Titulo da pagina** atual
+- **Botao de modo claro/escuro** (icone de sol/lua)
+- **Usuarios online** - circulos coloridos mostrando quem esta logado agora. Clique para ver a lista
+- **Data dos dados** - informa de quando sao as informacoes que voce esta vendo
+- **Versao do sistema** - no rodape do menu (ex: "v1.7.0")
+
+## Modo escuro
+
+Para reduzir o cansaco visual, especialmente a noite, clique no **icone de lua** no topo. Para voltar ao modo claro, clique no **icone de sol**.
+
+Sua preferencia fica salva no navegador - na proxima visita vai abrir no modo que voce escolheu.
+
+## Sair do sistema
+
+Clique no seu nome no menu lateral e escolha **"Sair"**. O sistema encerra sua sessao e volta para a tela de login.
+"""
+            },
+        ]
+    },
+    {
+        "slug": "financeiro",
+        "titulo": "Area Financeira",
+        "icone": "wallet",
+        "artigos": [
+            {
+                "slug": "dashboard",
+                "titulo": "Dashboard",
+                "resumo": "Pagina inicial com o resumo dos principais indicadores",
+                "conteudo_md": """# Dashboard
+
+O Dashboard e a **pagina inicial** do sistema. Ele mostra um resumo rapido dos principais numeros financeiros para voce ter uma visao geral em segundos.
+
+## O que aparece nos cards
+
+- **Total Pago** - quanto ja foi pago no periodo
+- **Total A Pagar** - quanto ainda esta em aberto
+- **Total Em Atraso** - contas que venceram e nao foram pagas
+- **Total A Receber** - valores pendentes de clientes
+- **Total Recebido** - o que ja entrou no caixa
+
+Cada card pode ser clicado para abrir a pagina detalhada correspondente.
+
+## Filtros
+
+Use o **seletor de periodo** no topo para mudar os valores mostrados.
+
+## Dicas
+
+- Os dados do Dashboard sempre se referem **ao dia anterior** (D-1), que e quando a sincronizacao com o Sienge acontece
+- Se um card estiver com valor zerado, pode ser que nao haja movimentacao no periodo escolhido
+"""
+            },
+            {
+                "slug": "contas-a-pagar",
+                "titulo": "Contas a Pagar",
+                "resumo": "Lista de titulos pendentes de pagamento",
+                "conteudo_md": """# Contas a Pagar
+
+Aqui voce ve **todos os titulos ainda em aberto** - ou seja, que ainda nao foram pagos.
+
+## Filtros disponiveis
+
+No topo da pagina:
+
+- **Credor** - busca pelo nome do fornecedor
+- **Empresa** - filtre por uma ou mais empresas do grupo
+- **Centro de Custo** - filtre por obra/empreendimento
+- **Plano Financeiro** - filtre por categoria contabil
+- **Data de vencimento** - intervalo de datas
+- **Titulo** - busca pelo numero do lancamento
+
+Clique em **"Filtros Avancados"** para ver mais opcoes. Clique em **"Limpar"** para resetar todos os filtros.
+
+## Colunas da tabela
+
+- **Credor** - nome do fornecedor
+- **Empresa / Centro de Custo** - a qual empresa e obra pertence
+- **Vencimento** - data que vence
+- **Dias de Atraso** - quantos dias ja se passaram do vencimento (se aplicavel)
+- **Valor Total** - quanto precisa ser pago
+
+Os valores **vermelhos** indicam titulos em atraso.
+
+## Exportar
+
+Use o botao **"Exportar PDF"** ou **"Exportar Excel"** para baixar a lista filtrada.
+
+## Titulo detalhado
+
+Clique em qualquer linha para abrir a **tela de detalhes** do titulo, que mostra historico de alteracoes e eventuais pagamentos parciais.
+"""
+            },
+            {
+                "slug": "contas-pagas",
+                "titulo": "Contas Pagas",
+                "resumo": "Historico de pagamentos realizados",
+                "conteudo_md": """# Contas Pagas
+
+Lista de **pagamentos ja efetuados** pela empresa em um determinado periodo.
+
+## Filtros principais
+
+Alem dos filtros padrao (empresa, centro de custo, credor), esta pagina tem filtros especificos:
+
+- **Tipo de Baixa** - permite incluir/excluir cancelamentos, substituicoes, etc
+- **Conta Corrente** - filtre pelos pagamentos feitos por uma conta bancaria especifica
+- **Incluir pagamentos inter-empresa** - checkbox que controla se transferencias entre empresas do grupo aparecem na listagem
+
+> Atencao: por padrao, pagamentos inter-empresa ficam ocultos para nao inflar os valores totais. Se voce precisa auditar esses lancamentos, marque a opcao.
+
+## Indicadores no topo
+
+- **Liquido Total** - quanto efetivamente saiu do caixa (descontando juros, acrescimos)
+- **Quantidade de titulos** pagos no periodo
+
+## Linhas destacadas
+
+Linhas com **fundo ambar** e badge **"INTER"** indicam pagamentos inter-empresa (quando a opcao de incluir esta ativa).
+"""
+            },
+            {
+                "slug": "contas-atrasadas",
+                "titulo": "Contas Atrasadas",
+                "resumo": "Titulos a pagar que ja venceram",
+                "conteudo_md": """# Contas Atrasadas
+
+Esta pagina mostra **apenas os titulos com vencimento anterior a hoje** que ainda nao foram pagos.
+
+Use para priorizar pagamentos urgentes e planejar o fluxo de caixa imediato.
+
+## Coluna "Dias de Atraso"
+
+Mostra quantos dias cada titulo ja passou do vencimento. Os mais antigos aparecem no topo por padrao.
+
+## Filtros
+
+Os mesmos de Contas a Pagar - use para segmentar por empresa, credor, ou plano financeiro.
+"""
+            },
+            {
+                "slug": "contas-a-receber",
+                "titulo": "Contas a Receber",
+                "resumo": "Valores pendentes de recebimento",
+                "conteudo_md": """# Contas a Receber
+
+Lista os **valores que ainda serao recebidos** - parcelas de vendas, contratos e outros recebiveis.
+
+## Filtros
+
+- **Cliente** - busca por nome ou CPF/CNPJ
+- **Empresa / Centro de Custo** - segmenta por empreendimento
+- **Tipo de Condicao (TC)** - filtra parcelas mensais (PM), financiamento (FI), etc
+
+> **Regra importante**: cada venda no Sienge gera multiplos titulos de cobranca (parcelas mensais, financiamento, resiudo, etc). Por isso a quantidade de "titulos a receber" nao e igual ao numero de vendas.
+
+## Valores
+
+- **Valor Total** - valor de cada parcela
+- **Vencimento** - data em que o cliente deve pagar
+- **Dias ate Vencer** - contador regressivo
+"""
+            },
+            {
+                "slug": "contas-recebidas",
+                "titulo": "Contas Recebidas",
+                "resumo": "Historico de valores recebidos",
+                "conteudo_md": """# Contas Recebidas
+
+Registro de **todos os recebimentos efetivados** no periodo.
+
+Use para conferir o fluxo de entrada de caixa, auditar recebimentos por empreendimento e acompanhar a performance de vendas.
+
+## Totalizadores
+
+No topo:
+
+- **Total Recebido** - soma dos valores recebidos no periodo
+- **Quantidade de recebimentos** registrados
+
+## Exportar
+
+Botoes de **PDF** e **Excel** geram a lista filtrada.
+"""
+            },
+            {
+                "slug": "inadimplencia",
+                "titulo": "Inadimplencia",
+                "resumo": "Recebiveis em atraso e gestao de cobranca",
+                "conteudo_md": """# Inadimplencia (Recebimentos Atrasados)
+
+Lista os **clientes com parcelas em atraso**, agrupadas por pessoa/empresa.
+
+## O que mostra
+
+- **Cliente** - nome e CPF/CNPJ
+- **Total em atraso** - somatorio de todas as parcelas vencidas
+- **Dias em atraso** - da parcela mais antiga ate hoje
+- **Quantidade de parcelas** em aberto
+
+## Como usar
+
+Use para:
+
+- Priorizar cobranca dos maiores devedores
+- Identificar clientes com atraso recorrente
+- Exportar relatorio para a equipe comercial acionar
+
+## Detalhe do cliente
+
+Clique no nome de um cliente para ver o **extrato completo** (parcelas pagas + em aberto + historico de atrasos).
+"""
+            },
+            {
+                "slug": "saldos-bancarios",
+                "titulo": "Saldos Bancarios",
+                "resumo": "Posicao consolidada das contas bancarias de todas as empresas",
+                "conteudo_md": """# Saldos Bancarios
+
+Mostra a **posicao consolidada** de todas as contas bancarias das empresas do grupo. Os dados vem direto da tabela oficial do Sienge (`posicao_saldos`), entao os valores **batem com o relatorio oficial** de posicao.
+
+## Cards no topo
+
+- **Saldo Bancario** - soma dos saldos das contas em bancos e caixa
+- **Saldo Permuta** - saldo das contas do tipo permuta (imoveis trocados)
+- **Saldo Total Geral** - soma de tudo
+
+## Filtro de contas
+
+Clique no botao **"Contas"** no topo para abrir o seletor. No dropdown voce pode:
+
+1. **Buscar** por nome da conta ou empresa
+2. **Marcar/desmarcar** contas individuais
+3. **Marcar um grupo inteiro** clicando no cabecalho da empresa
+4. **Salvar Padrao** - memoriza sua selecao para as proximas visitas
+
+> Sua selecao salva aparece automaticamente toda vez que voce abrir a pagina.
+
+## Selecao de data
+
+No header tem um **seletor de data** - voce pode consultar a posicao de saldos de **qualquer dia no historico**. Por padrao mostra a data mais recente disponivel.
+
+## Tabela principal
+
+Mostra por empresa:
+
+- **Saldo Anterior** - saldo de fechamento do dia anterior
+- **Entradas** - depositos e recebimentos do dia
+- **Saidas** - pagamentos do dia
+- **Saldo Atual** - saldo de fechamento do dia
+
+Clique no nome da empresa para expandir e ver cada conta individualmente. Contas do tipo permuta aparecem com **badge ambar "PERMUTA"**.
+
+## Evolucao do saldo
+
+Grafico no final mostra como o saldo total variou nos ultimos 30 dias. Use para identificar tendencias.
+"""
+            },
+            {
+                "slug": "painel-executivo",
+                "titulo": "Painel Executivo",
+                "resumo": "Visao consolidada para diretoria",
+                "conteudo_md": """# Painel Executivo
+
+Pagina voltada para **diretores e gestores**, com uma visao consolidada dos principais indicadores.
+
+## Cards
+
+- **Realizado** - quanto foi pago no periodo
+- **Previsto** - quanto esta previsto pagar
+- **Recebido** - quanto entrou
+- **A Receber** - quanto esta previsto entrar
+- **Saldo** - diferenca entre entrada e saida
+
+## Filtros
+
+- **Periodo** - mes, trimestre, ano
+- **Tipo de Baixa** - define quais tipos de pagamento entram no "Realizado" (a configuracao e persistida)
+- **Empresa / Centro de Custo** - segmentacao
+
+## Por que o "Realizado" pode divergir
+
+Se o "Realizado" nao bate com o "Liquido Total" da pagina Contas Pagas, verifique o filtro de **Tipo de Baixa**. Por padrao ele usa a configuracao definida em **Configuracoes > Tipos de Baixa**, mas voce pode sobrescrever aqui.
+"""
+            },
+            {
+                "slug": "exposicao-caixa",
+                "titulo": "Exposicao de Caixa",
+                "resumo": "Projecao de entradas e saidas futuras",
+                "conteudo_md": """# Exposicao de Caixa
+
+Esta pagina mostra a **projecao de caixa** - ou seja, o que ja aconteceu somado ao que esta previsto acontecer nos proximos meses.
+
+## Para que serve
+
+Ajuda a responder perguntas como:
+
+- Vou ter caixa suficiente para pagar as contas dos proximos 3 meses?
+- Em que mes o saldo cai abaixo de zero?
+- Qual empreendimento esta consumindo mais caixa?
+
+## Colunas
+
+Cada mes tem colunas de:
+
+- **Previsto a Pagar**
+- **Previsto a Receber**
+- **Saldo do Mes**
+- **Saldo Acumulado**
+
+## Origens
+
+A configuracao de quais origens de titulos entram no calculo (ex: PM, FI, PE) fica em **Configuracoes > Origens Exposicao de Caixa** (admin).
+"""
+            },
+        ]
+    },
+    {
+        "slug": "analise",
+        "titulo": "Analise e Indicadores",
+        "icone": "settings",
+        "artigos": [
+            {
+                "slug": "kpis",
+                "titulo": "KPIs",
+                "resumo": "Indicadores-chave de desempenho com metas",
+                "conteudo_md": """# KPIs (Indicadores)
+
+Esta pagina lista os **indicadores-chave de desempenho** do grupo, com valores atuais, metas e tendencias.
+
+## Como funciona
+
+Cada KPI tem:
+
+- **Descricao** - nome e explicacao
+- **Formula/Calculo** - como o valor e calculado
+- **Meta** - o objetivo a ser alcancado
+- **Tipo de meta** - maior (quanto mais melhor) ou menor (quanto menos melhor)
+- **Ultimo valor** - resultado atual
+- **Variacao diaria** - mudanca em relacao ao dia anterior
+- **Status** - icone verde (bate meta), amarelo (perto), vermelho (fora da meta)
+
+## Historico
+
+Clique em um KPI para ver o **grafico de evolucao** ao longo do tempo e o historico de valores registrados.
+
+## Snapshot diario
+
+Todo dia o sistema calcula e salva automaticamente o valor atual de cada KPI com calculo automatico. Assim voce tem historico preservado mesmo que os dados de origem mudem.
+
+## Criar KPIs (admin)
+
+Administradores podem cadastrar novos KPIs em **Configuracoes > KPIs** ou pelo botao "Novo KPI" no topo da pagina.
+"""
+            },
+            {
+                "slug": "extrato-cliente",
+                "titulo": "Extrato Cliente",
+                "resumo": "Historico completo de um cliente especifico",
+                "conteudo_md": """# Extrato Cliente
+
+Digite o **nome ou CPF/CNPJ** do cliente no topo da pagina para buscar.
+
+## O que e mostrado
+
+- Todos os **contratos** (titulos de venda) do cliente
+- **Parcelas pagas** com datas de recebimento
+- **Parcelas em aberto** com datas de vencimento
+- **Atrasos** em destaque
+
+## Para que serve
+
+- Atendimento comercial/cobranca (saber onde o cliente esta no fluxo)
+- Auditoria de recebimentos de um imovel
+- Conferencia antes de gerar carta de quitacao
+"""
+            },
+            {
+                "slug": "classificacao-centro-custo",
+                "titulo": "Classificacao por Centro de Custo",
+                "resumo": "Categorizar e agrupar centros de custo",
+                "conteudo_md": """# Classificacao por Centro de Custo
+
+Permite categorizar os centros de custo (obras/empreendimentos) em grupos personalizados para relatorios.
+
+## Como usar
+
+1. Escolha a **classificacao** no dropdown
+2. Marque os **centros de custo** que pertencem aquela categoria
+3. **Salvar**
+
+Essas classificacoes aparecem em outras paginas como agrupamento alternativo.
+"""
+            },
+            {
+                "slug": "chat-ia",
+                "titulo": "Chat IA",
+                "resumo": "Faca perguntas sobre seus dados em linguagem natural",
+                "conteudo_md": """# Chat IA
+
+Voce pode **conversar com a IA** e fazer perguntas sobre os dados do sistema em linguagem natural.
+
+## Exemplos de perguntas
+
+- "Quanto foi pago para a empresa X em marco?"
+- "Qual empreendimento teve a maior inadimplencia no trimestre?"
+- "Gere um resumo das contas a receber dos proximos 30 dias"
+- "Compare o saldo bancario de hoje com o de 30 dias atras"
+
+## Como funciona
+
+A IA consulta os dados do sistema em tempo real e responde com texto, tabelas ou graficos quando aplicavel. Os dados usados sao sempre os mesmos que voce ve nas paginas.
+
+## Dicas
+
+- Seja **especifico** - "Quanto foi pago em marco" e melhor que "Quanto foi pago"
+- Voce pode **pedir por exportacao** - "Exporte isso em PDF"
+- A IA **nao tem memoria permanente** - cada conversa e independente
+"""
+            },
+        ]
+    },
+    {
+        "slug": "comercial",
+        "titulo": "Comercial",
+        "icone": "check-square",
+        "artigos": [
+            {
+                "slug": "pagina-comercial",
+                "titulo": "Pagina Comercial",
+                "resumo": "Vendas, contratos e unidades imobiliarias",
+                "conteudo_md": """# Comercial
+
+Esta pagina mostra a **performance comercial** dos empreendimentos.
+
+## Indicadores principais
+
+- **Unidades vendidas** - quantas unidades ja tem contrato
+- **Unidades disponiveis** - ainda a venda
+- **Unidades reservadas** - em pre-contrato
+- **VGV (Valor Geral de Vendas)** - potencial de venda do empreendimento
+
+## Status das unidades
+
+| Status | Significado |
+|---|---|
+| V | Vendida |
+| C | Vendida Pre-Contrato |
+| D | Disponivel |
+| R | Reserva Tecnica |
+| A | Reservada |
+| P | Permuta |
+| M | Mutuo |
+| O | Proposta |
+| L | Locado |
+
+## Tipo de Imovel
+
+Os imoveis sao categorizados (Lote, Apartamento, Casa, Sala Comercial, etc). Filtre no topo para ver so um tipo.
+
+## Contratos
+
+Clique em um empreendimento para ver todos os contratos assinados, com dados do cliente, valor total e parcelas.
+
+> **Atencao**: o valor de uma venda e a **soma de todas as parcelas** (PM + FI + PE + etc), nao o valor de uma parcela unica.
+"""
+            },
+        ]
+    },
+    {
+        "slug": "solicitacoes",
+        "titulo": "Solicitacoes de Melhorias",
+        "icone": "alert",
+        "artigos": [
+            {
+                "slug": "pedir-melhoria",
+                "titulo": "Como pedir uma melhoria",
+                "resumo": "Sugerir novas funcionalidades ou corrigir problemas",
+                "conteudo_md": """# Solicitando uma melhoria
+
+Voce pode **sugerir melhorias** no sistema, reportar bugs ou pedir novas funcionalidades direto para a equipe de desenvolvimento.
+
+## Como fazer
+
+1. No menu, clique em **Solicitacoes**
+2. Clique em **"Nova Solicitacao"**
+3. Preencha:
+   - **Titulo** curto e descritivo (ex: "Adicionar filtro por mes em Contas a Receber")
+   - **Descricao** detalhada - descreva o que voce quer, porque quer, e como deveria funcionar
+   - **Secao** - em qual pagina se encaixa (Contas a Pagar, Dashboard, etc)
+   - **Prioridade** - Baixa, Media, Alta ou Urgente
+4. **Criar**
+
+## Dicas para uma boa solicitacao
+
+- Seja **especifico** - "quero um botao X na tela Y que faca Z"
+- Explique o **problema** que voce esta tentando resolver
+- Se for um bug, informe os **passos para reproduzir** e o que esperava acontecer
+- **Prints** ajudam muito (embora o upload nao seja feito aqui ainda)
+
+## Prioridade
+
+| Prioridade | Quando usar |
+|---|---|
+| Urgente | Sistema parado, dado errado critico |
+| Alta | Impacta decisoes, erra calculo visivel |
+| Media | Melhoria importante, mas o sistema funciona |
+| Baixa | Sugestao de conveniencia, ajuste visual |
+
+A equipe prioriza urgentes e altas. Medias e baixas entram em backlog.
+"""
+            },
+            {
+                "slug": "acompanhar-solicitacoes",
+                "titulo": "Acompanhar status das solicitacoes",
+                "resumo": "Quadro Kanban e fases da solicitacao",
+                "conteudo_md": """# Acompanhando suas solicitacoes
+
+A pagina **Solicitacoes** mostra um **quadro Kanban** com todas as suas solicitacoes (e de outros usuarios).
+
+## Colunas do quadro
+
+| Coluna | Significado |
+|---|---|
+| Pendente | Ainda nao comecou |
+| Em Analise | Equipe esta avaliando escopo |
+| Em Desenvolvimento | Dev esta implementando |
+| Aguardando Validacao | Implementado, aguarda seu OK |
+| Implementado | Validado e encerrado |
+| Rejeitado | Nao sera feito (com motivo) |
+
+## Filtros
+
+- **Busca** - por palavra no titulo ou descricao
+- **Usuario** - ver so solicitacoes de alguem especifico
+- **Prioridade** e **Secao**
+
+## Badges de tempo
+
+Cada card mostra:
+
+- **Dev: X dias** - tempo que o dev levou para implementar
+- **Aguardando [nome] ha Y dias** - tempo esperando resposta do autor
+
+Quanto mais dias, mais laranja/vermelho fica o badge.
+"""
+            },
+            {
+                "slug": "validar-entrega",
+                "titulo": "Aprovar ou pedir correcao",
+                "resumo": "Validar quando uma solicitacao sua e entregue",
+                "conteudo_md": """# Validando uma entrega
+
+Quando a equipe terminar sua solicitacao, o card vai para a coluna **"Aguardando Validacao"** e voce recebe um aviso.
+
+## Acoes disponiveis
+
+Clique no card para ver:
+
+- **Resposta do dev** - o que foi feito
+- **Versao em que foi entregue** - ex: v1.7.0
+- **Data de entrega**
+
+Tem dois botoes:
+
+### Aprovar
+
+Se a implementacao ficou boa, clique **"Aprovar"**. O card vai para **"Implementado"** e a solicitacao e encerrada.
+
+### Pedir correcao
+
+Se algo nao ficou legal, clique **"Pedir correcao"**. Um modal abre para voce escrever **o que precisa ajustar**. O card volta para **"Pendente"** com seu comentario e a equipe vai ver o que fazer.
+
+> Voce pode pedir correcao quantas vezes precisar. So aprove quando estiver satisfeito.
+"""
+            },
+        ]
+    },
+    {
+        "slug": "admin",
+        "titulo": "Administracao",
+        "icone": "settings",
+        "apenas_admin": True,
+        "artigos": [
+            {
+                "slug": "configuracoes",
+                "titulo": "Configuracoes",
+                "resumo": "Ajustes gerais do sistema (so admin)",
+                "conteudo_md": """# Configuracoes
+
+Pagina exclusiva para admins. Reune todos os ajustes do sistema.
+
+## Secoes principais
+
+- **Empresas Excluidas** - empresas que nao aparecem nos calculos financeiros
+- **Centros de Custo Excluidos** - obras que ficam de fora
+- **Tipos de Documento Excluidos** - ex: NDB, ajustes contabeis
+- **Contas Correntes Excluidas**
+- **Feriados** - cadastrar feriados para calculos de prazo
+- **Tipos de Baixa (Exposicao de Caixa)** - marca quais contam como "pagamento real"
+- **Origens (Exposicao de Caixa)** - idem para recebimentos
+- **Snapshot horario** - a que horas o sistema faz a foto diaria de saldos
+- **Titulos INCC Manual** - cadastro de titulos com correcao manual
+- **Empreendimentos** - configuracao de mapeamento empreendimento/centro de custo
+
+## Impacto
+
+**Cuidado** ao alterar - muitos dashboards usam essas configuracoes. Sempre documente no changelog quando fizer uma mudanca estrutural.
+"""
+            },
+            {
+                "slug": "gerenciar-usuarios",
+                "titulo": "Gerenciar Usuarios",
+                "resumo": "Criar, editar e desativar usuarios do sistema",
+                "conteudo_md": """# Gerenciar Usuarios
+
+Admins podem gerenciar quem tem acesso ao sistema.
+
+## Criar novo usuario
+
+1. Clique em **"Novo Usuario"**
+2. Preencha: nome, email, senha inicial, permissao (admin ou usuario)
+3. **Salvar**
+
+> Avise o novo usuario para **trocar a senha** no primeiro acesso.
+
+## Desativar usuario
+
+Clique no icone de desativar. O usuario **nao perde os dados** dele - so nao consegue mais logar. Voce pode reativar quando quiser.
+
+## Resetar senha
+
+Clique em **"Resetar senha"** para gerar uma nova. Informe a senha gerada ao usuario por um canal seguro.
+
+## Permissoes
+
+- **Admin** - acesso total, incluindo edicao de configuracoes, manual, validacao
+- **Usuario** - acesso de leitura/uso das paginas financeiras e comerciais
+"""
+            },
+            {
+                "slug": "log-atividades",
+                "titulo": "Log de Atividades",
+                "resumo": "Auditoria de acoes dos usuarios",
+                "conteudo_md": """# Log de Atividades
+
+Registra **todas as acoes relevantes** feitas no sistema:
+
+- Logins e logouts
+- Criacoes/edicoes/exclusoes em configuracoes
+- Alteracoes em KPIs
+- Aprovacao/rejeicao de solicitacoes
+- Edicoes no manual (novo!)
+
+## Filtros
+
+- **Usuario** - ver so acoes de alguem especifico
+- **Tipo de acao** - login, update, delete, etc
+- **Periodo**
+
+## Para que serve
+
+- Auditoria de seguranca
+- Rastrear quem mudou um valor
+- Acompanhar padrao de uso do sistema
+"""
+            },
+            {
+                "slug": "validacao",
+                "titulo": "Validacao de Dados",
+                "resumo": "Checkpoints que verificam integridade das paginas",
+                "conteudo_md": """# Validacao de Dados
+
+Ferramenta para **monitorar se as paginas estao mostrando dados corretos**.
+
+## Como funciona
+
+1. Admin cadastra **checkpoints** - ex: "Card 'Total Pago' do Dashboard deve bater com a soma de contas_pagas do mes"
+2. Sistema roda os checkpoints periodicamente (ou via botao)
+3. Cada checkpoint retorna **pass** (ok) ou **drift** (divergente)
+
+## Status de uma pagina
+
+- **Nao validado** - sem checkpoints ativos
+- **Validado** - todos os checkpoints passam
+- **Drift** - algum checkpoint falhou
+
+## Para que serve
+
+- Detectar rapidamente se algum dado ficou errado apos uma mudanca
+- Dar confianca que os numeros do sistema sao confiaveis
+- Identificar divergencias entre o sistema e fontes externas (Sienge, bancos)
+"""
+            },
+            {
+                "slug": "editar-manual",
+                "titulo": "Como editar o Manual",
+                "resumo": "Criar, editar e organizar os artigos deste manual",
+                "conteudo_md": """# Editando o Manual
+
+Admins podem **editar o proprio manual** direto pelo sistema, sem precisar de dev.
+
+## Criar uma secao nova
+
+1. Na tela do Manual, clique em **"+ Nova secao"** (canto superior direito)
+2. Preencha:
+   - **Titulo** - ex: "Tesouraria"
+   - **Slug** - identificador sem espacos (ex: `tesouraria`)
+   - **Icone** - escolha de uma lista
+   - **Apenas admin** - marque se for conteudo restrito
+3. **Salvar**
+
+## Criar um artigo
+
+1. Dentro de uma secao, clique em **"+ Novo artigo"**
+2. Preencha titulo, slug, resumo (subtitulo curto) e o **conteudo em Markdown**
+3. **Salvar**
+
+## Editar um artigo existente
+
+1. Abra o artigo
+2. Clique no icone de lapis (✏️)
+3. Edite no editor com **preview ao vivo** ao lado
+4. **Salvar** quando terminar
+
+## Dicas de Markdown
+
+- `# Titulo` - titulo grande
+- `## Subtitulo` - titulo medio
+- `**negrito**` - **negrito**
+- `*italico*` - *italico*
+- `- item` - lista
+- `1. item` - lista numerada
+- `| col1 | col2 |` - tabela
+- `> texto` - citacao/destaque
+- `[link](url)` - link
+
+## Reordenar
+
+Use o campo **"Ordem"** numerico para organizar (menor numero aparece primeiro).
+
+## Excluir
+
+Cuidado: excluir uma secao remove todos os artigos dentro dela.
+"""
+            },
+        ]
+    },
+]
+
+
 _auto_snapshot_thread = threading.Thread(target=_auto_snapshot_loop, daemon=True)
 _auto_snapshot_thread.start()
 
