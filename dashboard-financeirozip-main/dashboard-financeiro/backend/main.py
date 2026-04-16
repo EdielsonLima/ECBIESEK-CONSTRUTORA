@@ -9315,103 +9315,10 @@ def get_todos_tipos_documento():
 
 # ============ SALDOS BANCÁRIOS ============
 
-@app.get("/api/debug/saldo-conta-raw")
-def debug_saldo_conta_raw(conta: str, data: Optional[str] = None):
-    """DEBUG: todas as linhas raw de posicao_saldos para uma conta, em uma data ou 30 dias."""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("""
-            SELECT column_name, data_type
-            FROM information_schema.columns
-            WHERE table_name = 'posicao_saldos'
-            ORDER BY ordinal_position
-        """)
-        colunas = [{'col': r['column_name'], 'tipo': r['data_type']} for r in cursor.fetchall()]
-
-        if data:
-            cursor.execute("""
-                SELECT * FROM posicao_saldos
-                WHERE id_conta_corrente = %s AND data_movimento = %s
-                ORDER BY id_interno_empresa
-            """, [conta, data])
-        else:
-            cursor.execute("""
-                SELECT * FROM posicao_saldos
-                WHERE id_conta_corrente = %s
-                ORDER BY data_movimento DESC
-                LIMIT 30
-            """, [conta])
-        rows = []
-        for r in cursor.fetchall():
-            rr = {}
-            for k, v in dict(r).items():
-                if hasattr(v, 'strftime'):
-                    rr[k] = v.strftime('%Y-%m-%d')
-                elif hasattr(v, '__float__'):
-                    try:
-                        rr[k] = float(v)
-                    except Exception:
-                        rr[k] = str(v)
-                else:
-                    rr[k] = v
-            rows.append(rr)
-        return {'colunas': colunas, 'qtd': len(rows), 'linhas': rows}
-    except Exception as e:
-        return {'erro': str(e)}
-    finally:
-        cursor.close()
-        conn.close()
-
-
-@app.get("/api/diagnostico/conta-saldo")
-def diag_conta_saldo(conta: str, data: Optional[str] = None):
-    """DEBUG temporario: retorna todas as linhas de uma conta especifica em posicao_saldos."""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        if data:
-            cursor.execute("""
-                SELECT id_conta_corrente, id_interno_empresa, nome,
-                       data_movimento, saldo_anterior, entrada, saida, saldo_atual
-                FROM posicao_saldos
-                WHERE id_conta_corrente = %s AND data_movimento = %s
-                ORDER BY id_interno_empresa, nome
-            """, [conta, data])
-        else:
-            cursor.execute("""
-                SELECT id_conta_corrente, id_interno_empresa, nome,
-                       data_movimento, saldo_anterior, entrada, saida, saldo_atual
-                FROM posicao_saldos
-                WHERE id_conta_corrente = %s
-                ORDER BY data_movimento DESC
-                LIMIT 30
-            """, [conta])
-        rows = []
-        for r in cursor.fetchall():
-            rows.append({
-                'id_conta_corrente': r['id_conta_corrente'],
-                'id_interno_empresa': r['id_interno_empresa'],
-                'nome': r['nome'],
-                'data_movimento': r['data_movimento'].strftime('%Y-%m-%d') if r['data_movimento'] else None,
-                'saldo_anterior': float(r['saldo_anterior'] or 0),
-                'entrada': float(r['entrada'] or 0),
-                'saida': float(r['saida'] or 0),
-                'saldo_atual': float(r['saldo_atual'] or 0),
-            })
-        return {'qtd': len(rows), 'linhas': rows}
-    except Exception as e:
-        return {'erro': str(e)}
-    finally:
-        cursor.close()
-        conn.close()
-
-
 @app.get("/api/saldos-bancarios/contas-disponiveis")
 def get_saldos_contas_disponiveis():
     """Retorna contas distintas da tabela posicao_saldos (fonte dos saldos oficiais),
-    com a empresa agrupada conforme o proprio Sienge usa (id_interno_empresa do posicao_saldos
-    mapeado para id_sienge_empresa via dim_centrocusto)."""
+    com a empresa agrupada conforme o proprio Sienge usa. Exclui contas de Mutuo."""
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -9419,6 +9326,8 @@ def get_saldos_contas_disponiveis():
             SELECT DISTINCT ps.id_conta_corrente, ps.nome, ps.id_interno_empresa::text as id_interno_empresa
             FROM posicao_saldos ps
             WHERE ps.id_conta_corrente IS NOT NULL
+              AND UPPER(COALESCE(ps.nome, '')) NOT LIKE '%MUTUO%'
+              AND UPPER(COALESCE(ps.nome, '')) NOT LIKE '%MÚTUO%'
             ORDER BY ps.nome
         """)
         rows = cursor.fetchall()
@@ -9549,6 +9458,8 @@ def get_saldos_bancarios(
                 ps.saldo_atual
             FROM posicao_saldos ps
             WHERE ps.data_movimento = %s
+              AND UPPER(COALESCE(ps.nome, '')) NOT LIKE '%%MUTUO%%'
+              AND UPPER(COALESCE(ps.nome, '')) NOT LIKE '%%MÚTUO%%'
               {where_extra}
             ORDER BY ps.id_interno_empresa, ps.nome
         """, params)
@@ -9556,8 +9467,6 @@ def get_saldos_bancarios(
 
         def classifica(nome: str) -> str:
             n = (nome or '').upper()
-            if 'MUTUO' in n or 'MÚTUO' in n or 'MUTU' in n:
-                return 'mutuo'
             if 'PERMUTA' in n:
                 return 'permuta'
             if 'REAPROP' in n:
@@ -9640,6 +9549,8 @@ def get_saldos_bancarios(
             FROM posicao_saldos ps
             WHERE ps.data_movimento >= %s::date - INTERVAL '29 days'
               AND ps.data_movimento <= %s::date
+              AND UPPER(COALESCE(ps.nome, '')) NOT LIKE '%%MUTUO%%'
+              AND UPPER(COALESCE(ps.nome, '')) NOT LIKE '%%MÚTUO%%'
               {serie_where}
             GROUP BY ps.data_movimento
             ORDER BY ps.data_movimento

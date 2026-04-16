@@ -400,8 +400,8 @@ export const SaldosBancarios: React.FC = () => {
         </div>
       </div>
 
-      {/* Grid de cards: Total, Bancario, Permuta, Mutuo */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      {/* Grid de cards: Bancario, Permuta, Total */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Card Saldo Bancario */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-950/40 dark:to-green-950/40 border border-emerald-200 dark:border-emerald-800 p-5 shadow-sm">
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-green-500"></div>
@@ -426,19 +426,6 @@ export const SaldosBancarios: React.FC = () => {
           </div>
           <p className="text-2xl font-extrabold text-gray-900 dark:text-white">{currency(resumo?.cards?.permuta ?? 0)}</p>
           <p className="text-[10px] text-gray-500 dark:text-slate-500 mt-1">Permutas ativas</p>
-        </div>
-
-        {/* Card Mutuo */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-50 to-sky-50 dark:from-blue-950/40 dark:to-sky-950/40 border border-blue-200 dark:border-blue-800 p-5 shadow-sm">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-sky-500"></div>
-          <div className="flex items-center gap-2 mb-1">
-            <svg className="h-4 w-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-            <p className="text-[11px] uppercase tracking-wider font-bold text-blue-700 dark:text-blue-400">Saldo Mútuo</p>
-          </div>
-          <p className="text-2xl font-extrabold text-gray-900 dark:text-white">{currency(resumo?.cards?.mutuo ?? 0)}</p>
-          <p className="text-[10px] text-gray-500 dark:text-slate-500 mt-1">Empréstimos entre empresas</p>
         </div>
 
         {/* Card Saldo Total Geral */}
