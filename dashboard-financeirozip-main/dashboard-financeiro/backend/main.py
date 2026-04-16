@@ -1127,8 +1127,19 @@ _AUTORIZACOES_CACHE_TTL = 600  # 10 minutos
 
 SIENGE_API_URL = "https://api.sienge.com.br/biesek/public/api/v1"
 SIENGE_BULK_API_URL = "https://api.sienge.com.br/biesek/public/api/bulk-data/v1"
-SIENGE_USERNAME = "biesek-dtconsultorias"
-SIENGE_PASSWORD = "W8LWWpo170P3LPpJDD42RL456fEvudEE"
+SIENGE_USERNAME = os.environ.get('SIENGE_USERNAME', '').strip()
+SIENGE_PASSWORD = os.environ.get('SIENGE_PASSWORD', '').strip()
+if not SIENGE_USERNAME or not SIENGE_PASSWORD:
+    print("[SECURITY] ATENCAO: SIENGE_USERNAME e SIENGE_PASSWORD devem ser definidos como variaveis de ambiente! Endpoints do Sienge irao falhar.")
+
+def _sienge_auth_header() -> str:
+    """Retorna o header Basic Auth do Sienge ou levanta 503 se nao configurado."""
+    if not SIENGE_USERNAME or not SIENGE_PASSWORD:
+        raise HTTPException(
+            status_code=503,
+            detail="Credenciais do Sienge nao configuradas no servidor (SIENGE_USERNAME/SIENGE_PASSWORD).",
+        )
+    return base64.b64encode(f"{SIENGE_USERNAME}:{SIENGE_PASSWORD}".encode()).decode()
 
 @app.get("/api/autorizacoes-bulk")
 async def get_autorizacoes_bulk():
@@ -1140,7 +1151,7 @@ async def get_autorizacoes_bulk():
         return _autorizacoes_bulk_cache["data"]
 
     hoje = datetime.now().strftime("%Y-%m-%d")
-    credentials = base64.b64encode(f"{SIENGE_USERNAME}:{SIENGE_PASSWORD}".encode()).decode()
+    credentials = _sienge_auth_header()
 
     url = f"{SIENGE_BULK_API_URL}/outcome"
     # endDate futuro para incluir títulos com vencimento adiante
@@ -1200,7 +1211,7 @@ async def get_titulos_alterados(data_inicio: str, data_fim: str):
         if (now - cached["timestamp"]) < _TITULOS_ALTERADOS_TTL:
             return cached["data"]
 
-    credentials = base64.b64encode(f"{SIENGE_USERNAME}:{SIENGE_PASSWORD}".encode()).decode()
+    credentials = _sienge_auth_header()
     todos_titulos = []
     offset = 0
     limit = 200
@@ -1295,7 +1306,7 @@ async def get_titulo_detalhe(titulo_id: int):
         conn.close()
 
     # Chamar API v1 do Sienge (endpoint /bills/{id})
-    auth_str = base64.b64encode(f"{SIENGE_USERNAME}:{SIENGE_PASSWORD}".encode()).decode()
+    auth_str = _sienge_auth_header()
     sienge_data = None
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
