@@ -9315,6 +9315,55 @@ def get_todos_tipos_documento():
 
 # ============ SALDOS BANCÁRIOS ============
 
+@app.get("/api/debug/saldo-conta-raw")
+def debug_saldo_conta_raw(conta: str, data: Optional[str] = None):
+    """DEBUG: todas as linhas raw de posicao_saldos para uma conta, em uma data ou 30 dias."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_name = 'posicao_saldos'
+            ORDER BY ordinal_position
+        """)
+        colunas = [{'col': r['column_name'], 'tipo': r['data_type']} for r in cursor.fetchall()]
+
+        if data:
+            cursor.execute("""
+                SELECT * FROM posicao_saldos
+                WHERE id_conta_corrente = %s AND data_movimento = %s
+                ORDER BY id_interno_empresa
+            """, [conta, data])
+        else:
+            cursor.execute("""
+                SELECT * FROM posicao_saldos
+                WHERE id_conta_corrente = %s
+                ORDER BY data_movimento DESC
+                LIMIT 30
+            """, [conta])
+        rows = []
+        for r in cursor.fetchall():
+            rr = {}
+            for k, v in dict(r).items():
+                if hasattr(v, 'strftime'):
+                    rr[k] = v.strftime('%Y-%m-%d')
+                elif hasattr(v, '__float__'):
+                    try:
+                        rr[k] = float(v)
+                    except Exception:
+                        rr[k] = str(v)
+                else:
+                    rr[k] = v
+            rows.append(rr)
+        return {'colunas': colunas, 'qtd': len(rows), 'linhas': rows}
+    except Exception as e:
+        return {'erro': str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
+
 @app.get("/api/diagnostico/conta-saldo")
 def diag_conta_saldo(conta: str, data: Optional[str] = None):
     """DEBUG temporario: retorna todas as linhas de uma conta especifica em posicao_saldos."""
