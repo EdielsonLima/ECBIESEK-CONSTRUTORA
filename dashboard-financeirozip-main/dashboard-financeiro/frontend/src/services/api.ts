@@ -1825,6 +1825,86 @@ export const apiService = {
   },
 };
 
+// ============ WHATSAPP SERVICE ============
+
+export interface WhatsappConfig {
+  id?: number;
+  base_url: string;
+  api_key?: string;
+  api_key_mascarada?: string;
+  instance_name: string;
+  horario: string;
+  ativo: boolean;
+  dias_antecedencia: string;
+  somente_dias_uteis: boolean;
+  atualizado_em?: string;
+}
+
+export interface WhatsappDestinatario {
+  id?: number;
+  nome: string;
+  telefone: string;
+  alerta_vencimentos: boolean;
+  alerta_inadimplencia: boolean;
+  alerta_saldo_bancario: boolean;
+  ativo: boolean;
+  created_at?: string;
+}
+
+export interface WhatsappLog {
+  id: number;
+  tipo: string;
+  destinatario_nome?: string;
+  destinatario_telefone: string;
+  mensagem: string;
+  sucesso: boolean;
+  resposta_api?: string;
+  enviado_em: string;
+}
+
+export const whatsappService = {
+  getConfig: async (): Promise<WhatsappConfig> => {
+    const r = await api.get('/whatsapp/config');
+    return r.data;
+  },
+  salvarConfig: async (config: Partial<WhatsappConfig>) => {
+    const r = await api.put('/whatsapp/config', config);
+    return r.data;
+  },
+  listarDestinatarios: async (): Promise<WhatsappDestinatario[]> => {
+    const r = await api.get('/whatsapp/destinatarios');
+    return r.data;
+  },
+  criarDestinatario: async (dados: Omit<WhatsappDestinatario, 'id' | 'created_at'>) => {
+    const r = await api.post('/whatsapp/destinatarios', dados);
+    return r.data;
+  },
+  atualizarDestinatario: async (id: number, dados: Omit<WhatsappDestinatario, 'id' | 'created_at'>) => {
+    const r = await api.put(`/whatsapp/destinatarios/${id}`, dados);
+    return r.data;
+  },
+  deletarDestinatario: async (id: number) => {
+    const r = await api.delete(`/whatsapp/destinatarios/${id}`);
+    return r.data;
+  },
+  testar: async (telefone: string, mensagem?: string) => {
+    const r = await api.post('/whatsapp/testar', { telefone, mensagem });
+    return r.data as { sucesso: boolean; resposta: string };
+  },
+  preview: async (dias: number) => {
+    const r = await api.get(`/whatsapp/preview-vencimentos?dias=${dias}`);
+    return r.data as { dias: number; quantidade: number; total: number; mensagem: string };
+  },
+  dispararVencimentos: async (dias_antecedencia?: string) => {
+    const r = await api.post('/whatsapp/disparar-vencimentos', { dias_antecedencia });
+    return r.data as { enviados: number; erros: string[]; dias: number[] };
+  },
+  listarLogs: async (limite = 100): Promise<WhatsappLog[]> => {
+    const r = await api.get(`/whatsapp/logs?limite=${limite}`);
+    return r.data;
+  },
+};
+
 // ============ VALIDACAO SERVICE ============
 
 export const validacaoService = {

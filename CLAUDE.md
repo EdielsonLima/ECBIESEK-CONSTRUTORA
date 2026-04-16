@@ -81,6 +81,16 @@ Dashboard financeiro React 18 + TypeScript + Tailwind CSS (frontend) com FastAPI
 - Frontend deve converter para `America/Sao_Paulo` ao exibir
 - Usar `toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' })` ou similar
 
+### Notificacoes WhatsApp (Evolution API)
+- Sistema envia alertas de vencimentos proximos via Evolution API self-hosted no Railway
+- Scheduler roda como thread daemon no backend (`_wa_scheduler_loop`) — dispara 1x/dia no horario configurado
+- Tabelas (CONFIG_DB): `config_whatsapp_evolution`, `config_whatsapp_destinatarios`, `log_whatsapp_notificacoes`
+- Pagina admin: Menu do usuario > Notificacoes WhatsApp
+- Endpoints: `/api/whatsapp/config`, `/destinatarios`, `/testar`, `/preview-vencimentos`, `/disparar-vencimentos`, `/logs`
+- Documentacao completa: `docs/notificacoes-whatsapp.md`
+- Telefones sao armazenados sem mascara (so digitos) — o backend adiciona `55` automaticamente se vier com 10/11 digitos
+- Respeita `config_feriados` e flag `somente_dias_uteis` ao decidir se dispara
+
 ## Release / Versionamento
 
 ### Arquivo de changelog

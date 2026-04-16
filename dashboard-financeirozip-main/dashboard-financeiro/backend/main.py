@@ -8663,6 +8663,58 @@ def _ensure_config_tables_in_postgres():
             except Exception:
                 pass
 
+            # ============================================================
+            # Tabelas de Notificacoes WhatsApp (Evolution API)
+            # ============================================================
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS config_whatsapp_evolution (
+                    id SERIAL PRIMARY KEY,
+                    base_url VARCHAR(500) NOT NULL DEFAULT '',
+                    api_key VARCHAR(255) NOT NULL DEFAULT '',
+                    instance_name VARCHAR(100) NOT NULL DEFAULT 'ecbiesek',
+                    horario VARCHAR(5) NOT NULL DEFAULT '08:00',
+                    ativo BOOLEAN NOT NULL DEFAULT false,
+                    dias_antecedencia VARCHAR(50) NOT NULL DEFAULT '3,7',
+                    somente_dias_uteis BOOLEAN NOT NULL DEFAULT true,
+                    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("SELECT COUNT(*) as cnt FROM config_whatsapp_evolution")
+            row_wa = cursor.fetchone()
+            if row_wa and int(row_wa['cnt']) == 0:
+                cursor.execute(
+                    "INSERT INTO config_whatsapp_evolution (base_url, api_key, instance_name, horario, ativo, dias_antecedencia, somente_dias_uteis) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                    ('', '', 'ecbiesek', '08:00', False, '3,7', True)
+                )
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS config_whatsapp_destinatarios (
+                    id SERIAL PRIMARY KEY,
+                    nome VARCHAR(150) NOT NULL,
+                    telefone VARCHAR(30) NOT NULL,
+                    alerta_vencimentos BOOLEAN NOT NULL DEFAULT true,
+                    alerta_inadimplencia BOOLEAN NOT NULL DEFAULT false,
+                    alerta_saldo_bancario BOOLEAN NOT NULL DEFAULT false,
+                    ativo BOOLEAN NOT NULL DEFAULT true,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(telefone)
+                )
+            """)
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS log_whatsapp_notificacoes (
+                    id SERIAL PRIMARY KEY,
+                    tipo VARCHAR(50) NOT NULL,
+                    destinatario_nome VARCHAR(150),
+                    destinatario_telefone VARCHAR(30) NOT NULL,
+                    mensagem TEXT NOT NULL,
+                    sucesso BOOLEAN NOT NULL DEFAULT false,
+                    resposta_api TEXT,
+                    enviado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_log_whatsapp_enviado_em ON log_whatsapp_notificacoes(enviado_em DESC)")
+
             conn.commit()
             cursor.close()
             conn.close()
@@ -10386,6 +10438,394 @@ def _calcular_e_salvar_snapshot_auto():
         print(f"Auto-snapshot: Snapshot completo salvo com sucesso para {data_snapshot}")
     except Exception as e:
         print(f"Auto-snapshot: Erro ao salvar snapshot: {e}")
+
+
+# ============================================================================
+# NOTIFICACOES WHATSAPP — Evolution API
+# ============================================================================
+
+def _wa_get_config():
+    """Retorna a config atual do Evolution API (sempre 1 registro)."""
+    try:
+        conn = get_config_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT * FROM config_whatsapp_evolution ORDER BY id LIMIT 1")
+            row = cursor.fetchone()
+            return dict(row) if row else None
+        finally:
+            cursor.close()
+            conn.close()
+    except Exception as e:
+        print(f"[WhatsApp] Erro ao ler config: {e}")
+        return None
+
+
+def _wa_normalizar_telefone(telefone: str) -> str:
+    """Remove tudo que nao e digito. Aceita +55 XX XXXXX-XXXX e variacoes."""
+    if not telefone:
+        return ''
+    numeros = ''.join(ch for ch in str(telefone) if ch.isdigit())
+    # Se nao comecar com 55 (DDI Brasil) e tiver 10 ou 11 digitos, adiciona
+    if numeros and not numeros.startswith('55') and len(numeros) in (10, 11):
+        numeros = '55' + numeros
+    return numeros
+
+
+def _wa_enviar_mensagem(telefone: str, mensagem: str, tipo: str = 'manual', destinatario_nome: str = ''):
+    """Envia mensagem via Evolution API e grava log. Retorna (sucesso, detalhe)."""
+    config = _wa_get_config()
+    numero = _wa_normalizar_telefone(telefone)
+    sucesso = False
+    resposta_txt = ''
+    if not config or not config.get('base_url') or not config.get('api_key'):
+        resposta_txt = 'Configuracao do Evolution API ausente (base_url/api_key)'
+    elif not numero:
+        resposta_txt = 'Telefone invalido'
+    else:
+        url = f"{config['base_url'].rstrip('/')}/message/sendText/{config['instance_name']}"
+        headers = {
+            'apikey': config['api_key'],
+            'Content-Type': 'application/json',
+        }
+        payload = {'number': numero, 'text': mensagem}
+        try:
+            r = httpx.post(url, json=payload, headers=headers, timeout=15.0)
+            resposta_txt = f"HTTP {r.status_code}: {r.text[:500]}"
+            sucesso = 200 <= r.status_code < 300
+        except Exception as e:
+            resposta_txt = f"Erro HTTP: {e}"
+    # log
+    try:
+        conn = get_config_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO log_whatsapp_notificacoes (tipo, destinatario_nome, destinatario_telefone, mensagem, sucesso, resposta_api) VALUES (%s, %s, %s, %s, %s, %s)",
+            (tipo, destinatario_nome, numero or telefone, mensagem, sucesso, resposta_txt[:2000])
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(f"[WhatsApp] Erro ao gravar log: {e}")
+    return sucesso, resposta_txt
+
+
+def _wa_buscar_vencimentos_proximos(dias: int):
+    """Busca contas a pagar que vencem entre hoje e hoje+dias (exclusive futuro alem)."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        exclusoes = get_exclusoes()
+        excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', exclude_paid=True)
+        excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
+        hoje = datetime.now().date()
+        ate = hoje + timedelta(days=int(dias))
+        query = f"""
+            SELECT cap.credor, cap.data_vencimento, cap.valor_total,
+                   cap.lancamento, cc.nome_centrocusto,
+                   TRIM(cap.id_documento) as id_documento
+            FROM contas_a_pagar cap
+            LEFT JOIN dim_centrocusto cc ON cap.id_interno_centro_custo = cc.id_interno_centrocusto
+            WHERE cap.data_vencimento BETWEEN %s AND %s {excl_where}
+            ORDER BY cap.data_vencimento ASC, cap.valor_total DESC
+        """
+        cursor.execute(query, [hoje, ate] + excl_params)
+        return [dict(r) for r in cursor.fetchall()]
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def _wa_formatar_mensagem_vencimentos(titulos: list, dias: int):
+    """Monta mensagem de WhatsApp para vencimentos proximos."""
+    if not titulos:
+        return f"Bom dia! Nenhuma conta a pagar nos proximos {dias} dias. ✅"
+    total = sum(float(t.get('valor_total') or 0) for t in titulos)
+    linhas = [f"*Contas a pagar nos proximos {dias} dias* 📅", ""]
+    for t in titulos[:30]:
+        dv = t.get('data_vencimento')
+        dv_str = dv.strftime('%d/%m') if hasattr(dv, 'strftime') else str(dv or '')
+        valor = float(t.get('valor_total') or 0)
+        credor = (t.get('credor') or '')[:40]
+        linhas.append(f"• {dv_str} — {credor} — R$ {valor:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+    if len(titulos) > 30:
+        linhas.append(f"... e mais {len(titulos) - 30} titulos")
+    linhas.append("")
+    linhas.append(f"*Total:* R$ {total:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+    linhas.append(f"*Quantidade:* {len(titulos)} titulos")
+    return "\n".join(linhas)
+
+
+def _wa_disparar_vencimentos(dias_antecedencia_csv: str = None):
+    """Dispara o alerta de vencimentos para todos os destinatarios configurados."""
+    config = _wa_get_config()
+    if not config:
+        return {"enviados": 0, "erros": ["Config Evolution nao encontrada"]}
+    dias_csv = dias_antecedencia_csv or config.get('dias_antecedencia') or '3,7'
+    try:
+        lista_dias = [int(d.strip()) for d in dias_csv.split(',') if d.strip()]
+    except Exception:
+        lista_dias = [3, 7]
+    # buscar destinatarios ativos com alerta_vencimentos
+    try:
+        conn = get_config_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM config_whatsapp_destinatarios WHERE ativo = true AND alerta_vencimentos = true")
+        destinatarios = [dict(r) for r in cursor.fetchall()]
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        return {"enviados": 0, "erros": [f"Erro ao ler destinatarios: {e}"]}
+    enviados = 0
+    erros = []
+    for dias in lista_dias:
+        titulos = _wa_buscar_vencimentos_proximos(dias)
+        mensagem = _wa_formatar_mensagem_vencimentos(titulos, dias)
+        for dest in destinatarios:
+            ok, resp = _wa_enviar_mensagem(dest['telefone'], mensagem, tipo=f'vencimentos_{dias}d', destinatario_nome=dest['nome'])
+            if ok:
+                enviados += 1
+            else:
+                erros.append(f"{dest['nome']} ({dias}d): {resp[:120]}")
+    return {"enviados": enviados, "erros": erros, "dias": lista_dias}
+
+
+def _wa_eh_dia_util(dt):
+    """Retorna True se for dia util (segunda a sexta) e nao for feriado cadastrado."""
+    if dt.weekday() >= 5:  # 5=sab, 6=dom
+        return False
+    try:
+        conn = get_config_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1 FROM config_feriados WHERE data = %s LIMIT 1", (dt.strftime('%Y-%m-%d'),))
+        if cursor.fetchone():
+            cursor.close()
+            conn.close()
+            return False
+        cursor.close()
+        conn.close()
+    except Exception:
+        pass
+    return True
+
+
+def _wa_scheduler_loop():
+    """Thread que dispara notificacoes no horario configurado (1x/dia, util apenas)."""
+    time.sleep(20)
+    print("[WhatsApp] Scheduler iniciado")
+    enviado_hoje = None
+    while True:
+        try:
+            config = _wa_get_config()
+            if not config or not config.get('ativo'):
+                time.sleep(300)
+                continue
+            agora = datetime.utcnow() - timedelta(hours=3)
+            hoje_str = agora.strftime('%Y-%m-%d')
+            if enviado_hoje == hoje_str:
+                time.sleep(300)
+                continue
+            if config.get('somente_dias_uteis') and not _wa_eh_dia_util(agora):
+                time.sleep(600)
+                continue
+            try:
+                hora_alvo, minuto_alvo = map(int, str(config.get('horario') or '08:00').split(':'))
+            except Exception:
+                hora_alvo, minuto_alvo = 8, 0
+            minutos_agora = agora.hour * 60 + agora.minute
+            minutos_alvo = hora_alvo * 60 + minuto_alvo
+            if minutos_agora >= minutos_alvo:
+                print(f"[WhatsApp] Disparando alerta de vencimentos as {agora.strftime('%H:%M')}")
+                resultado = _wa_disparar_vencimentos()
+                print(f"[WhatsApp] Resultado: {resultado}")
+                enviado_hoje = hoje_str
+            time.sleep(120)
+        except Exception as e:
+            print(f"[WhatsApp] Erro no scheduler: {e}")
+            time.sleep(300)
+
+
+# ----- Endpoints REST WhatsApp -----
+
+@app.get("/api/whatsapp/config")
+def whatsapp_get_config(admin: dict = Depends(require_admin)):
+    cfg = _wa_get_config() or {}
+    # oculta api_key parcialmente
+    if cfg.get('api_key'):
+        ak = cfg['api_key']
+        cfg['api_key_mascarada'] = (ak[:4] + '***' + ak[-2:]) if len(ak) > 6 else '***'
+    return cfg
+
+
+@app.put("/api/whatsapp/config")
+def whatsapp_put_config(body: dict, admin: dict = Depends(require_admin)):
+    try:
+        conn = get_config_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM config_whatsapp_evolution ORDER BY id LIMIT 1")
+        row = cursor.fetchone()
+        base_url = (body.get('base_url') or '').strip()
+        api_key = (body.get('api_key') or '').strip()
+        instance_name = (body.get('instance_name') or 'ecbiesek').strip()
+        horario = (body.get('horario') or '08:00').strip()
+        ativo = bool(body.get('ativo', False))
+        dias_antecedencia = (body.get('dias_antecedencia') or '3,7').strip()
+        somente_dias_uteis = bool(body.get('somente_dias_uteis', True))
+        if row:
+            # se api_key vier vazio, preserva a existente
+            if not api_key:
+                cursor.execute(
+                    "UPDATE config_whatsapp_evolution SET base_url=%s, instance_name=%s, horario=%s, ativo=%s, dias_antecedencia=%s, somente_dias_uteis=%s, atualizado_em=CURRENT_TIMESTAMP WHERE id=%s",
+                    (base_url, instance_name, horario, ativo, dias_antecedencia, somente_dias_uteis, row['id'])
+                )
+            else:
+                cursor.execute(
+                    "UPDATE config_whatsapp_evolution SET base_url=%s, api_key=%s, instance_name=%s, horario=%s, ativo=%s, dias_antecedencia=%s, somente_dias_uteis=%s, atualizado_em=CURRENT_TIMESTAMP WHERE id=%s",
+                    (base_url, api_key, instance_name, horario, ativo, dias_antecedencia, somente_dias_uteis, row['id'])
+                )
+        else:
+            cursor.execute(
+                "INSERT INTO config_whatsapp_evolution (base_url, api_key, instance_name, horario, ativo, dias_antecedencia, somente_dias_uteis) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                (base_url, api_key, instance_name, horario, ativo, dias_antecedencia, somente_dias_uteis)
+            )
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return {"sucesso": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/whatsapp/destinatarios")
+def whatsapp_listar_destinatarios(admin: dict = Depends(require_admin)):
+    try:
+        conn = get_config_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM config_whatsapp_destinatarios ORDER BY nome")
+        rows = [dict(r) for r in cursor.fetchall()]
+        cursor.close()
+        conn.close()
+        return rows
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/whatsapp/destinatarios")
+def whatsapp_criar_destinatario(body: dict, admin: dict = Depends(require_admin)):
+    nome = (body.get('nome') or '').strip()
+    telefone = _wa_normalizar_telefone(body.get('telefone') or '')
+    if not nome or not telefone:
+        raise HTTPException(status_code=400, detail="nome e telefone sao obrigatorios")
+    try:
+        conn = get_config_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO config_whatsapp_destinatarios (nome, telefone, alerta_vencimentos, alerta_inadimplencia, alerta_saldo_bancario, ativo) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
+            (nome, telefone,
+             bool(body.get('alerta_vencimentos', True)),
+             bool(body.get('alerta_inadimplencia', False)),
+             bool(body.get('alerta_saldo_bancario', False)),
+             bool(body.get('ativo', True)))
+        )
+        novo_id = cursor.fetchone()['id']
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return {"id": novo_id, "sucesso": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/whatsapp/destinatarios/{destinatario_id}")
+def whatsapp_atualizar_destinatario(destinatario_id: int, body: dict, admin: dict = Depends(require_admin)):
+    try:
+        conn = get_config_db_connection()
+        cursor = conn.cursor()
+        nome = (body.get('nome') or '').strip()
+        telefone = _wa_normalizar_telefone(body.get('telefone') or '')
+        cursor.execute(
+            "UPDATE config_whatsapp_destinatarios SET nome=%s, telefone=%s, alerta_vencimentos=%s, alerta_inadimplencia=%s, alerta_saldo_bancario=%s, ativo=%s WHERE id=%s",
+            (nome, telefone,
+             bool(body.get('alerta_vencimentos', True)),
+             bool(body.get('alerta_inadimplencia', False)),
+             bool(body.get('alerta_saldo_bancario', False)),
+             bool(body.get('ativo', True)),
+             destinatario_id)
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return {"sucesso": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/whatsapp/destinatarios/{destinatario_id}")
+def whatsapp_deletar_destinatario(destinatario_id: int, admin: dict = Depends(require_admin)):
+    try:
+        conn = get_config_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM config_whatsapp_destinatarios WHERE id=%s", (destinatario_id,))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return {"sucesso": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/whatsapp/testar")
+def whatsapp_testar(body: dict, admin: dict = Depends(require_admin)):
+    """Envia uma mensagem de teste para o telefone informado."""
+    telefone = body.get('telefone') or ''
+    mensagem = body.get('mensagem') or 'Mensagem de teste do Dashboard ECBIESEK ✅'
+    if not telefone:
+        raise HTTPException(status_code=400, detail="telefone obrigatorio")
+    ok, resp = _wa_enviar_mensagem(telefone, mensagem, tipo='teste', destinatario_nome='Teste')
+    return {"sucesso": ok, "resposta": resp}
+
+
+@app.get("/api/whatsapp/preview-vencimentos")
+def whatsapp_preview_vencimentos(dias: int = 3, admin: dict = Depends(require_admin)):
+    """Retorna a mensagem que seria enviada, sem enviar."""
+    titulos = _wa_buscar_vencimentos_proximos(dias)
+    mensagem = _wa_formatar_mensagem_vencimentos(titulos, dias)
+    return {
+        "dias": dias,
+        "quantidade": len(titulos),
+        "total": sum(float(t.get('valor_total') or 0) for t in titulos),
+        "mensagem": mensagem,
+    }
+
+
+@app.post("/api/whatsapp/disparar-vencimentos")
+def whatsapp_disparar_vencimentos_manual(body: dict = None, admin: dict = Depends(require_admin)):
+    """Dispara manualmente o alerta de vencimentos para os destinatarios cadastrados."""
+    dias_csv = (body or {}).get('dias_antecedencia')
+    resultado = _wa_disparar_vencimentos(dias_csv)
+    return resultado
+
+
+@app.get("/api/whatsapp/logs")
+def whatsapp_listar_logs(limite: int = 100, admin: dict = Depends(require_admin)):
+    try:
+        limite = max(1, min(int(limite), 500))
+        conn = get_config_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM log_whatsapp_notificacoes ORDER BY enviado_em DESC LIMIT %s", (limite,))
+        rows = [dict(r) for r in cursor.fetchall()]
+        cursor.close()
+        conn.close()
+        return rows
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# FIM NOTIFICACOES WHATSAPP
+# ============================================================================
+
 
 def _auto_snapshot_loop():
     time.sleep(10)
@@ -12763,6 +13203,9 @@ Cuidado: excluir uma secao remove todos os artigos dentro dela.
 
 _auto_snapshot_thread = threading.Thread(target=_auto_snapshot_loop, daemon=True)
 _auto_snapshot_thread.start()
+
+_wa_scheduler_thread = threading.Thread(target=_wa_scheduler_loop, daemon=True)
+_wa_scheduler_thread.start()
 
 FRONTEND_BUILD_DIR = Path(__file__).parent.parent / "frontend" / "dist"
 

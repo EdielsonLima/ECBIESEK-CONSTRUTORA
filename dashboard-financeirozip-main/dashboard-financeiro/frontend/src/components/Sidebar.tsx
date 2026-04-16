@@ -539,6 +539,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
                     Validacao
                   </button>
                   <button
+                    onClick={() => { onNavigate('notificacoes-whatsapp'); setMenuUsuarioAberto(false); }}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+                  >
+                    <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
+                    Notificacoes WhatsApp
+                  </button>
+                  <button
                     onClick={() => { onNavigate('classificacao-centro-custo'); setMenuUsuarioAberto(false); }}
                     className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
                   >
