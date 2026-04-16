@@ -15,6 +15,7 @@ import { ExposicaoCaixa } from './pages/ExposicaoCaixa';
 import { PainelExecutivo } from './pages/PainelExecutivo';
 import { ChatIA } from './pages/ChatIA';
 import { Documentacao } from './pages/Documentacao';
+import { Manual } from './pages/Manual';
 import { Login } from './pages/Login';
 import { GerenciarUsuarios } from './pages/GerenciarUsuarios';
 import { LogAtividades } from './pages/LogAtividades';
@@ -172,6 +173,8 @@ function App() {
         return <ChatIA />;
       case 'documentacao':
         return <Documentacao />;
+      case 'manual':
+        return <Manual isAdmin={isAdmin} />;
       case 'gerenciar-usuarios':
         return isAdmin ? <GerenciarUsuarios /> : <AcessoNegado />;
       case 'log-atividades':
@@ -221,7 +224,8 @@ function App() {
                 {currentPage === 'exposicao-caixa' && 'Exposição de Caixa'}
                 {currentPage === 'painel-executivo' && 'Painel Executivo'}
                 {currentPage === 'chat-ia' && 'Chat IA'}
-                {currentPage === 'documentacao' && 'Documentacao'}
+                {currentPage === 'documentacao' && 'Documentacao Tecnica'}
+                {currentPage === 'manual' && 'Manual do Usuario'}
                 {currentPage === 'gerenciar-usuarios' && 'Gerenciar Usuários'}
                 {currentPage === 'log-atividades' && 'Log de Atividades'}
                 {currentPage === 'alterar-senha' && 'Alterar Senha'}

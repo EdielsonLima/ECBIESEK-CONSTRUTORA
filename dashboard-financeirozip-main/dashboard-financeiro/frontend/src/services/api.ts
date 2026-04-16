@@ -1777,6 +1777,52 @@ export const apiService = {
     const response = await api.post(`/solicitacoes/${id}/validar`, data);
     return response.data;
   },
+
+  // ============ MANUAL DO USUARIO ============
+  getManual: async (): Promise<{ secoes: import('../types/manual').ManualSecao[] }> => {
+    try {
+      const response = await api.get('/manual');
+      return response.data || { secoes: [] };
+    } catch (err) {
+      console.error('[manual] erro:', err);
+      return { secoes: [] };
+    }
+  },
+
+  criarSecaoManual: async (data: { slug: string; titulo: string; icone?: string; ordem?: number; apenas_admin?: boolean }) => {
+    const response = await api.post('/manual/secoes', data);
+    return response.data;
+  },
+
+  editarSecaoManual: async (id: number, data: Partial<{ slug: string; titulo: string; icone: string; ordem: number; apenas_admin: boolean; ativo: boolean }>) => {
+    const response = await api.put(`/manual/secoes/${id}`, data);
+    return response.data;
+  },
+
+  excluirSecaoManual: async (id: number) => {
+    const response = await api.delete(`/manual/secoes/${id}`);
+    return response.data;
+  },
+
+  criarArtigoManual: async (data: { secao_id: number; slug: string; titulo: string; resumo?: string; conteudo_md: string; ordem?: number }) => {
+    const response = await api.post('/manual/artigos', data);
+    return response.data;
+  },
+
+  editarArtigoManual: async (id: number, data: Partial<{ secao_id: number; slug: string; titulo: string; resumo: string; conteudo_md: string; ordem: number; ativo: boolean }>) => {
+    const response = await api.put(`/manual/artigos/${id}`, data);
+    return response.data;
+  },
+
+  excluirArtigoManual: async (id: number) => {
+    const response = await api.delete(`/manual/artigos/${id}`);
+    return response.data;
+  },
+
+  seedManual: async () => {
+    const response = await api.post('/manual/seed', {});
+    return response.data;
+  },
 };
 
 // ============ VALIDACAO SERVICE ============
