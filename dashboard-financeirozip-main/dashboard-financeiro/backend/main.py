@@ -9315,6 +9315,49 @@ def get_todos_tipos_documento():
 
 # ============ SALDOS BANCÁRIOS ============
 
+@app.get("/api/diagnostico/conta-saldo")
+def diag_conta_saldo(conta: str, data: Optional[str] = None):
+    """DEBUG temporario: retorna todas as linhas de uma conta especifica em posicao_saldos."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        if data:
+            cursor.execute("""
+                SELECT id_conta_corrente, id_interno_empresa, nome,
+                       data_movimento, saldo_anterior, entrada, saida, saldo_atual
+                FROM posicao_saldos
+                WHERE id_conta_corrente = %s AND data_movimento = %s
+                ORDER BY id_interno_empresa, nome
+            """, [conta, data])
+        else:
+            cursor.execute("""
+                SELECT id_conta_corrente, id_interno_empresa, nome,
+                       data_movimento, saldo_anterior, entrada, saida, saldo_atual
+                FROM posicao_saldos
+                WHERE id_conta_corrente = %s
+                ORDER BY data_movimento DESC
+                LIMIT 30
+            """, [conta])
+        rows = []
+        for r in cursor.fetchall():
+            rows.append({
+                'id_conta_corrente': r['id_conta_corrente'],
+                'id_interno_empresa': r['id_interno_empresa'],
+                'nome': r['nome'],
+                'data_movimento': r['data_movimento'].strftime('%Y-%m-%d') if r['data_movimento'] else None,
+                'saldo_anterior': float(r['saldo_anterior'] or 0),
+                'entrada': float(r['entrada'] or 0),
+                'saida': float(r['saida'] or 0),
+                'saldo_atual': float(r['saldo_atual'] or 0),
+            })
+        return {'qtd': len(rows), 'linhas': rows}
+    except Exception as e:
+        return {'erro': str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
+
 @app.get("/api/saldos-bancarios/contas-disponiveis")
 def get_saldos_contas_disponiveis():
     """Retorna contas distintas da tabela posicao_saldos (fonte dos saldos oficiais),
