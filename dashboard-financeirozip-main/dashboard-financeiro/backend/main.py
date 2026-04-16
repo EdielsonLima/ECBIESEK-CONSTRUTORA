@@ -11673,6 +11673,75 @@ def get_documentacao_fluxo_dados():
                         "descricao": "Diferença entre o valor do KPI hoje e o valor de ontem. Registrado via snapshots diários."
                     }
                 ]
+            },
+            {
+                "nome": "Solicitacoes de Melhorias",
+                "icone": "alert-triangle",
+                "valores": [
+                    {
+                        "nome": "Lista de Solicitacoes (Kanban)",
+                        "fonte": "SELECT * FROM solicitacoes_melhorias ORDER BY created_at DESC",
+                        "endpoint": "GET /api/solicitacoes",
+                        "filtros": ["Busca por titulo/descricao", "Filtro por usuario", "Agrupamento por status (Kanban)"],
+                        "referencia_cruzada": None,
+                        "arquivo": "main.py",
+                        "descricao": "Todas as solicitacoes de melhoria, com tempo de desenvolvimento e tempo aguardando validacao calculados por linha."
+                    },
+                    {
+                        "nome": "Solicitacoes Pendentes",
+                        "fonte": "COUNT(*) WHERE status IN ('pendente','em_analise','em_desenvolvimento','aguardando_validacao')",
+                        "endpoint": "GET /api/solicitacoes/pendentes",
+                        "filtros": ["status != implementado E != rejeitado"],
+                        "referencia_cruzada": "Usado no card 'N pendentes' no topo",
+                        "arquivo": "main.py",
+                        "descricao": "Quantidade de solicitacoes que ainda precisam de atencao."
+                    },
+                    {
+                        "nome": "Criar Solicitacao",
+                        "fonte": "INSERT INTO solicitacoes_melhorias",
+                        "endpoint": "POST /api/solicitacoes",
+                        "filtros": ["Body: titulo, descricao, secao, prioridade"],
+                        "referencia_cruzada": None,
+                        "arquivo": "main.py",
+                        "descricao": "Cria nova solicitacao. Autor vem do token JWT. Status inicial: pendente."
+                    },
+                    {
+                        "nome": "Editar Solicitacao (status/resposta_dev)",
+                        "fonte": "UPDATE solicitacoes_melhorias SET ... WHERE id = ?",
+                        "endpoint": "PUT /api/solicitacoes/{id}",
+                        "filtros": ["Body: status, resposta_dev, versao_implementada, etc"],
+                        "referencia_cruzada": None,
+                        "arquivo": "main.py",
+                        "descricao": "Atualiza campos da solicitacao. Quando status vira 'aguardando_validacao', grava entregue_em automaticamente."
+                    },
+                    {
+                        "nome": "Validar Entrega",
+                        "fonte": "UPDATE solicitacoes_melhorias SET status = (aprovado ? 'implementado' : 'pendente')",
+                        "endpoint": "POST /api/solicitacoes/{id}/validar",
+                        "filtros": ["Body: aprovado (bool), aprovado_por, comentario opcional"],
+                        "referencia_cruzada": "Usado pelos botoes Aprovar / Pedir Correcao no card em 'aguardando_validacao'",
+                        "arquivo": "main.py",
+                        "descricao": "Autor da solicitacao aprova ou rejeita a entrega. Se rejeita, volta para pendente com comentario."
+                    },
+                    {
+                        "nome": "Tempo em Desenvolvimento",
+                        "fonte": "entregue_em - created_at (em dias)",
+                        "endpoint": "GET /api/solicitacoes",
+                        "filtros": [],
+                        "referencia_cruzada": "Mostrado como badge 'Dev: X dias' em cada card",
+                        "arquivo": "main.py",
+                        "descricao": "Tempo entre a criacao e a entrega para validacao. Calculado no frontend a partir dos timestamps."
+                    },
+                    {
+                        "nome": "Tempo Aguardando Validacao",
+                        "fonte": "NOW() - entregue_em (enquanto status = 'aguardando_validacao')",
+                        "endpoint": "GET /api/solicitacoes",
+                        "filtros": [],
+                        "referencia_cruzada": "Mostrado como badge 'Aguardando X ha N dias'",
+                        "arquivo": "main.py",
+                        "descricao": "Tempo que a solicitacao esta esperando o autor validar a entrega. Calculado no frontend."
+                    }
+                ]
             }
         ],
         "endpoints_resumo": [
@@ -11697,6 +11766,27 @@ def get_documentacao_fluxo_dados():
             {"area": "Filtros", "rota": "GET /api/filtros/empresas", "descricao": "Dropdown de empresas ativas", "tabelas": "dim_centrocusto"},
             {"area": "Filtros", "rota": "GET /api/filtros/centros-custo", "descricao": "Dropdown de CCs ativos", "tabelas": "dim_centrocusto"},
             {"area": "Relatorios", "rota": "POST /api/relatorios/pdf", "descricao": "Gera PDF com filtros aplicados (empresa, CC, credor/cliente, tipo doc, permuta, data). Tipos: contas_a_pagar, contas_pagas, contas_atrasadas, contas_a_receber, contas_recebidas, inadimplencia. Body: {tipo_relatorio, filtros}. Retorna application/pdf", "tabelas": "contas_a_pagar, contas_pagas, contas_a_receber, contas_recebidas, dim_centrocusto"},
+            {"area": "Solicitacoes", "rota": "GET /api/solicitacoes", "descricao": "Lista todas as solicitacoes de melhoria (Kanban)", "tabelas": "solicitacoes_melhorias"},
+            {"area": "Solicitacoes", "rota": "GET /api/solicitacoes/pendentes", "descricao": "Conta solicitacoes nao concluidas (usado no badge)", "tabelas": "solicitacoes_melhorias"},
+            {"area": "Solicitacoes", "rota": "POST /api/solicitacoes", "descricao": "Cria nova solicitacao (autor vem do JWT). Body: {titulo, descricao, secao, prioridade}", "tabelas": "solicitacoes_melhorias"},
+            {"area": "Solicitacoes", "rota": "PUT /api/solicitacoes/{id}", "descricao": "Atualiza status/resposta_dev/versao. Grava entregue_em quando vira 'aguardando_validacao'", "tabelas": "solicitacoes_melhorias"},
+            {"area": "Solicitacoes", "rota": "DELETE /api/solicitacoes/{id}", "descricao": "Remove solicitacao (apenas autor ou admin)", "tabelas": "solicitacoes_melhorias"},
+            {"area": "Solicitacoes", "rota": "POST /api/solicitacoes/{id}/validar", "descricao": "Autor aprova entrega (vira 'implementado') ou pede correcao (volta para 'pendente'). Body: {aprovado, aprovado_por, comentario}", "tabelas": "solicitacoes_melhorias"},
+            {"area": "Solicitacoes", "rota": "POST /api/solicitacoes/backfill-entregue", "descricao": "Preenche entregue_em para solicitacoes antigas em 'aguardando_validacao'/'implementado'. Rodado 1x apos migracao", "tabelas": "solicitacoes_melhorias"},
+            {"area": "Manual", "rota": "GET /api/manual", "descricao": "Retorna arvore do manual (secoes + artigos). Secoes apenas_admin ocultas para nao-admin", "tabelas": "manual_secoes, manual_artigos"},
+            {"area": "Manual", "rota": "POST /api/manual/secoes", "descricao": "Cria nova secao (admin). Body: {slug, titulo, icone, ordem, apenas_admin}", "tabelas": "manual_secoes"},
+            {"area": "Manual", "rota": "PUT /api/manual/secoes/{id}", "descricao": "Edita secao (admin)", "tabelas": "manual_secoes"},
+            {"area": "Manual", "rota": "DELETE /api/manual/secoes/{id}", "descricao": "Exclui secao e seus artigos (admin). CASCADE", "tabelas": "manual_secoes, manual_artigos"},
+            {"area": "Manual", "rota": "POST /api/manual/artigos", "descricao": "Cria novo artigo (admin). Body: {secao_id, slug, titulo, resumo, conteudo_md}", "tabelas": "manual_artigos"},
+            {"area": "Manual", "rota": "PUT /api/manual/artigos/{id}", "descricao": "Edita artigo (admin). Atualiza conteudo_md e timestamps", "tabelas": "manual_artigos"},
+            {"area": "Manual", "rota": "DELETE /api/manual/artigos/{id}", "descricao": "Exclui artigo (admin)", "tabelas": "manual_artigos"},
+            {"area": "Manual", "rota": "POST /api/manual/seed", "descricao": "Popula manual com conteudo inicial (idempotente, so roda se vazio)", "tabelas": "manual_secoes, manual_artigos"},
+            {"area": "Saldos Bancarios", "rota": "GET /api/saldos-bancarios", "descricao": "Posicao de saldos por data. Cards de Bancario/Permuta/Total. Exclui contas Mutuo. Params: data, empresas, contas", "tabelas": "posicao_saldos, dim_centrocusto"},
+            {"area": "Saldos Bancarios", "rota": "GET /api/saldos-bancarios/contas-disponiveis", "descricao": "Contas distintas para dropdown, agrupadas pela empresa real do Sienge", "tabelas": "posicao_saldos, dim_centrocusto"},
+            {"area": "Saldos Bancarios", "rota": "GET /api/saldos-bancarios/detalhe", "descricao": "Ultimos movimentos (tabela detalhada)", "tabelas": "contas_pagas, contas_recebidas"},
+            {"area": "Comercial", "rota": "GET /api/comercial/dashboard", "descricao": "Indicadores: VGV, unidades vendidas/disponiveis, status dos imoveis", "tabelas": "imovel_unidade, contas_a_receber, contas_recebidas"},
+            {"area": "Comercial", "rota": "GET /api/comercial/contratos", "descricao": "Lista contratos com valor total (soma de todas as parcelas)", "tabelas": "contas_a_receber, contas_recebidas, imovel_unidade"},
+            {"area": "Comercial", "rota": "GET /api/comercial/tipos-imovel", "descricao": "Dropdown de tipos (Lote, Apartamento, etc)", "tabelas": "tipo_imovel"},
         ],
         "glossario": [
             {"termo": "CUB/RO", "definicao": "Custo Unitário Básico da Construção Civil do estado de Rondônia. Índice mensal publicado pelo SINDUSCON que representa o custo por metro quadrado de construção. Usado para calcular o orçamento dos empreendimentos."},
@@ -11712,7 +11802,10 @@ def get_documentacao_fluxo_dados():
             {"termo": "Fator (Orçamento)", "definicao": "Multiplicador aplicado ao CUB para cada empreendimento. Representa a complexidade/padrão da obra. Fator 1.0 = padrão CUB. Editável em Configurações > Orçamentos."},
             {"termo": "Snapshot", "definicao": "Fotografia diária dos valores dos cards de Contas a Pagar. Permite comparar a posição de hoje com a de dias anteriores para detectar alterações."},
             {"termo": "Exposição de Caixa", "definicao": "Diferença acumulada entre recebimentos e pagamentos ao longo do tempo. Mostra o fluxo de caixa do empreendimento."},
-            {"termo": "VGV", "definicao": "Valor Geral de Vendas. Soma do preço de todas as unidades de um empreendimento imobiliário."}
+            {"termo": "VGV", "definicao": "Valor Geral de Vendas. Soma do preço de todas as unidades de um empreendimento imobiliário."},
+            {"termo": "Status da Solicitacao", "definicao": "Ciclo de vida de uma solicitacao de melhoria: pendente -> em_analise -> em_desenvolvimento -> aguardando_validacao -> implementado (apos aprovacao do autor). De 'aguardando_validacao' o autor pode pedir correcao, voltando para 'pendente' com um comentario."},
+            {"termo": "Validacao de Entrega", "definicao": "Processo em que o autor da solicitacao (nao a equipe dev) aprova ou rejeita a entrega. Endpoint POST /api/solicitacoes/{id}/validar. Apenas o autor original ou admin pode validar."},
+            {"termo": "entregue_em", "definicao": "Timestamp gravado automaticamente quando uma solicitacao muda para status 'aguardando_validacao'. Usado para calcular o tempo que a equipe dev levou e quanto tempo esta aguardando validacao."}
         ]
     }
 
