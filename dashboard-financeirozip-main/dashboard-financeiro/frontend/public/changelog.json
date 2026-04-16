@@ -1,6 +1,27 @@
 {
-  "versao_atual": "1.7.0",
+  "versao_atual": "1.8.0",
   "historico": [
+    {
+      "versao": "1.8.0",
+      "data": "2026-04-16",
+      "titulo": "Novidades da Versao 1.8.0",
+      "secoes": [
+        {
+          "titulo": "Geral",
+          "icone": "settings",
+          "itens": [
+            "Nova rotina de Notificacoes WhatsApp para alertar sobre vencimentos proximos",
+            "Sistema envia automaticamente, no horario configurado, a lista de contas a pagar nos proximos dias",
+            "Cadastro de destinatarios com nome e telefone (com ou sem DDI)",
+            "Configuracao de horario de disparo, dias de antecedencia (ex: 3 e 7 dias) e flag para enviar somente em dias uteis",
+            "Tela de teste com previa da mensagem antes do disparo real",
+            "Disparo manual sob demanda quando precisar enviar fora do horario programado",
+            "Historico completo de envios com status (sucesso/falha) e resposta da API",
+            "Acesse pelo menu do usuario > Notificacoes WhatsApp (apenas admin)"
+          ]
+        }
+      ]
+    },
     {
       "versao": "1.7.0",
       "data": "2026-04-16",
