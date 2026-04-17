@@ -9404,8 +9404,12 @@ def get_saldos_contas_disponiveis():
         result = []
         for r in rows:
             emp = mapa_emp.get(r['id_interno_empresa'], {})
+            # id composto: id_interno_empresa::id_conta_corrente - garante unicidade
+            # pois contas genericas como "CAIXA" se repetem em varias empresas
+            composite_id = f"{r['id_interno_empresa']}::{r['id_conta_corrente']}"
             result.append({
-                'id': r['id_conta_corrente'],
+                'id': composite_id,
+                'id_conta_corrente': r['id_conta_corrente'],
                 'nome': r['nome'] or '-',
                 'empresa_id': emp.get('id_sienge', 0),
                 'empresa_nome': emp.get('nome', 'Sem Empresa'),
@@ -9491,13 +9495,31 @@ def get_saldos_bancarios(
                 where_extra += f" AND ps.id_interno_empresa::text NOT IN ({ph})"
                 params.extend(intern_excl)
 
-        # Filtro por contas
+        # Filtro por contas — aceita ids compostos "id_interno_empresa::id_conta_corrente"
+        # e ids simples "id_conta_corrente" (retrocompat com localStorage antigo)
         if contas:
-            conta_ids = [x.strip() for x in contas.split(',') if x.strip()]
-            if conta_ids:
-                ph = ','.join(['%s'] * len(conta_ids))
-                where_extra += f" AND ps.id_conta_corrente IN ({ph})"
-                params.extend(conta_ids)
+            items = [x.strip() for x in contas.split(',') if x.strip()]
+            compostos: list = []
+            simples: list = []
+            for item in items:
+                if '::' in item:
+                    emp, cid = item.split('::', 1)
+                    compostos.append((emp.strip(), cid.strip()))
+                else:
+                    simples.append(item)
+            clauses = []
+            if simples:
+                ph = ','.join(['%s'] * len(simples))
+                clauses.append(f"ps.id_conta_corrente IN ({ph})")
+                params.extend(simples)
+            if compostos:
+                pairs_sql = []
+                for emp, cid in compostos:
+                    pairs_sql.append("(ps.id_interno_empresa::text = %s AND ps.id_conta_corrente = %s)")
+                    params.extend([emp, cid])
+                clauses.append('(' + ' OR '.join(pairs_sql) + ')')
+            if clauses:
+                where_extra += ' AND (' + ' OR '.join(clauses) + ')'
 
         cursor.execute(f"""
             SELECT
@@ -9590,11 +9612,28 @@ def get_saldos_bancarios(
                 serie_where += f" AND ps.id_interno_empresa::text NOT IN ({ph})"
                 serie_params.extend(intern_excl)
         if contas:
-            conta_ids = [x.strip() for x in contas.split(',') if x.strip()]
-            if conta_ids:
-                ph = ','.join(['%s'] * len(conta_ids))
-                serie_where += f" AND ps.id_conta_corrente IN ({ph})"
-                serie_params.extend(conta_ids)
+            items_s = [x.strip() for x in contas.split(',') if x.strip()]
+            comp_s: list = []
+            simp_s: list = []
+            for item in items_s:
+                if '::' in item:
+                    emp, cid = item.split('::', 1)
+                    comp_s.append((emp.strip(), cid.strip()))
+                else:
+                    simp_s.append(item)
+            clauses_s = []
+            if simp_s:
+                ph = ','.join(['%s'] * len(simp_s))
+                clauses_s.append(f"ps.id_conta_corrente IN ({ph})")
+                serie_params.extend(simp_s)
+            if comp_s:
+                pairs_sql = []
+                for emp, cid in comp_s:
+                    pairs_sql.append("(ps.id_interno_empresa::text = %s AND ps.id_conta_corrente = %s)")
+                    serie_params.extend([emp, cid])
+                clauses_s.append('(' + ' OR '.join(pairs_sql) + ')')
+            if clauses_s:
+                serie_where += ' AND (' + ' OR '.join(clauses_s) + ')'
 
         cursor.execute(f"""
             SELECT ps.data_movimento as data, SUM(ps.saldo_atual) as saldo
