@@ -190,9 +190,11 @@ async def auth_middleware(request: Request, call_next):
         return await call_next(request)
 
     # API Token (servico/MCP) - bypassa JWT se header X-API-Key bater com MCP_API_TOKEN
+    # Usa comparacao constante (secrets.compare_digest) para mitigar timing-attack,
+    # pois esse token concede acesso admin total ao sistema.
     mcp_token = os.environ.get("MCP_API_TOKEN", "").strip()
     api_key_header = request.headers.get("X-API-Key", "").strip()
-    if mcp_token and api_key_header and api_key_header == mcp_token:
+    if mcp_token and len(mcp_token) >= 32 and api_key_header and secrets.compare_digest(api_key_header, mcp_token):
         # Cria usuario sintetico de servico para uso nas rotas
         request.state.current_user = {
             "id": 0,
@@ -10472,6 +10474,42 @@ def _wa_normalizar_telefone(telefone: str) -> str:
     return numeros
 
 
+def _wa_base_url_valida(base_url: str) -> tuple[bool, str]:
+    """Valida base_url do Evolution API para mitigar SSRF.
+    Aceita apenas http(s) publico. Bloqueia localhost, IPs privados e metadata cloud.
+    Retorna (valido, motivo_erro)."""
+    if not base_url:
+        return False, 'base_url vazio'
+    try:
+        from urllib.parse import urlparse
+        p = urlparse(base_url)
+    except Exception as e:
+        return False, f'URL invalida: {e}'
+    if p.scheme not in ('http', 'https'):
+        return False, 'Apenas http/https permitidos'
+    host = (p.hostname or '').lower()
+    if not host:
+        return False, 'Host ausente'
+    # bloqueia hosts obvios
+    bloqueados = {'localhost', 'localhost.localdomain', 'ip6-localhost', '0.0.0.0'}
+    if host in bloqueados:
+        return False, 'Host local bloqueado'
+    # bloqueia metadata services de cloud (AWS/GCP/Azure/OCI/DO)
+    metadata = {'169.254.169.254', 'metadata.google.internal', 'metadata.goog', 'metadata.azure.com'}
+    if host in metadata:
+        return False, 'Endpoint de metadata bloqueado'
+    # bloqueia faixas privadas e loopback por IP literal
+    try:
+        import ipaddress
+        ip = ipaddress.ip_address(host)
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+            return False, 'IP privado/reservado bloqueado'
+    except ValueError:
+        # nao e IP literal — segue para validacao por nome
+        pass
+    return True, ''
+
+
 def _wa_enviar_mensagem(telefone: str, mensagem: str, tipo: str = 'manual', destinatario_nome: str = ''):
     """Envia mensagem via Evolution API e grava log. Retorna (sucesso, detalhe)."""
     config = _wa_get_config()
@@ -10483,18 +10521,23 @@ def _wa_enviar_mensagem(telefone: str, mensagem: str, tipo: str = 'manual', dest
     elif not numero:
         resposta_txt = 'Telefone invalido'
     else:
-        url = f"{config['base_url'].rstrip('/')}/message/sendText/{config['instance_name']}"
-        headers = {
-            'apikey': config['api_key'],
-            'Content-Type': 'application/json',
-        }
-        payload = {'number': numero, 'text': mensagem}
-        try:
-            r = httpx.post(url, json=payload, headers=headers, timeout=15.0)
-            resposta_txt = f"HTTP {r.status_code}: {r.text[:500]}"
-            sucesso = 200 <= r.status_code < 300
-        except Exception as e:
-            resposta_txt = f"Erro HTTP: {e}"
+        base_url = config['base_url'].rstrip('/')
+        valido, motivo = _wa_base_url_valida(base_url)
+        if not valido:
+            resposta_txt = f'base_url rejeitado (SSRF guard): {motivo}'
+        else:
+            url = f"{base_url}/message/sendText/{config['instance_name']}"
+            headers = {
+                'apikey': config['api_key'],
+                'Content-Type': 'application/json',
+            }
+            payload = {'number': numero, 'text': mensagem}
+            try:
+                r = httpx.post(url, json=payload, headers=headers, timeout=15.0, follow_redirects=False)
+                resposta_txt = f"HTTP {r.status_code}: {r.text[:500]}"
+                sucesso = 200 <= r.status_code < 300
+            except Exception as e:
+                resposta_txt = f"Erro HTTP: {e}"
     # log
     try:
         conn = get_config_db_connection()
@@ -10566,6 +10609,10 @@ def _wa_disparar_vencimentos(dias_antecedencia_csv: str = None):
     try:
         lista_dias = [int(d.strip()) for d in dias_csv.split(',') if d.strip()]
     except Exception:
+        lista_dias = [3, 7]
+    # Sanitiza: mantem apenas valores dentro de faixa razoavel e limita quantidade
+    lista_dias = [d for d in lista_dias if 1 <= d <= 60][:10]
+    if not lista_dias:
         lista_dias = [3, 7]
     # buscar destinatarios ativos com alerta_vencimentos
     try:
@@ -10672,6 +10719,26 @@ def whatsapp_put_config(body: dict, admin: dict = Depends(require_admin)):
         ativo = bool(body.get('ativo', False))
         dias_antecedencia = (body.get('dias_antecedencia') or '3,7').strip()
         somente_dias_uteis = bool(body.get('somente_dias_uteis', True))
+
+        # Validacoes para evitar SSRF e abuso:
+        if base_url:
+            valido, motivo = _wa_base_url_valida(base_url)
+            if not valido:
+                raise HTTPException(status_code=400, detail=f'base_url invalido: {motivo}')
+        # instance_name so pode ter caracteres seguros de URL
+        import re as _re
+        if not _re.fullmatch(r'[A-Za-z0-9_\-]{1,64}', instance_name):
+            raise HTTPException(status_code=400, detail='instance_name deve conter apenas letras, numeros, _ ou -')
+        # horario HH:MM
+        if not _re.fullmatch(r'[0-2]\d:[0-5]\d', horario):
+            raise HTTPException(status_code=400, detail='horario deve estar no formato HH:MM')
+        # dias_antecedencia: limita valores (1..60) e qtd maxima
+        try:
+            lista_validacao = [int(d.strip()) for d in dias_antecedencia.split(',') if d.strip()]
+        except Exception:
+            raise HTTPException(status_code=400, detail='dias_antecedencia deve ser uma lista de numeros')
+        if not lista_validacao or any(d < 1 or d > 60 for d in lista_validacao) or len(lista_validacao) > 10:
+            raise HTTPException(status_code=400, detail='dias_antecedencia deve ter entre 1 e 10 valores, cada um entre 1 e 60')
         if row:
             # se api_key vier vazio, preserva a existente
             if not api_key:
@@ -10789,6 +10856,8 @@ def whatsapp_testar(body: dict, admin: dict = Depends(require_admin)):
 @app.get("/api/whatsapp/preview-vencimentos")
 def whatsapp_preview_vencimentos(dias: int = 3, admin: dict = Depends(require_admin)):
     """Retorna a mensagem que seria enviada, sem enviar."""
+    # Limita janela de dias para evitar scan muito pesado
+    dias = max(1, min(int(dias or 3), 60))
     titulos = _wa_buscar_vencimentos_proximos(dias)
     mensagem = _wa_formatar_mensagem_vencimentos(titulos, dias)
     return {
