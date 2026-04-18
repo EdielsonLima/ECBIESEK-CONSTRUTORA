@@ -7,8 +7,7 @@ Deploy do agente BI (Hermes) no Railway, com bot Telegram próprio `@bibibi43938
 | Item | Valor |
 |------|-------|
 | Projeto Railway | `bi-agente` |
-| Project ID | `<preencher após Task 1.5>` |
-| Environment ID (production) | `<preencher>` |
+| Project ID | `ecc75ca4-784e-4820-ad18-15068e7f0f0d` |
 | Bot Telegram | `@bibibi4393884444_bot` |
 | Volume | `/opt/data` (`bi-agente-volume`) — persiste skills, sessions, memories |
 
@@ -26,12 +25,12 @@ Image `python:3.12-alpine`, cron `0 3 * * *` (03h UTC = 23h AMT). Chama `service
 
 | Var | Origem | Notas |
 |-----|--------|-------|
-| `TELEGRAM_BOT_TOKEN` | @BotFather | Token novo (pós-revoke do vazado) |
-| `TELEGRAM_ALLOWED_USERS` | Lista CSV | Eloi + conta bridge + team; sem isso ninguem fala com o bot |
+| `TELEGRAM_BOT_TOKEN` | @BotFather | Token do `@bibibi4393884444_bot` |
+| `TELEGRAM_ALLOWED_USERS` | Lista CSV | Eloi + conta bridge + team |
 | `OPENROUTER_API_KEY` | igual Bermes | |
 | `OPENAI_API_KEY` | igual Bermes | STT whisper-1 |
 | `TAVILY_API_KEY` | igual Bermes | Web search |
-| `DATABASE_URL_RO` | Postgres BI | User `bi_agente_ro` (SELECT only) |
+| `DATABASE_URL_RO` | Postgres BI | Credenciais read-only com guardrails em código |
 | `BI_API_BASE_URL` | URL do dashboard | `https://ecbiesek-construtora-production.up.railway.app` |
 | `BI_API_SERVICE_TOKEN` | JWT 90d | Script `criar_user_servico_bi.py` |
 
@@ -44,13 +43,6 @@ cd .railway/bi-agente
 # edita config.yaml ou SOUL.md
 railway service bi-agente
 railway up --detach
-```
-
-### Deploy de skill nova/alterada
-
-```bash
-cd .railway/bi-agente
-bash deploy-skills.sh
 ```
 
 ### Ver logs
@@ -71,7 +63,7 @@ railway ssh "tail -50 /opt/data/logs/bi-agente-sql.log"
 
 ```bash
 cd .railway/bi-agente
-railway link --project <id> --environment production --service bi-agente
+railway link --project ecc75ca4-784e-4820-ad18-15068e7f0f0d --environment production --service bi-agente
 ```
 
 ## Arquitetura resumida
@@ -81,6 +73,6 @@ railway link --project <id> --environment production --service bi-agente
                                                      │
   Eloi / team DM → @bibibi..._bot ────────────────────┘
                                                      │
-                                         sql_query ──▶ Postgres BI (bi_agente_ro)
+                                         sql_query ──▶ Postgres BI (read-only)
                                          api_call  ──▶ BI /api/... (JWT service)
 ```

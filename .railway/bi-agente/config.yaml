@@ -21,9 +21,9 @@ agent:
     helpful: You are a helpful, friendly AI assistant.
     concise: You are a concise assistant. Keep responses brief and to the point.
     technical: You are a technical expert. Provide detailed, accurate technical information.
-    creative: You are a creative assistant. Think outside the box and offer innovative solutions.
+    creative: You are a creative assistant. Think outside the box and offer innovative
+      solutions.
     teacher: You are a patient teacher. Explain concepts clearly with examples.
-    kawaii: You are a kawaii assistant! Use cute expressions like (◕‿◕), ★, ♪, and ~! Add sparkles and be super enthusiastic about everything! Every response should feel warm and adorable desu~! ヽ(>∀<☆)ノ
 terminal:
   backend: local
   modal_mode: auto
@@ -33,9 +33,6 @@ terminal:
   docker_image: nikolaik/python-nodejs:python3.11-nodejs20
   docker_forward_env: []
   docker_env: {}
-  singularity_image: docker://nikolaik/python-nodejs:python3.11-nodejs20
-  modal_image: nikolaik/python-nodejs:python3.11-nodejs20
-  daytona_image: nikolaik/python-nodejs:python3.11-nodejs20
   container_cpu: 1
   container_memory: 5120
   container_disk: 51200
@@ -49,8 +46,6 @@ browser:
   command_timeout: 30
   record_sessions: false
   allow_private_urls: false
-  camofox:
-    managed_persistence: false
 checkpoints:
   enabled: true
   max_snapshots: 50
@@ -150,9 +145,6 @@ tts:
 stt:
   enabled: true
   provider: openai
-  local:
-    model: base
-    language: ''
   openai:
     model: whisper-1
     language: pt
@@ -187,6 +179,7 @@ delegation:
   - terminal
   - file
   - web
+prefill_messages_file: ''
 skills:
   external_dirs: []
   creation_nudge_interval: 15
@@ -217,11 +210,15 @@ skills:
   - unsloth
   - weights-and-biases
   - xitter
-telegram:
-  channel_prompts: {}
 approvals:
   mode: manual
   timeout: 60
+command_allowlist:
+- delete in root path
+- script execution via -e/-c flag
+- script execution via heredoc
+quick_commands: {}
+personalities: {}
 security:
   redact_secrets: true
   tirith_enabled: true
@@ -259,5 +256,20 @@ platform_toolsets:
   - hermes-cli
   telegram:
   - hermes-telegram
-mcp_servers: {}
+  discord:
+  - hermes-discord
+  whatsapp:
+  - hermes-whatsapp
+  slack:
+  - hermes-slack
+  signal:
+  - hermes-signal
+  homeassistant:
+  - hermes-homeassistant
+  qqbot:
+  - hermes-qqbot
+code_execution:
+  timeout: 300
+  max_tool_calls: 50
 TELEGRAM_HOME_CHANNEL: '5678462973'
+mcp_servers: {}
