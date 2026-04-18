@@ -117,6 +117,13 @@ async def startup_event():
     except Exception as e:
         print(f"[STARTUP] Erro ao garantir tabelas de config: {e}")
 
+    if os.environ.get("BI_AGENTE_BRIDGE_ENABLED", "").lower() == "true":
+        try:
+            await bridge_telegram.iniciar_bridge()
+            print("[STARTUP] Bridge Telegram iniciada com sucesso")
+        except Exception as e:
+            print(f"[STARTUP] Erro ao iniciar bridge Telegram: {e}")
+
 # Configuração de segurança JWT
 _jwt_from_env = os.environ.get('JWT_SECRET_KEY', '')
 if not _jwt_from_env:
