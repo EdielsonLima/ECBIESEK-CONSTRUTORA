@@ -226,9 +226,14 @@ async def chat_ia(req: ChatRequest, current_user: dict = Depends(get_current_use
             role=current_user.get("role", "user"),
             timeout=90,
         )
-        registrar_atividade(current_user, "chat_ia",
-                            {"pergunta": ultima_msg[:500],
-                             "resposta_preview": resposta[:200]})
+        import json
+        log_atividade(
+            email=current_user["email"],
+            acao="chat_ia",
+            detalhes=json.dumps({"pergunta": ultima_msg[:500],
+                                 "resposta_preview": resposta[:200]}),
+            ip=None,  # opcional, pode extrair de request.client.host se quiser
+        )
         return {"reply": resposta}
     return await _chat_ia_legacy(req)  # fallback Anthropic direto (código atual)
 ```
