@@ -704,8 +704,11 @@ async def get_me(current_user: dict = Depends(get_current_user)):
     return {"id": current_user['id'], "email": current_user['email'], "nome": current_user['nome'], "ativo": current_user['ativo'], "permissao": current_user.get('permissao', 'admin')}
 
 @app.get("/api/auth/check")
-async def check_auth(current_user: dict = Depends(get_current_user_optional)):
+async def check_auth(request: Request, current_user: dict = Depends(get_current_user_optional)):
     """Verifica se usuário está autenticado"""
+    if os.environ.get("DISABLE_AUTH", "").lower() == "true":
+        u = getattr(request.state, "current_user", None) or {"id": 0, "email": "staging@local", "nome": "Staging", "permissao": "admin"}
+        return {"authenticated": True, "user": {"id": u["id"], "email": u["email"], "nome": u["nome"], "permissao": u.get("permissao", "admin")}}
     if current_user:
         return {"authenticated": True, "user": {"id": current_user['id'], "email": current_user['email'], "nome": current_user['nome'], "permissao": current_user.get('permissao', 'admin')}}
     return {"authenticated": False}

@@ -49,13 +49,7 @@ function App() {
   const [mostrarOnline, setMostrarOnline] = useState(false);
 
   useEffect(() => {
-    if (import.meta.env.VITE_DISABLE_AUTH === 'true') {
-      setIsAuthenticated(true);
-      setUser({ id: 0, nome: 'Staging', email: 'staging@local', permissao: 'admin' });
-      setLoading(false);
-    } else {
-      checkAuth();
-    }
+    checkAuth();
   }, []);
 
   // Carrega data da ultima atualizacao somente apos autenticacao
