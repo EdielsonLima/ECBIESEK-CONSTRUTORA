@@ -1,0 +1,5 @@
+# Railway CLI state (nao commitar)
+.railway/
+# Arquivos de sessao Telethon (nunca commitar)
+*.session
+*.session-journal
