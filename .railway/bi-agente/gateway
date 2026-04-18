@@ -1,0 +1,8 @@
+#!/bin/bash
+set -e
+HERMES_HOME="${HERMES_HOME:-/opt/data}"
+mkdir -p "$HERMES_HOME"
+cp -f /etc/bi-agente/config.yaml "$HERMES_HOME/config.yaml"
+cp -f /etc/bi-agente/SOUL.md "$HERMES_HOME/SOUL.md"
+chown hermes:hermes "$HERMES_HOME"/{config.yaml,SOUL.md} 2>/dev/null || true
+exec /opt/hermes/docker/entrypoint.sh gateway "$@"
