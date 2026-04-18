@@ -1,5 +1,7 @@
 # ── Stage 1: Build do frontend ──────────────────────────────
 FROM node:20-alpine AS frontend-build
+ARG VITE_DISABLE_AUTH=false
+ENV VITE_DISABLE_AUTH=$VITE_DISABLE_AUTH
 WORKDIR /app/frontend
 COPY dashboard-financeirozip-main/dashboard-financeiro/frontend/package*.json ./
 RUN npm install
