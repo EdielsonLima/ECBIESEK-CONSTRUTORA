@@ -182,6 +182,17 @@ async def auth_middleware(request: Request, call_next):
     """Middleware global: exige JWT valido em toda rota /api/* exceto as publicas."""
     path = request.url.path
 
+    # Modo sem autenticacao (staging) — DISABLE_AUTH=true bypassa tudo
+    if os.environ.get("DISABLE_AUTH", "").lower() == "true":
+        request.state.current_user = {
+            "id": 0,
+            "nome": "Staging User",
+            "email": "staging@local",
+            "permissao": "admin",
+            "ativo": True,
+        }
+        return await call_next(request)
+
     # Rotas nao-API (SPA, static files) passam direto
     if not path.startswith("/api/") and path != "/health":
         return await call_next(request)
