@@ -181,7 +181,8 @@ delegation:
   - web
 prefill_messages_file: ''
 skills:
-  external_dirs: []
+  external_dirs:
+  - /etc/bi-agente/skills
   creation_nudge_interval: 15
   disabled:
   - ascii-art

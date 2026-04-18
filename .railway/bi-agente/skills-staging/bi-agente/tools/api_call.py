@@ -62,7 +62,7 @@ def api_call(endpoint: str, params: dict | None = None, timeout_seconds: int = 3
         resp = client.get(
             url,
             params=params or {},
-            headers={"Authorization": f"Bearer {token}"},
+            headers={"X-API-Key": token},
         )
         resp.raise_for_status()
         try:
