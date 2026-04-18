@@ -63,15 +63,13 @@ function App() {
 
   const checkAuth = async () => {
     try {
-      if (authService.isAuthenticated()) {
-        const result = await authService.checkAuth();
-        if (result.authenticated && result.user) {
-          setIsAuthenticated(true);
-          setUser(result.user);
-        } else {
-          setIsAuthenticated(false);
-          setUser(null);
-        }
+      const result = await authService.checkAuth();
+      if (result.authenticated && result.user) {
+        setIsAuthenticated(true);
+        setUser(result.user);
+      } else {
+        setIsAuthenticated(false);
+        setUser(null);
       }
     } catch {
       setIsAuthenticated(false);
