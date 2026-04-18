@@ -2,7 +2,7 @@
 FROM node:20-alpine AS frontend-build
 WORKDIR /app/frontend
 COPY dashboard-financeirozip-main/dashboard-financeiro/frontend/package*.json ./
-RUN npm ci
+RUN npm install
 COPY dashboard-financeirozip-main/dashboard-financeiro/frontend/ ./
 RUN npm run build
 
