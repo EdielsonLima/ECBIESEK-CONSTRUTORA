@@ -1,7 +1,7 @@
 FROM nousresearch/hermes-agent:latest
 USER root
 RUN mkdir -p /etc/bi-agente/skills
-RUN /opt/hermes/.venv/bin/pip install --no-cache-dir psycopg2-binary httpx
+RUN pip install --no-cache-dir psycopg2-binary httpx
 COPY config.yaml /etc/bi-agente/config.yaml
 COPY SOUL.md /etc/bi-agente/SOUL.md
 COPY skills-staging/bi-agente/ /etc/bi-agente/skills/productivity/bi-agente/
