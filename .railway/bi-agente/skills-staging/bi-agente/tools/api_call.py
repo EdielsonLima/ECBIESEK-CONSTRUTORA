@@ -54,7 +54,7 @@ def api_call(endpoint: str, params: dict | None = None, timeout_seconds: int = 3
     """
     validar_endpoint(endpoint)
     base = os.environ["BI_API_BASE_URL"].rstrip("/")
-    token = os.environ["BI_API_SERVICE_TOKEN"]
+    token = os.environ.get("BI_API_KEY") or os.environ["BI_API_SERVICE_TOKEN"]
     url = f"{base}{endpoint}"
     timeout = min(max(timeout_seconds, 1), 60)
 
