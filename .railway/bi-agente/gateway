@@ -2,7 +2,18 @@
 set -e
 HERMES_HOME="${HERMES_HOME:-/opt/data}"
 mkdir -p "$HERMES_HOME"
+
+# Sincroniza skill do image (staging) para o volume (/opt/data/skills/productivity/)
+# Hermes so escaneia skills em /opt/data/skills/ - external_dirs em /etc nao e confiavel.
+mkdir -p "$HERMES_HOME/skills/productivity"
+rm -rf "$HERMES_HOME/skills/productivity/bi-agente"
+cp -rf /etc/bi-agente/skills/productivity/bi-agente "$HERMES_HOME/skills/productivity/bi-agente"
+
+# Config + SOUL no HERMES_HOME (senao Hermes usa defaults)
 cp -f /etc/bi-agente/config.yaml "$HERMES_HOME/config.yaml"
 cp -f /etc/bi-agente/SOUL.md "$HERMES_HOME/SOUL.md"
-chown hermes:hermes "$HERMES_HOME"/{config.yaml,SOUL.md} 2>/dev/null || true
+
+# Hermes roda como uid 10000 - arquivos root-owned causam Permission denied
+chown -R 10000:10000 "$HERMES_HOME" 2>/dev/null || true
+
 exec /opt/hermes/docker/entrypoint.sh gateway "$@"
