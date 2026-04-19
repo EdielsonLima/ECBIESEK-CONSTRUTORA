@@ -4,16 +4,25 @@ HERMES_HOME="${HERMES_HOME:-/opt/data}"
 mkdir -p "$HERMES_HOME"
 
 # Sincroniza skill do image (staging) para o volume (/opt/data/skills/productivity/)
-# Hermes so escaneia skills em /opt/data/skills/ - external_dirs em /etc nao e confiavel.
 mkdir -p "$HERMES_HOME/skills/productivity"
 rm -rf "$HERMES_HOME/skills/productivity/bi-agente"
 cp -rf /etc/bi-agente/skills/productivity/bi-agente "$HERMES_HOME/skills/productivity/bi-agente"
 
-# Config + SOUL no HERMES_HOME (senao Hermes usa defaults)
+# Config + SOUL no HERMES_HOME
 cp -f /etc/bi-agente/config.yaml "$HERMES_HOME/config.yaml"
 cp -f /etc/bi-agente/SOUL.md "$HERMES_HOME/SOUL.md"
 
-# Hermes roda como uid 10000 - arquivos root-owned causam Permission denied
+# Instala deps Python no venv do Hermes descobrindo o pip disponivel
+# (imagem nova nao tem pip no PATH; procura em venvs conhecidos)
+for PIP in /opt/hermes/.venv/bin/pip /opt/hermes/venv/bin/pip /app/.venv/bin/pip; do
+  if [ -x "$PIP" ]; then
+    echo "[gateway] instalando deps via $PIP"
+    "$PIP" install --no-cache-dir psycopg2-binary httpx 2>&1 | tail -5 || true
+    break
+  fi
+done
+
+# Hermes roda como uid 10000
 chown -R 10000:10000 "$HERMES_HOME" 2>/dev/null || true
 
 exec /opt/hermes/docker/entrypoint.sh gateway "$@"
