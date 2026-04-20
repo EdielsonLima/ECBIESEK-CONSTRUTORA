@@ -197,6 +197,14 @@ export const ContasAPagar: React.FC = () => {
   const [loadingContasAno, setLoadingContasAno] = useState(false);
   const [semanaExpandida, setSemanaExpandida] = useState<number | null>(null);
   const [credorExpandido, setCredorExpandido] = useState<string | null>(null);
+  const [buscaTexto, setBuscaTexto] = useState<string>('');
+  const [buscaTextoDebounced, setBuscaTextoDebounced] = useState<string>('');
+
+  // Debounce do campo de busca global (400ms)
+  useEffect(() => {
+    const t = setTimeout(() => setBuscaTextoDebounced(buscaTexto), 400);
+    return () => clearTimeout(t);
+  }, [buscaTexto]);
 
   // Carregar contas do ano inteiro quando a aba Por Semana e ativada
   useEffect(() => {
@@ -511,7 +519,7 @@ export const ContasAPagar: React.FC = () => {
   const carregarDados = async () => {
     try {
       setLoading(true);
-      const data = await apiService.getContas('a_pagar', 10000);
+      const data = await apiService.getContas('a_pagar', 10000, buscaTextoDebounced || undefined);
 
       setTodasContasCompletas(data);
 
@@ -713,7 +721,7 @@ export const ContasAPagar: React.FC = () => {
 
   useEffect(() => {
     carregarDados();
-  }, [feriados]);
+  }, [feriados, buscaTextoDebounced]);
 
   const aplicarFiltros = () => {
     // Filtros ja sao aplicados automaticamente pelo useEffect
@@ -805,7 +813,7 @@ export const ContasAPagar: React.FC = () => {
 
   const exportarCSV = () => {
     const contasOrdenadas = ordenarContas(contas);
-    const headers = ['Credor', 'Cadastro', 'Vencimento', 'Prazo', 'Dias', 'Titulo', 'Doc.', 'Aut.', 'Cod. CC', 'Centro de Custo', 'Plano Financeiro', 'Tipo Pagamento', 'Valor'];
+    const headers = ['Credor', 'Cadastro', 'Vencimento', 'Prazo', 'Dias', 'Titulo', 'Doc.', 'Aut.', 'Cod. CC', 'Centro de Custo', 'Plano Financeiro', 'Tipo Pagamento', 'Observação', 'Valor'];
     const rows = contasOrdenadas.map(c => {
       const dias = calcularDiasAteVencimento(c.data_vencimento as any);
       const diasStr = dias < 0 ? `${Math.abs(dias)}d atraso` : dias === 0 ? 'Hoje' : `${dias}d`;
@@ -827,6 +835,7 @@ export const ContasAPagar: React.FC = () => {
         (c as any).nome_centrocusto || '-',
         (c as any).nome_plano_financeiro || '-',
         (c as any).nome_tipo_pagamento || '-',
+        ((c as any).descricao_observacao || '').replace(/\n/g, ' '),
         (c.valor_total || 0).toFixed(2).replace('.', ','),
       ];
     });
@@ -891,7 +900,7 @@ export const ContasAPagar: React.FC = () => {
     if (abaAtiva === 'dados') {
       const contasOrdenadas = ordenarContas(contas);
       y = adicionarTabela(doc, {
-        head: [['Credor', 'Venc.', 'Dias', 'Titulo', 'Aut.', 'Cod.', 'Centro de Custo', 'Tipo Doc.', 'Plano Fin.', 'Tipo Pag.', 'Valor']],
+        head: [['Credor', 'Venc.', 'Dias', 'Titulo', 'Aut.', 'Cod.', 'Centro de Custo', 'Tipo Doc.', 'Plano Fin.', 'Tipo Pag.', 'Observação', 'Valor']],
         body: contasOrdenadas.map(c => {
           const dias = calcularDiasAteVencimento(c.data_vencimento as any);
           const diasStr = dias < 0 ? `${Math.abs(dias)}d atraso` : dias === 0 ? 'Hoje' : `${dias}d`;
@@ -908,11 +917,12 @@ export const ContasAPagar: React.FC = () => {
             c.id_documento || '-',
             (c as any).nome_plano_financeiro || '-',
             (c as any).nome_tipo_pagamento || '-',
+            (c as any).descricao_observacao || '-',
             `R$ ${formatCurrencyPDF(c.valor_total || 0)}`,
           ];
         }),
-        foot: [['TOTAL', '', '', '', '', '', '', '', '', '', `R$ ${formatCurrencyPDF(contas.reduce((a, c) => a + (c.valor_total || 0), 0))}`]],
-        columnStyles: { 4: { halign: 'center' }, 5: { halign: 'center' }, 10: { halign: 'right' } },
+        foot: [['TOTAL', '', '', '', '', '', '', '', '', '', '', `R$ ${formatCurrencyPDF(contas.reduce((a, c) => a + (c.valor_total || 0), 0))}`]],
+        columnStyles: { 4: { halign: 'center' }, 5: { halign: 'center' }, 11: { halign: 'right' } },
         didParseCell: (data: any) => {
           if (data.section === 'body' && data.column.index === 4) {
             if (data.cell.raw === 'Sim') {
@@ -1455,6 +1465,27 @@ export const ContasAPagar: React.FC = () => {
         </div>
         {mostrarFiltros && renderFiltros()}
         {!mostrarFiltros && renderFiltrosTags()}
+
+        {/* Busca global em credor, titulo, documento e observacao */}
+        <div className="mt-4 relative">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 104.5 4.5a7.5 7.5 0 0012.15 12.15z" />
+          </svg>
+          <input
+            type="text"
+            value={buscaTexto}
+            onChange={(e) => setBuscaTexto(e.target.value)}
+            placeholder="Buscar em credor, titulo, documento ou observacao..."
+            className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          {buscaTexto && (
+            <button type="button" onClick={() => setBuscaTexto('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" aria-label="Limpar busca">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {dataReferencia && (() => {

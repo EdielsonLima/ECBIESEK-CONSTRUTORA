@@ -199,6 +199,8 @@ export const ContasPagas: React.FC = () => {
   const [filtroDataInicio, setFiltroDataInicio] = useState<string>('');
   const [filtroDataFim, setFiltroDataFim] = useState<string>('');
   const [incluirInterEmpresa, setIncluirInterEmpresa] = useState<boolean>(false);
+  const [busca, setBusca] = useState<string>('');
+  const [buscaDebounced, setBuscaDebounced] = useState<string>('');
   const [interEmpresaOcultas, setInterEmpresaOcultas] = useState<{ qtd: number; valor: number; incluindo: boolean } | null>(null);
 
   const [fornecedorExpandido, setFornecedorExpandido] = useState<string | null>(null);
@@ -440,6 +442,7 @@ export const ContasPagas: React.FC = () => {
         data_inicio: filtroDataInicio || undefined,
         data_fim: filtroDataFim || undefined,
         incluir_inter_empresa: incluirInterEmpresa,
+        busca: buscaDebounced || undefined,
         limite: itensPorPagina,
         offset: 0,
       };
@@ -594,7 +597,13 @@ export const ContasPagas: React.FC = () => {
 
   useEffect(() => {
     buscarContas();
-  }, [filtroEmpresa, filtroCentroCusto, filtroCredor, filtroIdDocumento, filtroOrigemDado, filtroTipoBaixa, filtroTipoPagamento, filtroPlanoFinanceiro, filtroAno, filtroMes]);
+  }, [filtroEmpresa, filtroCentroCusto, filtroCredor, filtroIdDocumento, filtroOrigemDado, filtroTipoBaixa, filtroTipoPagamento, filtroPlanoFinanceiro, filtroAno, filtroMes, buscaDebounced]);
+
+  // Debounce da busca (400ms)
+  useEffect(() => {
+    const t = setTimeout(() => setBuscaDebounced(busca), 400);
+    return () => clearTimeout(t);
+  }, [busca]);
 
   const salvarMeta = async () => {
     try {
@@ -736,7 +745,7 @@ export const ContasPagas: React.FC = () => {
   const exportarCSVDados = () => {
     if (contas.length === 0) return;
     const contasOrdenadas = ordenarContas(contas);
-    const headers = ['Credor', 'Vencimento', 'Titulo', 'Pagamento', 'Atraso', 'Centro de Custo', 'Plano Financeiro', 'Valor Original', 'Juros', 'Acrescimos', 'Descontos', 'Valor Pago'];
+    const headers = ['Credor', 'Vencimento', 'Titulo', 'Pagamento', 'Atraso', 'Centro de Custo', 'Plano Financeiro', 'Observação', 'Valor Original', 'Juros', 'Acrescimos', 'Descontos', 'Valor Pago'];
     const rows = contasOrdenadas.map(c => {
       const d = (c as any).dias_atraso;
       const atraso = d == null ? '-' : d > 0 ? `${d}d` : d === 0 ? 'No prazo' : `${Math.abs(d)}d antecip.`;
@@ -748,6 +757,7 @@ export const ContasPagas: React.FC = () => {
         atraso,
         c.nome_centrocusto || '-',
         (c as any).nome_plano_financeiro || '-',
+        ((c as any).descricao_observacao || '').replace(/;/g, ',').replace(/\n/g, ' '),
         ((c as any).valor_baixa || 0).toFixed(2).replace('.', ','),
         ((c as any).valor_juros || 0).toFixed(2).replace('.', ','),
         ((c as any).valor_acrescimo || 0).toFixed(2).replace('.', ','),
@@ -956,27 +966,29 @@ export const ContasPagas: React.FC = () => {
         })(),
         c.nome_centrocusto || '-',
         (c as any).nome_plano_financeiro || '-',
+        (c as any).descricao_observacao || '-',
         formatCurrencyPDF((c as any).valor_baixa || 0),
         formatCurrencyPDF(c.valor_total || 0),
       ]);
 
       y = adicionarTabela(doc, {
-        head: [['Credor', 'Vencim.', 'Titulo', 'Pagam.', 'Atraso', 'Centro Custo', 'Plano Fin.', 'Vlr Original', 'Vlr Pago']],
+        head: [['Credor', 'Vencim.', 'Titulo', 'Pagam.', 'Atraso', 'Centro Custo', 'Plano Fin.', 'Observação', 'Vlr Original', 'Vlr Pago']],
         body,
-        foot: [['', '', '', '', '', '', 'SUBTOTAL',
+        foot: [['', '', '', '', '', '', '', 'SUBTOTAL',
           formatCurrencyPDF(contas.reduce((s, c) => s + ((c as any).valor_baixa || 0), 0)),
           formatCurrencyPDF(contas.reduce((s, c) => s + (c.valor_total || 0), 0)),
         ]],
         columnStyles: {
-          0: { cellWidth: 45 },
-          1: { cellWidth: 22 },
-          2: { halign: 'center', cellWidth: 16 },
-          3: { cellWidth: 22 },
-          4: { halign: 'center', cellWidth: 22 },
-          5: { cellWidth: 40 },
-          6: { cellWidth: 40 },
-          7: { halign: 'right', cellWidth: 28 },
-          8: { halign: 'right', cellWidth: 28 },
+          0: { cellWidth: 40 },
+          1: { cellWidth: 20 },
+          2: { halign: 'center', cellWidth: 14 },
+          3: { cellWidth: 20 },
+          4: { halign: 'center', cellWidth: 18 },
+          5: { cellWidth: 35 },
+          6: { cellWidth: 32 },
+          7: { cellWidth: 45 },
+          8: { halign: 'right', cellWidth: 26 },
+          9: { halign: 'right', cellWidth: 26 },
         },
       }, y, margin);
     }
@@ -2188,6 +2200,27 @@ export const ContasPagas: React.FC = () => {
           </div>
         )}
 
+        {/* Busca global em credor, titulo, documento e observacao */}
+        <div className="mb-4 relative">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 104.5 4.5a7.5 7.5 0 0012.15 12.15z" />
+          </svg>
+          <input
+            type="text"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar em credor, titulo, documento ou observacao..."
+            className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          />
+          {busca && (
+            <button type="button" onClick={() => setBusca('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" aria-label="Limpar busca">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+
         {mostrarFiltros && renderFiltros()}
 
         <div className="rounded-lg bg-white dark:bg-slate-800 shadow overflow-visible">
@@ -2202,6 +2235,7 @@ export const ContasPagas: React.FC = () => {
                   <th onClick={() => toggleOrdenacao('dias_atraso')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">Atraso{renderSortIcon('dias_atraso')}</th>
                   <th onClick={() => toggleOrdenacao('credor')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">Credor{renderSortIcon('credor')}</th>
                   <th onClick={() => toggleOrdenacao('nome_plano_financeiro')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">Plano Financeiro{renderSortIcon('nome_plano_financeiro')}</th>
+                  <th onClick={() => toggleOrdenacao('descricao_observacao')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">Observação{renderSortIcon('descricao_observacao')}</th>
                   <th onClick={() => toggleOrdenacao('valor_baixa')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">Valor Original{renderSortIcon('valor_baixa')}</th>
                   <th onClick={() => toggleOrdenacao('valor_juros')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">Juros{renderSortIcon('valor_juros')}</th>
                   <th onClick={() => toggleOrdenacao('valor_acrescimo')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">Acrescimos{renderSortIcon('valor_acrescimo')}</th>
@@ -2222,6 +2256,7 @@ export const ContasPagas: React.FC = () => {
                       <td className={`whitespace-nowrap px-4 py-3 text-sm font-semibold ${corAtraso}`}>{diasAtraso == null ? '-' : diasAtraso > 0 ? `${diasAtraso}d` : diasAtraso === 0 ? 'No prazo' : `${Math.abs(diasAtraso)}d antecip.`}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900 dark:text-slate-100 max-w-[200px] truncate" title={conta.credor || '-'}>{conta.credor || '-'}</td>
                       <td className="px-4 py-3 text-sm text-gray-500 dark:text-slate-400 max-w-[200px] truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-slate-400 max-w-[220px] truncate" title={(conta as any).descricao_observacao || ''}>{(conta as any).descricao_observacao || '-'}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-700 dark:text-slate-300 text-right font-mono">{formatCurrency((conta as any).valor_baixa || 0)}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm text-right font-mono text-orange-600">{(conta as any).valor_juros ? formatCurrency((conta as any).valor_juros) : '-'}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm text-right font-mono text-red-600 dark:text-red-400">{(conta as any).valor_acrescimo ? formatCurrency((conta as any).valor_acrescimo) : '-'}</td>
@@ -2233,7 +2268,7 @@ export const ContasPagas: React.FC = () => {
               </tbody>
               <tfoot className="bg-green-50">
                 <tr>
-                  <td colSpan={7} className="px-4 py-3 text-sm font-bold text-gray-900 dark:text-slate-100">SUBTOTAL PAGINA</td>
+                  <td colSpan={8} className="px-4 py-3 text-sm font-bold text-gray-900 dark:text-slate-100">SUBTOTAL PAGINA</td>
                   <td className="px-4 py-3 text-sm font-bold text-gray-700 dark:text-slate-300 text-right font-mono">{formatCurrency(totalValorOriginal)}</td>
                   <td className="px-4 py-3 text-sm font-bold text-orange-600 text-right font-mono">-</td>
                   <td className="px-4 py-3 text-sm font-bold text-red-600 dark:text-red-400 text-right font-mono">-</td>
@@ -3450,6 +3485,9 @@ export const ContasPagas: React.FC = () => {
                   <th onClick={() => toggleOrdenacao('nome_plano_financeiro')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">
                     Plano Financeiro{renderSortIcon('nome_plano_financeiro')}
                   </th>
+                  <th onClick={() => toggleOrdenacao('descricao_observacao')} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">
+                    Observação{renderSortIcon('descricao_observacao')}
+                  </th>
                   <th onClick={() => toggleOrdenacao('valor_baixa')} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-green-100">
                     Valor Original{renderSortIcon('valor_baixa')}
                   </th>
@@ -3506,6 +3544,9 @@ export const ContasPagas: React.FC = () => {
                       <td className="px-4 py-3 text-sm text-gray-500 dark:text-slate-400 max-w-[200px] truncate" title={(conta as any).nome_plano_financeiro || '-'}>
                         {(conta as any).nome_plano_financeiro || '-'}
                       </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-slate-400 max-w-[220px] truncate" title={(conta as any).descricao_observacao || ''}>
+                        {(conta as any).descricao_observacao || '-'}
+                      </td>
                       <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-700 dark:text-slate-300 text-right font-mono">
                         {formatCurrency((conta as any).valor_baixa)}
                       </td>
@@ -3527,7 +3568,7 @@ export const ContasPagas: React.FC = () => {
               </tbody>
               <tfoot className="bg-green-50">
                 <tr>
-                  <td colSpan={7} className="px-4 py-3 text-sm font-bold text-gray-900 dark:text-slate-100">SUBTOTAL PAGINA</td>
+                  <td colSpan={8} className="px-4 py-3 text-sm font-bold text-gray-900 dark:text-slate-100">SUBTOTAL PAGINA</td>
                   <td className="px-4 py-3 text-sm font-bold text-gray-700 dark:text-slate-300 text-right font-mono">{formatCurrency(totalValorOriginal)}</td>
                   <td className="px-4 py-3 text-sm font-bold text-orange-600 text-right font-mono">-</td>
                   <td className="px-4 py-3 text-sm font-bold text-red-600 dark:text-red-400 text-right font-mono">-</td>

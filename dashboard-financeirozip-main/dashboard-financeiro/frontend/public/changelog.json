@@ -1,6 +1,31 @@
 {
-  "versao_atual": "1.8.0",
+  "versao_atual": "1.9.0",
   "historico": [
+    {
+      "versao": "1.9.0",
+      "data": "2026-04-20",
+      "titulo": "Novidades da Versao 1.9.0",
+      "secoes": [
+        {
+          "titulo": "Contas a Pagar",
+          "icone": "wallet",
+          "itens": [
+            "Nova coluna 'Observação' visível na tabela (passe o mouse para ver o texto completo)",
+            "Campo de busca global no topo: pesquise por credor, titulo, documento ou observação",
+            "Observação incluída nas exportações PDF e CSV"
+          ]
+        },
+        {
+          "titulo": "Contas Pagas",
+          "icone": "wallet",
+          "itens": [
+            "Nova coluna 'Observação' nas tabelas Dados e por Origem",
+            "Campo de busca global que pesquisa em credor, titulo, documento e observação",
+            "Observação incluída nas exportações PDF e CSV"
+          ]
+        }
+      ]
+    },
     {
       "versao": "1.8.0",
       "data": "2026-04-16",
