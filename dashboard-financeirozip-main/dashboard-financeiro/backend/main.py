@@ -18,9 +18,12 @@ import bcrypt
 from jose import JWTError, jwt
 import threading
 import time
+import json
 from dotenv import load_dotenv
 import anthropic
 import httpx
+from rate_limiter import RateLimiter, RateLimitExcedido
+import bridge_telegram
 import base64
 
 load_dotenv()
@@ -92,6 +95,8 @@ except Exception as e:
 
 app = FastAPI(title="Dashboard Financeiro - Construtora")
 
+_rate_limiter_chat_ia = RateLimiter(max_por_minuto_por_chave=10, max_global_por_minuto=30)
+
 @app.on_event("startup")
 async def startup_event():
     """Garante que tabelas de config existam no PostgreSQL ao iniciar."""
@@ -111,6 +116,13 @@ async def startup_event():
         _ensure_config_tables_in_postgres()
     except Exception as e:
         print(f"[STARTUP] Erro ao garantir tabelas de config: {e}")
+
+    if os.environ.get("BI_AGENTE_BRIDGE_ENABLED", "").lower() == "true":
+        try:
+            await bridge_telegram.iniciar_bridge()
+            print("[STARTUP] Bridge Telegram iniciada com sucesso")
+        except Exception as e:
+            print(f"[STARTUP] Erro ao iniciar bridge Telegram: {e}")
 
 # Configuração de segurança JWT
 _jwt_from_env = os.environ.get('JWT_SECRET_KEY', '')
@@ -813,8 +825,57 @@ async def listar_atividades(current_user: dict = Depends(require_admin)):
 # ==================== ROTAS DE IA ====================
 
 @app.post("/api/ia/chat")
-async def chat_ia(req: ChatRequest, current_user: dict = Depends(get_current_user_optional)):
-    """Rota para comunicação com o Agente de IA Financeiro"""
+async def chat_ia(req: ChatRequest, current_user: dict = Depends(get_current_user)):
+    """Chat com o agente BI.
+
+    Quando BI_AGENTE_BRIDGE_ENABLED=true, proxya via Telethon ao bot Hermes
+    (chat compartilhado entre admins). Caso contrario, usa fallback Anthropic direto.
+    """
+    email = current_user["email"]
+    try:
+        _rate_limiter_chat_ia.check(email)
+    except RateLimitExcedido as e:
+        raise HTTPException(429, str(e))
+
+    if os.environ.get("BI_AGENTE_BRIDGE_ENABLED", "").lower() == "true":
+        if not req.messages:
+            raise HTTPException(400, "messages vazio")
+        ultima_msg = req.messages[-1].content
+        try:
+            resposta = await bridge_telegram.perguntar(
+                mensagem=ultima_msg,
+                usuario_bi=email,
+                role=current_user.get("permissao", "user"),
+                timeout=90,
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"[bridge] Erro inesperado: {e}")
+            raise HTTPException(500, "Erro no agente BI")
+
+        try:
+            log_atividade(
+                email=email,
+                acao="chat_ia",
+                detalhes=json.dumps({
+                    "pergunta": ultima_msg[:500],
+                    "resposta_preview": resposta[:200],
+                    "origem": "bridge",
+                }),
+            )
+        except Exception as e:
+            print(f"[chat_ia] Falha ao registrar atividade: {e}")
+        return {"reply": resposta}
+
+    return await _chat_ia_legacy(req)
+
+
+async def _chat_ia_legacy(req: ChatRequest) -> dict:
+    """Fallback: resposta via Anthropic direto (sem agente Hermes).
+
+    Ativado quando BI_AGENTE_BRIDGE_ENABLED != true — permite rollback instantaneo.
+    """
     load_dotenv(override=True)
     api_key = os.environ.get('ANTHROPIC_API_KEY', '')
     modelo = os.environ.get('IA_MODELO', 'claude-3-haiku-20240307')
