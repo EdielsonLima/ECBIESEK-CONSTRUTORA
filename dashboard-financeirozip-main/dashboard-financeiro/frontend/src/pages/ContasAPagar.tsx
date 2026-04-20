@@ -1511,17 +1511,18 @@ export const ContasAPagar: React.FC = () => {
         <div>
           <table className="w-full divide-y divide-gray-200 table-fixed text-[11px]">
             <colgroup>
-              <col className="w-[15%]" />{/* Credor */}
-              <col className="w-[6%]" />{/* Cadastro */}
-              <col className="w-[6%]" />{/* Vencimento */}
+              <col className="w-[13%]" />{/* Credor */}
+              <col className="w-[5%]" />{/* Cadastro */}
+              <col className="w-[5%]" />{/* Vencimento */}
               <col className="w-[4%]" />{/* Prazo */}
               <col className="w-[5%]" />{/* Dias */}
               <col className="w-[4%]" />{/* Titulo */}
               <col className="w-[4%]" />{/* Doc */}
               <col className="w-[3%]" />{/* Aut */}
-              <col className="w-[17%]" />{/* C. Custo (com cod) */}
-              <col className="w-[14%]" />{/* Plano Fin */}
-              <col className="w-[12%]" />{/* Tipo Pag */}
+              <col className="w-[14%]" />{/* C. Custo (com cod) */}
+              <col className="w-[12%]" />{/* Plano Fin */}
+              <col className="w-[10%]" />{/* Tipo Pag */}
+              <col className="w-[14%]" />{/* Observação */}
               <col className="w-[7%]" />{/* Valor */}
             </colgroup>
             <thead className="bg-blue-50 sticky top-[85px] z-30 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
@@ -1558,6 +1559,9 @@ export const ContasAPagar: React.FC = () => {
                 </th>
                 <th onClick={() => toggleOrdenacao('nome_tipo_pagamento')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">
                   Tipo Pag.{renderSortIcon('nome_tipo_pagamento')}
+                </th>
+                <th onClick={() => toggleOrdenacao('descricao_observacao')} className="px-1.5 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">
+                  Observação{renderSortIcon('descricao_observacao')}
                 </th>
                 <th onClick={() => toggleOrdenacao('valor_total')} className="px-1.5 py-2 text-right text-[10px] font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400 cursor-pointer hover:bg-blue-100">
                   Valor{renderSortIcon('valor_total')}
@@ -1635,11 +1639,12 @@ export const ContasAPagar: React.FC = () => {
                       </td>
                       <td className="px-1.5 py-2 text-gray-500 dark:text-slate-400 truncate" title={(conta as any).nome_plano_financeiro || '-'}>{(conta as any).nome_plano_financeiro || '-'}</td>
                       <td className="px-1.5 py-2 text-gray-500 dark:text-slate-400 truncate" title={(conta as any).nome_tipo_pagamento || '-'}>{(conta as any).nome_tipo_pagamento || '-'}</td>
+                      <td className="px-1.5 py-2 text-gray-600 dark:text-slate-400 truncate" title={(conta as any).descricao_observacao || ''}>{(conta as any).descricao_observacao || '-'}</td>
                       <td className="whitespace-nowrap px-1.5 py-2 font-semibold text-blue-600 text-right">{formatCurrency(conta.valor_total)}</td>
                     </tr>
                     {isExpanded && (
                       <tr>
-                        <td colSpan={12} className="p-0">
+                        <td colSpan={13} className="p-0">
                           <div className="bg-gradient-to-r from-blue-50 via-blue-50 to-indigo-50 border-l-4 border-l-blue-600 border-t-2 border-b-2 border-t-blue-300 border-b-blue-300 px-8 py-5 shadow-inner">
                             <div className="flex items-center justify-between mb-4 pb-3 border-b border-blue-200">
                               <div className="flex items-center gap-3">
