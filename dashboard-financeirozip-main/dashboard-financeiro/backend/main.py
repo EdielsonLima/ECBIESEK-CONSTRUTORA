@@ -949,8 +949,9 @@ def get_metricas():
         conn.close()
 
 @app.get("/api/contas")
-def get_contas(status: Optional[str] = None, limite: int = 100):
-    """Retorna lista de contas com filtro opcional por status"""
+def get_contas(status: Optional[str] = None, limite: int = 100, busca: Optional[str] = None):
+    """Retorna lista de contas com filtro opcional por status.
+    `busca`: texto pesquisado em credor, lancamento, numero_documento e descricao_observacao (ILIKE)."""
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -958,25 +959,51 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
         hoje = datetime.now().date()
         exclusoes = get_exclusoes()
 
+        busca_termo = (busca or '').strip()
+        busca_like = f"%{busca_termo}%" if busca_termo else None
+
         if status == "pago":
             excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cp', has_conta_corrente=True)
             excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
+            busca_where = ""
+            busca_params: list = []
+            if busca_like:
+                busca_where = """ AND (
+                    cp.credor ILIKE %s OR
+                    cp.lancamento ILIKE %s OR
+                    COALESCE(cp.numero_documento, '') ILIKE %s OR
+                    COALESCE(t.descricao_observacao, '') ILIKE %s
+                )"""
+                busca_params = [busca_like, busca_like, busca_like, busca_like]
             query = f"""
                 SELECT cp.credor, cp.data_pagamento as data_vencimento, cp.valor_liquido as valor_total,
                        cp.lancamento, cp.numero_documento, cp.id_plano_financeiro,
                        cp.id_interno_empresa, cp.id_interno_centro_custo,
                        cc.nome_empresa, cc.nome_centrocusto,
-                       cc.id_sienge_centrocusto as codigo_centrocusto
+                       cc.id_sienge_centrocusto as codigo_centrocusto,
+                       t.descricao_observacao
                 FROM contas_pagas cp
                 LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
-                WHERE 1=1{excl_where}
+                LEFT JOIN ecpgtitulo t ON t.id_pg_titulo = CAST(SPLIT_PART(cp.lancamento, '/', 1) AS INTEGER)
+                    AND t.id_credor = cp.id_credor
+                WHERE 1=1{excl_where}{busca_where}
                 ORDER BY cp.data_pagamento DESC
                 LIMIT %s
             """
-            cursor.execute(query, excl_params + [limite])
+            cursor.execute(query, excl_params + busca_params + [limite])
         elif status == "a_pagar":
             excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', exclude_paid=True)
             excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
+            busca_where = ""
+            busca_params = []
+            if busca_like:
+                busca_where = """ AND (
+                    cap.credor ILIKE %s OR
+                    cap.lancamento ILIKE %s OR
+                    COALESCE(cap.numero_documento, '') ILIKE %s OR
+                    COALESCE(t.descricao_observacao, '') ILIKE %s
+                )"""
+                busca_params = [busca_like, busca_like, busca_like, busca_like]
             query = f"""
                 SELECT cap.credor, cap.data_vencimento, cap.valor_total,
                        cap.lancamento, cap.numero_documento, cap.id_plano_financeiro,
@@ -1000,11 +1027,11 @@ def get_contas(status: Optional[str] = None, limite: int = 100):
                     AND t.id_credor = cap.id_credor
                 LEFT JOIN ecadplanofin pf ON cap.id_plano_financeiro = pf.id_plano_financeiro
                 LEFT JOIN ecadtipopagamento tp ON cap.id_tipo_pagamento = tp.id_tipo_pagamento
-                WHERE 1=1{excl_where}
+                WHERE 1=1{excl_where}{busca_where}
                 ORDER BY cap.data_vencimento ASC
                 LIMIT %s
             """
-            cursor.execute(query, excl_params + [limite])
+            cursor.execute(query, excl_params + busca_params + [limite])
         elif status == "em_atraso":
             excl_conds, excl_params = build_exclusion_conditions(exclusoes, cc_alias='cc', table_alias='cap', exclude_paid=True)
             excl_where = (" AND " + " AND ".join(excl_conds)) if excl_conds else ""
@@ -1517,10 +1544,12 @@ def get_contas_pagas_filtradas(
     data_inicio: Optional[str] = None,
     data_fim: Optional[str] = None,
     incluir_inter_empresa: bool = False,
+    busca: Optional[str] = None,
     limite: int = 100,
     offset: int = 0
 ):
-    """Retorna contas pagas com filtros avançados"""
+    """Retorna contas pagas com filtros avancados.
+    `busca`: ILIKE em credor, lancamento, numero_documento, descricao_observacao."""
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -1677,6 +1706,16 @@ def get_contas_pagas_filtradas(
             conditions.append("(cp.data_pagamento + INTERVAL '1 day')::date <= %s")
             params.append(data_fim)
 
+        busca_termo = (busca or '').strip()
+        if busca_termo:
+            like = f"%{busca_termo}%"
+            conditions.append(
+                "(cp.credor ILIKE %s OR cp.lancamento ILIKE %s "
+                "OR COALESCE(cp.numero_documento, '') ILIKE %s "
+                "OR COALESCE(t.descricao_observacao, '') ILIKE %s)"
+            )
+            params.extend([like, like, like, like])
+
         where_clause = " AND ".join(conditions) if conditions else "1=1"
 
         query = f"""
@@ -1716,11 +1755,13 @@ def get_contas_pagas_filtradas(
                      THEN ((cp.data_pagamento + INTERVAL '1 day')::date - pp.data_vencimento)
                      ELSE NULL END as dias_atraso,
                 TRIM(cp.id_documento) as id_documento,
+                COALESCE(t.descricao_observacao, '') as descricao_observacao,
                 EXISTS (SELECT 1 FROM empresa_grupo eg WHERE TRIM(cp.credor) = eg.nome) as is_inter_empresa
             FROM cp_base cp
             LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
             LEFT JOIN ecpgparcela pp ON cp._titulo_id = pp.id_pg_titulo AND cp._parcela_num = pp.numero_parcela
             LEFT JOIN ecadplanofin pf ON cp.id_plano_financeiro = pf.id_plano_financeiro
+            LEFT JOIN ecpgtitulo t ON t.id_pg_titulo = cp._titulo_id AND t.id_credor = cp.id_credor
             WHERE {where_clause}
             ORDER BY cp.data_pagamento DESC, cp.credor, cp.valor_liquido
             LIMIT %s OFFSET %s
@@ -1740,6 +1781,7 @@ def get_contas_pagas_filtradas(
             SELECT COUNT(*) as total
             FROM cp_base cp
             LEFT JOIN dim_centrocusto cc ON cp.id_interno_centro_custo = cc.id_interno_centrocusto
+            LEFT JOIN ecpgtitulo t ON t.id_pg_titulo = cp._titulo_id AND t.id_credor = cp.id_credor
             WHERE {where_clause}
         """
         count_params = list(params[:-2])  # sem limite e offset

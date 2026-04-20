@@ -163,10 +163,11 @@ export const apiService = {
   },
 
   // Contas a pagar
-  getContas: async (status?: string, limite: number = 100): Promise<ContaPagar[]> => {
+  getContas: async (status?: string, limite: number = 100, busca?: string): Promise<ContaPagar[]> => {
     const params = new URLSearchParams();
     if (status) params.append('status', status);
     params.append('limite', limite.toString());
+    if (busca && busca.trim()) params.append('busca', busca.trim());
 
     const response = await api.get<ContaPagar[]>(`/contas?${params.toString()}`);
     return response.data;
@@ -227,6 +228,7 @@ export const apiService = {
     data_inicio?: string;
     data_fim?: string;
     incluir_inter_empresa?: boolean;
+    busca?: string;
     limite?: number;
     offset?: number;
   }): Promise<{ data: ContaPagar[]; total: number; inter_empresa_ocultas?: { qtd: number; valor: number; incluindo: boolean } }> => {
@@ -246,6 +248,7 @@ export const apiService = {
     if (filtros.data_inicio) params.append('data_inicio', filtros.data_inicio);
     if (filtros.data_fim) params.append('data_fim', filtros.data_fim);
     if (filtros.incluir_inter_empresa) params.append('incluir_inter_empresa', 'true');
+    if (filtros.busca && filtros.busca.trim()) params.append('busca', filtros.busca.trim());
     if (filtros.limite) params.append('limite', filtros.limite.toString());
     if (filtros.offset) params.append('offset', filtros.offset.toString());
 
