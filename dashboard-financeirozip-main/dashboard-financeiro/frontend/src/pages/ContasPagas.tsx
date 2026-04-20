@@ -139,7 +139,7 @@ interface DadosPorOrigemTab {
 type AbaAtiva = 'dados' | 'fornecedor' | 'centro-custo' | 'origem' | 'analises' | 'configuracoes';
 
 export const ContasPagas: React.FC = () => {
-  const [abaAtiva, setAbaAtiva] = useState<AbaAtiva>('fornecedor');
+  const [abaAtiva, setAbaAtiva] = useState<AbaAtiva>('dados');
   const [contas, setContas] = useState<ContaPagar[]>([]);
   const [dadosFornecedores, setDadosFornecedores] = useState<DadosPorFornecedor | null>(null);
   const [dadosCentroCusto, setDadosCentroCusto] = useState<DadosPorCentroCusto | null>(null);
