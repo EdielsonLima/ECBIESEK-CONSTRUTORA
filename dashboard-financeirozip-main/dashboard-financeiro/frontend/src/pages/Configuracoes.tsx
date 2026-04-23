@@ -159,7 +159,7 @@ export const Configuracoes: React.FC = () => {
         apiService.getOrigensExposicao(),
         apiService.getTiposBaixaCompleto(),
         apiService.getTiposBaixaExposicao(),
-        apiService.getSaldosContasDisponiveis(),
+        apiService.getSaldosContasDisponiveis(true), // incluir ocultas para admin poder desmarcar
         apiService.getContasOcultasSaldos(),
       ]);
 

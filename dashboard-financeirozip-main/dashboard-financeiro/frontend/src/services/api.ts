@@ -1187,9 +1187,12 @@ export const apiService = {
     return response.data;
   },
 
-  getSaldosContasDisponiveis: async (): Promise<Array<{ id: string; id_conta_corrente?: string; nome: string; empresa_id: number; empresa_nome: string }>> => {
+  getSaldosContasDisponiveis: async (incluirOcultas: boolean = false): Promise<Array<{ id: string; id_conta_corrente?: string; nome: string; empresa_id: number; empresa_nome: string; oculta?: boolean }>> => {
     try {
-      const response = await api.get<Array<{ id: string; id_conta_corrente?: string; nome: string; empresa_id: number; empresa_nome: string }>>('/saldos-bancarios/contas-disponiveis');
+      const url = incluirOcultas
+        ? '/saldos-bancarios/contas-disponiveis?incluir_ocultas=true'
+        : '/saldos-bancarios/contas-disponiveis';
+      const response = await api.get<Array<{ id: string; id_conta_corrente?: string; nome: string; empresa_id: number; empresa_nome: string; oculta?: boolean }>>(url);
       return Array.isArray(response.data) ? response.data : [];
     } catch (err) {
       console.error('[saldos/contas-disponiveis] erro:', err);

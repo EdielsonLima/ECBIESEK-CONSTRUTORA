@@ -9513,9 +9513,11 @@ def get_todos_tipos_documento():
 # ============ SALDOS BANCÁRIOS ============
 
 @app.get("/api/saldos-bancarios/contas-disponiveis")
-def get_saldos_contas_disponiveis():
+def get_saldos_contas_disponiveis(incluir_ocultas: bool = False):
     """Retorna contas distintas da tabela posicao_saldos (fonte dos saldos oficiais),
-    com a empresa agrupada conforme o proprio Sienge usa. Exclui contas de Mutuo."""
+    com a empresa agrupada conforme o proprio Sienge usa. Exclui contas de Mutuo.
+    `incluir_ocultas=true`: ignora a config de ocultas (usado pela tela de Configuracoes
+    para permitir desocultar). Sem o parametro, comportamento padrao filtra ocultas."""
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -9555,10 +9557,9 @@ def get_saldos_contas_disponiveis():
         for r in rows:
             conta = r['id_conta_corrente']
             id_int_emp = r['id_interno_empresa']
-            # Pula ocultas
-            if conta in ocultas_globais:
-                continue
-            if (conta, id_int_emp) in ocultas_especificas:
+            esta_oculta = (conta in ocultas_globais) or ((conta, id_int_emp) in ocultas_especificas)
+            # Pula ocultas, exceto quando admin quer ve-las na tela de config
+            if esta_oculta and not incluir_ocultas:
                 continue
             emp = mapa_emp.get(id_int_emp, {})
             # id composto: id_interno_empresa::id_conta_corrente - garante unicidade
@@ -9570,6 +9571,7 @@ def get_saldos_contas_disponiveis():
                 'nome': r['nome'] or '-',
                 'empresa_id': emp.get('id_sienge', 0),
                 'empresa_nome': emp.get('nome', 'Sem Empresa'),
+                'oculta': bool(esta_oculta),
             })
         return result
     except Exception as e:
