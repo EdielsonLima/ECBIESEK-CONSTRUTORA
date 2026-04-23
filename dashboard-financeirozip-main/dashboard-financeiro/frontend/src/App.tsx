@@ -27,6 +27,7 @@ import { SaldosBancarios } from './pages/SaldosBancarios';
 import { NotificacoesWhatsapp } from './pages/NotificacoesWhatsapp';
 import { authService, apiService, User } from './services/api';
 import { ChangelogModal } from './components/ChangelogModal';
+import { FloatingChatIA } from './components/FloatingChatIA';
 import { useTheme } from './contexts/ThemeContext';
 
 const DIAS_PT = ['dom.', 'seg.', 'ter.', 'qua.', 'qui.', 'sex.', 'sab.'];
@@ -346,6 +347,11 @@ function App() {
           </div>
         </footer>
       </div>
+
+      {/* Chat IA flutuante (aparece em todas as paginas, exceto na propria pagina do chat) */}
+      {currentPage !== 'chat-ia' && (
+        <FloatingChatIA onExpandir={() => setCurrentPage('chat-ia')} />
+      )}
     </div>
   );
 }
