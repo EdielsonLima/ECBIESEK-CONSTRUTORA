@@ -10332,6 +10332,19 @@ def toggle_conta_oculta_saldos(data: dict, admin: dict = Depends(require_admin))
     cursor = conn.cursor()
     try:
         if ocultar:
+            # Deduplica manualmente (UNIQUE com NULL no Postgres trata cada NULL como distinto)
+            if id_interno_empresa:
+                cursor.execute(
+                    "SELECT id FROM config_contas_ocultas_saldos WHERE id_conta_corrente = %s AND id_interno_empresa = %s LIMIT 1",
+                    (id_conta_corrente, id_interno_empresa)
+                )
+            else:
+                cursor.execute(
+                    "SELECT id FROM config_contas_ocultas_saldos WHERE id_conta_corrente = %s AND id_interno_empresa IS NULL LIMIT 1",
+                    (id_conta_corrente,)
+                )
+            if cursor.fetchone():
+                return {"success": True, "ja_existia": True}
             try:
                 cursor.execute("""
                     INSERT INTO config_contas_ocultas_saldos (id_conta_corrente, id_interno_empresa, nome_conta_corrente)
