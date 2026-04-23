@@ -1009,10 +1009,29 @@ Regra Importante: Responda as perguntas de forma direta, concisa e profissional.
         
         reply_text = response.content[0].text
         return {"reply": reply_text}
-        
+
     except Exception as e:
-        print(f"Erro no chat da IA: {e}")
-        raise HTTPException(status_code=500, detail="Erro interno do servidor")
+        import traceback
+        tb = traceback.format_exc()
+        print(f"Erro no chat da IA: {type(e).__name__}: {e}")
+        print(f"Traceback:\n{tb}")
+        globals()['_chat_ia_last_error'] = f"{type(e).__name__}: {str(e)}"
+        raise HTTPException(status_code=500, detail=f"Erro interno: {type(e).__name__}")
+
+
+@app.get("/api/debug/chat-ia-status")
+def debug_chat_ia_status(admin: dict = Depends(require_admin)):
+    """Diagnostico do chat IA legacy (Claude direto)."""
+    api_key = os.environ.get('ANTHROPIC_API_KEY', '')
+    modelo = os.environ.get('IA_MODELO', 'claude-3-haiku-20240307')
+    return {
+        'ANTHROPIC_API_KEY_set': bool(api_key),
+        'ANTHROPIC_API_KEY_len': len(api_key),
+        'ANTHROPIC_API_KEY_prefix': api_key[:10] if api_key else None,
+        'IA_MODELO': modelo,
+        'ultimo_erro': globals().get('_chat_ia_last_error'),
+        'bridge_enabled': os.environ.get("BI_AGENTE_BRIDGE_ENABLED", "").lower() == "true",
+    }
 
 # Endpoints
 @app.get("/api/health")
