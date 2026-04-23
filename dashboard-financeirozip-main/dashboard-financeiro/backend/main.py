@@ -1006,8 +1006,25 @@ Regra Importante: Responda as perguntas de forma direta, concisa e profissional.
             max_tokens=2048,
             temperature=0.3
         )
-        
-        reply_text = response.content[0].text
+
+        # Modelos novos (claude-4.x) podem retornar multiplos blocks (thinking, text, tool_use)
+        # Pega o primeiro block do tipo 'text' com conteudo real
+        reply_text = ''
+        for block in response.content:
+            block_type = getattr(block, 'type', None)
+            if block_type == 'text':
+                text_val = getattr(block, 'text', '') or ''
+                if text_val.strip():
+                    reply_text = text_val
+                    break
+        if not reply_text:
+            # Fallback: tenta o primeiro block (comportamento antigo)
+            try:
+                reply_text = getattr(response.content[0], 'text', '') or ''
+            except Exception:
+                reply_text = ''
+        if not reply_text:
+            reply_text = "Nao consegui gerar uma resposta agora. Tente reformular sua pergunta."
         return {"reply": reply_text}
 
     except Exception as e:
