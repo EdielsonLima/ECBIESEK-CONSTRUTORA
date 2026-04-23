@@ -841,6 +841,8 @@ async def chat_ia(req: ChatRequest, current_user: dict = Depends(get_current_use
         if not req.messages:
             raise HTTPException(400, "messages vazio")
         ultima_msg = req.messages[-1].content
+        bridge_falhou = False
+        bridge_error_msg = None
         try:
             resposta = await bridge_telegram.perguntar(
                 mensagem=ultima_msg,
@@ -848,27 +850,102 @@ async def chat_ia(req: ChatRequest, current_user: dict = Depends(get_current_use
                 role=current_user.get("permissao", "user"),
                 timeout=90,
             )
-        except HTTPException:
-            raise
+        except HTTPException as he:
+            # Bridge nao iniciado (503) ou timeout (504) → cai no Claude (fallback automatico)
+            bridge_falhou = True
+            bridge_error_msg = f"HTTP {he.status_code}: {he.detail}"
+            print(f"[bridge] Falha controlada: {bridge_error_msg} → fallback Claude")
         except Exception as e:
-            print(f"[bridge] Erro inesperado: {e}")
-            raise HTTPException(500, "Erro no agente BI")
+            bridge_falhou = True
+            bridge_error_msg = f"{type(e).__name__}: {e}"
+            print(f"[bridge] Erro inesperado: {bridge_error_msg} → fallback Claude")
 
-        try:
-            log_atividade(
-                email=email,
-                acao="chat_ia",
-                detalhes=json.dumps({
-                    "pergunta": ultima_msg[:500],
-                    "resposta_preview": resposta[:200],
-                    "origem": "bridge",
-                }),
-            )
-        except Exception as e:
-            print(f"[chat_ia] Falha ao registrar atividade: {e}")
-        return {"reply": resposta}
+        if not bridge_falhou:
+            try:
+                log_atividade(
+                    email=email,
+                    acao="chat_ia",
+                    detalhes=json.dumps({
+                        "pergunta": ultima_msg[:500],
+                        "resposta_preview": resposta[:200],
+                        "origem": "bridge",
+                    }),
+                )
+            except Exception as e:
+                print(f"[chat_ia] Falha ao registrar atividade: {e}")
+            return {"reply": resposta}
+
+        # Fallback: bridge falhou, usa Claude direto e grava o motivo
+        globals()['_bridge_last_error'] = bridge_error_msg
 
     return await _chat_ia_legacy(req)
+
+
+@app.get("/api/debug/bridge-status")
+def debug_bridge_status(admin: dict = Depends(require_admin)):
+    """Diagnostico seguro do bridge Telegram (nunca quebra startup)."""
+    try:
+        import bridge_telegram as _bt
+    except Exception as e:
+        return {'erro_importar_modulo': str(e)}
+    api_id = os.environ.get('TELEGRAM_API_ID', '')
+    api_hash = os.environ.get('TELEGRAM_API_HASH', '')
+    session = os.environ.get('TELETHON_SESSION_STRING', '')
+    bot = os.environ.get('TELEGRAM_BOT_USERNAME', '')
+    enabled = os.environ.get('BI_AGENTE_BRIDGE_ENABLED', '').lower() == 'true'
+    return {
+        'enabled': enabled,
+        'iniciado': getattr(_bt, '_iniciado', False),
+        'client_criado': getattr(_bt, '_client', None) is not None,
+        'bot_entity': str(getattr(_bt, '_bot_entity', None)),
+        'envs_resumo': {
+            'TELEGRAM_API_ID_set': bool(api_id),
+            'TELEGRAM_API_ID_digits': api_id.isdigit() if api_id else False,
+            'TELEGRAM_API_ID_len': len(api_id),
+            'TELEGRAM_API_HASH_set': bool(api_hash),
+            'TELEGRAM_API_HASH_len': len(api_hash),
+            'TELEGRAM_API_HASH_has_spaces': ' ' in api_hash or '\n' in api_hash,
+            'TELETHON_SESSION_STRING_set': bool(session),
+            'TELETHON_SESSION_STRING_len': len(session),
+            'TELETHON_SESSION_STRING_has_spaces_ou_quebras': ' ' in session or '\n' in session or '\t' in session or '\r' in session,
+            'TELETHON_SESSION_STRING_last_char': session[-1] if session else None,
+            'TELETHON_SESSION_STRING_preview': (session[:20] + '...' + session[-5:]) if len(session) > 30 else session,
+            'TELEGRAM_BOT_USERNAME': bot,
+        },
+        'ultimo_erro_chat': globals().get('_bridge_last_error'),
+        'ultimo_erro_startup': globals().get('_bridge_init_error'),
+    }
+
+
+@app.post("/api/debug/bridge-restart")
+async def debug_bridge_restart(admin: dict = Depends(require_admin)):
+    """Tenta (re)iniciar o bridge manualmente — retorna detalhes do erro se houver."""
+    try:
+        import bridge_telegram as _bt
+    except Exception as e:
+        return {'ok': False, 'error': f'import falhou: {e}'}
+    _bt._iniciado = False
+    _bt._client = None
+    _bt._bot_entity = None
+    import asyncio as _aio
+    try:
+        await _aio.wait_for(_bt.iniciar_bridge(), timeout=30)
+        globals()['_bridge_init_error'] = None
+        return {'ok': True, 'iniciado': _bt._iniciado}
+    except _aio.TimeoutError:
+        msg = "TimeoutError: Telethon nao conectou em 30s"
+        globals()['_bridge_init_error'] = msg
+        return {'ok': False, 'error_type': 'TimeoutError', 'error': msg}
+    except Exception as e:
+        import traceback
+        detail = traceback.format_exc()
+        globals()['_bridge_init_error'] = f"{type(e).__name__}: {str(e)}"
+        return {
+            'ok': False,
+            'error_type': type(e).__name__,
+            'error': str(e),
+            'traceback': detail,
+        }
 
 
 async def _chat_ia_legacy(req: ChatRequest) -> dict:
