@@ -10291,6 +10291,7 @@ def get_contas_ocultas_saldos():
 @app.get("/api/configuracoes/contas-ocultas-saldos")
 def listar_contas_ocultas_saldos(admin: dict = Depends(require_admin)):
     """Lista todas as contas marcadas como ocultas na pagina de Saldos Bancarios."""
+    _ensure_contas_ocultas_saldos_table()
     conn = get_config_db_connection()
     cursor = conn.cursor()
     try:
@@ -10326,6 +10327,7 @@ def toggle_conta_oculta_saldos(data: dict, admin: dict = Depends(require_admin))
         id_interno_empresa = str(id_interno_empresa).strip() or None
     nome = data.get('nome_conta_corrente') or ''
     ocultar = bool(data.get('ocultar', True))
+    _ensure_contas_ocultas_saldos_table()
     conn = get_config_db_connection()
     cursor = conn.cursor()
     try:
