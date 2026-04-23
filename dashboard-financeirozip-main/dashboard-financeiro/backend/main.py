@@ -118,25 +118,16 @@ async def startup_event():
         print(f"[STARTUP] Erro ao garantir tabelas de config: {e}")
 
     if os.environ.get("BI_AGENTE_BRIDGE_ENABLED", "").lower() == "true":
-        # Roda em background para NAO bloquear o startup (healthcheck Railway)
-        async def _init_bridge_safe():
-            import asyncio as _asyncio
-            try:
-                await _asyncio.wait_for(bridge_telegram.iniciar_bridge(), timeout=30)
-                print("[STARTUP] Bridge Telegram iniciada com sucesso")
-                globals()['_bridge_init_error'] = None
-            except _asyncio.TimeoutError:
-                print("[STARTUP] Bridge Telegram: TIMEOUT de 30s ao conectar. Verifique TELETHON_SESSION_STRING.")
-                globals()['_bridge_init_error'] = "TimeoutError: Telethon nao conectou em 30s"
-            except Exception as e:
-                import traceback
-                err_detail = traceback.format_exc()
-                print(f"[STARTUP] Erro ao iniciar bridge Telegram: {type(e).__name__}: {e}")
-                print(f"[STARTUP] Traceback:\n{err_detail}")
-                globals()['_bridge_init_error'] = f"{type(e).__name__}: {str(e)}"
-        import asyncio as _asyncio_main
-        _asyncio_main.create_task(_init_bridge_safe())
-        print("[STARTUP] Bridge Telegram agendado em background (nao bloqueia startup)")
+        try:
+            await bridge_telegram.iniciar_bridge()
+            print("[STARTUP] Bridge Telegram iniciada com sucesso")
+        except Exception as e:
+            import traceback
+            err_detail = traceback.format_exc()
+            print(f"[STARTUP] Erro ao iniciar bridge Telegram: {type(e).__name__}: {e}")
+            print(f"[STARTUP] Traceback:\n{err_detail}")
+            # Guarda erro para endpoint de diagnostico
+            globals()['_bridge_init_error'] = f"{type(e).__name__}: {str(e)}"
 
 
 @app.get("/api/debug/bridge-status")
