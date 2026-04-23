@@ -8268,6 +8268,37 @@ def init_configuracoes_tables():
                 created_at {ts}
             )
         """)
+        # Contas ocultas APENAS da pagina de Saldos Bancarios (dropdown e calculos)
+        # Diferente de config_contas_correntes_excluidas que e global
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS config_contas_ocultas_saldos (
+                id {serial} PRIMARY KEY,
+                id_conta_corrente VARCHAR(100) NOT NULL,
+                id_interno_empresa VARCHAR(50),
+                nome_conta_corrente VARCHAR(255),
+                created_at {ts},
+                UNIQUE(id_conta_corrente, id_interno_empresa)
+            )
+        """)
+        # Seed inicial: contas marcadas pelo usuario (planilha 2026-04-23) - so insere se vazio
+        cursor.execute("SELECT COUNT(*) as cnt FROM config_contas_ocultas_saldos")
+        _row_coc = cursor.fetchone()
+        if _row_coc and int(_row_coc['cnt']) == 0:
+            _seed_saldos_ocultas = [
+                ('0302231-5', None, 'LAGOA CREDISIS'),
+                ('5764276728', None, 'RESIDENCIAL VALENCA SPE - WALE'),
+                ('5764772539', None, 'LAGUNAS VENDAS - WALE'),
+                ('5784273597', None, 'CAIXA ECONOMICA - WALE'),
+                ('LUZ-CEF', None, 'LUZ ASSESSORIA - CAIXA ECONOMICA'),
+            ]
+            for id_conta, id_emp, nome in _seed_saldos_ocultas:
+                try:
+                    cursor.execute(
+                        "INSERT INTO config_contas_ocultas_saldos (id_conta_corrente, id_interno_empresa, nome_conta_corrente) VALUES (%s, %s, %s)",
+                        (id_conta, id_emp, nome)
+                    )
+                except Exception:
+                    pass
         cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS config_snapshot_horario (
                 id {serial} PRIMARY KEY,
@@ -9504,15 +9535,27 @@ def get_saldos_contas_disponiveis():
                     'nome': (r['nome_empresa'] or '').strip() or 'Sem Empresa',
                 }
 
+        # Contas ocultas configuradas (config_contas_ocultas_saldos)
+        ocultas = get_contas_ocultas_saldos()
+        ocultas_globais = {c for c, e in ocultas if not e}  # se id_interno_empresa vazio: oculta em todas empresas
+        ocultas_especificas = {(c, e) for c, e in ocultas if e}  # (conta, empresa) especifica
+
         result = []
         for r in rows:
-            emp = mapa_emp.get(r['id_interno_empresa'], {})
+            conta = r['id_conta_corrente']
+            id_int_emp = r['id_interno_empresa']
+            # Pula ocultas
+            if conta in ocultas_globais:
+                continue
+            if (conta, id_int_emp) in ocultas_especificas:
+                continue
+            emp = mapa_emp.get(id_int_emp, {})
             # id composto: id_interno_empresa::id_conta_corrente - garante unicidade
             # pois contas genericas como "CAIXA" se repetem em varias empresas
-            composite_id = f"{r['id_interno_empresa']}::{r['id_conta_corrente']}"
+            composite_id = f"{id_int_emp}::{conta}"
             result.append({
                 'id': composite_id,
-                'id_conta_corrente': r['id_conta_corrente'],
+                'id_conta_corrente': conta,
                 'nome': r['nome'] or '-',
                 'empresa_id': emp.get('id_sienge', 0),
                 'empresa_nome': emp.get('nome', 'Sem Empresa'),
@@ -9623,6 +9666,21 @@ def get_saldos_bancarios(
                 clauses.append('(' + ' OR '.join(pairs_sql) + ')')
             if clauses:
                 where_extra += ' AND (' + ' OR '.join(clauses) + ')'
+
+        # Contas ocultas configuradas: exclui da query
+        ocultas = get_contas_ocultas_saldos()
+        ocultas_globais = [c for c, e in ocultas if not e]
+        ocultas_especificas = [(c, e) for c, e in ocultas if e]
+        if ocultas_globais:
+            ph = ','.join(['%s'] * len(ocultas_globais))
+            where_extra += f" AND ps.id_conta_corrente NOT IN ({ph})"
+            params.extend(ocultas_globais)
+        if ocultas_especificas:
+            pair_clauses = []
+            for c, e in ocultas_especificas:
+                pair_clauses.append("NOT (ps.id_conta_corrente = %s AND ps.id_interno_empresa::text = %s)")
+                params.extend([c, e])
+            where_extra += ' AND ' + ' AND '.join(pair_clauses)
 
         cursor.execute(f"""
             SELECT
@@ -9737,6 +9795,18 @@ def get_saldos_bancarios(
                 clauses_s.append('(' + ' OR '.join(pairs_sql) + ')')
             if clauses_s:
                 serie_where += ' AND (' + ' OR '.join(clauses_s) + ')'
+
+        # Aplica ocultas tambem na serie temporal
+        if ocultas_globais:
+            ph = ','.join(['%s'] * len(ocultas_globais))
+            serie_where += f" AND ps.id_conta_corrente NOT IN ({ph})"
+            serie_params.extend(ocultas_globais)
+        if ocultas_especificas:
+            pair_clauses = []
+            for c, e in ocultas_especificas:
+                pair_clauses.append("NOT (ps.id_conta_corrente = %s AND ps.id_interno_empresa::text = %s)")
+                serie_params.extend([c, e])
+            serie_where += ' AND ' + ' AND '.join(pair_clauses)
 
         cursor.execute(f"""
             SELECT ps.data_movimento as data, SUM(ps.saldo_atual) as saldo
@@ -10156,6 +10226,104 @@ def toggle_conta_corrente_exclusao(data: dict):
     finally:
         cursor.close()
         conn.close()
+
+
+# ============ CONTAS OCULTAS NA PAGINA DE SALDOS BANCARIOS ============
+
+def get_contas_ocultas_saldos():
+    """Retorna set de (id_conta_corrente, id_interno_empresa) ocultas em Saldos Bancarios.
+    Se id_interno_empresa for None/vazio no cadastro, aplica a todas as empresas com esse id_conta."""
+    try:
+        conn = get_config_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "SELECT id_conta_corrente, id_interno_empresa FROM config_contas_ocultas_saldos"
+            )
+            result = []
+            for r in cursor.fetchall():
+                result.append((r['id_conta_corrente'], r.get('id_interno_empresa')))
+            return result
+        finally:
+            cursor.close()
+            conn.close()
+    except Exception as e:
+        print(f"[WARN] get_contas_ocultas_saldos: {e}")
+        return []
+
+
+@app.get("/api/configuracoes/contas-ocultas-saldos")
+def listar_contas_ocultas_saldos(admin: dict = Depends(require_admin)):
+    """Lista todas as contas marcadas como ocultas na pagina de Saldos Bancarios."""
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT id, id_conta_corrente, id_interno_empresa, nome_conta_corrente, created_at
+            FROM config_contas_ocultas_saldos
+            ORDER BY nome_conta_corrente
+        """)
+        rows = []
+        for r in cursor.fetchall():
+            d = dict(r)
+            if d.get('created_at') and hasattr(d['created_at'], 'isoformat'):
+                d['created_at'] = d['created_at'].isoformat()
+            rows.append(d)
+        return {"ocultas": rows}
+    except Exception as e:
+        print(f"[ERRO] listar_contas_ocultas_saldos: {e}")
+        return {"ocultas": []}
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.post("/api/configuracoes/contas-ocultas-saldos")
+def toggle_conta_oculta_saldos(data: dict, admin: dict = Depends(require_admin)):
+    """Marca/desmarca uma conta como oculta em Saldos Bancarios.
+    Body: {id_conta_corrente, id_interno_empresa?, nome_conta_corrente?, ocultar: bool}"""
+    id_conta_corrente = (data.get('id_conta_corrente') or '').strip()
+    if not id_conta_corrente:
+        raise HTTPException(400, "id_conta_corrente obrigatorio")
+    id_interno_empresa = data.get('id_interno_empresa')
+    if id_interno_empresa is not None:
+        id_interno_empresa = str(id_interno_empresa).strip() or None
+    nome = data.get('nome_conta_corrente') or ''
+    ocultar = bool(data.get('ocultar', True))
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        if ocultar:
+            try:
+                cursor.execute("""
+                    INSERT INTO config_contas_ocultas_saldos (id_conta_corrente, id_interno_empresa, nome_conta_corrente)
+                    VALUES (%s, %s, %s)
+                """, (id_conta_corrente, id_interno_empresa, nome))
+            except Exception:
+                conn.rollback()
+                # Ja existe — ignora
+                return {"success": True, "ja_existia": True}
+        else:
+            if id_interno_empresa:
+                cursor.execute("""
+                    DELETE FROM config_contas_ocultas_saldos
+                    WHERE id_conta_corrente = %s AND id_interno_empresa = %s
+                """, (id_conta_corrente, id_interno_empresa))
+            else:
+                cursor.execute("""
+                    DELETE FROM config_contas_ocultas_saldos
+                    WHERE id_conta_corrente = %s AND id_interno_empresa IS NULL
+                """, (id_conta_corrente,))
+        conn.commit()
+        return {"success": True}
+    except Exception as e:
+        conn.rollback()
+        print(f"[ERRO] toggle_conta_oculta_saldos: {e}")
+        raise HTTPException(500, "Erro interno do servidor")
+    finally:
+        cursor.close()
+        conn.close()
+
 
 # ============ SNAPSHOTS CARDS A PAGAR ============
 
