@@ -963,29 +963,72 @@ async def _chat_ia_legacy(req: ChatRequest) -> dict:
     client = anthropic.Anthropic(api_key=api_key)
     
     try:
-        # Puxa alguns indicadores brutos para enriquecer o contexto da IA
+        # Puxa indicadores ricos para o contexto da IA
         conn = get_db_connection()
         cursor = conn.cursor()
-        
-        # Puxar métricas de exemplo (pode ser substituído por Tools futuramente)
-        cursor.execute("SELECT COALESCE(SUM(valor_liquido), 0) as total FROM contas_pagas")
-        total_pago = decimal_to_float(cursor.fetchone()['total'])
-        
-        cursor.execute("SELECT COALESCE(SUM(valor_total), 0) as total FROM contas_a_pagar WHERE data_vencimento >= CURRENT_DATE")
-        total_a_pagar = decimal_to_float(cursor.fetchone()['total'])
+        hoje = datetime.now().date()
+
+        def q_scalar(sql: str):
+            cursor.execute(sql)
+            row = cursor.fetchone()
+            return decimal_to_float(row[list(row.keys())[0]]) if row else 0
+
+        total_pago = q_scalar("SELECT COALESCE(SUM(valor_liquido), 0) as v FROM contas_pagas")
+        total_a_pagar = q_scalar("SELECT COALESCE(SUM(valor_total), 0) as v FROM contas_a_pagar WHERE data_vencimento >= CURRENT_DATE")
+        vencendo_hoje = q_scalar("SELECT COALESCE(SUM(valor_total), 0) as v FROM contas_a_pagar WHERE data_vencimento = CURRENT_DATE")
+        qtd_vencendo_hoje = q_scalar("SELECT COUNT(*) as v FROM contas_a_pagar WHERE data_vencimento = CURRENT_DATE")
+        vencendo_7d = q_scalar("SELECT COALESCE(SUM(valor_total), 0) as v FROM contas_a_pagar WHERE data_vencimento BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'")
+        vencendo_30d = q_scalar("SELECT COALESCE(SUM(valor_total), 0) as v FROM contas_a_pagar WHERE data_vencimento BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'")
+        atrasadas_valor = q_scalar("SELECT COALESCE(SUM(valor_total), 0) as v FROM contas_a_pagar WHERE data_vencimento < CURRENT_DATE")
+        atrasadas_qtd = q_scalar("SELECT COUNT(*) as v FROM contas_a_pagar WHERE data_vencimento < CURRENT_DATE")
+        pago_30d = q_scalar("SELECT COALESCE(SUM(valor_liquido), 0) as v FROM contas_pagas WHERE data_pagamento >= CURRENT_DATE - INTERVAL '30 days'")
+        total_a_receber = q_scalar("SELECT COALESCE(SUM(valor_total), 0) as v FROM contas_a_receber WHERE data_vencimento >= CURRENT_DATE")
+        recebido_30d = q_scalar("SELECT COALESCE(SUM(valor_liquido), 0) as v FROM contas_recebidas WHERE data_recebimento >= CURRENT_DATE - INTERVAL '30 days'")
+
+        # Top 5 credores a pagar hoje
+        cursor.execute("""
+            SELECT credor, SUM(valor_total) as total
+            FROM contas_a_pagar
+            WHERE data_vencimento = CURRENT_DATE
+            GROUP BY credor
+            ORDER BY total DESC
+            LIMIT 5
+        """)
+        top_credores_hoje = [f"  - {r['credor']}: R$ {float(r['total'] or 0):,.2f}" for r in cursor.fetchall()]
 
         cursor.close()
         conn.close()
 
-        system_prompt = f"""Você é o Analista Financeiro Virtual da ECBIESEK-CONSTRUTORA.
-Sua missão é ajudar os gestores a analisar o dashboard estratégico.
-Você sempre responde em português do Brasil e utiliza formatação Markdown para deixar as respostas bonitas, usando negritos, bullet points e pequenas tabelas se necessário.
+        credores_str = '\n'.join(top_credores_hoje) if top_credores_hoje else '  (nenhum)'
 
-Dados Atuais do Negócio (Contexto em tempo real):
-- Histórico Total de Contas Pagas: R$ {total_pago:,.2f}
-- Previsão de Contas A Pagar: R$ {total_a_pagar:,.2f}
+        system_prompt = f"""Voce e o Analista Financeiro Virtual da ECBIESEK-CONSTRUTORA.
+Sua missao e ajudar os gestores a analisar dados financeiros. Responda em portugues do Brasil com formatacao Markdown (negritos, bullet points, tabelas quando fizer sentido).
 
-Regra Importante: Responda as perguntas de forma direta, concisa e profissional. Se não souber o valor exato, informe ao usuário que você precisa de acesso a relatórios mais específicos para calcular orçamentos futuros e recomende verificar o Dashboard Metas.
+DATA DE HOJE: {hoje.strftime('%d/%m/%Y')} (use esta data como referencia quando o usuario disser "hoje")
+
+DADOS EM TEMPO REAL DO SISTEMA:
+
+Contas a Pagar:
+- Vencendo HOJE: R$ {vencendo_hoje:,.2f} ({int(qtd_vencendo_hoje)} titulos)
+- A vencer nos proximos 7 dias: R$ {vencendo_7d:,.2f}
+- A vencer nos proximos 30 dias: R$ {vencendo_30d:,.2f}
+- Em atraso (vencidas nao pagas): R$ {atrasadas_valor:,.2f} ({int(atrasadas_qtd)} titulos)
+- Total geral a pagar (todas as datas futuras): R$ {total_a_pagar:,.2f}
+- Pago nos ultimos 30 dias: R$ {pago_30d:,.2f}
+- Historico total pago: R$ {total_pago:,.2f}
+
+Top 5 credores vencendo HOJE:
+{credores_str}
+
+Contas a Receber:
+- Total a receber (futuras): R$ {total_a_receber:,.2f}
+- Recebido nos ultimos 30 dias: R$ {recebido_30d:,.2f}
+
+REGRAS:
+1. Responda de forma direta, concisa e profissional
+2. Use os valores acima sempre que possivel. Se o usuario perguntar algo que os dados acima nao cobrem (ex: valor de uma conta especifica, busca por credor especifico, detalhes por empresa), explique que para esse nivel de detalhe ele deve consultar a pagina especifica do sistema (Contas a Pagar, Contas Pagas, Painel Executivo, Saldos Bancarios, etc)
+3. Quando o usuario perguntar sobre "hoje", use os valores "Vencendo HOJE" — nao o total geral
+4. Se nao souber, admita em vez de inventar dados
 """
         
         mensagens_anthropic = []
