@@ -8508,6 +8508,17 @@ def _ensure_config_tables_in_postgres():
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+            # Contas ocultas apenas em Saldos Bancarios (separado da config global)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS config_contas_ocultas_saldos (
+                    id SERIAL PRIMARY KEY,
+                    id_conta_corrente VARCHAR(100) NOT NULL,
+                    id_interno_empresa VARCHAR(50),
+                    nome_conta_corrente VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(id_conta_corrente, id_interno_empresa)
+                )
+            """)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS config_snapshot_horario (
                     id SERIAL PRIMARY KEY,
