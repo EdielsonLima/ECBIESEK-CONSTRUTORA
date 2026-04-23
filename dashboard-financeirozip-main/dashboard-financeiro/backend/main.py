@@ -122,69 +122,7 @@ async def startup_event():
             await bridge_telegram.iniciar_bridge()
             print("[STARTUP] Bridge Telegram iniciada com sucesso")
         except Exception as e:
-            import traceback
-            err_detail = traceback.format_exc()
-            print(f"[STARTUP] Erro ao iniciar bridge Telegram: {type(e).__name__}: {e}")
-            print(f"[STARTUP] Traceback:\n{err_detail}")
-            # Guarda erro para endpoint de diagnostico
-            globals()['_bridge_init_error'] = f"{type(e).__name__}: {str(e)}"
-
-
-@app.get("/api/debug/bridge-status")
-def debug_bridge_status(admin: dict = Depends(require_admin)):
-    """Retorna status do bridge Telegram e ultimo erro."""
-    import bridge_telegram as _bt
-    api_id = os.environ.get('TELEGRAM_API_ID', '')
-    api_hash = os.environ.get('TELEGRAM_API_HASH', '')
-    session = os.environ.get('TELETHON_SESSION_STRING', '')
-    bot = os.environ.get('TELEGRAM_BOT_USERNAME', '')
-    enabled = os.environ.get('BI_AGENTE_BRIDGE_ENABLED', '').lower() == 'true'
-    return {
-        'enabled': enabled,
-        'iniciado': getattr(_bt, '_iniciado', False),
-        'client_criado': getattr(_bt, '_client', None) is not None,
-        'bot_entity': str(getattr(_bt, '_bot_entity', None)),
-        'envs': {
-            'BI_AGENTE_BRIDGE_ENABLED': enabled,
-            'TELEGRAM_API_ID_set': bool(api_id),
-            'TELEGRAM_API_ID_digits': api_id.isdigit() if api_id else False,
-            'TELEGRAM_API_ID_len': len(api_id),
-            'TELEGRAM_API_HASH_set': bool(api_hash),
-            'TELEGRAM_API_HASH_len': len(api_hash),
-            'TELEGRAM_API_HASH_has_spaces': ' ' in api_hash or '\n' in api_hash,
-            'TELETHON_SESSION_STRING_set': bool(session),
-            'TELETHON_SESSION_STRING_len': len(session),
-            'TELETHON_SESSION_STRING_has_spaces': ' ' in session or '\n' in session or '\t' in session,
-            'TELETHON_SESSION_STRING_last_char': session[-1] if session else None,
-            'TELEGRAM_BOT_USERNAME_set': bool(bot),
-            'TELEGRAM_BOT_USERNAME_value': bot,
-        },
-        'last_error': globals().get('_bridge_init_error'),
-    }
-
-
-@app.post("/api/debug/bridge-restart")
-async def debug_bridge_restart(admin: dict = Depends(require_admin)):
-    """Tenta (re)iniciar o bridge manualmente e retorna o erro se houver."""
-    import bridge_telegram as _bt
-    # Reseta estado
-    _bt._iniciado = False
-    _bt._client = None
-    _bt._bot_entity = None
-    try:
-        await _bt.iniciar_bridge()
-        globals()['_bridge_init_error'] = None
-        return {'ok': True, 'iniciado': _bt._iniciado}
-    except Exception as e:
-        import traceback
-        detail = traceback.format_exc()
-        globals()['_bridge_init_error'] = f"{type(e).__name__}: {str(e)}"
-        return {
-            'ok': False,
-            'error_type': type(e).__name__,
-            'error': str(e),
-            'traceback': detail,
-        }
+            print(f"[STARTUP] Erro ao iniciar bridge Telegram: {e}")
 
 # Configuração de segurança JWT
 _jwt_from_env = os.environ.get('JWT_SECRET_KEY', '')
