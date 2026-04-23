@@ -1245,6 +1245,22 @@ export const apiService = {
     return response.data;
   },
 
+  // Contas ocultas APENAS na pagina de Saldos Bancarios
+  getContasOcultasSaldos: async (): Promise<Array<{ id: number; id_conta_corrente: string; id_interno_empresa: string | null; nome_conta_corrente: string | null }>> => {
+    try {
+      const response = await api.get<{ ocultas: Array<{ id: number; id_conta_corrente: string; id_interno_empresa: string | null; nome_conta_corrente: string | null }> }>('/configuracoes/contas-ocultas-saldos');
+      return response.data?.ocultas || [];
+    } catch (err) {
+      console.error('[contas-ocultas-saldos] erro:', err);
+      return [];
+    }
+  },
+
+  toggleContaOcultaSaldos: async (data: { id_conta_corrente: string; id_interno_empresa?: string | null; nome_conta_corrente?: string; ocultar: boolean }): Promise<any> => {
+    const response = await api.post('/configuracoes/contas-ocultas-saldos', data);
+    return response.data;
+  },
+
   salvarSnapshotCardsPagar: async (dados: {
     data_snapshot: string;
     cards: Array<{

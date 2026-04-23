@@ -56,13 +56,15 @@ const PAGINAS_DISPONIVEIS = [
 ];
 
 export const Configuracoes: React.FC = () => {
-  const [abaAtiva, setAbaAtiva] = useState<'empresas' | 'centros' | 'documentos' | 'contas_correntes' | 'origens' | 'tipos_baixa' | 'snapshots' | 'diagnostico' | 'orcamentos' | 'feriados'>('empresas');
+  const [abaAtiva, setAbaAtiva] = useState<'empresas' | 'centros' | 'documentos' | 'contas_correntes' | 'saldos_ocultas' | 'origens' | 'tipos_baixa' | 'snapshots' | 'diagnostico' | 'orcamentos' | 'feriados'>('empresas');
   const [empresas, setEmpresas] = useState<EmpresaItem[]>([]);
   const [centrosCusto, setCentrosCusto] = useState<CentroCustoItem[]>([]);
   const [empresasCentros, setEmpresasCentros] = useState<EmpresaCentros[]>([]);
   const [loadingDiagnostico, setLoadingDiagnostico] = useState(false);
   const [tiposDocumento, setTiposDocumento] = useState<TipoDocumentoItem[]>([]);
   const [contasCorrente, setContasCorrente] = useState<ContaCorrenteItem[]>([]);
+  const [saldosContasDisponiveis, setSaldosContasDisponiveis] = useState<Array<{ id: string; id_conta_corrente: string; nome: string; empresa_id: number; empresa_nome: string }>>([]);
+  const [saldosOcultas, setSaldosOcultas] = useState<Set<string>>(new Set()); // chaves: "id_interno_empresa::id_conta_corrente"
   const [origensTitulo, setOrigensTitulo] = useState<OrigemTituloItem[]>([]);
   const [tiposBaixaConfig, setTiposBaixaConfig] = useState<TipoBaixaConfigItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -145,7 +147,7 @@ export const Configuracoes: React.FC = () => {
     setLoading(true);
     try {
       // Promise.allSettled para não falhar tudo se uma API falhar (ex: tabelas config ainda não criadas)
-      const [configResult, empresasResult, centrosResult, tiposDocResult, contasCorrenteResult, snapshotConfigResult, snapshotsListResult, origensTituloResult, origensConfigResult, tiposBaixaResult, tiposBaixaConfigResult] = await Promise.allSettled([
+      const [configResult, empresasResult, centrosResult, tiposDocResult, contasCorrenteResult, snapshotConfigResult, snapshotsListResult, origensTituloResult, origensConfigResult, tiposBaixaResult, tiposBaixaConfigResult, saldosContasResult, saldosOcultasResult] = await Promise.allSettled([
         apiService.getConfiguracoes(),
         apiService.getTodasEmpresas(),
         apiService.getTodosCentrosCustoConfig(),
@@ -157,6 +159,8 @@ export const Configuracoes: React.FC = () => {
         apiService.getOrigensExposicao(),
         apiService.getTiposBaixaCompleto(),
         apiService.getTiposBaixaExposicao(),
+        apiService.getSaldosContasDisponiveis(),
+        apiService.getContasOcultasSaldos(),
       ]);
 
       const configData = configResult.status === 'fulfilled' ? configResult.value : { empresas_excluidas: [], centros_custo_excluidos: [], tipos_documento_excluidos: [], contas_correntes_excluidas: [] };
@@ -220,6 +224,26 @@ export const Configuracoes: React.FC = () => {
           excluida: contasExcluidas.has(cc.id),
         }))
       );
+
+      // Saldos Bancarios: contas disponiveis + ocultas configuradas
+      const saldosContasData = saldosContasResult.status === 'fulfilled' ? saldosContasResult.value : [];
+      const saldosOcultasData = saldosOcultasResult.status === 'fulfilled' ? saldosOcultasResult.value : [];
+      setSaldosContasDisponiveis(saldosContasData.map(c => ({
+        id: c.id,
+        id_conta_corrente: c.id_conta_corrente || c.id.split('::')[1] || c.id,
+        nome: c.nome,
+        empresa_id: c.empresa_id,
+        empresa_nome: c.empresa_nome,
+      })));
+      const setOcultas = new Set<string>();
+      saldosOcultasData.forEach((o) => {
+        // Chave: "id_interno_empresa::id_conta_corrente" se empresa especifica, ou "*::id_conta_corrente" se global
+        const key = o.id_interno_empresa
+          ? `${o.id_interno_empresa}::${o.id_conta_corrente}`
+          : `*::${o.id_conta_corrente}`;
+        setOcultas.add(key);
+      });
+      setSaldosOcultas(setOcultas);
 
       // Origens: merge da lista completa com a config salva
       const configMap = new Map(origensConfigData.map(o => [o.id_origem_titulo, o]));
@@ -332,6 +356,37 @@ export const Configuracoes: React.FC = () => {
       );
     } catch (error) {
       console.error('Erro ao alterar conta corrente:', error);
+    } finally {
+      setSalvando(null);
+    }
+  };
+
+  // Saldos Bancarios: toggle ocultar conta (especifica por empresa)
+  const toggleSaldosOculta = async (conta: { id: string; id_conta_corrente: string; nome: string; empresa_nome: string }) => {
+    const [idInternoEmp] = conta.id.split('::'); // id composto "8::CAIXA"
+    const key = `${idInternoEmp}::${conta.id_conta_corrente}`;
+    const estaOculta = saldosOcultas.has(key) || saldosOcultas.has(`*::${conta.id_conta_corrente}`);
+    const salvKey = `saldo-oculta-${key}`;
+    setSalvando(salvKey);
+    try {
+      await apiService.toggleContaOcultaSaldos({
+        id_conta_corrente: conta.id_conta_corrente,
+        id_interno_empresa: idInternoEmp,
+        nome_conta_corrente: `${conta.nome} (${conta.empresa_nome})`,
+        ocultar: !estaOculta,
+      });
+      setSaldosOcultas(prev => {
+        const next = new Set(prev);
+        if (estaOculta) {
+          next.delete(key);
+          next.delete(`*::${conta.id_conta_corrente}`);
+        } else {
+          next.add(key);
+        }
+        return next;
+      });
+    } catch (error: any) {
+      alert('Erro ao alterar: ' + (error?.response?.data?.detail || error.message));
     } finally {
       setSalvando(null);
     }
@@ -658,6 +713,22 @@ export const Configuracoes: React.FC = () => {
         </button>
         <button
           type="button"
+          onClick={() => { setAbaAtiva('saldos_ocultas'); setBusca(''); }}
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            abaAtiva === 'saldos_ocultas'
+              ? 'bg-blue-600 text-white'
+              : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-100 border border-gray-300 dark:border-slate-600'
+          }`}
+        >
+          Contas ocultas em Saldos
+          {saldosOcultas.size > 0 && (
+            <span className="ml-2 rounded-full bg-red-100 dark:bg-red-900/40 px-2 py-0.5 text-xs text-red-700 dark:text-red-400">
+              {saldosOcultas.size} oculta(s)
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
           onClick={() => { setAbaAtiva('origens'); setBusca(''); }}
           className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
             abaAtiva === 'origens'
@@ -925,6 +996,89 @@ export const Configuracoes: React.FC = () => {
             )}
           </div>
         )}
+
+        {abaAtiva === 'saldos_ocultas' && (() => {
+          const termo = busca.trim().toLowerCase();
+          const filtradas = saldosContasDisponiveis.filter(c =>
+            !termo ||
+            c.nome.toLowerCase().includes(termo) ||
+            c.empresa_nome.toLowerCase().includes(termo) ||
+            c.id_conta_corrente.toLowerCase().includes(termo)
+          );
+          // Agrupa por empresa
+          const grupos = new Map<string, typeof filtradas>();
+          filtradas.forEach(c => {
+            const emp = c.empresa_nome || 'Sem Empresa';
+            if (!grupos.has(emp)) grupos.set(emp, []);
+            grupos.get(emp)!.push(c);
+          });
+          const gruposOrdenados = Array.from(grupos.entries()).sort(([a], [b]) => a.localeCompare(b, 'pt-BR'));
+
+          return (
+            <div className="divide-y divide-gray-200">
+              <div className="bg-blue-50 px-6 py-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                    {saldosContasDisponiveis.length} conta(s) disponivel(eis) | {saldosOcultas.size} oculta(s)
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-slate-400 bg-yellow-50 border border-yellow-200 rounded px-2 py-1">
+                    Afeta: <strong>Saldos Bancarios</strong> (dropdown + cards + tabela + grafico)
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                  Contas marcadas aqui somem da pagina de Saldos Bancarios (nao aparecem no dropdown de filtro nem entram nos calculos dos cards).
+                  Use para ocultar contas "virtuais" ou que nao refletem saldo real (ex: permutas internas, contas de credito).
+                </p>
+              </div>
+
+              {gruposOrdenados.map(([empresaNome, contas]) => (
+                <div key={empresaNome}>
+                  <div className="bg-gray-100 dark:bg-slate-700 px-6 py-2 text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300">
+                    {empresaNome} ({contas.length})
+                  </div>
+                  {contas.map(c => {
+                    const [idInternoEmp] = c.id.split('::');
+                    const key = `${idInternoEmp}::${c.id_conta_corrente}`;
+                    const estaOculta = saldosOcultas.has(key) || saldosOcultas.has(`*::${c.id_conta_corrente}`);
+                    const salvandoEsta = salvando === `saldo-oculta-${key}`;
+                    return (
+                      <div
+                        key={c.id}
+                        className={`flex items-center justify-between px-6 py-3 hover:bg-gray-50 dark:hover:bg-slate-700/50 ${
+                          estaOculta ? 'bg-red-50 dark:bg-red-900/20' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className={`text-sm font-medium ${estaOculta ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-slate-100'}`}>
+                            {c.nome}
+                          </span>
+                          <span className="text-xs font-mono text-gray-400">({c.id_conta_corrente})</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className={`text-xs font-medium ${estaOculta ? 'text-red-600 dark:text-red-400' : 'text-green-600'}`}>
+                            {estaOculta ? 'Oculta' : 'Visivel'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => toggleSaldosOculta(c)}
+                            disabled={salvandoEsta}
+                          >
+                            {renderToggle(!estaOculta, salvandoEsta)}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+              {filtradas.length === 0 && (
+                <div className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
+                  Nenhuma conta encontrada
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {abaAtiva === 'origens' && (
           <div className="divide-y divide-gray-200">

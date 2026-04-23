@@ -1,6 +1,23 @@
 {
-  "versao_atual": "1.9.0",
+  "versao_atual": "1.10.0",
   "historico": [
+    {
+      "versao": "1.10.0",
+      "data": "2026-04-23",
+      "titulo": "Novidades da Versao 1.10.0",
+      "secoes": [
+        {
+          "titulo": "Saldos Bancarios",
+          "icone": "settings",
+          "itens": [
+            "Nova aba em Configuracoes para ocultar contas especificas da pagina de Saldos",
+            "Contas marcadas como ocultas somem do dropdown de filtro, dos cards e da tabela",
+            "Util para esconder contas virtuais (permutas, creditos) que nao refletem saldo real",
+            "5 contas ja ocultas por padrao (LAGOA CREDISIS, 3 contas WALE e LUZ ASSESSORIA)"
+          ]
+        }
+      ]
+    },
     {
       "versao": "1.9.0",
       "data": "2026-04-20",
