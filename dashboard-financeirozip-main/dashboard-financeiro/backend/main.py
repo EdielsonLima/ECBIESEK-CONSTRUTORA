@@ -135,7 +135,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 horas
 
 # Configuração API Anthropic
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
-IA_MODELO = os.environ.get('IA_MODELO', 'claude-3-haiku-20240307')
+IA_MODELO = os.environ.get('IA_MODELO', 'claude-haiku-4-5-20251001')
 
 anthropic_client = None
 if ANTHROPIC_API_KEY:
@@ -955,7 +955,7 @@ async def _chat_ia_legacy(req: ChatRequest) -> dict:
     """
     load_dotenv(override=True)
     api_key = os.environ.get('ANTHROPIC_API_KEY', '')
-    modelo = os.environ.get('IA_MODELO', 'claude-3-haiku-20240307')
+    modelo = os.environ.get('IA_MODELO', 'claude-haiku-4-5-20251001')
     
     if not api_key:
         raise HTTPException(status_code=500, detail="Chave da Anthropic não configurada no backend.")
@@ -1023,7 +1023,7 @@ Regra Importante: Responda as perguntas de forma direta, concisa e profissional.
 def debug_chat_ia_status(admin: dict = Depends(require_admin)):
     """Diagnostico do chat IA legacy (Claude direto)."""
     api_key = os.environ.get('ANTHROPIC_API_KEY', '')
-    modelo = os.environ.get('IA_MODELO', 'claude-3-haiku-20240307')
+    modelo = os.environ.get('IA_MODELO', 'claude-haiku-4-5-20251001')
     return {
         'ANTHROPIC_API_KEY_set': bool(api_key),
         'ANTHROPIC_API_KEY_len': len(api_key),
