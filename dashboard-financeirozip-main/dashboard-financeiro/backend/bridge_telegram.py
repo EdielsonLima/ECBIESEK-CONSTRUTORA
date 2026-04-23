@@ -51,13 +51,19 @@ async def iniciar_bridge() -> None:
     from telethon import TelegramClient, events
     from telethon.sessions import StringSession
 
+    # strip() em todas as envs para tolerar espacos/quebras de linha acidentais
+    session_str = os.environ["TELETHON_SESSION_STRING"].strip()
+    api_id_str = os.environ["TELEGRAM_API_ID"].strip()
+    api_hash = os.environ["TELEGRAM_API_HASH"].strip()
+    bot_username = os.environ["TELEGRAM_BOT_USERNAME"].strip()
+
     _client = TelegramClient(
-        StringSession(os.environ["TELETHON_SESSION_STRING"]),
-        int(os.environ["TELEGRAM_API_ID"]),
-        os.environ["TELEGRAM_API_HASH"],
+        StringSession(session_str),
+        int(api_id_str),
+        api_hash,
     )
     await _client.start()
-    _bot_entity = await _client.get_entity(os.environ["TELEGRAM_BOT_USERNAME"])
+    _bot_entity = await _client.get_entity(bot_username)
 
     async def _on_bot_reply(event):
         texto = event.message.text or ""
