@@ -12,3 +12,4 @@ langchain-anthropic
 python-dotenv
 httpx<0.28
 reportlab
+telethon>=1.36
