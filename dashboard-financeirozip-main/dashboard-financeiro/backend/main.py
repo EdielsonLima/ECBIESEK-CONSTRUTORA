@@ -10241,9 +10241,34 @@ def toggle_conta_corrente_exclusao(data: dict):
 
 # ============ CONTAS OCULTAS NA PAGINA DE SALDOS BANCARIOS ============
 
+def _ensure_contas_ocultas_saldos_table():
+    """Garante que a tabela existe no Postgres de config (idempotente, seguro)."""
+    try:
+        conn = get_config_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS config_contas_ocultas_saldos (
+                    id SERIAL PRIMARY KEY,
+                    id_conta_corrente VARCHAR(100) NOT NULL,
+                    id_interno_empresa VARCHAR(50),
+                    nome_conta_corrente VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(id_conta_corrente, id_interno_empresa)
+                )
+            """)
+            conn.commit()
+        finally:
+            cursor.close()
+            conn.close()
+    except Exception as e:
+        print(f"[WARN] _ensure_contas_ocultas_saldos_table: {e}")
+
+
 def get_contas_ocultas_saldos():
     """Retorna set de (id_conta_corrente, id_interno_empresa) ocultas em Saldos Bancarios.
     Se id_interno_empresa for None/vazio no cadastro, aplica a todas as empresas com esse id_conta."""
+    _ensure_contas_ocultas_saldos_table()
     try:
         conn = get_config_db_connection()
         cursor = conn.cursor()
