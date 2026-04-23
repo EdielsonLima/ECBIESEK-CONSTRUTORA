@@ -10299,10 +10299,13 @@ def toggle_conta_oculta_saldos(data: dict, admin: dict = Depends(require_admin))
                     INSERT INTO config_contas_ocultas_saldos (id_conta_corrente, id_interno_empresa, nome_conta_corrente)
                     VALUES (%s, %s, %s)
                 """, (id_conta_corrente, id_interno_empresa, nome))
-            except Exception:
+            except psycopg2.errors.UniqueViolation:
                 conn.rollback()
-                # Ja existe — ignora
                 return {"success": True, "ja_existia": True}
+            except Exception as e_ins:
+                conn.rollback()
+                print(f"[ERRO] INSERT toggle_conta_oculta_saldos ({id_conta_corrente}, {id_interno_empresa}): {type(e_ins).__name__}: {e_ins}")
+                raise HTTPException(500, f"Erro ao inserir: {type(e_ins).__name__}")
         else:
             if id_interno_empresa:
                 cursor.execute("""
@@ -10316,10 +10319,12 @@ def toggle_conta_oculta_saldos(data: dict, admin: dict = Depends(require_admin))
                 """, (id_conta_corrente,))
         conn.commit()
         return {"success": True}
+    except HTTPException:
+        raise
     except Exception as e:
         conn.rollback()
-        print(f"[ERRO] toggle_conta_oculta_saldos: {e}")
-        raise HTTPException(500, "Erro interno do servidor")
+        print(f"[ERRO] toggle_conta_oculta_saldos: {type(e).__name__}: {e}")
+        raise HTTPException(500, f"Erro interno: {type(e).__name__}")
     finally:
         cursor.close()
         conn.close()
