@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { apiService } from '../services/api';
 import Markdown from 'markdown-to-jsx';
-import { Send, Bot, User, Loader2, Sparkles, X, Maximize2 } from 'lucide-react';
+import { Send, Bot, User, Loader2, Sparkles, X, Maximize2, RotateCcw } from 'lucide-react';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -110,6 +110,27 @@ export const FloatingChatIA: React.FC<FloatingChatIAProps> = ({ onExpandir }) =>
               </div>
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await apiService.bridgeRestart();
+                    setMessages([{
+                      role: 'assistant',
+                      content: 'Contexto reiniciado. Pode perguntar de novo.'
+                    }]);
+                  } catch {
+                    setMessages([{
+                      role: 'assistant',
+                      content: '**[Erro]** Não foi possível reiniciar o contexto.'
+                    }]);
+                  }
+                }}
+                title="Reiniciar contexto"
+                className="p-1.5 rounded-lg hover:bg-white/20 transition-colors"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </button>
               {onExpandir && (
                 <button
                   type="button"

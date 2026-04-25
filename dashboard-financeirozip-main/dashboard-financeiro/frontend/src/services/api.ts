@@ -156,6 +156,17 @@ export const apiService = {
     return response.data;
   },
 
+  // Diagnostico bridge (admin)
+  bridgeStatus: async (): Promise<any> => {
+    const response = await api.get('/debug/bridge-status');
+    return response.data;
+  },
+
+  bridgeRestart: async (): Promise<any> => {
+    const response = await api.post('/debug/bridge-restart');
+    return response.data;
+  },
+
   // Métricas principais
   getMetricas: async (): Promise<DashboardMetrics> => {
     const response = await api.get<DashboardMetrics>('/metricas');
