@@ -10523,6 +10523,23 @@ async def _sync_conciliacao_saldos_async(data_ref: Optional[str] = None) -> dict
     conn = get_config_db_connection()
     cursor = conn.cursor()
     try:
+        # Garante que a tabela exista (defensivo: o startup pode ter falhado)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS saldos_conciliacao (
+                data_referencia DATE NOT NULL,
+                account_number VARCHAR(50) NOT NULL,
+                company_id INTEGER NOT NULL,
+                saldo_total NUMERIC(15,2) NOT NULL DEFAULT 0,
+                valor_conciliado NUMERIC(15,2) NOT NULL DEFAULT 0,
+                account_status VARCHAR(20),
+                sincronizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (data_referencia, account_number, company_id)
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_saldos_conciliacao_data ON saldos_conciliacao (data_referencia)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_saldos_conciliacao_conta ON saldos_conciliacao (account_number, company_id)")
+        conn.commit()
+
         # Apaga registros antigos da mesma data antes de gravar (evita lixo de contas removidas no Sienge)
         cursor.execute("DELETE FROM saldos_conciliacao WHERE data_referencia = %s", [data_ref])
         gravadas = 0
