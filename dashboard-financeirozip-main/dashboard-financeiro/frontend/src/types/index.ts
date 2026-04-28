@@ -251,6 +251,9 @@ export interface SaldoBancarioResumo {
     saida?: number;
     saldo: number;
     saldo_atual?: number;
+    valor_conciliado?: number;
+    valor_nao_conciliado?: number;
+    tem_conciliacao?: boolean;
   }>;
   serie: Array<{ data: string; saldo: number }>;
   cards?: {
@@ -258,7 +261,33 @@ export interface SaldoBancarioResumo {
     permuta: number;
     mutuo: number;
     reapropriacao: number;
+    conciliado?: number;
+    nao_conciliado?: number;
   };
+  conciliacao_sincronizada_em?: string | null;
+  tem_dados_conciliacao?: boolean;
+}
+
+export interface MovimentoNaoConciliado {
+  id: number;
+  data: string;
+  valor: number;
+  tipo_operacao: string;
+  operacao: string;
+  historico: string;
+  documento_tipo: string;
+  documento_numero: string;
+  credor_cliente: string;
+  conciliado: boolean;
+}
+
+export interface MovimentosNaoConciliadosResponse {
+  movimentos: MovimentoNaoConciliado[];
+  total: number;
+  data_inicio: string;
+  data_fim: string;
+  account_number: string;
+  company_id: number;
 }
 
 export interface ContaReceber {

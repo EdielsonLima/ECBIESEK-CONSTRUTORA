@@ -13,7 +13,7 @@ import {
   Cell,
 } from 'recharts';
 import { apiService } from '../services/api';
-import { ContaCorrenteOption, EmpresaOption, SaldoBancarioResumo } from '../types';
+import { ContaCorrenteOption, EmpresaOption, MovimentoNaoConciliado, SaldoBancarioResumo } from '../types';
 
 const STORAGE_KEY = 'saldos_bancarios_padrao';
 
@@ -53,6 +53,22 @@ export const SaldosBancarios: React.FC = () => {
   const [dataRef, setDataRef] = useState<string>('');
 
   const [contasEmpresaMap, setContasEmpresaMap] = useState<Record<string, string>>({});
+
+  // Conciliacao bancaria
+  const [sincronizandoConc, setSincronizandoConc] = useState(false);
+  const [msgSyncConc, setMsgSyncConc] = useState<string | null>(null);
+  const [modalConta, setModalConta] = useState<{
+    conta_corrente: string;
+    empresa_id: number;
+    empresa_nome: string;
+    banco: string;
+    saldo_atual: number;
+    valor_conciliado: number;
+    valor_nao_conciliado: number;
+  } | null>(null);
+  const [movimentosNC, setMovimentosNC] = useState<MovimentoNaoConciliado[]>([]);
+  const [carregandoMovimentos, setCarregandoMovimentos] = useState(false);
+  const [apenasNaoVinculados, setApenasNaoVinculados] = useState(true);
 
   // Carregar empresas e contas (da fonte correta: posicao_saldos) + padrão salvo
   useEffect(() => {
@@ -185,6 +201,74 @@ export const SaldosBancarios: React.FC = () => {
   }, [resumo]);
 
   const maxSaldoEmpresa = Math.max(...empresasOrdenadas.map((e) => Math.abs(e.saldo || 0)), 1);
+
+  const sincronizarConciliacao = async () => {
+    setSincronizandoConc(true);
+    setMsgSyncConc(null);
+    try {
+      const res = await apiService.sincronizarConciliacao(dataRef || undefined);
+      if (res.sucesso) {
+        setMsgSyncConc(`OK: ${res.registros} contas sincronizadas`);
+        // Recarrega o resumo
+        const empArr = Array.from(empresasSel);
+        const conArr = Array.from(contasSel);
+        const r = await apiService.getSaldosResumo(empArr, conArr, dataRef || undefined);
+        setResumo(r);
+      } else {
+        setMsgSyncConc(`Erro: ${res.erro || 'falha desconhecida'}`);
+      }
+    } catch (e: any) {
+      setMsgSyncConc(`Erro: ${e?.message || 'falha'}`);
+    } finally {
+      setSincronizandoConc(false);
+      setTimeout(() => setMsgSyncConc(null), 5000);
+    }
+  };
+
+  const abrirModalConta = async (c: NonNullable<typeof resumo>['contas'][number]) => {
+    if (!c.tem_conciliacao) return;
+    setModalConta({
+      conta_corrente: c.conta_corrente,
+      empresa_id: c.empresa_id || 0,
+      empresa_nome: c.empresa_nome,
+      banco: c.banco,
+      saldo_atual: c.saldo_atual ?? c.saldo,
+      valor_conciliado: c.valor_conciliado || 0,
+      valor_nao_conciliado: c.valor_nao_conciliado || 0,
+    });
+    setMovimentosNC([]);
+    setCarregandoMovimentos(true);
+    try {
+      const res = await apiService.getMovimentosNaoConciliados({
+        accountNumber: c.conta_corrente,
+        companyId: c.empresa_id || 0,
+        apenasNaoVinculados,
+      });
+      setMovimentosNC(res.movimentos || []);
+    } catch {
+      setMovimentosNC([]);
+    } finally {
+      setCarregandoMovimentos(false);
+    }
+  };
+
+  const recarregarMovimentos = async (novoFiltro: boolean) => {
+    if (!modalConta) return;
+    setApenasNaoVinculados(novoFiltro);
+    setCarregandoMovimentos(true);
+    try {
+      const res = await apiService.getMovimentosNaoConciliados({
+        accountNumber: modalConta.conta_corrente,
+        companyId: modalConta.empresa_id,
+        apenasNaoVinculados: novoFiltro,
+      });
+      setMovimentosNC(res.movimentos || []);
+    } catch {
+      setMovimentosNC([]);
+    } finally {
+      setCarregandoMovimentos(false);
+    }
+  };
 
   // Variação do saldo (primeiro vs último ponto da série)
   const variacao = useMemo(() => {
@@ -398,10 +482,39 @@ export const SaldosBancarios: React.FC = () => {
             Resetar padrão
           </button>
         </div>
+
+        {/* Sincronizar conciliacao + status */}
+        <div className="flex items-center gap-3">
+          {resumo?.conciliacao_sincronizada_em && (
+            <span className="text-[10px] text-gray-400 dark:text-slate-500">
+              Conciliação atualizada em {new Date(resumo.conciliacao_sincronizada_em.replace(' ', 'T')).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+            </span>
+          )}
+          {msgSyncConc && (
+            <span className={`text-xs font-semibold ${msgSyncConc.startsWith('OK') ? 'text-emerald-600' : 'text-red-600'}`}>
+              {msgSyncConc}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={sincronizarConciliacao}
+            disabled={sincronizandoConc}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+              sincronizandoConc
+                ? 'bg-gray-200 text-gray-500 cursor-wait'
+                : 'bg-sky-600 text-white hover:bg-sky-700'
+            }`}
+          >
+            <svg className={`h-3.5 w-3.5 ${sincronizandoConc ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {sincronizandoConc ? 'Sincronizando...' : 'Sincronizar conciliação'}
+          </button>
+        </div>
       </div>
 
-      {/* Grid de cards: Bancario, Permuta, Total */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Grid de cards: Bancario, Permuta, Total, Nao Conciliado */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card Saldo Bancario */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-950/40 dark:to-green-950/40 border border-emerald-200 dark:border-emerald-800 p-5 shadow-sm">
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-green-500"></div>
@@ -442,6 +555,30 @@ export const SaldosBancarios: React.FC = () => {
             Em {resumo?.data_referencia ? new Date(resumo.data_referencia + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
           </p>
         </div>
+
+        {/* Card Nao Conciliado */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-rose-50 to-pink-50 dark:from-rose-950/40 dark:to-pink-950/40 border border-rose-200 dark:border-rose-800 p-5 shadow-sm">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 to-pink-500"></div>
+          <div className="flex items-center gap-2 mb-1">
+            <svg className="h-4 w-4 text-rose-600 dark:text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <p className="text-[11px] uppercase tracking-wider font-bold text-rose-700 dark:text-rose-400">Não Conciliado</p>
+          </div>
+          {resumo?.tem_dados_conciliacao ? (
+            <>
+              <p className="text-2xl font-extrabold text-gray-900 dark:text-white">{currency(resumo?.cards?.nao_conciliado ?? 0)}</p>
+              <p className="text-[10px] text-gray-500 dark:text-slate-500 mt-1">
+                Conciliado: {currency(resumo?.cards?.conciliado ?? 0)}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-semibold text-gray-500 dark:text-slate-500">Sem dados</p>
+              <p className="text-[10px] text-gray-500 dark:text-slate-500 mt-1">Clique em "Sincronizar conciliação"</p>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center justify-between flex-wrap gap-2 px-1">
@@ -460,7 +597,7 @@ export const SaldosBancarios: React.FC = () => {
           </div>
         </div>
         <div className="max-h-[600px] overflow-y-auto overflow-x-auto">
-          <table className="w-full text-sm min-w-[780px]">
+          <table className="w-full text-sm min-w-[1000px]">
             <thead className="bg-slate-800 dark:bg-slate-900 sticky top-0 z-10">
               <tr>
                 <th className="text-left text-[11px] font-bold text-white uppercase px-4 py-2.5">Conta / Nome</th>
@@ -468,6 +605,8 @@ export const SaldosBancarios: React.FC = () => {
                 <th className="text-right text-[11px] font-bold text-white uppercase px-3 py-2.5">Entradas</th>
                 <th className="text-right text-[11px] font-bold text-white uppercase px-3 py-2.5">Saídas</th>
                 <th className="text-right text-[11px] font-bold text-white uppercase px-4 py-2.5">Saldo Atual</th>
+                <th className="text-right text-[11px] font-bold text-white uppercase px-3 py-2.5">Conciliado</th>
+                <th className="text-right text-[11px] font-bold text-white uppercase px-3 py-2.5">Não Conciliado</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
@@ -476,6 +615,9 @@ export const SaldosBancarios: React.FC = () => {
                 const totalEntrada = contasEmp.reduce((s, c) => s + (c.entrada || 0), 0);
                 const totalSaida = contasEmp.reduce((s, c) => s + (c.saida || 0), 0);
                 const totalAtual = contasEmp.reduce((s, c) => s + (c.saldo_atual ?? c.saldo ?? 0), 0);
+                const totalConciliado = contasEmp.reduce((s, c) => s + (c.tem_conciliacao ? (c.valor_conciliado || 0) : 0), 0);
+                const totalNaoConciliado = contasEmp.reduce((s, c) => s + (c.tem_conciliacao ? (c.valor_nao_conciliado || 0) : 0), 0);
+                const temAlgumaConciliacao = contasEmp.some((c) => c.tem_conciliacao);
                 const expandida = empresasExpandidas.has(empNome);
                 return (
                   <React.Fragment key={i}>
@@ -491,6 +633,12 @@ export const SaldosBancarios: React.FC = () => {
                       <td className="px-3 py-2.5 text-right font-semibold text-emerald-600 dark:text-emerald-400 font-mono">{currency(totalEntrada)}</td>
                       <td className="px-3 py-2.5 text-right font-semibold text-red-600 dark:text-red-400 font-mono">{currency(totalSaida)}</td>
                       <td className={`px-4 py-2.5 text-right font-bold font-mono ${totalAtual >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>{currency(totalAtual)}</td>
+                      <td className="px-3 py-2.5 text-right font-semibold text-sky-600 dark:text-sky-400 font-mono">
+                        {temAlgumaConciliacao ? currency(totalConciliado) : '—'}
+                      </td>
+                      <td className={`px-3 py-2.5 text-right font-semibold font-mono ${Math.abs(totalNaoConciliado) > 0.01 ? 'text-rose-600 dark:text-rose-400' : 'text-gray-400'}`}>
+                        {temAlgumaConciliacao ? currency(totalNaoConciliado) : '—'}
+                      </td>
                     </tr>
                     {expandida && contasEmp.map((c, j) => {
                       const sa = c.saldo_anterior || 0;
@@ -498,23 +646,38 @@ export const SaldosBancarios: React.FC = () => {
                       const sai = c.saida || 0;
                       const at = c.saldo_atual ?? c.saldo ?? 0;
                       const tipo = c.tipo;
+                      const conc = c.valor_conciliado || 0;
+                      const naoConc = c.valor_nao_conciliado || 0;
+                      const temNC = c.tem_conciliacao && Math.abs(naoConc) > 0.01;
                       const tipoBadge = tipo === 'permuta' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
                         : tipo === 'mutuo' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
                         : tipo === 'reapropriacao' ? 'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-300'
                         : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300';
                       return (
-                        <tr key={`${i}-${j}`} className="bg-gray-50/60 dark:bg-slate-900/40">
+                        <tr key={`${i}-${j}`} className={`bg-gray-50/60 dark:bg-slate-900/40 ${temNC ? 'cursor-pointer hover:bg-rose-50 dark:hover:bg-rose-900/10' : ''}`}
+                            onClick={() => temNC && abrirModalConta(c)}>
                           <td className="px-4 py-1.5 pl-10 text-xs text-gray-600 dark:text-slate-400">
                             <span className="font-mono text-[10px] text-gray-400 mr-1.5">{c.conta_corrente}</span>
                             {c.banco}
                             {tipo && tipo !== 'bancaria' && (
                               <span className={`ml-2 inline-block text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase ${tipoBadge}`}>{tipo}</span>
                             )}
+                            {temNC && (
+                              <span className="ml-2 inline-block text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">
+                                ⚠ pendência
+                              </span>
+                            )}
                           </td>
                           <td className="px-3 py-1.5 text-right text-xs font-mono text-gray-500 dark:text-slate-400">{currency(sa)}</td>
                           <td className="px-3 py-1.5 text-right text-xs font-mono text-emerald-600/80 dark:text-emerald-400/80">{en ? currency(en) : '—'}</td>
                           <td className="px-3 py-1.5 text-right text-xs font-mono text-red-600/80 dark:text-red-400/80">{sai ? currency(sai) : '—'}</td>
                           <td className={`px-4 py-1.5 text-right text-xs font-mono font-semibold ${at >= 0 ? 'text-gray-700 dark:text-slate-200' : 'text-red-600 dark:text-red-400'}`}>{currency(at)}</td>
+                          <td className="px-3 py-1.5 text-right text-xs font-mono text-sky-600/80 dark:text-sky-400/80">
+                            {c.tem_conciliacao ? currency(conc) : '—'}
+                          </td>
+                          <td className={`px-3 py-1.5 text-right text-xs font-mono font-semibold ${temNC ? 'text-rose-600 dark:text-rose-400' : 'text-gray-400'}`}>
+                            {c.tem_conciliacao ? currency(naoConc) : '—'}
+                          </td>
                         </tr>
                       );
                     })}
@@ -523,7 +686,7 @@ export const SaldosBancarios: React.FC = () => {
               })}
               {contasPorEmpresa.size === 0 && (
                 <tr>
-                  <td colSpan={5} className="text-center text-sm text-gray-400 py-8">Nenhuma conta encontrada</td>
+                  <td colSpan={7} className="text-center text-sm text-gray-400 py-8">Nenhuma conta encontrada</td>
                 </tr>
               )}
             </tbody>
@@ -541,6 +704,12 @@ export const SaldosBancarios: React.FC = () => {
                 </td>
                 <td className="px-4 py-3 text-right font-extrabold text-violet-700 dark:text-violet-300 font-mono">
                   {currency(resumo?.saldo_total ?? 0)}
+                </td>
+                <td className="px-3 py-3 text-right font-bold text-sky-700 dark:text-sky-400 font-mono">
+                  {resumo?.tem_dados_conciliacao ? currency(resumo?.cards?.conciliado ?? 0) : '—'}
+                </td>
+                <td className="px-3 py-3 text-right font-bold text-rose-700 dark:text-rose-400 font-mono">
+                  {resumo?.tem_dados_conciliacao ? currency(resumo?.cards?.nao_conciliado ?? 0) : '—'}
                 </td>
               </tr>
             </tfoot>
@@ -684,6 +853,154 @@ export const SaldosBancarios: React.FC = () => {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Modal de Movimentos Nao Conciliados */}
+      {modalConta && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={() => setModalConta(null)}
+        >
+          <div
+            className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-700 w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-slate-700 bg-gradient-to-r from-rose-50 to-pink-50 dark:from-rose-950/30 dark:to-pink-950/30 flex items-start justify-between">
+              <div>
+                <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">Movimentos não conciliados</h3>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                  {modalConta.empresa_nome} · {modalConta.banco} · <span className="font-mono">{modalConta.conta_corrente}</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalConta(null)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Resumo */}
+            <div className="px-6 py-3 grid grid-cols-3 gap-3 border-b border-gray-100 dark:border-slate-700">
+              <div>
+                <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400">Saldo Atual</p>
+                <p className="text-sm font-bold text-gray-900 dark:text-slate-100 font-mono">{currency(modalConta.saldo_atual)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wider font-bold text-sky-500">Conciliado</p>
+                <p className="text-sm font-bold text-sky-600 dark:text-sky-400 font-mono">{currency(modalConta.valor_conciliado)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wider font-bold text-rose-500">Não Conciliado</p>
+                <p className="text-sm font-bold text-rose-600 dark:text-rose-400 font-mono">{currency(modalConta.valor_nao_conciliado)}</p>
+              </div>
+            </div>
+
+            {/* Toggle de filtro */}
+            <div className="px-6 py-3 border-b border-gray-100 dark:border-slate-700 flex items-center gap-3">
+              <span className="text-xs font-semibold text-gray-600 dark:text-slate-300">Filtro:</span>
+              <button
+                type="button"
+                onClick={() => recarregarMovimentos(true)}
+                className={`text-xs px-3 py-1 rounded-full font-semibold transition-colors ${
+                  apenasNaoVinculados
+                    ? 'bg-rose-600 text-white'
+                    : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-200'
+                }`}
+              >
+                Apenas não vinculados
+              </button>
+              <button
+                type="button"
+                onClick={() => recarregarMovimentos(false)}
+                className={`text-xs px-3 py-1 rounded-full font-semibold transition-colors ${
+                  !apenasNaoVinculados
+                    ? 'bg-rose-600 text-white'
+                    : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-200'
+                }`}
+              >
+                Todos não conciliados
+              </button>
+              <span className="text-[10px] text-gray-400 ml-auto">{movimentosNC.length} movimentos · últimos 90 dias</span>
+            </div>
+
+            {/* Lista */}
+            <div className="flex-1 overflow-y-auto">
+              {carregandoMovimentos ? (
+                <div className="flex items-center justify-center py-16">
+                  <div className="h-10 w-10 animate-spin rounded-full border-4 border-rose-500 border-r-transparent"></div>
+                </div>
+              ) : movimentosNC.length === 0 ? (
+                <div className="text-center py-12 text-sm text-gray-400">
+                  Nenhum movimento encontrado neste filtro
+                </div>
+              ) : (
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-50 dark:bg-slate-900/50 sticky top-0">
+                    <tr>
+                      <th className="text-left px-4 py-2 font-bold text-gray-600 dark:text-slate-300">Data</th>
+                      <th className="text-left px-4 py-2 font-bold text-gray-600 dark:text-slate-300">Operação</th>
+                      <th className="text-left px-4 py-2 font-bold text-gray-600 dark:text-slate-300">Histórico / Documento</th>
+                      <th className="text-left px-4 py-2 font-bold text-gray-600 dark:text-slate-300">Credor / Cliente</th>
+                      <th className="text-right px-4 py-2 font-bold text-gray-600 dark:text-slate-300">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                    {movimentosNC.map((m) => (
+                      <tr key={m.id} className="hover:bg-rose-50/40 dark:hover:bg-rose-900/10">
+                        <td className="px-4 py-2 text-gray-700 dark:text-slate-300 whitespace-nowrap">
+                          {m.data ? new Date(m.data + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
+                        </td>
+                        <td className="px-4 py-2">
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                            m.tipo_operacao === 'C' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                          }`}>
+                            {m.tipo_operacao === 'C' ? 'Crédito' : 'Débito'}
+                          </span>
+                          <p className="text-[10px] text-gray-500 mt-0.5">{m.operacao || '—'}</p>
+                        </td>
+                        <td className="px-4 py-2 text-gray-600 dark:text-slate-400">
+                          <p className="font-medium text-gray-700 dark:text-slate-300">{m.historico || '—'}</p>
+                          {(m.documento_tipo || m.documento_numero) && (
+                            <p className="text-[10px] text-gray-400 mt-0.5">
+                              {m.documento_tipo} {m.documento_numero}
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-gray-600 dark:text-slate-400 max-w-xs truncate" title={m.credor_cliente}>
+                          {m.credor_cliente || '—'}
+                        </td>
+                        <td className={`px-4 py-2 text-right font-mono font-bold ${
+                          m.tipo_operacao === 'C' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {currency(m.valor)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-3 border-t border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/40 flex items-center justify-between">
+              <p className="text-[11px] text-gray-500 dark:text-slate-400">
+                Os ajustes devem ser feitos diretamente no Sienge (módulo Conciliação Bancária)
+              </p>
+              <button
+                type="button"
+                onClick={() => setModalConta(null)}
+                className="text-xs font-semibold text-gray-600 hover:text-gray-800 dark:text-slate-300 dark:hover:text-slate-100"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

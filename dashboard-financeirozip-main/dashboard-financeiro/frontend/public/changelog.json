@@ -1,6 +1,27 @@
 {
-  "versao_atual": "1.11.0",
+  "versao_atual": "1.12.0",
   "historico": [
+    {
+      "versao": "1.12.0",
+      "data": "2026-04-28",
+      "titulo": "Novidades da Versao 1.12.0",
+      "secoes": [
+        {
+          "titulo": "Saldos Bancarios",
+          "icone": "wallet",
+          "itens": [
+            "Novo card 'Nao Conciliado' mostrando o valor total que ainda nao foi conciliado no banco",
+            "Duas novas colunas na tabela Posicao de Saldos: 'Conciliado' e 'Nao Conciliado' por conta",
+            "Selo '⚠ pendência' ao lado das contas que tem movimentos nao conciliados",
+            "Clique em uma conta com pendencia para abrir o detalhe dos movimentos pendentes (data, valor, historico, credor/cliente)",
+            "Filtro no modal: 'Apenas nao vinculados' (movimentos sem titulo no Sienge) ou 'Todos nao conciliados'",
+            "Botao 'Sincronizar conciliação' que busca os dados em tempo real da API do Sienge",
+            "Sincronizacao automatica diaria junto com o snapshot dos cards (1x/dia)",
+            "Indicador de 'ultima sincronizacao' no topo da pagina"
+          ]
+        }
+      ]
+    },
     {
       "versao": "1.11.0",
       "data": "2026-04-28",
