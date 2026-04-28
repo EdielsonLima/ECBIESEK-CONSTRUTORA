@@ -372,17 +372,8 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
           <span className="h-2 w-2 rounded-full bg-blue-500"></span>
           Vendas
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="rounded-2xl border border-blue-100 bg-white dark:bg-slate-800 p-5 shadow-sm">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="rounded-lg p-2 bg-gradient-to-br from-blue-400 to-blue-600 text-white">
-                <DollarSign className="h-4 w-4" />
-              </div>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">VGV</p>
-            </div>
-            <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100">{formatCurrency(data.vgv)}</p>
-            <p className="text-xs text-gray-400 mt-1">Total Vendido + Estoque</p>
-          </div>
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto_1fr_auto_1fr_1fr] lg:items-stretch">
+          {/* 1. Total Vendido */}
           <div className="rounded-2xl border border-emerald-100 bg-white dark:bg-slate-800 p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
               <div className="rounded-lg p-2 bg-gradient-to-br from-emerald-400 to-emerald-600 text-white">
@@ -393,16 +384,11 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
             <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100">{formatCurrency(data.total_vendido)}</p>
             <p className="text-xs text-gray-400 mt-1">{data.qtd_vendido} unidade{data.qtd_vendido === 1 ? '' : 's'} vendida{data.qtd_vendido === 1 ? '' : 's'} (Vendido + Pré-Contrato)</p>
           </div>
-          <div className="rounded-2xl border border-sky-100 bg-white dark:bg-slate-800 p-5 shadow-sm">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="rounded-lg p-2 bg-gradient-to-br from-sky-400 to-sky-600 text-white">
-                <HandCoins className="h-4 w-4" />
-              </div>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Saldo a Receber</p>
-            </div>
-            <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100">{formatCurrency(data.saldo_a_receber)}</p>
-            <p className="text-xs text-gray-400 mt-1">A receber + inadimplentes, corrigidos por indexador (INCC/IGPM/IPCA)</p>
-          </div>
+
+          {/* operador + */}
+          <div className="flex items-center justify-center text-3xl lg:text-4xl font-bold text-gray-300 dark:text-slate-600 select-none" aria-hidden="true">+</div>
+
+          {/* 2. Estoque */}
           <div className="rounded-2xl border border-cyan-100 bg-white dark:bg-slate-800 p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
               <div className="rounded-lg p-2 bg-gradient-to-br from-cyan-400 to-cyan-600 text-white">
@@ -433,6 +419,33 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
                 ))}
               </div>
             )}
+          </div>
+
+          {/* operador = */}
+          <div className="flex items-center justify-center text-3xl lg:text-4xl font-bold text-gray-300 dark:text-slate-600 select-none" aria-hidden="true">=</div>
+
+          {/* 3. VGV */}
+          <div className="rounded-2xl border border-blue-100 bg-white dark:bg-slate-800 p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="rounded-lg p-2 bg-gradient-to-br from-blue-400 to-blue-600 text-white">
+                <DollarSign className="h-4 w-4" />
+              </div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">VGV</p>
+            </div>
+            <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100">{formatCurrency(data.vgv)}</p>
+            <p className="text-xs text-gray-400 mt-1">Total Vendido + Estoque</p>
+          </div>
+
+          {/* 4. Saldo a Receber */}
+          <div className="rounded-2xl border border-sky-100 bg-white dark:bg-slate-800 p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="rounded-lg p-2 bg-gradient-to-br from-sky-400 to-sky-600 text-white">
+                <HandCoins className="h-4 w-4" />
+              </div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Saldo a Receber</p>
+            </div>
+            <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100">{formatCurrency(data.saldo_a_receber)}</p>
+            <p className="text-xs text-gray-400 mt-1">A receber + inadimplentes, corrigidos por indexador (INCC/IGPM/IPCA)</p>
           </div>
         </div>
       </div>

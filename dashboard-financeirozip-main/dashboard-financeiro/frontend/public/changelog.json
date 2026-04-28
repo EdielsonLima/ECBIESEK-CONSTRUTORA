@@ -12,7 +12,8 @@
           "itens": [
             "Novo card 'Total Vendido' na secao Vendas, separado do VGV",
             "Mostra o valor total das unidades vendidas (Vendido + Pre-Contrato) e a quantidade de unidades",
-            "VGV continua mostrando Total Vendido + Estoque para visao consolidada"
+            "Cards reorganizados como uma equacao visual: Total Vendido + Estoque = VGV, seguido de Saldo a Receber",
+            "Operadores '+' e '=' aparecem entre os cards para deixar claro como o VGV e formado"
           ]
         }
       ]
