@@ -76,6 +76,19 @@ Dashboard financeiro React 18 + TypeScript + Tailwind CSS (frontend) com FastAPI
 - Joins: `cp.id_conta_corrente = eccc.id_conta_corrente`
 - Endpoints: `/api/saldos-bancarios` e `/api/saldos-bancarios/detalhe`
 
+### Conciliacao Bancaria (Sienge API)
+- **Origem dos dados**: API do Sienge, dois endpoints:
+  - `GET /accounts-balances` (REST v1): retorna `amount` (saldo total) + `reconciledAmount` (valor ja conciliado) por conta/empresa/data
+  - `GET /bank-movement` (Bulk API): movimentos individuais com flag `bankMovementReconcile` ('S' ou 'N') + suporta `onlyDetachedMovement=S` para filtrar movimentos sem titulo vinculado
+- **Tabela local**: `saldos_conciliacao` (CONFIG_DB) — chave `(data_referencia, account_number, company_id)` com `saldo_total` + `valor_conciliado`
+- **Sync**: roda 1x/dia dentro do `_auto_snapshot_loop` (apos snapshot de cards) + botao manual "Sincronizar conciliação" na pagina Saldos Bancarios
+- **Endpoints**:
+  - `POST /api/saldos-bancarios/sincronizar-conciliacao?data=YYYY-MM-DD` — forca sync
+  - `GET /api/saldos-bancarios/movimentos-nao-conciliados?account_number=X&company_id=Y&apenas_nao_vinculados=true` — drill-down dos movimentos pendentes
+- **Calculo de "Nao Conciliado"** = `saldo_atual` (de `posicao_saldos`) - `valor_conciliado` (do Sienge)
+- **JOIN entre tabelas**: `posicao_saldos.id_conta_corrente` (string) <-> `saldos_conciliacao.account_number` (string); `id_interno_empresa` -> `id_sienge_empresa` via `dim_centrocusto`. O merge é feito em Python (não SQL) porque as tabelas estão em bancos diferentes (DB_CONFIG vs CONFIG_DB)
+- **Importante**: ajustes de conciliacao devem ser feitos no proprio Sienge (modulo Conciliacao Bancaria). O dashboard apenas mostra o status
+
 ### Fuso Horário
 - Banco PostgreSQL armazena timestamps em UTC
 - Frontend deve converter para `America/Sao_Paulo` ao exibir
