@@ -31,11 +31,23 @@ DB_CONFIG = {
     'password': os.environ.get('DB_PASSWORD') or '',
 }
 
+# Banco gravavel (mesmo usado por _ensure_config_tables_in_postgres em main.py)
+CONFIG_DB_URL = os.environ.get('CONFIG_DB_URL') or os.environ.get('DATABASE_URL')
+
 _lock_sync = asyncio.Lock()
 _TTL_ITENS_ABERTOS_SEG = 2 * 3600  # 2h
 
 
+def _conn_data():
+    """Conexao read-only ao banco principal (Sienge replica) — para dim_centrocusto/ecadcredor."""
+    return psycopg2.connect(**DB_CONFIG, cursor_factory=RealDictCursor)
+
+
 def _conn():
+    """Conexao gravavel para nossas tabelas pedidos_compra*. Usa CONFIG_DB_URL se disponivel,
+    senao cai pro DB_CONFIG (mesmo padrao de main.py)."""
+    if CONFIG_DB_URL:
+        return psycopg2.connect(CONFIG_DB_URL, cursor_factory=RealDictCursor)
     return psycopg2.connect(**DB_CONFIG, cursor_factory=RealDictCursor)
 
 
@@ -347,10 +359,22 @@ async def sincronizar_pedidos_compra(periodo_dias: int = 90, force_full: bool = 
         pedidos = await _fetch_purchase_orders(start_date, end_date)
         print(f"[pedidos-compra] Sienge retornou {len(pedidos)} pedidos")
 
+        # Enriquecimento usa banco read-only (Sienge replica)
+        cc_map = {}
+        forn_map = {}
+        try:
+            conn_data = _conn_data()
+            try:
+                cc_map = _enriquecer_centros_custo(pedidos, conn_data)
+                forn_map = _enriquecer_fornecedores(pedidos, conn_data)
+            finally:
+                conn_data.close()
+        except Exception as e:
+            print(f"[pedidos-compra] Falha ao enriquecer CC/Fornecedor (segue sem nomes): {e}")
+
+        # UPSERT usa banco gravavel
         conn = _conn()
         try:
-            cc_map = _enriquecer_centros_custo(pedidos, conn)
-            forn_map = _enriquecer_fornecedores(pedidos, conn)
             novos, atualizados = _upsert_pedidos(pedidos, cc_map, forn_map, conn)
         finally:
             conn.close()

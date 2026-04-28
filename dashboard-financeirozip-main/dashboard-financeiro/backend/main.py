@@ -1471,6 +1471,13 @@ async def get_titulos_alterados(data_inicio: str, data_fim: str):
 
 # ==================== PEDIDOS DE COMPRA ====================
 
+def _pc_conn():
+    """Conexao gravavel para tabelas pedidos_compra* (mesmo banco das tabelas de config)."""
+    if CONFIG_DB_URL:
+        return psycopg2.connect(CONFIG_DB_URL, cursor_factory=RealDictCursor)
+    return psycopg2.connect(**DB_CONFIG, cursor_factory=RealDictCursor)
+
+
 def _filtro_in_clause(coluna: str, valores: Optional[List], params: list) -> str:
     """Helper: monta cláusula '<coluna> = ANY(%s)' se a lista tiver valores."""
     if valores:
@@ -1515,7 +1522,7 @@ def listar_pedidos_compra(
         like = f"%{busca}%"
         params += [like, like, like]
 
-    conn = get_db_connection()
+    conn = _pc_conn()
     try:
         cur = conn.cursor()
 
@@ -1571,30 +1578,28 @@ def listar_pedidos_compra(
 @app.get("/api/pedidos-compra/filtros")
 def filtros_pedidos_compra(current_user: dict = Depends(get_current_user)):
     """Retorna dropdowns para filtros: empresas, centros_custo, fornecedores, anos, status."""
-    conn = get_db_connection()
+    conn = _pc_conn()
     try:
         cur = conn.cursor()
 
-        # Empresas (excluindo as configuradas como excluídas em config)
+        # Empresas (sem JOIN com dim_centrocusto pois esta em outro DB)
         cur.execute("""
-            SELECT DISTINCT pc.id_empresa AS id, COALESCE(e.nome_empresa, 'Empresa ' || pc.id_empresa::text) AS nome
-            FROM pedidos_compra pc
-            LEFT JOIN dim_centrocusto e ON e.id_sienge_empresa = pc.id_empresa
-            WHERE pc.id_empresa IS NOT NULL
+            SELECT DISTINCT id_empresa AS id, ('Empresa ' || id_empresa::text) AS nome
+            FROM pedidos_compra
+            WHERE id_empresa IS NOT NULL
             ORDER BY nome
         """)
         empresas = [dict(r) for r in cur.fetchall()]
 
-        # Centros de custo (id = id_interno; código = id_sienge)
+        # Centros de custo (id = id_interno, nome denormalizado)
         cur.execute("""
-            SELECT DISTINCT pc.id_centro_custo AS id, pc.nome_centro_custo AS nome,
-                   cc.id_sienge_centrocusto AS codigo
-            FROM pedidos_compra pc
-            LEFT JOIN dim_centrocusto cc ON cc.id_interno_centrocusto = pc.id_centro_custo
-            WHERE pc.id_centro_custo IS NOT NULL
+            SELECT DISTINCT id_centro_custo AS id,
+                   COALESCE(nome_centro_custo, 'CC ' || id_centro_custo::text) AS nome
+            FROM pedidos_compra
+            WHERE id_centro_custo IS NOT NULL
             ORDER BY nome
         """)
-        centros = [dict(r) for r in cur.fetchall()]
+        centros_raw = [dict(r) for r in cur.fetchall()]
 
         # Fornecedores
         cur.execute("""
@@ -1622,6 +1627,29 @@ def filtros_pedidos_compra(current_user: dict = Depends(get_current_user)):
         cur.close()
     finally:
         conn.close()
+
+    # Enriquece centros de custo com codigo (id_sienge) — query separada no DB Sienge replica
+    centros: list[dict] = []
+    cc_ids = [c["id"] for c in centros_raw]
+    cc_codigo_map: dict[int, int] = {}
+    if cc_ids:
+        try:
+            data_conn = get_db_connection()
+            try:
+                data_cur = data_conn.cursor()
+                data_cur.execute(
+                    "SELECT id_interno_centrocusto, id_sienge_centrocusto FROM dim_centrocusto WHERE id_interno_centrocusto = ANY(%s)",
+                    (cc_ids,),
+                )
+                cc_codigo_map = {r["id_interno_centrocusto"]: r["id_sienge_centrocusto"] for r in data_cur.fetchall()}
+                data_cur.close()
+            finally:
+                data_conn.close()
+        except Exception as e:
+            print(f"[pedidos-compra/filtros] Falha ao enriquecer codigo CC: {e}")
+    for c in centros_raw:
+        c["codigo"] = cc_codigo_map.get(c["id"])
+        centros.append(c)
 
     return {
         "empresas": empresas,
@@ -1661,7 +1689,7 @@ async def sincronizar_pedidos_compra_endpoint(
 @app.get("/api/pedidos-compra/{id_pedido}/itens")
 async def itens_pedidos_compra(id_pedido: int, current_user: dict = Depends(get_current_user)):
     """Retorna itens do pedido. Sincroniza on-demand se cache vazio/expirado."""
-    conn = get_db_connection()
+    conn = _pc_conn()
     try:
         cur = conn.cursor()
         cur.execute("SELECT status FROM pedidos_compra WHERE id_pedido = %s", (id_pedido,))
@@ -1675,7 +1703,7 @@ async def itens_pedidos_compra(id_pedido: int, current_user: dict = Depends(get_
     status_pedido = row["status"]
     await sync_pedidos_compra.garantir_itens_pedido(id_pedido, status_pedido)
 
-    conn = get_db_connection()
+    conn = _pc_conn()
     try:
         cur = conn.cursor()
         cur.execute("""
@@ -1708,7 +1736,7 @@ async def itens_pedidos_compra(id_pedido: int, current_user: dict = Depends(get_
                 await sync_pedidos_compra.sincronizar_entregas_item(id_pedido, it["numero_item"])
             except Exception as e:
                 print(f"[pedidos-compra] Falha entregas {id_pedido}/{it['numero_item']}: {e}")
-        conn = get_db_connection()
+        conn = _pc_conn()
         try:
             cur = conn.cursor()
             cur.execute("""
@@ -10150,8 +10178,14 @@ def get_saldos_bancarios(
                 return 'reapropriacao'
             return 'bancaria'
 
+        # Helper para normalizar accountNumber: remove zeros a esquerda
+        # (Sienge retorna "0000000005", posicao_saldos guarda "5")
+        def _norm_acc(s) -> str:
+            v = str(s or '').strip()
+            return v.lstrip('0') or '0'
+
         # Carrega valores conciliados sincronizados do Sienge para esta data (CONFIG_DB)
-        # Mapa: (account_number, company_id_sienge) -> {valor_conciliado, saldo_total_sienge, sincronizado_em}
+        # Mapa: (account_number_norm, company_id_sienge) -> {valor_conciliado, saldo_total_sienge}
         conciliacao_map: dict = {}
         conciliacao_sincronizado_em = None
         try:
@@ -10164,7 +10198,7 @@ def get_saldos_bancarios(
                     WHERE data_referencia = %s
                 """, [data_ref])
                 for cr in cfg_cursor.fetchall():
-                    key = (str(cr['account_number'] or '').strip(), int(cr['company_id'] or 0))
+                    key = (_norm_acc(cr['account_number']), int(cr['company_id'] or 0))
                     conciliacao_map[key] = {
                         'valor_conciliado': float(cr['valor_conciliado'] or 0),
                         'saldo_total_sienge': float(cr['saldo_total'] or 0),
@@ -10195,8 +10229,8 @@ def get_saldos_bancarios(
             saida = float(r['saida'] or 0)
             tipo = classifica(r['nome'])
 
-            # Busca valor conciliado para esta conta
-            conta_key = (str(r['id_conta_corrente'] or '').strip(), int(emp_sienge or 0))
+            # Busca valor conciliado para esta conta (chave normalizada por accountNumber)
+            conta_key = (_norm_acc(r['id_conta_corrente']), int(emp_sienge or 0))
             conc = conciliacao_map.get(conta_key)
             valor_conciliado = float(conc['valor_conciliado']) if conc else 0.0
             tem_conciliacao = conc is not None
@@ -10574,11 +10608,17 @@ async def get_movimentos_nao_conciliados(
             data = response.json()
             results = data.get("data", data) if isinstance(data, dict) else data
 
+        # Normaliza accountNumber (Sienge retorna "0000000005", banco local guarda "5")
+        def _norm(s) -> str:
+            v = str(s or '').strip()
+            return v.lstrip('0') or '0'
+
+        target_acc = _norm(account_number)
         if isinstance(results, list):
             for m in results:
-                m_account = str(m.get("accountNumber") or "").strip()
+                m_account = _norm(m.get("accountNumber"))
                 m_company = m.get("companyId") or 0
-                if m_account != str(account_number).strip() or int(m_company) != int(company_id):
+                if m_account != target_acc or int(m_company) != int(company_id):
                     continue
                 # Quando apenas_nao_vinculados=False, filtra apenas os efetivamente nao conciliados
                 conciliado_flag = (m.get("bankMovementReconcile") or '').upper() == 'S'
