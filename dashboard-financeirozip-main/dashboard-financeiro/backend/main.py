@@ -10446,6 +10446,7 @@ async def _sync_conciliacao_saldos_async(data_ref: Optional[str] = None) -> dict
     offset = 0
     limit = 200
     erro_api: Optional[str] = None
+    status_code: Optional[int] = None
 
     try:
         async with httpx.AsyncClient(timeout=120.0) as client:
@@ -10453,6 +10454,13 @@ async def _sync_conciliacao_saldos_async(data_ref: Optional[str] = None) -> dict
                 url = f"{SIENGE_API_URL}/accounts-balances"
                 params = {"balanceDate": data_ref, "offset": str(offset), "limit": str(limit)}
                 response = await client.get(url, params=params, headers=headers)
+                if response.status_code in (401, 403):
+                    status_code = response.status_code
+                    if response.status_code == 403:
+                        erro_api = "Acesso negado pelo Sienge ao endpoint /accounts-balances. As credenciais da API Sienge nao tem permissao para Saldos de Contas. Solicite ao administrador do Sienge da Biesek que libere o acesso a este recurso para o usuario da API."
+                    else:
+                        erro_api = "Credenciais da API Sienge invalidas (401). Verifique SIENGE_USERNAME/SIENGE_PASSWORD."
+                    break
                 response.raise_for_status()
                 data = response.json()
                 results = data.get("results", []) if isinstance(data, dict) else []
@@ -10469,7 +10477,13 @@ async def _sync_conciliacao_saldos_async(data_ref: Optional[str] = None) -> dict
         print(f"[sync-conciliacao] erro ao chamar Sienge: {e}")
 
     if erro_api:
-        return {"sucesso": False, "erro": erro_api, "data_referencia": data_ref, "registros": 0}
+        return {
+            "sucesso": False,
+            "erro": erro_api,
+            "status_code": status_code,
+            "data_referencia": data_ref,
+            "registros": 0,
+        }
 
     # Persiste no CONFIG_DB
     conn = get_config_db_connection()

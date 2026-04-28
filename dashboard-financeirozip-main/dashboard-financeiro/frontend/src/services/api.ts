@@ -1245,11 +1245,11 @@ export const apiService = {
     }
   },
 
-  sincronizarConciliacao: async (data?: string): Promise<{ sucesso: boolean; data_referencia: string; registros: number; erro?: string }> => {
+  sincronizarConciliacao: async (data?: string): Promise<{ sucesso: boolean; data_referencia: string; registros: number; erro?: string; status_code?: number }> => {
     const params = new URLSearchParams();
     if (data) params.append('data', data);
     try {
-      const response = await api.post<{ sucesso: boolean; data_referencia: string; registros: number; erro?: string }>(
+      const response = await api.post<{ sucesso: boolean; data_referencia: string; registros: number; erro?: string; status_code?: number }>(
         `/saldos-bancarios/sincronizar-conciliacao?${params.toString()}`
       );
       return response.data;

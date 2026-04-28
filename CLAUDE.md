@@ -88,6 +88,7 @@ Dashboard financeiro React 18 + TypeScript + Tailwind CSS (frontend) com FastAPI
 - **Calculo de "Nao Conciliado"** = `saldo_atual` (de `posicao_saldos`) - `valor_conciliado` (do Sienge)
 - **JOIN entre tabelas**: `posicao_saldos.id_conta_corrente` (string) <-> `saldos_conciliacao.account_number` (string); `id_interno_empresa` -> `id_sienge_empresa` via `dim_centrocusto`. O merge é feito em Python (não SQL) porque as tabelas estão em bancos diferentes (DB_CONFIG vs CONFIG_DB)
 - **Importante**: ajustes de conciliacao devem ser feitos no proprio Sienge (modulo Conciliacao Bancaria). O dashboard apenas mostra o status
+- **Permissao 403 na API**: o endpoint `/accounts-balances` exige liberacao explicita no painel admin do Sienge para o usuario da API (`biesek-dtconsultorias`). Se aparecer 403, o admin do Sienge precisa habilitar o recurso "Saldos de Contas" para essa credencial. Os endpoints de bills e bank-movement ja estao liberados, mas accounts-balances é separado
 
 ### Fuso Horário
 - Banco PostgreSQL armazena timestamps em UTC

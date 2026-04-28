@@ -57,6 +57,7 @@ export const SaldosBancarios: React.FC = () => {
   // Conciliacao bancaria
   const [sincronizandoConc, setSincronizandoConc] = useState(false);
   const [msgSyncConc, setMsgSyncConc] = useState<string | null>(null);
+  const [erroConc, setErroConc] = useState<{ mensagem: string; codigo?: number } | null>(null);
   const [modalConta, setModalConta] = useState<{
     conta_corrente: string;
     empresa_id: number;
@@ -205,6 +206,7 @@ export const SaldosBancarios: React.FC = () => {
   const sincronizarConciliacao = async () => {
     setSincronizandoConc(true);
     setMsgSyncConc(null);
+    setErroConc(null);
     try {
       const res = await apiService.sincronizarConciliacao(dataRef || undefined);
       if (res.sucesso) {
@@ -215,10 +217,11 @@ export const SaldosBancarios: React.FC = () => {
         const r = await apiService.getSaldosResumo(empArr, conArr, dataRef || undefined);
         setResumo(r);
       } else {
-        setMsgSyncConc(`Erro: ${res.erro || 'falha desconhecida'}`);
+        const codigo = (res as any).status_code as number | undefined;
+        setErroConc({ mensagem: res.erro || 'Falha desconhecida', codigo });
       }
     } catch (e: any) {
-      setMsgSyncConc(`Erro: ${e?.message || 'falha'}`);
+      setErroConc({ mensagem: e?.message || 'Falha de conexao' });
     } finally {
       setSincronizandoConc(false);
       setTimeout(() => setMsgSyncConc(null), 5000);
@@ -587,6 +590,35 @@ export const SaldosBancarios: React.FC = () => {
         </p>
         {erro && <p className="text-xs text-red-500">{erro}</p>}
       </div>
+
+      {/* Banner de erro de conciliacao (403 etc) */}
+      {erroConc && (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700 p-4 flex items-start gap-3">
+          <svg className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <div className="flex-1">
+            <p className="text-sm font-bold text-amber-800 dark:text-amber-300">
+              {erroConc.codigo === 403 ? 'Acesso negado pelo Sienge (403)' : 'Falha na sincronização da conciliação'}
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">{erroConc.mensagem}</p>
+            {erroConc.codigo === 403 && (
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-2">
+                <strong>Como resolver:</strong> entre em contato com o administrador do Sienge da Biesek e solicite que o usuário da API (<span className="font-mono">biesek-dtconsultorias</span>) tenha permissão de leitura no recurso <strong>Saldos de Contas</strong> (endpoint <span className="font-mono">/accounts-balances</span>).
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setErroConc(null)}
+            className="text-amber-600 hover:text-amber-800 flex-shrink-0"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Tabela Posicao de Saldos (estilo relatorio oficial) */}
       <div className="rounded-2xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
