@@ -1963,6 +1963,183 @@ def painel_pedidos_compra(
     }
 
 
+@app.get("/api/pedidos-compra/entregas-do-dia")
+def entregas_do_dia_pedidos_compra(
+    data: Optional[str] = None,
+    empresa: Optional[List[int]] = Query(None),
+    centro_custo: Optional[List[int]] = Query(None),
+    fornecedor: Optional[List[int]] = Query(None),
+    current_user: dict = Depends(get_current_user),
+):
+    """Lista pedidos com entregas previstas em uma data especifica (default = hoje).
+
+    Filtra cronogramas com quantidade_aberta > 0 (ainda nao entregue).
+    Retorna uma linha por (pedido, item, parcela do cronograma) com
+    fornecedor, CC, valor da entrega e dados do item.
+    """
+    if data:
+        try:
+            data_ref = datetime.strptime(data, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(400, "Formato de data invalido. Use YYYY-MM-DD")
+    else:
+        data_ref = date.today()
+
+    where_e = "WHERE e.data_prevista = %s AND COALESCE(e.quantidade_aberta, 0) > 0"
+    params: list = [data_ref]
+    where_e += _filtro_in_clause("pc.id_empresa", empresa, params)
+    where_e += _filtro_in_clause("pc.id_centro_custo", centro_custo, params)
+    where_e += _filtro_in_clause("pc.id_fornecedor", fornecedor, params)
+
+    conn = _pc_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute(f"""
+            SELECT
+                pc.id_pedido, pc.numero_pedido, pc.id_fornecedor, pc.nome_fornecedor,
+                pc.id_empresa, pc.id_centro_custo, pc.nome_centro_custo,
+                pc.status, pc.autorizado, pc.valor_total, pc.data_pedido,
+                e.numero_item, e.numero_cronograma, e.data_prevista,
+                e.quantidade_prevista, e.quantidade_entregue, e.quantidade_aberta,
+                i.codigo_recurso, i.descricao_recurso, i.preco_unitario,
+                (COALESCE(e.quantidade_aberta, 0) * COALESCE(i.preco_unitario, 0)) AS valor_entrega
+            FROM pedidos_compra_entregas e
+            JOIN pedidos_compra_itens i
+              ON i.id_pedido = e.id_pedido AND i.numero_item = e.numero_item
+            JOIN pedidos_compra pc ON pc.id_pedido = e.id_pedido
+            {where_e}
+            ORDER BY pc.nome_fornecedor NULLS LAST, pc.numero_pedido, e.numero_item, e.numero_cronograma
+        """, params)
+        linhas = [dict(r) for r in cur.fetchall()]
+        cur.close()
+    finally:
+        conn.close()
+
+    def _f(v):
+        return float(v) if v is not None else 0.0
+
+    entregas = [{
+        "id_pedido": r["id_pedido"],
+        "numero_pedido": r["numero_pedido"],
+        "fornecedor": {"id": r["id_fornecedor"], "nome": r["nome_fornecedor"]},
+        "centro_custo": {"id": r["id_centro_custo"], "nome": r["nome_centro_custo"]},
+        "id_empresa": r["id_empresa"],
+        "status": r["status"],
+        "autorizado": bool(r["autorizado"]) if r["autorizado"] is not None else False,
+        "valor_total_pedido": _f(r["valor_total"]),
+        "data_pedido": r["data_pedido"].isoformat() if r["data_pedido"] else None,
+        "numero_item": r["numero_item"],
+        "numero_cronograma": r["numero_cronograma"],
+        "data_prevista": r["data_prevista"].isoformat() if r["data_prevista"] else None,
+        "quantidade_prevista": _f(r["quantidade_prevista"]),
+        "quantidade_entregue": _f(r["quantidade_entregue"]),
+        "quantidade_aberta": _f(r["quantidade_aberta"]),
+        "codigo_recurso": r["codigo_recurso"],
+        "descricao_recurso": r["descricao_recurso"],
+        "preco_unitario": _f(r["preco_unitario"]),
+        "valor_entrega": _f(r["valor_entrega"]),
+    } for r in linhas]
+
+    pedidos_distintos = {e["id_pedido"] for e in entregas}
+    valor_total = sum(e["valor_entrega"] for e in entregas)
+
+    return {
+        "data": data_ref.isoformat(),
+        "resumo": {
+            "qtd_pedidos": len(pedidos_distintos),
+            "qtd_linhas_cronograma": len(entregas),
+            "valor_total": valor_total,
+        },
+        "entregas": entregas,
+    }
+
+
+@app.get("/api/pedidos-compra/atrasados")
+def pedidos_compra_atrasados(
+    empresa: Optional[List[int]] = Query(None),
+    centro_custo: Optional[List[int]] = Query(None),
+    fornecedor: Optional[List[int]] = Query(None),
+    autorizacao: str = "todos",
+    limite: int = 500,
+    current_user: dict = Depends(get_current_user),
+):
+    """Lista pedidos atrasados (proxima_entrega < hoje) com status aberto.
+
+    Considera 'aberto' = PENDING ou PARTIALLY_DELIVERED. Retorna ordenado pela
+    entrega mais antiga (mais critica). Inclui dias_atraso por pedido.
+    """
+    where = "WHERE 1=1"
+    params: list = []
+    where += _filtro_in_clause("id_empresa", empresa, params)
+    where += _filtro_in_clause("id_centro_custo", centro_custo, params)
+    where += _filtro_in_clause("id_fornecedor", fornecedor, params)
+    if autorizacao == "autorizados":
+        where += " AND autorizado = TRUE"
+    elif autorizacao == "aguardando":
+        where += " AND (autorizado IS NULL OR autorizado = FALSE) AND (reprovado IS NULL OR reprovado = FALSE)"
+
+    conn = _pc_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute(f"""
+            WITH base AS (
+                SELECT
+                    pc.id_pedido, pc.numero_pedido, pc.id_fornecedor, pc.nome_fornecedor,
+                    pc.id_empresa, pc.id_centro_custo, pc.nome_centro_custo,
+                    pc.status, pc.autorizado, pc.reprovado, pc.valor_total,
+                    pc.data_pedido,
+                    (SELECT MIN(e.data_prevista) FROM pedidos_compra_entregas e
+                     WHERE e.id_pedido = pc.id_pedido
+                       AND COALESCE(e.quantidade_aberta, 0) > 0) AS proxima_entrega
+                FROM pedidos_compra pc
+                {where}
+            )
+            SELECT id_pedido, numero_pedido, id_fornecedor, nome_fornecedor,
+                   id_empresa, id_centro_custo, nome_centro_custo,
+                   status, autorizado, valor_total, data_pedido, proxima_entrega,
+                   (CURRENT_DATE - proxima_entrega) AS dias_atraso
+            FROM base
+            WHERE status IN ('PENDING','PARTIALLY_DELIVERED')
+              AND proxima_entrega IS NOT NULL
+              AND proxima_entrega < CURRENT_DATE
+            ORDER BY proxima_entrega ASC, valor_total DESC
+            LIMIT %s
+        """, params + [limite])
+        linhas = [dict(r) for r in cur.fetchall()]
+        cur.close()
+    finally:
+        conn.close()
+
+    def _f(v):
+        return float(v) if v is not None else 0.0
+
+    pedidos = [{
+        "id_pedido": r["id_pedido"],
+        "numero_pedido": r["numero_pedido"],
+        "fornecedor": {"id": r["id_fornecedor"], "nome": r["nome_fornecedor"]},
+        "centro_custo": {"id": r["id_centro_custo"], "nome": r["nome_centro_custo"]},
+        "id_empresa": r["id_empresa"],
+        "status": r["status"],
+        "autorizado": bool(r["autorizado"]) if r["autorizado"] is not None else False,
+        "valor_total": _f(r["valor_total"]),
+        "data_pedido": r["data_pedido"].isoformat() if r["data_pedido"] else None,
+        "proxima_entrega": r["proxima_entrega"].isoformat() if r["proxima_entrega"] else None,
+        "dias_atraso": int(r["dias_atraso"]) if r["dias_atraso"] is not None else 0,
+    } for r in linhas]
+
+    valor_total = sum(p["valor_total"] for p in pedidos)
+    pior_atraso = max((p["dias_atraso"] for p in pedidos), default=0)
+
+    return {
+        "resumo": {
+            "qtd_pedidos": len(pedidos),
+            "valor_total": valor_total,
+            "pior_atraso_dias": pior_atraso,
+        },
+        "pedidos": pedidos,
+    }
+
+
 @app.post("/api/pedidos-compra/sincronizar")
 async def sincronizar_pedidos_compra_endpoint(
     body: dict | None = None,
@@ -13310,6 +13487,8 @@ def get_documentacao_fluxo_dados():
             {"area": "Suprimentos", "rota": "GET /api/pedidos-compra", "descricao": "Lista pedidos de compra com filtros (empresa, centro_custo, fornecedor, status, ano, autorizacao, busca, limite, offset). Retorna {data, total, kpis} com KPIs por status (PENDING, PARTIALLY_DELIVERED, FULLY_DELIVERED) e proxima_entrega calculada via subquery em pedidos_compra_entregas (MIN(data_prevista) com quantidade_aberta>0)", "tabelas": "pedidos_compra, pedidos_compra_entregas", "filtros_auto": "autorizado, reprovado, status"},
             {"area": "Suprimentos", "rota": "GET /api/pedidos-compra/filtros", "descricao": "Dropdowns para filtros da pagina de Pedidos: empresas, centros_custo (enriquecidos com codigo Sienge via dim_centrocusto), fornecedores, anos, status. CC e cross-DB: id local em pedidos_compra + JOIN externo com dim_centrocusto", "tabelas": "pedidos_compra, dim_centrocusto"},
             {"area": "Suprimentos", "rota": "GET /api/pedidos-compra/painel", "descricao": "Painel visual agregado: semaforos (atrasados/vencendo_7d/no_prazo/sem_data) com top 10 atrasados, aguardando_autorizacao (qtd+valor+top 10), por_status, top_fornecedores (10), por_centro_custo (10), entregas_30d (agrupado por data). Aplica os mesmos filtros do endpoint de listagem", "tabelas": "pedidos_compra, pedidos_compra_entregas, pedidos_compra_itens", "filtros_auto": "autorizado, reprovado, status, proxima_entrega vs CURRENT_DATE"},
+            {"area": "Suprimentos", "rota": "GET /api/pedidos-compra/entregas-do-dia", "descricao": "Lista detalhada de entregas previstas para uma data especifica (default = hoje). Params: data=YYYY-MM-DD, empresa, centro_custo, fornecedor. Retorna {data, resumo {qtd_pedidos, qtd_linhas_cronograma, valor_total}, entregas: [pedido + item + cronograma]}. Filtra apenas linhas com quantidade_aberta > 0", "tabelas": "pedidos_compra, pedidos_compra_itens, pedidos_compra_entregas"},
+            {"area": "Suprimentos", "rota": "GET /api/pedidos-compra/atrasados", "descricao": "Lista pedidos abertos (PENDING/PARTIALLY_DELIVERED) com proxima_entrega < hoje. Ordenado pela entrega mais antiga + valor. Params: empresa, centro_custo, fornecedor, autorizacao, limite (default 500). Retorna {resumo {qtd_pedidos, valor_total, pior_atraso_dias}, pedidos: [...] com dias_atraso}", "tabelas": "pedidos_compra, pedidos_compra_entregas"},
             {"area": "Suprimentos", "rota": "POST /api/pedidos-compra/sincronizar", "descricao": "Sincroniza pedidos de compra com a API do Sienge. Body: {periodo_dias=90, force_full=false}. Retorna estatisticas do batch (criados, atualizados, erros). Registra log_atividade", "tabelas": "pedidos_compra, pedidos_compra_itens, pedidos_compra_entregas, log_atividades"},
             {"area": "Suprimentos", "rota": "GET /api/pedidos-compra/{id_pedido}/itens", "descricao": "Retorna itens do pedido + cronograma de entregas agrupado por item. Sincroniza on-demand com Sienge se cache local vazio (chama garantir_itens_pedido). Se entregas vazias, busca por item via sincronizar_entregas_item", "tabelas": "pedidos_compra, pedidos_compra_itens, pedidos_compra_entregas"},
             {"area": "Suprimentos", "rota": "PUT /api/pedidos-compra/{id_pedido}/autorizar", "descricao": "Autoriza um pedido pendente diretamente no Sienge (admin only). Acao irreversivel pelo dashboard. Registra log_atividade", "tabelas": "pedidos_compra, log_atividades"},
