@@ -177,6 +177,7 @@ export const ContasAPagar: React.FC = () => {
   const [detalheCarregando, setDetalheCarregando] = useState(false);
   const [detalheCache, setDetalheCache] = useState<Record<number, TituloDetalhe>>({});
   const [autorizacoesBulk, setAutorizacoesBulk] = useState<Record<string, string>>({});
+  const [autorizacoesLoading, setAutorizacoesLoading] = useState(false);
   const [anoDropdownAberto, setAnoDropdownAberto] = useState(false);
   const [feriados, setFeriados] = useState<Set<string>>(new Set());
   const [snapshotsDisponiveis, setSnapshotsDisponiveis] = useState<Array<{ data_snapshot: string; created_at: string }>>([]);
@@ -223,6 +224,11 @@ export const ContasAPagar: React.FC = () => {
       carregarContasAno();
     }
   }, [abaAtiva, filtroAnoSemana]);
+
+  const getAutorizacaoConta = (conta: ContaPagar): 'S' | 'N' => {
+    const authApi = conta.lancamento ? autorizacoesBulk[conta.lancamento] : undefined;
+    return (authApi || (conta as any).flautorizacao) === 'S' ? 'S' : 'N';
+  };
 
   const ordenarContas = (contasParaOrdenar: ContaPagar[]) => {
     return [...contasParaOrdenar].sort((a, b) => {
@@ -283,8 +289,8 @@ export const ContasAPagar: React.FC = () => {
           valorB = b.data_cadastro && b.data_vencimento ? Math.round((new Date(b.data_vencimento as any).getTime() - new Date(b.data_cadastro as any).getTime()) / (1000 * 60 * 60 * 24)) : 0;
           break;
         case 'flautorizacao':
-          valorA = (a as any).flautorizacao || '';
-          valorB = (b as any).flautorizacao || '';
+          valorA = getAutorizacaoConta(a);
+          valorB = getAutorizacaoConta(b);
           break;
         default:
           return 0;
@@ -476,10 +482,20 @@ export const ContasAPagar: React.FC = () => {
     }
   }, []);
 
+  const carregarAutorizacoes = async (refresh: boolean = false) => {
+    setAutorizacoesLoading(true);
+    try {
+      const data = await apiService.getAutorizacoesBulk(refresh);
+      setAutorizacoesBulk(data);
+    } catch (err) {
+      console.error('Erro ao carregar autorizações:', err);
+    } finally {
+      setAutorizacoesLoading(false);
+    }
+  };
+
   useEffect(() => {
-    apiService.getAutorizacoesBulk()
-      .then(data => setAutorizacoesBulk(data))
-      .catch(err => console.error('Erro ao carregar autorizações:', err));
+    carregarAutorizacoes();
   }, []);
 
   useEffect(() => {
@@ -1299,6 +1315,17 @@ export const ContasAPagar: React.FC = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
           </svg>
           Salvar Padrão
+        </button>
+        <button
+          type="button"
+          onClick={() => carregarAutorizacoes(true)}
+          disabled={autorizacoesLoading}
+          className="flex items-center rounded-lg border border-blue-200 px-4 py-2 text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-900/20"
+        >
+          <svg className={`mr-2 h-4 w-4 ${autorizacoesLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v6h6M20 20v-6h-6M20 8a8 8 0 00-14.32-3.91L4 6M4 16a8 8 0 0014.32 3.91L20 18" />
+          </svg>
+          {autorizacoesLoading ? 'Atualizando...' : 'Atualizar Autorizações'}
         </button>
         {temFiltrosPadrao() && (
           <button

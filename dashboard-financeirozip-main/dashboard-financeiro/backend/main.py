@@ -1337,13 +1337,56 @@ SIENGE_BULK_API_URL = "https://api.sienge.com.br/biesek/public/api/bulk-data/v1"
 SIENGE_USERNAME = "biesek-dtconsultorias"
 SIENGE_PASSWORD = "W8LWWpo170P3LPpJDD42RL456fEvudEE"
 
+def _normalizar_status_autorizacao_sienge(valor) -> Optional[str]:
+    """Converte formatos diferentes do Sienge para o padrao local S/N."""
+    if valor is None:
+        return None
+    if isinstance(valor, bool):
+        return "S" if valor else "N"
+    texto = str(valor).strip().upper()
+    if not texto:
+        return None
+    if texto in {"S", "SIM", "Y", "YES", "TRUE", "1", "A", "AUTORIZADO", "AUTHORIZED", "APPROVED", "APROVADO"}:
+        return "S"
+    if texto in {"N", "NAO", "NÃO", "NO", "FALSE", "0", "P", "PENDENTE", "PENDING", "NOT_AUTHORIZED", "UNAUTHORIZED"}:
+        return "N"
+    return texto
+
+
+def _extrair_status_autorizacao_sienge(item: dict) -> str:
+    status = _normalizar_status_autorizacao_sienge(item.get("authorizationStatus"))
+    if status in {"S", "N"}:
+        return status
+
+    autorizacoes = item.get("authorizations")
+    if isinstance(autorizacoes, list) and autorizacoes:
+        valores = []
+        for auth in autorizacoes:
+            if not isinstance(auth, dict):
+                continue
+            for campo in ("authorizationStatus", "status", "authorized", "approved", "isAuthorized"):
+                valor = _normalizar_status_autorizacao_sienge(auth.get(campo))
+                if valor in {"S", "N"}:
+                    valores.append(valor)
+                    break
+            else:
+                if auth.get("authorizedAt") or auth.get("authorizationDate") or auth.get("approvedAt"):
+                    valores.append("S")
+        if valores and all(v == "S" for v in valores):
+            return "S"
+        if any(v == "N" for v in valores):
+            return "N"
+
+    return "N"
+
+
 @app.get("/api/autorizacoes-bulk")
-async def get_autorizacoes_bulk():
+async def get_autorizacoes_bulk(refresh: bool = False):
     """Busca status de autorização de todos os títulos via Sienge Bulk API /outcome"""
     import time as _time
 
     now = _time.time()
-    if _autorizacoes_bulk_cache["data"] is not None and (now - _autorizacoes_bulk_cache["timestamp"]) < _AUTORIZACOES_CACHE_TTL:
+    if not refresh and _autorizacoes_bulk_cache["data"] is not None and (now - _autorizacoes_bulk_cache["timestamp"]) < _AUTORIZACOES_CACHE_TTL:
         return _autorizacoes_bulk_cache["data"]
 
     hoje = datetime.now().strftime("%Y-%m-%d")
@@ -1358,7 +1401,7 @@ async def get_autorizacoes_bulk():
         "selectionType": "D",
         "correctionIndexerId": "0",
         "correctionDate": hoje,
-        "withAuthorizations": "false",
+        "withAuthorizations": "true",
         "withBankMovements": "false",
     }
 
@@ -1376,10 +1419,9 @@ async def get_autorizacoes_bulk():
         for item in data:
             bill_id = item.get("billId")
             installment_id = item.get("installmentId")
-            auth_status = item.get("authorizationStatus", "N")
             if bill_id is not None:
                 key = f"{bill_id}/{installment_id}" if installment_id else str(bill_id)
-                resultado[key] = auth_status
+                resultado[key] = _extrair_status_autorizacao_sienge(item)
 
         _autorizacoes_bulk_cache["data"] = resultado
         _autorizacoes_bulk_cache["timestamp"] = now

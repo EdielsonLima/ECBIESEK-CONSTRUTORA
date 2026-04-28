@@ -199,8 +199,8 @@ export const apiService = {
   },
 
   // Autorizações em lote (via Sienge Bulk API)
-  getAutorizacoesBulk: async (): Promise<Record<string, string>> => {
-    const response = await api.get<Record<string, string>>('/autorizacoes-bulk');
+  getAutorizacoesBulk: async (refresh: boolean = false): Promise<Record<string, string>> => {
+    const response = await api.get<Record<string, string>>(`/autorizacoes-bulk${refresh ? '?refresh=true' : ''}`);
     return response.data;
   },
 
