@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ContaPagar, TituloDetalhe, DashboardMetrics, GraficoMensal, GraficoPorCategoria, EmpresaOption, CentroCustoOption, TipoDocumentoOption, OrigemDadoOption, TipoBaixaOption, ContaCorrenteOption, OrigemTituloOption, KPI, KPICreate, KPIHistorico, KPIResumo, CalculoDisponivel, TipoDocumento, ContaReceber, MetricasReceber, KPIVariacaoDiaria, KPIHistoricoVariacaoResponse, SnapshotDiarioResponse, PainelExecutivoData, ExposicaoMensal, EmpreendimentoOption, EstoqueDetalhe, SaldoBancarioResumo, SaldoBancarioRegistro, PedidosCompraResponse, PedidosCompraFiltros, FiltrosPedidoCompraQuery, ItemPedidoCompra } from '../types';
+import { ContaPagar, TituloDetalhe, DashboardMetrics, GraficoMensal, GraficoPorCategoria, EmpresaOption, CentroCustoOption, TipoDocumentoOption, OrigemDadoOption, TipoBaixaOption, ContaCorrenteOption, OrigemTituloOption, KPI, KPICreate, KPIHistorico, KPIResumo, CalculoDisponivel, TipoDocumento, ContaReceber, MetricasReceber, KPIVariacaoDiaria, KPIHistoricoVariacaoResponse, SnapshotDiarioResponse, PainelExecutivoData, ExposicaoMensal, EmpreendimentoOption, EstoqueDetalhe, SaldoBancarioResumo, SaldoBancarioRegistro, MovimentosNaoConciliadosResponse, PedidosCompraResponse, PedidosCompraFiltros, FiltrosPedidoCompraQuery, ItemPedidoCompra } from '../types';
 
 const API_URL = '/api';
 
@@ -1226,7 +1226,9 @@ export const apiService = {
         empresas: Array.isArray(d.empresas) ? d.empresas : [],
         contas: Array.isArray(d.contas) ? d.contas : [],
         serie: Array.isArray(d.serie) ? d.serie : [],
-        cards: d.cards || { bancario: 0, permuta: 0, mutuo: 0, reapropriacao: 0 },
+        cards: d.cards || { bancario: 0, permuta: 0, mutuo: 0, reapropriacao: 0, conciliado: 0, nao_conciliado: 0 },
+        conciliacao_sincronizada_em: d.conciliacao_sincronizada_em ?? null,
+        tem_dados_conciliacao: !!d.tem_dados_conciliacao,
       };
     } catch (err) {
       console.error('[saldos-bancarios] erro:', err);
@@ -1236,8 +1238,46 @@ export const apiService = {
         empresas: [],
         contas: [],
         serie: [],
-        cards: { bancario: 0, permuta: 0, mutuo: 0, reapropriacao: 0 },
+        cards: { bancario: 0, permuta: 0, mutuo: 0, reapropriacao: 0, conciliado: 0, nao_conciliado: 0 },
+        conciliacao_sincronizada_em: null,
+        tem_dados_conciliacao: false,
       };
+    }
+  },
+
+  sincronizarConciliacao: async (data?: string): Promise<{ sucesso: boolean; data_referencia: string; registros: number; erro?: string }> => {
+    const params = new URLSearchParams();
+    if (data) params.append('data', data);
+    try {
+      const response = await api.post<{ sucesso: boolean; data_referencia: string; registros: number; erro?: string }>(
+        `/saldos-bancarios/sincronizar-conciliacao?${params.toString()}`
+      );
+      return response.data;
+    } catch (err: any) {
+      console.error('[sincronizar-conciliacao] erro:', err);
+      return { sucesso: false, data_referencia: data || '', registros: 0, erro: err?.message || 'Erro' };
+    }
+  },
+
+  getMovimentosNaoConciliados: async (params: {
+    accountNumber: string;
+    companyId: number;
+    dataInicio?: string;
+    dataFim?: string;
+    apenasNaoVinculados?: boolean;
+  }): Promise<MovimentosNaoConciliadosResponse> => {
+    const qs = new URLSearchParams();
+    qs.append('account_number', params.accountNumber);
+    qs.append('company_id', String(params.companyId));
+    if (params.dataInicio) qs.append('data_inicio', params.dataInicio);
+    if (params.dataFim) qs.append('data_fim', params.dataFim);
+    if (params.apenasNaoVinculados !== undefined) qs.append('apenas_nao_vinculados', String(params.apenasNaoVinculados));
+    try {
+      const response = await api.get<MovimentosNaoConciliadosResponse>(`/saldos-bancarios/movimentos-nao-conciliados?${qs.toString()}`);
+      return response.data;
+    } catch (err) {
+      console.error('[movimentos-nao-conciliados] erro:', err);
+      return { movimentos: [], total: 0, data_inicio: '', data_fim: '', account_number: params.accountNumber, company_id: params.companyId };
     }
   },
 
@@ -1902,6 +1942,11 @@ export const apiService = {
 
   autorizarPedidoCompra: async (idPedido: number): Promise<{ ok: boolean; id_pedido: number }> => {
     const response = await api.put(`/pedidos-compra/${idPedido}/autorizar`);
+    return response.data;
+  },
+
+  rebuildPedidosCompraSchema: async (): Promise<{ ok: boolean; mensagem: string }> => {
+    const response = await api.post('/debug/pedidos-compra-rebuild');
     return response.data;
   },
 };

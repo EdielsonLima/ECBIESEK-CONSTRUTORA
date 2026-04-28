@@ -1733,6 +1733,15 @@ async def itens_pedido_compra(id_pedido: int, current_user: dict = Depends(get_c
     return {"itens": itens, "status": status_pedido}
 
 
+@app.post("/api/debug/pedidos-compra-rebuild")
+def debug_pedidos_compra_rebuild(admin: dict = Depends(require_admin)):
+    """DROP + recria as tabelas de pedido_compra. Usar se schema ficou inconsistente."""
+    try:
+        return sync_pedidos_compra.rebuild_tabelas()
+    except Exception as e:
+        raise HTTPException(500, f"Falha ao recriar tabelas: {e}")
+
+
 @app.put("/api/pedidos-compra/{id_pedido}/autorizar")
 async def autorizar_pedido_compra(id_pedido: int, current_user: dict = Depends(require_admin)):
     """Autoriza um pedido pendente no Sienge (admin only)."""
@@ -9261,6 +9270,25 @@ def _ensure_config_tables_in_postgres():
             """)
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_log_whatsapp_enviado_em ON log_whatsapp_notificacoes(enviado_em DESC)")
 
+            # ============================================================
+            # Tabela de Conciliacao Bancaria (sincronizada da API Sienge)
+            # Guarda saldo_total e valor_conciliado por conta/empresa/data
+            # ============================================================
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS saldos_conciliacao (
+                    data_referencia DATE NOT NULL,
+                    account_number VARCHAR(50) NOT NULL,
+                    company_id INTEGER NOT NULL,
+                    saldo_total NUMERIC(15,2) NOT NULL DEFAULT 0,
+                    valor_conciliado NUMERIC(15,2) NOT NULL DEFAULT 0,
+                    account_status VARCHAR(20),
+                    sincronizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (data_referencia, account_number, company_id)
+                )
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_saldos_conciliacao_data ON saldos_conciliacao (data_referencia)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_saldos_conciliacao_conta ON saldos_conciliacao (account_number, company_id)")
+
             conn.commit()
             cursor.close()
             conn.close()
@@ -10122,10 +10150,39 @@ def get_saldos_bancarios(
                 return 'reapropriacao'
             return 'bancaria'
 
+        # Carrega valores conciliados sincronizados do Sienge para esta data (CONFIG_DB)
+        # Mapa: (account_number, company_id_sienge) -> {valor_conciliado, saldo_total_sienge, sincronizado_em}
+        conciliacao_map: dict = {}
+        conciliacao_sincronizado_em = None
+        try:
+            cfg_conn = get_config_db_connection()
+            cfg_cursor = cfg_conn.cursor()
+            try:
+                cfg_cursor.execute("""
+                    SELECT account_number, company_id, saldo_total, valor_conciliado, sincronizado_em
+                    FROM saldos_conciliacao
+                    WHERE data_referencia = %s
+                """, [data_ref])
+                for cr in cfg_cursor.fetchall():
+                    key = (str(cr['account_number'] or '').strip(), int(cr['company_id'] or 0))
+                    conciliacao_map[key] = {
+                        'valor_conciliado': float(cr['valor_conciliado'] or 0),
+                        'saldo_total_sienge': float(cr['saldo_total'] or 0),
+                    }
+                    if cr['sincronizado_em']:
+                        if conciliacao_sincronizado_em is None or cr['sincronizado_em'] > conciliacao_sincronizado_em:
+                            conciliacao_sincronizado_em = cr['sincronizado_em']
+            finally:
+                cfg_cursor.close()
+                cfg_conn.close()
+        except Exception as e:
+            print(f"[saldos-bancarios] aviso: nao foi possivel carregar conciliacao: {e}")
+
         contas_list = []
         empresas_map: dict = {}
         saldo_total = 0.0
-        cards = {'bancario': 0.0, 'permuta': 0.0, 'mutuo': 0.0, 'reapropriacao': 0.0}
+        cards = {'bancario': 0.0, 'permuta': 0.0, 'mutuo': 0.0, 'reapropriacao': 0.0,
+                 'conciliado': 0.0, 'nao_conciliado': 0.0}
 
         for r in rows:
             emp_info = mapa_emp.get(r['id_interno_empresa'], {})
@@ -10138,6 +10195,13 @@ def get_saldos_bancarios(
             saida = float(r['saida'] or 0)
             tipo = classifica(r['nome'])
 
+            # Busca valor conciliado para esta conta
+            conta_key = (str(r['id_conta_corrente'] or '').strip(), int(emp_sienge or 0))
+            conc = conciliacao_map.get(conta_key)
+            valor_conciliado = float(conc['valor_conciliado']) if conc else 0.0
+            tem_conciliacao = conc is not None
+            valor_nao_conciliado = (saldo_atual - valor_conciliado) if tem_conciliacao else 0.0
+
             saldo_total += saldo_atual
             if tipo == 'bancaria':
                 cards['bancario'] += saldo_atual
@@ -10147,6 +10211,11 @@ def get_saldos_bancarios(
                 cards['mutuo'] += saldo_atual
             elif tipo == 'reapropriacao':
                 cards['reapropriacao'] += saldo_atual
+
+            # Acumula totais de conciliacao apenas para contas bancarias com dado sincronizado
+            if tipo == 'bancaria' and tem_conciliacao:
+                cards['conciliado'] += valor_conciliado
+                cards['nao_conciliado'] += valor_nao_conciliado
 
             contas_list.append({
                 'empresa_nome': emp_nome,
@@ -10159,6 +10228,9 @@ def get_saldos_bancarios(
                 'saida': saida,
                 'saldo': saldo_atual,
                 'saldo_atual': saldo_atual,
+                'valor_conciliado': valor_conciliado,
+                'valor_nao_conciliado': valor_nao_conciliado,
+                'tem_conciliacao': tem_conciliacao,
             })
 
             if emp_sienge not in empresas_map:
@@ -10252,7 +10324,11 @@ def get_saldos_bancarios(
                 'permuta': cards['permuta'],
                 'mutuo': cards['mutuo'],
                 'reapropriacao': cards['reapropriacao'],
+                'conciliado': cards['conciliado'],
+                'nao_conciliado': cards['nao_conciliado'],
             },
+            'conciliacao_sincronizada_em': conciliacao_sincronizado_em.strftime('%Y-%m-%d %H:%M:%S') if conciliacao_sincronizado_em else None,
+            'tem_dados_conciliacao': len(conciliacao_map) > 0,
         }
     except Exception as e:
         import traceback
@@ -10263,8 +10339,11 @@ def get_saldos_bancarios(
             'empresas': [],
             'contas': [],
             'serie': [],
-            'cards': {'bancario': 0, 'permuta': 0, 'mutuo': 0, 'reapropriacao': 0},
+            'cards': {'bancario': 0, 'permuta': 0, 'mutuo': 0, 'reapropriacao': 0,
+                      'conciliado': 0, 'nao_conciliado': 0},
             'data_referencia': None,
+            'conciliacao_sincronizada_em': None,
+            'tem_dados_conciliacao': False,
         }
     finally:
         cursor.close()
@@ -10349,6 +10428,176 @@ def get_saldos_bancarios_detalhe(empresas: Optional[str] = None, contas: Optiona
     finally:
         cursor.close()
         conn.close()
+
+
+# ==================== CONCILIACAO BANCARIA (Sienge API) ====================
+
+async def _sync_conciliacao_saldos_async(data_ref: Optional[str] = None) -> dict:
+    """Sincroniza saldos conciliados da API Sienge (/accounts-balances) para a data informada.
+    Grava em saldos_conciliacao no CONFIG_DB. Se data_ref nao informada, usa data atual (Sao Paulo).
+    """
+    if not data_ref:
+        data_ref = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d')
+
+    credentials = base64.b64encode(f"{SIENGE_USERNAME}:{SIENGE_PASSWORD}".encode()).decode()
+    headers = {"Authorization": f"Basic {credentials}", "Content-Type": "application/json"}
+
+    contas_sienge: list = []
+    offset = 0
+    limit = 200
+    erro_api: Optional[str] = None
+
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            while True:
+                url = f"{SIENGE_API_URL}/accounts-balances"
+                params = {"balanceDate": data_ref, "offset": str(offset), "limit": str(limit)}
+                response = await client.get(url, params=params, headers=headers)
+                response.raise_for_status()
+                data = response.json()
+                results = data.get("results", []) if isinstance(data, dict) else []
+                if not results:
+                    break
+                contas_sienge.extend(results)
+                metadata = data.get("resultSetMetadata", {}) if isinstance(data, dict) else {}
+                total = metadata.get("count", len(contas_sienge))
+                if len(contas_sienge) >= total:
+                    break
+                offset += limit
+    except Exception as e:
+        erro_api = str(e)
+        print(f"[sync-conciliacao] erro ao chamar Sienge: {e}")
+
+    if erro_api:
+        return {"sucesso": False, "erro": erro_api, "data_referencia": data_ref, "registros": 0}
+
+    # Persiste no CONFIG_DB
+    conn = get_config_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Apaga registros antigos da mesma data antes de gravar (evita lixo de contas removidas no Sienge)
+        cursor.execute("DELETE FROM saldos_conciliacao WHERE data_referencia = %s", [data_ref])
+        gravadas = 0
+        for c in contas_sienge:
+            account_number = str(c.get("accountNumber") or "").strip()
+            company_id = c.get("companyId") or 0
+            if not account_number or not company_id:
+                continue
+            cursor.execute("""
+                INSERT INTO saldos_conciliacao
+                    (data_referencia, account_number, company_id, saldo_total, valor_conciliado, account_status, sincronizado_em)
+                VALUES (%s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                ON CONFLICT (data_referencia, account_number, company_id) DO UPDATE SET
+                    saldo_total = EXCLUDED.saldo_total,
+                    valor_conciliado = EXCLUDED.valor_conciliado,
+                    account_status = EXCLUDED.account_status,
+                    sincronizado_em = CURRENT_TIMESTAMP
+            """, [
+                data_ref,
+                account_number,
+                int(company_id),
+                float(c.get("amount") or 0),
+                float(c.get("reconciledAmount") or 0),
+                str(c.get("accountStatus") or "")[:20],
+            ])
+            gravadas += 1
+        conn.commit()
+        return {"sucesso": True, "data_referencia": data_ref, "registros": gravadas}
+    except Exception as e:
+        conn.rollback()
+        print(f"[sync-conciliacao] erro ao gravar: {e}")
+        return {"sucesso": False, "erro": str(e), "data_referencia": data_ref, "registros": 0}
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.post("/api/saldos-bancarios/sincronizar-conciliacao")
+async def sincronizar_conciliacao(data: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """Forca a sincronizacao de saldos conciliados da API Sienge para a data informada (ou hoje)."""
+    return await _sync_conciliacao_saldos_async(data)
+
+
+@app.get("/api/saldos-bancarios/movimentos-nao-conciliados")
+async def get_movimentos_nao_conciliados(
+    account_number: str,
+    company_id: int,
+    data_inicio: Optional[str] = None,
+    data_fim: Optional[str] = None,
+    apenas_nao_vinculados: bool = True,
+    current_user: dict = Depends(get_current_user),
+):
+    """Retorna movimentos bancarios nao conciliados (ou nao vinculados) via Sienge Bulk API.
+    - account_number: numero da conta corrente (campo accountNumber do Sienge)
+    - company_id: id_sienge da empresa
+    - data_inicio/data_fim: YYYY-MM-DD. Padrao: ultimos 90 dias
+    - apenas_nao_vinculados: se true, manda onlyDetachedMovement=S (movimentos sem titulo vinculado)
+    """
+    if not data_fim:
+        data_fim = (datetime.utcnow() - timedelta(hours=3)).strftime('%Y-%m-%d')
+    if not data_inicio:
+        data_inicio = (datetime.utcnow() - timedelta(hours=3) - timedelta(days=90)).strftime('%Y-%m-%d')
+
+    credentials = base64.b64encode(f"{SIENGE_USERNAME}:{SIENGE_PASSWORD}".encode()).decode()
+    headers = {"Authorization": f"Basic {credentials}", "Content-Type": "application/json"}
+
+    movimentos: list = []
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            url = f"{SIENGE_BULK_API_URL}/bank-movement"
+            params = {
+                "startDate": data_inicio,
+                "endDate": data_fim,
+                "selectionType": "M",
+            }
+            if apenas_nao_vinculados:
+                params["onlyDetachedMovement"] = "S"
+
+            response = await client.get(url, params=params, headers=headers)
+            if response.status_code == 404:
+                return {"movimentos": [], "total": 0, "data_inicio": data_inicio, "data_fim": data_fim}
+            response.raise_for_status()
+            data = response.json()
+            results = data.get("data", data) if isinstance(data, dict) else data
+
+        if isinstance(results, list):
+            for m in results:
+                m_account = str(m.get("accountNumber") or "").strip()
+                m_company = m.get("companyId") or 0
+                if m_account != str(account_number).strip() or int(m_company) != int(company_id):
+                    continue
+                # Quando apenas_nao_vinculados=False, filtra apenas os efetivamente nao conciliados
+                conciliado_flag = (m.get("bankMovementReconcile") or '').upper() == 'S'
+                if not apenas_nao_vinculados and conciliado_flag:
+                    continue
+                movimentos.append({
+                    "id": m.get("bankMovementId"),
+                    "data": m.get("bankMovementDate"),
+                    "valor": float(m.get("bankMovementAmount") or 0),
+                    "tipo_operacao": m.get("bankMovementOperationType"),
+                    "operacao": m.get("bankMovementOperationName"),
+                    "historico": m.get("bankMovementHistoricName"),
+                    "documento_tipo": m.get("documentIdentificationName"),
+                    "documento_numero": m.get("documentIdentificationNumber"),
+                    "credor_cliente": m.get("creditorName") or m.get("clientName") or '',
+                    "conciliado": conciliado_flag,
+                })
+
+        # Ordena por data desc, valor desc
+        movimentos.sort(key=lambda x: (x.get("data") or '', abs(x.get("valor") or 0)), reverse=True)
+        return {
+            "movimentos": movimentos,
+            "total": len(movimentos),
+            "data_inicio": data_inicio,
+            "data_fim": data_fim,
+            "account_number": account_number,
+            "company_id": company_id,
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"[movimentos-nao-conciliados] erro: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar movimentos: {str(e)}")
 
 
 @app.get("/api/filtros/todas-contas-correntes")
@@ -11616,6 +11865,13 @@ def _auto_snapshot_loop():
                     print("Auto-snapshot: Snapshot de KPIs de startup salvo com sucesso.")
                 except Exception as e:
                     print(f"Auto-snapshot: Erro ao salvar snapshot de KPIs no startup: {e}")
+                # Sincroniza saldos conciliados (Sienge /accounts-balances)
+                try:
+                    import asyncio as _asyncio
+                    res = _asyncio.run(_sync_conciliacao_saldos_async())
+                    print(f"Auto-snapshot: Conciliacao sincronizada: {res}")
+                except Exception as e:
+                    print(f"Auto-snapshot: Erro ao sincronizar conciliacao no startup: {e}")
                 snapshot_salvo_hoje = hoje_startup
                 print("Auto-snapshot: Snapshot de startup salvo com sucesso.")
     except Exception as e:
@@ -11655,6 +11911,13 @@ def _auto_snapshot_loop():
                         print("Auto-snapshot: Snapshot de KPIs salvo com sucesso.")
                     except Exception as e:
                         print(f"Auto-snapshot: Erro ao salvar snapshot de KPIs: {e}")
+                    # Sincroniza saldos conciliados (Sienge /accounts-balances)
+                    try:
+                        import asyncio as _asyncio
+                        res = _asyncio.run(_sync_conciliacao_saldos_async())
+                        print(f"Auto-snapshot: Conciliacao sincronizada: {res}")
+                    except Exception as e:
+                        print(f"Auto-snapshot: Erro ao sincronizar conciliacao: {e}")
                 snapshot_salvo_hoje = hoje_str
 
             time.sleep(300)

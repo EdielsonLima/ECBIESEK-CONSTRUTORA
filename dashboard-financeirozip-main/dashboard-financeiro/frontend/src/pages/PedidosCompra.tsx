@@ -185,15 +185,34 @@ export const PedidosCompra: React.FC = () => {
             <p className="text-sm text-gray-500 dark:text-slate-400">Controle de pedidos pendentes, parciais e entregues</p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={sincronizar}
-          disabled={sincronizando}
-          className="flex items-center gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 px-4 py-2 text-white text-sm font-semibold shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          <RefreshCw className={`h-4 w-4 ${sincronizando ? 'animate-spin' : ''}`} />
-          {sincronizando ? 'Sincronizando...' : 'Sincronizar Sienge'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={async () => {
+              if (!confirm('Recriar tabelas? Vai apagar dados sincronizados (deve ser usado se houver erro de schema).')) return;
+              try {
+                const r = await apiService.rebuildPedidosCompraSchema();
+                setMensagemSync(`Schema recriado: ${r.mensagem}`);
+              } catch (e: any) {
+                const det = e?.response?.data?.detail || e?.message || 'erro';
+                setMensagemSync(`Falha rebuild: ${det}`);
+              }
+            }}
+            className="flex items-center gap-1 rounded-lg bg-amber-100 hover:bg-amber-200 px-3 py-2 text-amber-800 text-xs font-semibold border border-amber-200"
+            title="Recriar tabelas do zero (caso de erro de schema)"
+          >
+            Rebuild Schema
+          </button>
+          <button
+            type="button"
+            onClick={sincronizar}
+            disabled={sincronizando}
+            className="flex items-center gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 px-4 py-2 text-white text-sm font-semibold shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            <RefreshCw className={`h-4 w-4 ${sincronizando ? 'animate-spin' : ''}`} />
+            {sincronizando ? 'Sincronizando...' : 'Sincronizar Sienge'}
+          </button>
+        </div>
       </div>
 
       {mensagemSync && (

@@ -122,18 +122,51 @@ def ensure_tables() -> None:
     ]
 
     conn = _conn()
+    conn.autocommit = True  # cada statement em transação independente
+    erros: list[str] = []
     try:
         cur = conn.cursor()
-        cur.execute(create_sql)
+        try:
+            cur.execute(create_sql)
+        except Exception as e:
+            erros.append(f"CREATE: {e}")
         for stmt in alters:
-            cur.execute(stmt)
+            try:
+                cur.execute(stmt)
+            except Exception as e:
+                erros.append(f"{stmt[:60]}... -> {e}")
         for stmt in indexes:
-            cur.execute(stmt)
-        conn.commit()
+            try:
+                cur.execute(stmt)
+            except Exception as e:
+                erros.append(f"INDEX: {e}")
         cur.close()
-        print("[pedidos-compra] Tabelas + colunas garantidas no PostgreSQL.")
+        if erros:
+            print(f"[pedidos-compra] Migration com {len(erros)} erro(s):")
+            for e in erros:
+                print(f"  -> {e}")
+        else:
+            print("[pedidos-compra] Tabelas + colunas garantidas no PostgreSQL.")
     finally:
         conn.close()
+
+
+def rebuild_tabelas() -> dict:
+    """DROP + recria as tabelas do zero (destructive — apaga dados sincronizados).
+    Util quando a migration deixou as tabelas em estado inconsistente."""
+    conn = _conn()
+    conn.autocommit = True
+    cur = conn.cursor()
+    try:
+        cur.execute("DROP TABLE IF EXISTS pedido_compra_entrega CASCADE")
+        cur.execute("DROP TABLE IF EXISTS pedido_compra_item CASCADE")
+        cur.execute("DROP TABLE IF EXISTS pedido_compra CASCADE")
+        cur.execute("DROP TABLE IF EXISTS dim_fornecedor CASCADE")
+    finally:
+        cur.close()
+        conn.close()
+    ensure_tables()
+    return {"ok": True, "mensagem": "Tabelas recriadas do zero"}
 
 
 # ===================== HELPERS =====================
