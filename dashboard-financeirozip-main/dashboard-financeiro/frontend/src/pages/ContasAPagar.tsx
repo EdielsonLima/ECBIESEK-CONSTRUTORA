@@ -178,6 +178,7 @@ export const ContasAPagar: React.FC = () => {
   const [detalheCache, setDetalheCache] = useState<Record<number, TituloDetalhe>>({});
   const [autorizacoesBulk, setAutorizacoesBulk] = useState<Record<string, string>>({});
   const [autorizacoesLoading, setAutorizacoesLoading] = useState(false);
+  const autorizacoesTitulosConsultados = useRef<Set<string>>(new Set());
   const [anoDropdownAberto, setAnoDropdownAberto] = useState(false);
   const [feriados, setFeriados] = useState<Set<string>>(new Set());
   const [snapshotsDisponiveis, setSnapshotsDisponiveis] = useState<Array<{ data_snapshot: string; created_at: string }>>([]);
@@ -485,12 +486,35 @@ export const ContasAPagar: React.FC = () => {
   const carregarAutorizacoes = async (refresh: boolean = false) => {
     setAutorizacoesLoading(true);
     try {
+      if (refresh) {
+        autorizacoesTitulosConsultados.current.clear();
+      }
       const data = await apiService.getAutorizacoesBulk(refresh);
       setAutorizacoesBulk(data);
     } catch (err) {
       console.error('Erro ao carregar autorizações:', err);
     } finally {
       setAutorizacoesLoading(false);
+    }
+  };
+
+  const conferirAutorizacoesTitulos = async (lista: ContaPagar[]) => {
+    const lancamentos = Array.from(new Set(
+      lista
+        .map(c => c.lancamento)
+        .filter((l): l is string => Boolean(l))
+        .filter(l => !autorizacoesTitulosConsultados.current.has(l))
+    ));
+    if (lancamentos.length === 0) return;
+
+    lancamentos.forEach(l => autorizacoesTitulosConsultados.current.add(l));
+    try {
+      const data = await apiService.getAutorizacoesTitulos(lancamentos);
+      if (Object.keys(data).length > 0) {
+        setAutorizacoesBulk(prev => ({ ...prev, ...data }));
+      }
+    } catch (err) {
+      console.error('Erro ao conferir autorizações por título:', err);
     }
   };
 
@@ -663,6 +687,7 @@ export const ContasAPagar: React.FC = () => {
 
     const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro, filtroTipoPagamento, filtroAutorizacao, autorizacoesBulk, filtroTitulo);
     setContas(contasFiltradas);
+    conferirAutorizacoesTitulos(contasFiltradas.slice(0, 100).filter(c => getAutorizacaoConta(c) !== 'S'));
 
     // Card "Total a Pagar" usa as contas filtradas (hoje + futuro, com lógica de segunda-feira)
     const stats: Estatisticas = {

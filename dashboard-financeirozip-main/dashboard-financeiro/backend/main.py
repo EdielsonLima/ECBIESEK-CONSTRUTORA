@@ -1433,6 +1433,50 @@ async def get_autorizacoes_bulk(refresh: bool = False):
         return {}
 
 
+@app.get("/api/autorizacoes-titulos")
+async def get_autorizacoes_titulos(lancamentos: List[str] = Query(...)):
+    """Confere autorizacao diretamente no endpoint /bills/{id} do Sienge para titulos visiveis."""
+    credentials = base64.b64encode(f"{SIENGE_USERNAME}:{SIENGE_PASSWORD}".encode()).decode()
+    headers = {
+        "Authorization": f"Basic {credentials}",
+        "Content-Type": "application/json",
+    }
+
+    resultado: dict[str, str] = {}
+    titulos_por_id: dict[int, list[str]] = {}
+    for lancamento in lancamentos:
+        if not lancamento:
+            continue
+        texto = str(lancamento).strip()
+        titulo = texto.split("/", 1)[0].strip()
+        if not titulo.isdigit():
+            continue
+        titulos_por_id.setdefault(int(titulo), []).append(texto)
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        for titulo_id, chaves in titulos_por_id.items():
+            try:
+                resp = await client.get(f"{SIENGE_API_URL}/bills/{titulo_id}", headers=headers)
+                if resp.status_code == 429:
+                    raise HTTPException(status_code=429, detail="Limite de consultas do Sienge atingido. Tente novamente em instantes.")
+                resp.raise_for_status()
+                item = resp.json()
+                status = (
+                    _normalizar_status_autorizacao_sienge(item.get("status"))
+                    or _normalizar_status_autorizacao_sienge(item.get("authorizationStatus"))
+                    or "N"
+                )
+                status = "S" if status == "S" else "N"
+                for chave in chaves:
+                    resultado[chave] = status
+            except HTTPException:
+                raise
+            except Exception as e:
+                print(f"[autorizacoes-titulos] Falha ao consultar titulo {titulo_id}: {e}")
+
+    return resultado
+
+
 # Cache para títulos alterados
 _titulos_alterados_cache: dict = {}
 _TITULOS_ALTERADOS_TTL = 300  # 5 minutos

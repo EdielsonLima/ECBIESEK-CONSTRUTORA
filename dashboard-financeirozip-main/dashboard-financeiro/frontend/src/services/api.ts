@@ -204,6 +204,13 @@ export const apiService = {
     return response.data;
   },
 
+  getAutorizacoesTitulos: async (lancamentos: string[]): Promise<Record<string, string>> => {
+    const params = new URLSearchParams();
+    lancamentos.forEach(l => params.append('lancamentos', l));
+    const response = await api.get<Record<string, string>>(`/autorizacoes-titulos?${params.toString()}`);
+    return response.data;
+  },
+
   // Gráfico mensal
   getGraficoMensal: async (): Promise<GraficoMensal[]> => {
     const response = await api.get<GraficoMensal[]>('/grafico-mensal');
