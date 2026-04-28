@@ -7,7 +7,21 @@ import {
   PedidosCompraResponse,
   ItemPedidoCompra,
   FiltrosPedidoCompraQuery,
+  PainelPedidosCompra,
 } from '../types';
+import {
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from 'recharts';
 import {
   Clock,
   Package,
@@ -23,6 +37,15 @@ import {
   ArrowDown,
   ArrowUpDown,
   SlidersHorizontal,
+  AlertTriangle,
+  Clock3,
+  CheckCircle,
+  HelpCircle,
+  LayoutList,
+  PieChart as PieIcon,
+  Building2,
+  Truck,
+  Users,
 } from 'lucide-react';
 
 type SortKey =
@@ -134,6 +157,12 @@ export const PedidosCompra: React.FC = () => {
   const [sortKey, setSortKey] = useState<SortKey>('data_pedido');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
+  // Abas
+  const [abaAtiva, setAbaAtiva] = useState<'lista' | 'painel'>('lista');
+  const [painel, setPainel] = useState<PainelPedidosCompra | null>(null);
+  const [painelLoading, setPainelLoading] = useState(false);
+  const [painelStatusModo, setPainelStatusModo] = useState<'valor' | 'qtd'>('valor');
+
   const filtrosQuery: FiltrosPedidoCompraQuery = useMemo(() => ({
     empresa: filtroEmpresa.map(Number),
     centro_custo: filtroCC.map(Number),
@@ -150,24 +179,44 @@ export const PedidosCompra: React.FC = () => {
     apiService.getFiltrosPedidosCompra().then(setFiltrosDisponiveis).catch(() => {});
   }, []);
 
+  const carregarLista = () => {
+    setLoading(true);
+    return apiService.getPedidosCompra(filtrosQuery)
+      .then(r => { setPedidos(r.data); setKpis(r.kpis); })
+      .catch(() => { setPedidos([]); setKpis(null); })
+      .finally(() => setLoading(false));
+  };
+
+  const carregarPainel = () => {
+    setPainelLoading(true);
+    return apiService.getPainelPedidosCompra(filtrosQuery)
+      .then(setPainel)
+      .catch(() => setPainel(null))
+      .finally(() => setPainelLoading(false));
+  };
+
   // Carrega lista (com debounce na busca)
   useEffect(() => {
     const t = setTimeout(() => {
-      setLoading(true);
-      apiService.getPedidosCompra(filtrosQuery)
-        .then(r => { setPedidos(r.data); setKpis(r.kpis); })
-        .catch(() => { setPedidos([]); setKpis(null); })
-        .finally(() => setLoading(false));
+      carregarLista();
     }, 350);
     return () => clearTimeout(t);
   }, [filtrosQuery]);
 
+  // Carrega painel quando a aba esta ativa
+  useEffect(() => {
+    if (abaAtiva !== 'painel') return;
+    const t = setTimeout(() => {
+      carregarPainel();
+    }, 350);
+    return () => clearTimeout(t);
+  }, [abaAtiva, filtrosQuery]);
+
   const recarregar = () => {
-    setLoading(true);
-    apiService.getPedidosCompra(filtrosQuery)
-      .then(r => { setPedidos(r.data); setKpis(r.kpis); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    carregarLista();
+    if (abaAtiva === 'painel') {
+      carregarPainel();
+    }
     apiService.getFiltrosPedidosCompra().then(setFiltrosDisponiveis).catch(() => {});
   };
 
@@ -531,7 +580,47 @@ export const PedidosCompra: React.FC = () => {
         )}
       </div>
 
+      {/* Tabs */}
+      <div className="border-b border-gray-200 dark:border-slate-700">
+        <nav className="-mb-px flex gap-6">
+          <button
+            type="button"
+            onClick={() => setAbaAtiva('lista')}
+            className={`flex items-center gap-2 border-b-2 px-1 py-3 text-sm font-medium transition-colors ${
+              abaAtiva === 'lista'
+                ? 'border-rose-500 text-rose-600 dark:text-rose-400'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
+            }`}
+          >
+            <LayoutList className="h-4 w-4" />
+            Lista de Pedidos
+          </button>
+          <button
+            type="button"
+            onClick={() => setAbaAtiva('painel')}
+            className={`flex items-center gap-2 border-b-2 px-1 py-3 text-sm font-medium transition-colors ${
+              abaAtiva === 'painel'
+                ? 'border-rose-500 text-rose-600 dark:text-rose-400'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
+            }`}
+          >
+            <PieIcon className="h-4 w-4" />
+            Painel Visual
+          </button>
+        </nav>
+      </div>
+
+      {abaAtiva === 'painel' && (
+        <PainelVisualSection
+          painel={painel}
+          loading={painelLoading}
+          modoStatus={painelStatusModo}
+          setModoStatus={setPainelStatusModo}
+        />
+      )}
+
       {/* Tabela */}
+      {abaAtiva === 'lista' && (
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
           <h3 className="text-sm font-bold text-gray-800 dark:text-slate-200">Lista de Pedidos</h3>
@@ -637,6 +726,7 @@ export const PedidosCompra: React.FC = () => {
           </table>
         </div>
       </div>
+      )}
 
       {/* Modal de confirmação de autorização */}
       {pedidoParaAutorizar && (
@@ -823,6 +913,367 @@ const UrgenciaCelula: React.FC<{
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border whitespace-nowrap ${urg.classe}`}>
       {urg.texto}
     </span>
+  );
+};
+
+// ============================================================
+// ----------- PAINEL VISUAL: secao completa -----------
+// ============================================================
+
+const STATUS_CORES: Record<string, string> = {
+  PENDING: '#F59E0B',
+  PARTIALLY_DELIVERED: '#3B82F6',
+  FULLY_DELIVERED: '#10B981',
+  CANCELED: '#9CA3AF',
+};
+
+const PainelVisualSection: React.FC<{
+  painel: PainelPedidosCompra | null;
+  loading: boolean;
+  modoStatus: 'valor' | 'qtd';
+  setModoStatus: (m: 'valor' | 'qtd') => void;
+}> = ({ painel, loading, modoStatus, setModoStatus }) => {
+  if (loading && !painel) {
+    return (
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-12 text-center text-sm text-gray-500 dark:text-slate-400">
+        Carregando painel...
+      </div>
+    );
+  }
+  if (!painel) {
+    return (
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-12 text-center text-sm text-gray-500 dark:text-slate-400">
+        Sem dados para exibir. Sincronize os pedidos com o Sienge primeiro.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Semaforos */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <SemaforoCard
+          titulo="Em Atraso"
+          valor={painel.semaforos.atrasados.valor}
+          qtd={painel.semaforos.atrasados.qtd}
+          icone={<AlertTriangle className="h-6 w-6" />}
+          cor="red"
+        />
+        <SemaforoCard
+          titulo="Vencendo (7 dias)"
+          valor={painel.semaforos.vencendo_7d.valor}
+          qtd={painel.semaforos.vencendo_7d.qtd}
+          icone={<Clock3 className="h-6 w-6" />}
+          cor="amber"
+        />
+        <SemaforoCard
+          titulo="No Prazo"
+          valor={painel.semaforos.no_prazo.valor}
+          qtd={painel.semaforos.no_prazo.qtd}
+          icone={<CheckCircle className="h-6 w-6" />}
+          cor="green"
+        />
+        <SemaforoCard
+          titulo="Sem cronograma"
+          valor={painel.semaforos.sem_data.valor}
+          qtd={painel.semaforos.sem_data.qtd}
+          icone={<HelpCircle className="h-6 w-6" />}
+          cor="gray"
+        />
+      </div>
+
+      {/* Aguardando autorizacao */}
+      {painel.aguardando_autorizacao.qtd > 0 && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-700 rounded-xl p-5">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-md">
+                <ShieldCheck className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">Aguardando Autorização</p>
+                <p className="mt-1 text-2xl font-extrabold text-gray-900 dark:text-slate-100">
+                  {fmtMoeda(painel.aguardando_autorizacao.valor)}
+                </p>
+                <p className="text-sm text-amber-800 dark:text-amber-300">
+                  {painel.aguardando_autorizacao.qtd} pedido{painel.aguardando_autorizacao.qtd === 1 ? '' : 's'} esperando aprovação
+                </p>
+              </div>
+            </div>
+          </div>
+          {painel.aguardando_autorizacao.top_pedidos.length > 0 && (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-2">
+              {painel.aguardando_autorizacao.top_pedidos.slice(0, 10).map(p => (
+                <div key={p.id_pedido} className="flex items-center justify-between gap-3 bg-white dark:bg-slate-800 rounded-lg px-3 py-2 border border-amber-200 dark:border-amber-700">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold font-mono text-gray-800 dark:text-slate-200">{p.numero_pedido || `#${p.id_pedido}`}</span>
+                      <span className="text-xs text-gray-400">·</span>
+                      <span className="text-xs text-gray-600 dark:text-slate-400 truncate">{p.fornecedor || '-'}</span>
+                    </div>
+                    <p className="text-[10px] text-gray-400 truncate">{p.centro_custo || '-'}</p>
+                  </div>
+                  <span className="text-sm font-bold text-amber-700 dark:text-amber-400 flex-shrink-0">{fmtMoeda(p.valor_total)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Acao Urgente — pedidos atrasados */}
+      {painel.semaforos.atrasados.top.length > 0 && (
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-red-200 dark:border-red-800 overflow-hidden">
+          <div className="px-4 py-3 bg-red-50 dark:bg-red-900/30 border-b border-red-200 dark:border-red-800 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-red-600" />
+            <h3 className="text-sm font-bold text-red-700 dark:text-red-400">Ação Urgente — Top 10 Pedidos Atrasados</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-slate-900 text-xs uppercase tracking-wider text-gray-600 dark:text-slate-400">
+                <tr>
+                  <th className="px-3 py-2 text-left">N°</th>
+                  <th className="px-3 py-2 text-left">Fornecedor</th>
+                  <th className="px-3 py-2 text-left">Obra</th>
+                  <th className="px-3 py-2 text-left">Próx. Entrega</th>
+                  <th className="px-3 py-2 text-center">Atraso</th>
+                  <th className="px-3 py-2 text-right">Valor</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                {painel.semaforos.atrasados.top.map(p => (
+                  <tr key={p.id_pedido} className="hover:bg-red-50/30 dark:hover:bg-red-900/20">
+                    <td className="px-3 py-2 font-mono text-xs font-semibold text-gray-800 dark:text-slate-200">{p.numero_pedido || p.id_pedido}</td>
+                    <td className="px-3 py-2 text-gray-700 dark:text-slate-300">{p.fornecedor || '-'}</td>
+                    <td className="px-3 py-2 text-gray-700 dark:text-slate-300">{p.centro_custo || '-'}</td>
+                    <td className="px-3 py-2 text-gray-700 dark:text-slate-300">{fmtData(p.proxima_entrega)}</td>
+                    <td className="px-3 py-2 text-center">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold border bg-red-100 text-red-700 border-red-300 dark:bg-red-900/40 dark:text-red-300">
+                        {p.dias_atraso} dia{p.dias_atraso === 1 ? '' : 's'}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-right font-semibold text-gray-800 dark:text-slate-200">{fmtMoeda(p.valor_total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Graficos linha 1: Donut Status + Top Fornecedores */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <PieIcon className="h-4 w-4 text-gray-600 dark:text-slate-400" />
+              <h3 className="text-sm font-bold text-gray-700 dark:text-slate-300">Distribuição por Status</h3>
+            </div>
+            <div className="inline-flex bg-gray-100 dark:bg-slate-900 rounded-lg p-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setModoStatus('valor')}
+                className={`px-2 py-1 rounded ${modoStatus === 'valor' ? 'bg-white dark:bg-slate-800 text-gray-800 dark:text-slate-200 shadow-sm font-semibold' : 'text-gray-500'}`}
+              >
+                Por valor
+              </button>
+              <button
+                type="button"
+                onClick={() => setModoStatus('qtd')}
+                className={`px-2 py-1 rounded ${modoStatus === 'qtd' ? 'bg-white dark:bg-slate-800 text-gray-800 dark:text-slate-200 shadow-sm font-semibold' : 'text-gray-500'}`}
+              >
+                Por quantidade
+              </button>
+            </div>
+          </div>
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={painel.por_status.map(s => ({
+                    name: STATUS_LABEL[s.status] || s.status,
+                    statusKey: s.status,
+                    value: modoStatus === 'valor' ? s.valor : s.qtd,
+                  }))}
+                  dataKey="value"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={55}
+                  outerRadius={90}
+                  paddingAngle={2}
+                  label={(entry: any) => entry.name}
+                >
+                  {painel.por_status.map((s, i) => (
+                    <Cell key={i} fill={STATUS_CORES[s.status] || '#9CA3AF'} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(v: any) => modoStatus === 'valor' ? fmtMoeda(Number(v)) : `${v} pedidos`}
+                />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Users className="h-4 w-4 text-gray-600 dark:text-slate-400" />
+            <h3 className="text-sm font-bold text-gray-700 dark:text-slate-300">Top Fornecedores em Aberto</h3>
+          </div>
+          <div className="h-72">
+            {painel.top_fornecedores.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={painel.top_fornecedores.slice().reverse().map(f => ({
+                    nome: f.nome.length > 20 ? f.nome.slice(0, 20) + '...' : f.nome,
+                    nomeCompleto: f.nome,
+                    valor: f.valor_pendente,
+                    qtd: f.qtd_pedidos,
+                  }))}
+                  layout="vertical"
+                  margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" horizontal={false} />
+                  <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} fontSize={10} />
+                  <YAxis type="category" dataKey="nome" width={140} fontSize={10} />
+                  <Tooltip
+                    formatter={(v: any, _n: string, p: any) => [
+                      fmtMoeda(Number(v)) + ` (${p.payload.qtd} pedido${p.payload.qtd === 1 ? '' : 's'})`,
+                      p.payload.nomeCompleto,
+                    ]}
+                    labelFormatter={() => ''}
+                  />
+                  <Bar dataKey="valor" fill="#8B5CF6" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-sm text-gray-400">Nenhum dado</div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Graficos linha 2: Entregas 30d + Por Centro de Custo */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Truck className="h-4 w-4 text-gray-600 dark:text-slate-400" />
+            <h3 className="text-sm font-bold text-gray-700 dark:text-slate-300">Entregas Previstas — Próximos 30 dias</h3>
+          </div>
+          <div className="h-72">
+            {painel.entregas_30d.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={painel.entregas_30d.map(e => {
+                    const urg = e.data ? calcularUrgencia(e.data) : null;
+                    let cor = '#10B981';
+                    if (urg) {
+                      if (urg.dias < 0) cor = '#EF4444';
+                      else if (urg.dias <= 7) cor = '#F59E0B';
+                    }
+                    return {
+                      data: e.data ? new Date(e.data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '-',
+                      valor: e.valor,
+                      qtd: e.qtd,
+                      cor,
+                    };
+                  })}
+                  margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                  <XAxis dataKey="data" fontSize={10} angle={-45} textAnchor="end" height={50} />
+                  <YAxis tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} fontSize={10} />
+                  <Tooltip
+                    formatter={(v: any, _n: string, p: any) => [
+                      fmtMoeda(Number(v)) + ` · ${p.payload.qtd} pedido${p.payload.qtd === 1 ? '' : 's'}`,
+                      'Entrega prevista',
+                    ]}
+                  />
+                  <Bar dataKey="valor" radius={[4, 4, 0, 0]}>
+                    {painel.entregas_30d.map((e, i) => {
+                      const urg = e.data ? calcularUrgencia(e.data) : null;
+                      let cor = '#10B981';
+                      if (urg) {
+                        if (urg.dias < 0) cor = '#EF4444';
+                        else if (urg.dias <= 7) cor = '#F59E0B';
+                      }
+                      return <Cell key={i} fill={cor} />;
+                    })}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-sm text-gray-400">Sem entregas previstas no período</div>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Building2 className="h-4 w-4 text-gray-600 dark:text-slate-400" />
+            <h3 className="text-sm font-bold text-gray-700 dark:text-slate-300">Top Obras / Centros de Custo (em aberto)</h3>
+          </div>
+          <div className="h-72">
+            {painel.por_centro_custo.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={painel.por_centro_custo.slice().reverse().map(c => ({
+                    nome: c.nome.length > 25 ? c.nome.slice(0, 25) + '...' : c.nome,
+                    nomeCompleto: c.nome,
+                    valor: c.valor,
+                    qtd: c.qtd,
+                  }))}
+                  layout="vertical"
+                  margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" horizontal={false} />
+                  <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} fontSize={10} />
+                  <YAxis type="category" dataKey="nome" width={160} fontSize={10} />
+                  <Tooltip
+                    formatter={(v: any, _n: string, p: any) => [
+                      fmtMoeda(Number(v)) + ` · ${p.payload.qtd} pedido${p.payload.qtd === 1 ? '' : 's'}`,
+                      p.payload.nomeCompleto,
+                    ]}
+                    labelFormatter={() => ''}
+                  />
+                  <Bar dataKey="valor" fill="#0EA5E9" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-sm text-gray-400">Nenhum dado</div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SemaforoCard: React.FC<{
+  titulo: string;
+  valor: number;
+  qtd: number;
+  icone: React.ReactNode;
+  cor: 'red' | 'amber' | 'green' | 'gray';
+}> = ({ titulo, valor, qtd, icone, cor }) => {
+  const cls = {
+    red: { bg: 'bg-red-50 dark:bg-red-900/20', border: 'border-red-200 dark:border-red-700', icon: 'bg-gradient-to-br from-red-500 to-red-700 shadow-red-200', text: 'text-red-700 dark:text-red-300' },
+    amber: { bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-200 dark:border-amber-700', icon: 'bg-gradient-to-br from-amber-400 to-orange-500 shadow-amber-200', text: 'text-amber-700 dark:text-amber-300' },
+    green: { bg: 'bg-green-50 dark:bg-green-900/20', border: 'border-green-200 dark:border-green-700', icon: 'bg-gradient-to-br from-green-500 to-emerald-600 shadow-green-200', text: 'text-green-700 dark:text-green-300' },
+    gray: { bg: 'bg-gray-50 dark:bg-slate-900', border: 'border-gray-200 dark:border-slate-700', icon: 'bg-gradient-to-br from-gray-400 to-gray-600 shadow-gray-200', text: 'text-gray-600 dark:text-slate-400' },
+  }[cor];
+  return (
+    <div className={`rounded-2xl border p-5 ${cls.bg} ${cls.border} hover:-translate-y-0.5 transition-transform shadow-sm`}>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className={`text-xs font-bold uppercase tracking-wider ${cls.text}`}>{titulo}</p>
+          <p className="mt-2 text-2xl font-extrabold text-gray-900 dark:text-slate-100">{fmtMoeda(valor)}</p>
+          <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">{qtd} pedido{qtd === 1 ? '' : 's'}</p>
+        </div>
+        <div className={`rounded-xl p-3 shadow-lg text-white ${cls.icon}`}>{icone}</div>
+      </div>
+    </div>
   );
 };
 

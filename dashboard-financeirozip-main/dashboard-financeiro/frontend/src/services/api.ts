@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ContaPagar, TituloDetalhe, DashboardMetrics, GraficoMensal, GraficoPorCategoria, EmpresaOption, CentroCustoOption, TipoDocumentoOption, OrigemDadoOption, TipoBaixaOption, ContaCorrenteOption, OrigemTituloOption, KPI, KPICreate, KPIHistorico, KPIResumo, CalculoDisponivel, TipoDocumento, ContaReceber, MetricasReceber, KPIVariacaoDiaria, KPIHistoricoVariacaoResponse, SnapshotDiarioResponse, PainelExecutivoData, ExposicaoMensal, EmpreendimentoOption, EstoqueDetalhe, SaldoBancarioResumo, SaldoBancarioRegistro, MovimentosNaoConciliadosResponse, PedidosCompraResponse, PedidosCompraFiltros, FiltrosPedidoCompraQuery, ItemPedidoCompra } from '../types';
+import { ContaPagar, TituloDetalhe, DashboardMetrics, GraficoMensal, GraficoPorCategoria, EmpresaOption, CentroCustoOption, TipoDocumentoOption, OrigemDadoOption, TipoBaixaOption, ContaCorrenteOption, OrigemTituloOption, KPI, KPICreate, KPIHistorico, KPIResumo, CalculoDisponivel, TipoDocumento, ContaReceber, MetricasReceber, KPIVariacaoDiaria, KPIHistoricoVariacaoResponse, SnapshotDiarioResponse, PainelExecutivoData, ExposicaoMensal, EmpreendimentoOption, EstoqueDetalhe, SaldoBancarioResumo, SaldoBancarioRegistro, MovimentosNaoConciliadosResponse, PedidosCompraResponse, PedidosCompraFiltros, FiltrosPedidoCompraQuery, ItemPedidoCompra, PainelPedidosCompra } from '../types';
 
 const API_URL = '/api';
 
@@ -1947,6 +1947,19 @@ export const apiService = {
 
   rebuildPedidosCompraSchema: async (): Promise<{ ok: boolean; mensagem: string }> => {
     const response = await api.post('/debug/pedidos-compra-rebuild');
+    return response.data;
+  },
+
+  getPainelPedidosCompra: async (filtros: FiltrosPedidoCompraQuery = {}): Promise<PainelPedidosCompra> => {
+    const params = new URLSearchParams();
+    filtros.empresa?.forEach(v => params.append('empresa', String(v)));
+    filtros.centro_custo?.forEach(v => params.append('centro_custo', String(v)));
+    filtros.fornecedor?.forEach(v => params.append('fornecedor', String(v)));
+    filtros.status?.forEach(v => params.append('status', v));
+    if (filtros.ano) params.append('ano', String(filtros.ano));
+    if (filtros.autorizacao) params.append('autorizacao', filtros.autorizacao);
+    if (filtros.busca) params.append('busca', filtros.busca);
+    const response = await api.get(`/pedidos-compra/painel?${params.toString()}`);
     return response.data;
   },
 };

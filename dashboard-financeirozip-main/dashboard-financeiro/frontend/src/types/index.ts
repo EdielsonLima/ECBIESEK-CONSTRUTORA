@@ -508,3 +508,69 @@ export interface FiltrosPedidoCompraQuery {
   limite?: number;
   offset?: number;
 }
+
+// ============ PAINEL VISUAL DE PEDIDOS DE COMPRA ============
+
+export interface SemaforoBucket {
+  qtd: number;
+  valor: number;
+}
+
+export interface PedidoAtrasadoTop {
+  id_pedido: number;
+  numero_pedido: string | null;
+  fornecedor: string | null;
+  centro_custo: string | null;
+  valor_total: number | null;
+  proxima_entrega: string | null;
+  dias_atraso: number;
+}
+
+export interface PedidoAguardandoTop {
+  id_pedido: number;
+  numero_pedido: string | null;
+  fornecedor: string | null;
+  centro_custo: string | null;
+  valor_total: number | null;
+  data_pedido: string | null;
+}
+
+export interface PorStatusBucket {
+  status: string;
+  qtd: number;
+  valor: number;
+}
+
+export interface TopFornecedorPainel {
+  id_fornecedor: number;
+  nome: string;
+  qtd_pedidos: number;
+  valor_pendente: number;
+}
+
+export interface PorCentroCustoBucket {
+  id_centro_custo: number;
+  nome: string;
+  qtd: number;
+  valor: number;
+}
+
+export interface EntregaDia {
+  data: string | null;
+  qtd: number;
+  valor: number;
+}
+
+export interface PainelPedidosCompra {
+  semaforos: {
+    atrasados: SemaforoBucket & { top: PedidoAtrasadoTop[] };
+    vencendo_7d: SemaforoBucket;
+    no_prazo: SemaforoBucket;
+    sem_data: SemaforoBucket;
+  };
+  aguardando_autorizacao: SemaforoBucket & { top_pedidos: PedidoAguardandoTop[] };
+  por_status: PorStatusBucket[];
+  top_fornecedores: TopFornecedorPainel[];
+  por_centro_custo: PorCentroCustoBucket[];
+  entregas_30d: EntregaDia[];
+}

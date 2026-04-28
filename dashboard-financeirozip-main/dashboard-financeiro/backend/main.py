@@ -1664,6 +1664,219 @@ def filtros_pedidos_compra(current_user: dict = Depends(get_current_user)):
     }
 
 
+@app.get("/api/pedidos-compra/painel")
+def painel_pedidos_compra(
+    empresa: Optional[List[int]] = Query(None),
+    centro_custo: Optional[List[int]] = Query(None),
+    fornecedor: Optional[List[int]] = Query(None),
+    status: Optional[List[str]] = Query(None),
+    ano: Optional[int] = None,
+    autorizacao: str = "todos",
+    busca: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
+):
+    """Agrega dados visuais para o painel de controle de pedidos de compra.
+    Aplica os mesmos filtros do endpoint de listagem para coerencia."""
+
+    # Reaproveita o WHERE da listagem
+    where_pc = "WHERE 1=1"
+    params: list = []
+    where_pc += _filtro_in_clause("id_empresa", empresa, params)
+    where_pc += _filtro_in_clause("id_centro_custo", centro_custo, params)
+    where_pc += _filtro_in_clause("id_fornecedor", fornecedor, params)
+    where_pc += _filtro_in_clause("status", status, params)
+    if ano:
+        where_pc += " AND EXTRACT(YEAR FROM data_pedido) = %s"
+        params.append(ano)
+    if autorizacao == "autorizados":
+        where_pc += " AND autorizado = TRUE"
+    elif autorizacao == "aguardando":
+        where_pc += " AND (autorizado IS NULL OR autorizado = FALSE) AND (reprovado IS NULL OR reprovado = FALSE)"
+    elif autorizacao == "negados":
+        where_pc += " AND reprovado = TRUE"
+    if busca:
+        where_pc += " AND (numero_pedido ILIKE %s OR nome_fornecedor ILIKE %s OR notas_internas ILIKE %s)"
+        like = f"%{busca}%"
+        params += [like, like, like]
+
+    conn = _pc_conn()
+    try:
+        cur = conn.cursor()
+
+        # CTE base: pedidos abertos com proxima_entrega calculada
+        cte_base = f"""
+            WITH base AS (
+                SELECT
+                    pc.id_pedido, pc.numero_pedido, pc.id_fornecedor, pc.nome_fornecedor,
+                    pc.id_centro_custo, pc.nome_centro_custo, pc.data_pedido, pc.status,
+                    pc.autorizado, pc.reprovado, pc.valor_total,
+                    (SELECT MIN(e.data_prevista) FROM pedidos_compra_entregas e
+                     WHERE e.id_pedido = pc.id_pedido
+                       AND COALESCE(e.quantidade_aberta, 0) > 0) AS proxima_entrega
+                FROM pedidos_compra pc
+                {where_pc}
+            )
+        """
+
+        # 1) Semaforos: classifica abertos (PENDING/PARTIALLY_DELIVERED) por proxima_entrega vs hoje
+        cur.execute(cte_base + """
+            SELECT
+                COUNT(*) FILTER (WHERE status IN ('PENDING','PARTIALLY_DELIVERED') AND proxima_entrega IS NOT NULL AND proxima_entrega < CURRENT_DATE) AS qtd_atrasado,
+                COALESCE(SUM(valor_total) FILTER (WHERE status IN ('PENDING','PARTIALLY_DELIVERED') AND proxima_entrega IS NOT NULL AND proxima_entrega < CURRENT_DATE), 0) AS valor_atrasado,
+                COUNT(*) FILTER (WHERE status IN ('PENDING','PARTIALLY_DELIVERED') AND proxima_entrega IS NOT NULL AND proxima_entrega >= CURRENT_DATE AND proxima_entrega <= CURRENT_DATE + INTERVAL '7 days') AS qtd_vencendo,
+                COALESCE(SUM(valor_total) FILTER (WHERE status IN ('PENDING','PARTIALLY_DELIVERED') AND proxima_entrega IS NOT NULL AND proxima_entrega >= CURRENT_DATE AND proxima_entrega <= CURRENT_DATE + INTERVAL '7 days'), 0) AS valor_vencendo,
+                COUNT(*) FILTER (WHERE status IN ('PENDING','PARTIALLY_DELIVERED') AND proxima_entrega IS NOT NULL AND proxima_entrega > CURRENT_DATE + INTERVAL '7 days') AS qtd_no_prazo,
+                COALESCE(SUM(valor_total) FILTER (WHERE status IN ('PENDING','PARTIALLY_DELIVERED') AND proxima_entrega IS NOT NULL AND proxima_entrega > CURRENT_DATE + INTERVAL '7 days'), 0) AS valor_no_prazo,
+                COUNT(*) FILTER (WHERE status IN ('PENDING','PARTIALLY_DELIVERED') AND proxima_entrega IS NULL) AS qtd_sem_data,
+                COALESCE(SUM(valor_total) FILTER (WHERE status IN ('PENDING','PARTIALLY_DELIVERED') AND proxima_entrega IS NULL), 0) AS valor_sem_data
+            FROM base
+        """, params)
+        sem = cur.fetchone()
+
+        # Top 10 atrasados
+        cur.execute(cte_base + """
+            SELECT id_pedido, numero_pedido, nome_fornecedor AS fornecedor,
+                   nome_centro_custo AS centro_custo, valor_total, proxima_entrega,
+                   (CURRENT_DATE - proxima_entrega) AS dias_atraso
+            FROM base
+            WHERE status IN ('PENDING','PARTIALLY_DELIVERED')
+              AND proxima_entrega IS NOT NULL
+              AND proxima_entrega < CURRENT_DATE
+            ORDER BY proxima_entrega ASC, valor_total DESC
+            LIMIT 10
+        """, params)
+        top_atrasados = [dict(r) for r in cur.fetchall()]
+
+        # 2) Aguardando autorizacao (status PENDING + nao autorizado + nao reprovado)
+        cur.execute(cte_base + """
+            SELECT COUNT(*) AS qtd, COALESCE(SUM(valor_total), 0) AS valor
+            FROM base
+            WHERE status='PENDING'
+              AND (autorizado IS NULL OR autorizado = FALSE)
+              AND (reprovado IS NULL OR reprovado = FALSE)
+        """, params)
+        ag = cur.fetchone()
+
+        cur.execute(cte_base + """
+            SELECT id_pedido, numero_pedido, nome_fornecedor AS fornecedor,
+                   nome_centro_custo AS centro_custo, valor_total, data_pedido
+            FROM base
+            WHERE status='PENDING'
+              AND (autorizado IS NULL OR autorizado = FALSE)
+              AND (reprovado IS NULL OR reprovado = FALSE)
+            ORDER BY valor_total DESC NULLS LAST, data_pedido DESC
+            LIMIT 10
+        """, params)
+        ag_top = [dict(r) for r in cur.fetchall()]
+
+        # 3) Distribuicao por status (todos)
+        cur.execute(cte_base + """
+            SELECT status, COUNT(*) AS qtd, COALESCE(SUM(valor_total), 0) AS valor
+            FROM base
+            WHERE status IS NOT NULL
+            GROUP BY status
+            ORDER BY valor DESC
+        """, params)
+        por_status = [dict(r) for r in cur.fetchall()]
+
+        # 4) Top 10 fornecedores por valor pendente (PENDING + PARTIALLY)
+        cur.execute(cte_base + """
+            SELECT id_fornecedor, COALESCE(nome_fornecedor, 'Fornecedor #' || id_fornecedor::text) AS nome,
+                   COUNT(*) AS qtd_pedidos,
+                   COALESCE(SUM(valor_total), 0) AS valor_pendente
+            FROM base
+            WHERE id_fornecedor IS NOT NULL
+              AND status IN ('PENDING','PARTIALLY_DELIVERED')
+            GROUP BY id_fornecedor, nome_fornecedor
+            ORDER BY valor_pendente DESC
+            LIMIT 10
+        """, params)
+        top_fornecedores = [dict(r) for r in cur.fetchall()]
+
+        # 5) Top 10 centros de custo por valor pendente
+        cur.execute(cte_base + """
+            SELECT id_centro_custo, COALESCE(nome_centro_custo, 'CC #' || id_centro_custo::text) AS nome,
+                   COUNT(*) AS qtd, COALESCE(SUM(valor_total), 0) AS valor
+            FROM base
+            WHERE id_centro_custo IS NOT NULL
+              AND status IN ('PENDING','PARTIALLY_DELIVERED')
+            GROUP BY id_centro_custo, nome_centro_custo
+            ORDER BY valor DESC
+            LIMIT 10
+        """, params)
+        por_centro_custo = [dict(r) for r in cur.fetchall()]
+
+        # 6) Entregas previstas proximos 30 dias (agrupadas por data)
+        # Tem que filtrar pedidos visiveis pelo where + filtrar entregas com qtd_aberta > 0
+        cur.execute(cte_base + """
+            SELECT e.data_prevista AS data,
+                   COUNT(DISTINCT e.id_pedido) AS qtd,
+                   COALESCE(SUM(COALESCE(e.quantidade_aberta, 0) * COALESCE(i.preco_unitario, 0)), 0) AS valor
+            FROM pedidos_compra_entregas e
+            JOIN pedidos_compra_itens i
+              ON i.id_pedido = e.id_pedido AND i.numero_item = e.numero_item
+            JOIN base b ON b.id_pedido = e.id_pedido
+            WHERE COALESCE(e.quantidade_aberta, 0) > 0
+              AND e.data_prevista IS NOT NULL
+              AND e.data_prevista BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'
+            GROUP BY e.data_prevista
+            ORDER BY e.data_prevista
+        """, params)
+        entregas_30d = [dict(r) for r in cur.fetchall()]
+
+        cur.close()
+    finally:
+        conn.close()
+
+    def _f(v):
+        return float(v) if v is not None else 0.0
+
+    return {
+        "semaforos": {
+            "atrasados": {
+                "qtd": int(sem["qtd_atrasado"] or 0),
+                "valor": _f(sem["valor_atrasado"]),
+                "top": top_atrasados,
+            },
+            "vencendo_7d": {
+                "qtd": int(sem["qtd_vencendo"] or 0),
+                "valor": _f(sem["valor_vencendo"]),
+            },
+            "no_prazo": {
+                "qtd": int(sem["qtd_no_prazo"] or 0),
+                "valor": _f(sem["valor_no_prazo"]),
+            },
+            "sem_data": {
+                "qtd": int(sem["qtd_sem_data"] or 0),
+                "valor": _f(sem["valor_sem_data"]),
+            },
+        },
+        "aguardando_autorizacao": {
+            "qtd": int(ag["qtd"] or 0),
+            "valor": _f(ag["valor"]),
+            "top_pedidos": ag_top,
+        },
+        "por_status": [{"status": r["status"], "qtd": int(r["qtd"] or 0), "valor": _f(r["valor"])} for r in por_status],
+        "top_fornecedores": [{
+            "id_fornecedor": r["id_fornecedor"],
+            "nome": r["nome"],
+            "qtd_pedidos": int(r["qtd_pedidos"] or 0),
+            "valor_pendente": _f(r["valor_pendente"]),
+        } for r in top_fornecedores],
+        "por_centro_custo": [{
+            "id_centro_custo": r["id_centro_custo"],
+            "nome": r["nome"],
+            "qtd": int(r["qtd"] or 0),
+            "valor": _f(r["valor"]),
+        } for r in por_centro_custo],
+        "entregas_30d": [{
+            "data": r["data"].isoformat() if r["data"] else None,
+            "qtd": int(r["qtd"] or 0),
+            "valor": _f(r["valor"]),
+        } for r in entregas_30d],
+    }
+
+
 @app.post("/api/pedidos-compra/sincronizar")
 async def sincronizar_pedidos_compra_endpoint(
     body: dict | None = None,
