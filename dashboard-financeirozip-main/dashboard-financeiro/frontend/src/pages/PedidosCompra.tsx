@@ -70,6 +70,10 @@ export const PedidosCompra: React.FC = () => {
   const [itensLoading, setItensLoading] = useState<number | null>(null);
   const [autorizando, setAutorizando] = useState<number | null>(null);
 
+  // Modal de confirmação de autorização
+  const [pedidoParaAutorizar, setPedidoParaAutorizar] = useState<PedidoCompra | null>(null);
+  const [textoConfirmacao, setTextoConfirmacao] = useState('');
+
   const filtrosQuery: FiltrosPedidoCompraQuery = useMemo(() => ({
     empresa: filtroEmpresa.map(Number),
     centro_custo: filtroCC.map(Number),
@@ -152,13 +156,24 @@ export const PedidosCompra: React.FC = () => {
     }
   };
 
-  const autorizar = async (idPedido: number) => {
-    if (!confirm(`Autorizar o pedido ${idPedido}? Essa ação será replicada no Sienge.`)) return;
+  const solicitarAutorizacao = (pedido: PedidoCompra) => {
+    setPedidoParaAutorizar(pedido);
+    setTextoConfirmacao('');
+  };
+
+  const cancelarAutorizacao = () => {
+    setPedidoParaAutorizar(null);
+    setTextoConfirmacao('');
+  };
+
+  const confirmarAutorizacao = async () => {
+    if (!pedidoParaAutorizar) return;
+    const idPedido = pedidoParaAutorizar.id_pedido;
     setAutorizando(idPedido);
     try {
       await apiService.autorizarPedidoCompra(idPedido);
-      // Atualiza linha localmente
       setPedidos(prev => prev.map(p => p.id_pedido === idPedido ? { ...p, autorizado: true } : p));
+      cancelarAutorizacao();
     } catch (e: any) {
       alert(`Falha ao autorizar: ${e?.message || e}`);
     } finally {
@@ -396,7 +411,7 @@ export const PedidosCompra: React.FC = () => {
                           pedido={p}
                           itens={itensCache[p.id_pedido]}
                           loading={itensLoading === p.id_pedido}
-                          onAutorizar={() => autorizar(p.id_pedido)}
+                          onAutorizar={() => solicitarAutorizacao(p)}
                           autorizando={autorizando === p.id_pedido}
                         />
                       </td>
@@ -413,6 +428,119 @@ export const PedidosCompra: React.FC = () => {
               )}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Modal de confirmação de autorização */}
+      {pedidoParaAutorizar && (
+        <ModalAutorizar
+          pedido={pedidoParaAutorizar}
+          textoConfirmacao={textoConfirmacao}
+          onChangeTexto={setTextoConfirmacao}
+          autorizando={autorizando === pedidoParaAutorizar.id_pedido}
+          onCancelar={cancelarAutorizacao}
+          onConfirmar={confirmarAutorizacao}
+        />
+      )}
+    </div>
+  );
+};
+
+// ----------- Modal de Confirmacao de Autorizacao -----------
+
+const ModalAutorizar: React.FC<{
+  pedido: PedidoCompra;
+  textoConfirmacao: string;
+  onChangeTexto: (s: string) => void;
+  autorizando: boolean;
+  onCancelar: () => void;
+  onConfirmar: () => void;
+}> = ({ pedido, textoConfirmacao, onChangeTexto, autorizando, onCancelar, onConfirmar }) => {
+  const habilitado = textoConfirmacao.trim().toUpperCase() === 'AUTORIZAR' && !autorizando;
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onCancelar}>
+      <div
+        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4 text-white">
+          <div className="flex items-center gap-3">
+            <ShieldCheck className="h-6 w-6" />
+            <div>
+              <h3 className="text-lg font-bold">Confirmar Autorização</h3>
+              <p className="text-xs text-amber-100">Esta ação será replicada no Sienge</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-4 space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-500 dark:text-slate-400">Pedido:</span>
+              <span className="font-bold font-mono text-gray-800 dark:text-slate-200">
+                {pedido.numero_pedido || pedido.id_pedido}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500 dark:text-slate-400">Fornecedor:</span>
+              <span className="font-semibold text-right text-gray-800 dark:text-slate-200">
+                {pedido.nome_fornecedor || '-'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500 dark:text-slate-400">Obra / CC:</span>
+              <span className="font-semibold text-right text-gray-800 dark:text-slate-200">
+                {pedido.nome_centro_custo || '-'}
+              </span>
+            </div>
+            <div className="flex justify-between border-t border-gray-200 dark:border-slate-700 pt-2 mt-2">
+              <span className="text-gray-500 dark:text-slate-400">Valor Total:</span>
+              <span className="font-extrabold text-base text-emerald-600 dark:text-emerald-400">
+                {fmtMoeda(pedido.valor_total)}
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-3 text-xs text-amber-800 dark:text-amber-200">
+            <strong>Atenção:</strong> ao autorizar, o pedido será aprovado diretamente no Sienge e o fornecedor poderá iniciar a entrega. Esta ação não pode ser desfeita pelo dashboard.
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+              Para confirmar, digite <span className="font-mono bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded">AUTORIZAR</span>
+            </label>
+            <input
+              type="text"
+              value={textoConfirmacao}
+              onChange={e => onChangeTexto(e.target.value)}
+              placeholder="Digite AUTORIZAR"
+              autoFocus
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-800 dark:text-slate-200 font-mono uppercase focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+        </div>
+
+        <div className="bg-slate-50 dark:bg-slate-900/50 px-6 py-3 flex justify-end gap-2 border-t border-gray-200 dark:border-slate-700">
+          <button
+            type="button"
+            onClick={onCancelar}
+            disabled={autorizando}
+            className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={onConfirmar}
+            disabled={!habilitado}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-md transition-all ${
+              habilitado
+                ? 'bg-emerald-600 hover:bg-emerald-700'
+                : 'bg-gray-300 dark:bg-slate-600 cursor-not-allowed'
+            }`}
+          >
+            {autorizando ? 'Autorizando...' : 'Confirmar Autorização'}
+          </button>
         </div>
       </div>
     </div>
