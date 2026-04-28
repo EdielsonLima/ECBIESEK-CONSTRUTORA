@@ -381,11 +381,42 @@ async def sincronizar_pedidos_compra(periodo_dias: int = 90, force_full: bool = 
         finally:
             conn.close()
 
+        # Pre-carrega itens + cronograma de entregas dos pedidos abertos
+        # (PENDING / PARTIALLY_DELIVERED). Isso popula a coluna "Proxima Entrega" da listagem.
+        abertos = [p for p in pedidos if (p.get("status") or "").upper() in ("PENDING", "PARTIALLY_DELIVERED")]
+        cronogramas_carregados = 0
+        for p in abertos[:200]:  # cap por seguranca
+            try:
+                qtd_itens = await sincronizar_itens_pedido(p["id"])
+                if qtd_itens > 0:
+                    # Le numeros dos itens recem-inseridos para buscar suas entregas
+                    c = _conn()
+                    try:
+                        cur = c.cursor()
+                        cur.execute(
+                            "SELECT numero_item FROM pedidos_compra_itens WHERE id_pedido = %s",
+                            (p["id"],),
+                        )
+                        nums = [r["numero_item"] for r in cur.fetchall()]
+                        cur.close()
+                    finally:
+                        c.close()
+                    for n in nums:
+                        try:
+                            await sincronizar_entregas_item(p["id"], n)
+                            cronogramas_carregados += 1
+                        except Exception as e:
+                            print(f"[pedidos-compra] entrega {p['id']}/{n}: {e}")
+            except Exception as e:
+                print(f"[pedidos-compra] pre-load {p.get('id')}: {e}")
+
         duracao = (datetime.now() - inicio).total_seconds()
         return {
             "novos": novos,
             "atualizados": atualizados,
             "total": len(pedidos),
+            "abertos_pre_carregados": len(abertos[:200]),
+            "cronogramas_carregados": cronogramas_carregados,
             "duracao_segundos": round(duracao, 2),
             "periodo": {"inicio": start_date, "fim": end_date},
         }

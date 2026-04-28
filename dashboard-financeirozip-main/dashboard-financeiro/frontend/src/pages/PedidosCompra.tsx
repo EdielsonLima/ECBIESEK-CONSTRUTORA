@@ -119,7 +119,9 @@ export const PedidosCompra: React.FC = () => {
       if (totalSienge === 0) {
         setMensagemSync(`Sincronização rodou mas o Sienge retornou 0 pedidos no período. (Período: ${r.periodo?.inicio} → ${r.periodo?.fim})`);
       } else {
-        setMensagemSync(`OK - Sienge retornou ${totalSienge} pedidos. ${novos} novos + ${atualizados} atualizados (${r.duracao_segundos}s).`);
+        const cron = (r as any).cronogramas_carregados ?? 0;
+        const abertos = (r as any).abertos_pre_carregados ?? 0;
+        setMensagemSync(`OK - ${totalSienge} pedidos (${novos} novos + ${atualizados} atualizados). Cronograma carregado para ${abertos} pedido(s) abertos (${cron} entregas). Duração: ${r.duracao_segundos}s.`);
       }
       recarregar();
     } catch (e: any) {
