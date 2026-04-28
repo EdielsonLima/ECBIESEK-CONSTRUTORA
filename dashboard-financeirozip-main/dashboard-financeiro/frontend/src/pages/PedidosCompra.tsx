@@ -1365,14 +1365,25 @@ const DetalhePedido: React.FC<{
   autorizando: boolean;
 }> = ({ pedido, itens, loading, onAutorizar, autorizando }) => {
   const podeAutorizar = !pedido.autorizado && !pedido.reprovado && pedido.status === 'PENDING';
+
+  const fmtDataCurta = (d: string | null | undefined): string => {
+    if (!d) return '-';
+    const dt = parseDataLocal(d);
+    if (isNaN(dt.getTime())) return d;
+    const dd = String(dt.getDate()).padStart(2, '0');
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const yy = String(dt.getFullYear()).slice(-2);
+    return `${dd}/${mm}/${yy}`;
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div>
-          <h4 className="text-sm font-bold text-gray-700 dark:text-slate-300">Itens e Cronograma de Entrega</h4>
-          {pedido.notas_internas && (
-            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">📝 {pedido.notas_internas}</p>
-          )}
+        <div className="flex items-center gap-2">
+          <Package className="h-4 w-4 text-pink-500" />
+          <h4 className="text-sm font-bold text-gray-700 dark:text-slate-300">
+            Itens do Pedido &amp; Saldos de Recebimento
+          </h4>
         </div>
         {podeAutorizar && (
           <button
@@ -1387,6 +1398,10 @@ const DetalhePedido: React.FC<{
         )}
       </div>
 
+      {pedido.notas_internas && (
+        <p className="text-xs text-gray-500 dark:text-slate-400">📝 {pedido.notas_internas}</p>
+      )}
+
       {loading && (
         <div className="text-center text-sm text-gray-500 py-4">
           Carregando itens do Sienge...
@@ -1400,183 +1415,111 @@ const DetalhePedido: React.FC<{
       )}
 
       {!loading && itens && itens.length > 0 && (
-        <div className="space-y-3">
-          {itens.map(it => {
-            const qtdTotal = it.quantidade || 0;
-            const precoUnit = it.preco_unitario || 0;
-            const totalItem = qtdTotal * precoUnit;
-            const totalEntregue = (it.entregas || []).reduce((s, e) => s + (e.quantidade_entregue || 0), 0);
-            const totalPrevistoCron = (it.entregas || []).reduce((s, e) => s + (e.quantidade_prevista || 0), 0);
-            const baseProgresso = totalPrevistoCron > 0 ? totalPrevistoCron : qtdTotal;
-            const pctEntregue = baseProgresso > 0 ? Math.min(100, (totalEntregue / baseProgresso) * 100) : 0;
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-slate-900/40 border-b border-gray-200 dark:border-slate-700">
+                <tr>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400">
+                    Material / Serviço
+                  </th>
+                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 dark:text-slate-400 whitespace-nowrap">
+                    Qtd Total
+                  </th>
+                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 dark:text-slate-400 whitespace-nowrap">
+                    Qtd Entregue
+                  </th>
+                  <th className="px-3 py-2.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 whitespace-nowrap">
+                    Saldo Aberto
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 whitespace-nowrap">
+                    Previsões (Múltiplas Datas)
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                {itens.map(it => {
+                  const qtdTotal = it.quantidade || 0;
+                  const totalEntregue = (it.entregas || []).reduce((s, e) => s + (e.quantidade_entregue || 0), 0);
+                  const totalAberto = (it.entregas || []).reduce((s, e) => s + (e.quantidade_aberta || 0), 0);
+                  const saldoAberto = totalAberto > 0 ? totalAberto : Math.max(0, qtdTotal - totalEntregue);
+                  const concluido = saldoAberto === 0;
+                  const totalmenteEntregue = qtdTotal > 0 && totalEntregue >= qtdTotal;
 
-            return (
-              <div key={it.numero_item} className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
-                {/* Cabecalho do item */}
-                <div className="p-3 space-y-3">
-                  <div className="flex items-start gap-3">
-                    <span className="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-full text-xs font-bold w-7 h-7 flex items-center justify-center flex-shrink-0">
-                      {it.numero_item}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-800 dark:text-slate-200">
-                        {it.descricao_recurso || '(sem descricao)'}
-                      </p>
-                      <p className="text-[11px] text-gray-500 dark:text-slate-400 font-mono">
-                        {it.codigo_recurso || '-'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Grid: Quantidade / Preco unit. / Total */}
-                  <div className="grid grid-cols-3 gap-2 bg-slate-50 dark:bg-slate-900/40 rounded-lg p-2.5">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-slate-400 font-semibold">Quantidade</p>
-                      <p className="text-sm font-bold text-gray-800 dark:text-slate-200 mt-0.5">{qtdTotal.toLocaleString('pt-BR')}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-slate-400 font-semibold">Preco unit.</p>
-                      <p className="text-sm font-bold text-gray-800 dark:text-slate-200 mt-0.5">{fmtMoeda(precoUnit)}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-slate-400 font-semibold">Total</p>
-                      <p className="text-sm font-bold text-blue-700 dark:text-blue-400 mt-0.5">{fmtMoeda(totalItem)}</p>
-                    </div>
-                  </div>
-
-                  {/* Progresso geral do item */}
-                  {baseProgresso > 0 && (
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-gray-600 dark:text-slate-400">
-                          Entregue:{' '}
-                          <strong className="text-emerald-700 dark:text-emerald-400">
-                            {totalEntregue.toLocaleString('pt-BR')}
-                          </strong>
-                          {' '}de{' '}
-                          <strong className="text-gray-800 dark:text-slate-200">
-                            {baseProgresso.toLocaleString('pt-BR')}
-                          </strong>
-                        </span>
-                        <span className="font-semibold text-gray-700 dark:text-slate-300">{pctEntregue.toFixed(0)}%</span>
-                      </div>
-                      <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-emerald-500 transition-all"
-                          style={{ width: `${pctEntregue}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Cronograma */}
-                {it.entregas && it.entregas.length > 0 && (
-                  <div className="border-t border-gray-100 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900/30 px-3 py-2.5">
-                    <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-slate-400 font-semibold mb-2">
-                      Cronograma de Entrega · {it.entregas.length} {it.entregas.length === 1 ? 'parcela' : 'parcelas'}
-                    </p>
-                    <div className="space-y-2">
-                      {it.entregas.map(e => {
-                        const prev = e.quantidade_prevista || 0;
-                        const ent = e.quantidade_entregue || 0;
-                        const ab = e.quantidade_aberta || 0;
-                        const pct = prev > 0 ? Math.min(100, (ent / prev) * 100) : 0;
-
-                        // Status da parcela
-                        let statusLabel = 'Pendente';
-                        let statusClass = 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700/40';
-                        let barClass = 'bg-amber-400';
-                        if (prev > 0 && ab === 0) {
-                          statusLabel = 'Entregue';
-                          statusClass = 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700/40';
-                          barClass = 'bg-emerald-500';
-                        } else if (ent > 0 && ab > 0) {
-                          statusLabel = 'Parcial';
-                          statusClass = 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700/40';
-                          barClass = 'bg-blue-500';
-                        }
-
-                        // Urgencia (so para parcelas com qtd em aberto)
-                        let urgenciaLabel: string | null = null;
-                        let urgenciaClass = 'text-gray-500 dark:text-slate-400';
-                        if (e.data_prevista && ab > 0) {
-                          const dataPrev = new Date(e.data_prevista + 'T00:00:00');
-                          const hoje = new Date();
-                          hoje.setHours(0, 0, 0, 0);
-                          const diffDias = Math.round((dataPrev.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
-                          if (diffDias < 0) {
-                            urgenciaLabel = `Atrasado ${Math.abs(diffDias)} ${Math.abs(diffDias) === 1 ? 'dia' : 'dias'}`;
-                            urgenciaClass = 'text-red-600 dark:text-red-400 font-semibold';
-                            statusLabel = 'Atrasado';
-                            statusClass = 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700/40';
-                          } else if (diffDias === 0) {
-                            urgenciaLabel = 'Entrega hoje';
-                            urgenciaClass = 'text-orange-600 dark:text-orange-400 font-semibold';
-                          } else if (diffDias <= 7) {
-                            urgenciaLabel = `em ${diffDias} ${diffDias === 1 ? 'dia' : 'dias'}`;
-                            urgenciaClass = 'text-amber-600 dark:text-amber-400';
-                          } else {
-                            urgenciaLabel = `em ${diffDias} dias`;
-                          }
-                        }
-
-                        return (
-                          <div
-                            key={`${e.numero_item}-${e.numero_cronograma}`}
-                            className="bg-white dark:bg-slate-800 rounded-md border border-gray-200 dark:border-slate-700 p-2.5"
-                          >
-                            <div className="flex items-center justify-between gap-2 mb-1.5">
-                              <div className="flex items-center gap-1.5 min-w-0">
-                                <Calendar className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
-                                <span className="text-xs font-semibold text-gray-700 dark:text-slate-300 whitespace-nowrap">
-                                  {fmtData(e.data_prevista)}
-                                </span>
-                                {urgenciaLabel && (
-                                  <span className={`text-[10px] ${urgenciaClass} truncate`}>
-                                    · {urgenciaLabel}
-                                  </span>
-                                )}
-                              </div>
-                              <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 border whitespace-nowrap ${statusClass}`}>
-                                {statusLabel}
-                              </span>
-                            </div>
-
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] mb-1.5">
-                              <span className="text-gray-600 dark:text-slate-400">
-                                Previsto:{' '}
-                                <strong className="text-gray-800 dark:text-slate-200">{prev.toLocaleString('pt-BR')}</strong>
-                              </span>
-                              <span className="text-emerald-600 dark:text-emerald-400">
-                                Entregue:{' '}
-                                <strong>{ent.toLocaleString('pt-BR')}</strong>
-                              </span>
-                              {ab > 0 && (
-                                <span className="text-amber-600 dark:text-amber-400">
-                                  Pendente:{' '}
-                                  <strong>{ab.toLocaleString('pt-BR')}</strong>
-                                </span>
-                              )}
-                            </div>
-
-                            {prev > 0 && (
-                              <div className="h-1 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                                <div
-                                  className={`h-full transition-all ${barClass}`}
-                                  style={{ width: `${pct}%` }}
-                                />
-                              </div>
-                            )}
+                  return (
+                    <tr key={it.numero_item} className="hover:bg-gray-50/50 dark:hover:bg-slate-900/30">
+                      <td className="px-4 py-2.5 text-gray-800 dark:text-slate-200">
+                        <div className="font-medium">{it.descricao_recurso || '(sem descrição)'}</div>
+                        {it.codigo_recurso && (
+                          <div className="text-[11px] text-gray-400 dark:text-slate-500 font-mono mt-0.5">
+                            {it.codigo_recurso}
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-medium text-gray-700 dark:text-slate-300 whitespace-nowrap">
+                        {qtdTotal.toLocaleString('pt-BR')}
+                      </td>
+                      <td className={`px-3 py-2.5 text-right font-medium whitespace-nowrap ${
+                        totalmenteEntregue ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-700 dark:text-slate-300'
+                      }`}>
+                        {totalEntregue.toLocaleString('pt-BR')}
+                      </td>
+                      <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                        {concluido ? (
+                          <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:border-emerald-700/40 dark:bg-emerald-900/30 dark:text-emerald-300">
+                            Concluído
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center justify-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:border-amber-700/40 dark:bg-amber-900/30 dark:text-amber-300 min-w-[28px]">
+                            {saldoAberto.toLocaleString('pt-BR')}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {it.entregas && it.entregas.length > 0 ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {it.entregas.map(e => {
+                              const ab = e.quantidade_aberta || 0;
+                              const prev = e.quantidade_prevista || 0;
+                              const qtdShow = ab > 0 ? ab : prev;
+
+                              let badgeClass = 'border-gray-200 bg-gray-50 text-gray-600 dark:border-slate-600 dark:bg-slate-700/40 dark:text-slate-300';
+                              if (ab > 0 && e.data_prevista) {
+                                const dataPrev = new Date(e.data_prevista + 'T00:00:00');
+                                const hoje = new Date();
+                                hoje.setHours(0, 0, 0, 0);
+                                const diffDias = Math.round((dataPrev.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+                                if (diffDias < 0) {
+                                  badgeClass = 'border-red-200 bg-red-50 text-red-700 dark:border-red-700/40 dark:bg-red-900/30 dark:text-red-300';
+                                } else if (diffDias === 0) {
+                                  badgeClass = 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-700/40 dark:bg-orange-900/30 dark:text-orange-300';
+                                } else if (diffDias <= 7) {
+                                  badgeClass = 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700/40 dark:bg-amber-900/30 dark:text-amber-300';
+                                }
+                              }
+
+                              return (
+                                <span
+                                  key={`${e.numero_item}-${e.numero_cronograma}`}
+                                  className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs ${badgeClass}`}
+                                >
+                                  <Calendar className="h-3 w-3" />
+                                  <span className="font-semibold">{fmtDataCurta(e.data_prevista)}</span>
+                                  <span className="text-[11px] opacity-80">({qtdShow.toLocaleString('pt-BR')} un)</span>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <span className="text-xs italic text-gray-400 dark:text-slate-500">Sem cronograma</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
