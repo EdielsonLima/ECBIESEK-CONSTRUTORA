@@ -1,6 +1,27 @@
 {
-  "versao_atual": "1.10.1",
+  "versao_atual": "1.11.0",
   "historico": [
+    {
+      "versao": "1.11.0",
+      "data": "2026-04-28",
+      "titulo": "Novidades da Versao 1.11.0",
+      "secoes": [
+        {
+          "titulo": "Suprimentos",
+          "icone": "settings",
+          "itens": [
+            "Nova pagina 'Pedidos de Compra' no menu Suprimentos",
+            "3 cartoes de KPI: Pendentes, Parcialmente Entregues, Totalmente Entregues (valor + quantidade)",
+            "Filtros por Centro de Custo, Fornecedor, Status, Ano e Autorizacao",
+            "Campo de busca por numero do pedido ou fornecedor",
+            "Tabela com expansao por linha: ao clicar no pedido voce ve os itens e o cronograma de entrega completo (data prevista, qtd entregue, qtd em aberto)",
+            "Botao 'Autorizar Pedido' (apenas administradores) que aprova pedidos pendentes diretamente no Sienge",
+            "Botao 'Sincronizar Sienge' busca os pedidos mais recentes (90 dias por padrao)",
+            "Os dados sao guardados no banco local; itens e cronogramas sao buscados no Sienge sob demanda quando o pedido esta aberto"
+          ]
+        }
+      ]
+    },
     {
       "versao": "1.10.1",
       "data": "2026-04-28",

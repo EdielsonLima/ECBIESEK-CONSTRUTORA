@@ -392,3 +392,90 @@ export interface EmpreendimentoOption {
   nome: string;
   codigo: string;
 }
+
+// ============ PEDIDOS DE COMPRA ============
+
+export interface PedidoCompra {
+  id_pedido: number;
+  numero_pedido: string | null;
+  id_fornecedor: number | null;
+  nome_fornecedor: string | null;
+  id_empresa: number | null;
+  id_obra: number | null;
+  id_centro_custo: number | null;
+  nome_centro_custo: string | null;
+  data_pedido: string | null;
+  data_envio: string | null;
+  data_autorizacao: string | null;
+  status: string | null;
+  autorizado: boolean | null;
+  reprovado: boolean | null;
+  entrega_atrasada: boolean | null;
+  valor_total: number | null;
+  valor_desconto: number | null;
+  valor_acrescimo: number | null;
+  valor_frete: number | null;
+  id_comprador: number | null;
+  notas_internas: string | null;
+  proxima_entrega: string | null;
+  sincronizado_em: string | null;
+}
+
+export interface ItemPedidoCompra {
+  numero_item: number;
+  codigo_recurso: string | null;
+  descricao_recurso: string | null;
+  quantidade: number | null;
+  preco_unitario: number | null;
+  preco_liquido: number | null;
+  desconto: number | null;
+  acrescimo_pct: number | null;
+  icms_pct: number | null;
+  ipi_pct: number | null;
+  iss_pct: number | null;
+  entregas: EntregaItemPedido[];
+}
+
+export interface EntregaItemPedido {
+  numero_item: number;
+  numero_cronograma: number;
+  data_prevista: string | null;
+  quantidade_prevista: number | null;
+  quantidade_entregue: number | null;
+  quantidade_aberta: number | null;
+}
+
+export interface KPIBucket {
+  valor: number;
+  qtd: number;
+}
+
+export interface PedidosCompraResponse {
+  data: PedidoCompra[];
+  total: number;
+  kpis: {
+    pendente: KPIBucket;
+    parcialmente_entregue: KPIBucket;
+    totalmente_entregue: KPIBucket;
+  };
+}
+
+export interface PedidosCompraFiltros {
+  empresas: { id: number; nome: string }[];
+  centros_custo: { id: number; nome: string; codigo?: number | null }[];
+  fornecedores: { id: number; nome: string }[];
+  anos: number[];
+  status: string[];
+}
+
+export interface FiltrosPedidoCompraQuery {
+  empresa?: number[];
+  centro_custo?: number[];
+  fornecedor?: number[];
+  status?: string[];
+  ano?: number;
+  autorizacao?: 'todos' | 'autorizados' | 'nao_autorizados';
+  busca?: string;
+  limite?: number;
+  offset?: number;
+}

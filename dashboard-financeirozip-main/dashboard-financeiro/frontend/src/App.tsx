@@ -25,6 +25,7 @@ import { Solicitacoes } from './pages/Solicitacoes';
 import { Comercial } from './pages/Comercial';
 import { SaldosBancarios } from './pages/SaldosBancarios';
 import { NotificacoesWhatsapp } from './pages/NotificacoesWhatsapp';
+import { PedidosCompra } from './pages/PedidosCompra';
 import { authService, apiService, User } from './services/api';
 import { ChangelogModal } from './components/ChangelogModal';
 import { FloatingChatIA } from './components/FloatingChatIA';
@@ -193,6 +194,8 @@ function App() {
         return <SaldosBancarios />;
       case 'notificacoes-whatsapp':
         return isAdmin ? <NotificacoesWhatsapp /> : <AcessoNegado />;
+      case 'pedidos-compra':
+        return <PedidosCompra />;
       default:
         return <Dashboard onNavigate={setCurrentPage} />;
     }
@@ -237,6 +240,7 @@ function App() {
                 {currentPage === 'solicitacoes' && 'Solicitacao de Melhorias'}
                 {currentPage === 'comercial' && 'Comercial'}
                 {currentPage === 'notificacoes-whatsapp' && 'Notificacoes WhatsApp'}
+                {currentPage === 'pedidos-compra' && 'Pedidos de Compra'}
               </h1>
               <p className="mt-1 text-sm font-medium text-gray-500 dark:text-slate-400">Gestão Financeira - Construtora</p>
             </div>

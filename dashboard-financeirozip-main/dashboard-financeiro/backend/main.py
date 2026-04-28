@@ -24,6 +24,7 @@ import anthropic
 import httpx
 from rate_limiter import RateLimiter, RateLimitExcedido
 import bridge_http
+import sync_pedidos_compra
 import base64
 
 load_dotenv()
@@ -116,6 +117,11 @@ async def startup_event():
         _ensure_config_tables_in_postgres()
     except Exception as e:
         print(f"[STARTUP] Erro ao garantir tabelas de config: {e}")
+
+    try:
+        sync_pedidos_compra.ensure_tables()
+    except Exception as e:
+        print(f"[STARTUP] Erro ao garantir tabelas de pedidos de compra: {e}")
 
     if os.environ.get("BI_AGENTE_BRIDGE_ENABLED", "").lower() == "true":
         url = os.environ.get("BI_AGENT_URL", "")
@@ -1461,6 +1467,288 @@ async def get_titulos_alterados(data_inicio: str, data_fim: str):
     except Exception as e:
         print(f"Erro ao buscar títulos alterados: {e}")
         return []
+
+
+# ==================== PEDIDOS DE COMPRA ====================
+
+def _filtro_in_clause(coluna: str, valores: Optional[List], params: list) -> str:
+    """Helper: monta cláusula '<coluna> = ANY(%s)' se a lista tiver valores."""
+    if valores:
+        params.append(valores)
+        return f" AND {coluna} = ANY(%s)"
+    return ""
+
+
+@app.get("/api/pedidos-compra")
+def listar_pedidos_compra(
+    empresa: Optional[List[int]] = None,
+    centro_custo: Optional[List[int]] = None,
+    fornecedor: Optional[List[int]] = None,
+    status: Optional[List[str]] = None,
+    ano: Optional[int] = None,
+    autorizacao: str = "todos",
+    busca: Optional[str] = None,
+    limite: int = 200,
+    offset: int = 0,
+    current_user: dict = Depends(get_current_user),
+):
+    """Lista pedidos de compra com filtros e KPIs por status."""
+    where = "WHERE 1=1"
+    params: list = []
+
+    where += _filtro_in_clause("id_empresa", empresa, params)
+    where += _filtro_in_clause("id_centro_custo", centro_custo, params)
+    where += _filtro_in_clause("id_fornecedor", fornecedor, params)
+    where += _filtro_in_clause("status", status, params)
+
+    if ano:
+        where += " AND EXTRACT(YEAR FROM data_pedido) = %s"
+        params.append(ano)
+
+    if autorizacao == "autorizados":
+        where += " AND autorizado = TRUE"
+    elif autorizacao == "nao_autorizados":
+        where += " AND (autorizado IS NULL OR autorizado = FALSE)"
+
+    if busca:
+        where += " AND (numero_pedido ILIKE %s OR nome_fornecedor ILIKE %s OR notas_internas ILIKE %s)"
+        like = f"%{busca}%"
+        params += [like, like, like]
+
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+
+        # KPIs por status
+        cur.execute(f"""
+            SELECT
+                COALESCE(SUM(CASE WHEN status='PENDING' THEN valor_total END), 0) AS valor_pendente,
+                COUNT(CASE WHEN status='PENDING' THEN 1 END) AS qtd_pendente,
+                COALESCE(SUM(CASE WHEN status='PARTIALLY_DELIVERED' THEN valor_total END), 0) AS valor_parcial,
+                COUNT(CASE WHEN status='PARTIALLY_DELIVERED' THEN 1 END) AS qtd_parcial,
+                COALESCE(SUM(CASE WHEN status='FULLY_DELIVERED' THEN valor_total END), 0) AS valor_total_entregue,
+                COUNT(CASE WHEN status='FULLY_DELIVERED' THEN 1 END) AS qtd_total_entregue,
+                COUNT(*) AS total_geral
+            FROM pedido_compra
+            {where}
+        """, params)
+        kpi = cur.fetchone()
+
+        # Lista paginada
+        cur.execute(f"""
+            SELECT
+                id_pedido, numero_pedido, id_fornecedor, nome_fornecedor,
+                id_empresa, id_obra, id_centro_custo, nome_centro_custo,
+                data_pedido, data_envio, data_autorizacao, status,
+                autorizado, reprovado, entrega_atrasada,
+                valor_total, valor_desconto, valor_acrescimo, valor_frete,
+                id_comprador, notas_internas, sincronizado_em,
+                (SELECT MIN(data_prevista) FROM pedido_compra_entrega e
+                 WHERE e.id_pedido = pedido_compra.id_pedido
+                   AND COALESCE(e.quantidade_aberta, 0) > 0) AS proxima_entrega
+            FROM pedido_compra
+            {where}
+            ORDER BY data_pedido DESC NULLS LAST, id_pedido DESC
+            LIMIT %s OFFSET %s
+        """, params + [limite, offset])
+        pedidos = [dict(r) for r in cur.fetchall()]
+
+        cur.close()
+    finally:
+        conn.close()
+
+    return {
+        "data": pedidos,
+        "total": int(kpi["total_geral"] or 0),
+        "kpis": {
+            "pendente": {"valor": float(kpi["valor_pendente"] or 0), "qtd": int(kpi["qtd_pendente"] or 0)},
+            "parcialmente_entregue": {"valor": float(kpi["valor_parcial"] or 0), "qtd": int(kpi["qtd_parcial"] or 0)},
+            "totalmente_entregue": {"valor": float(kpi["valor_total_entregue"] or 0), "qtd": int(kpi["qtd_total_entregue"] or 0)},
+        },
+    }
+
+
+@app.get("/api/pedidos-compra/filtros")
+def filtros_pedidos_compra(current_user: dict = Depends(get_current_user)):
+    """Retorna dropdowns para filtros: empresas, centros_custo, fornecedores, anos, status."""
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+
+        # Empresas (excluindo as configuradas como excluídas em config)
+        cur.execute("""
+            SELECT DISTINCT pc.id_empresa AS id, COALESCE(e.nome_empresa, 'Empresa ' || pc.id_empresa::text) AS nome
+            FROM pedido_compra pc
+            LEFT JOIN dim_centrocusto e ON e.id_sienge_empresa = pc.id_empresa
+            WHERE pc.id_empresa IS NOT NULL
+            ORDER BY nome
+        """)
+        empresas = [dict(r) for r in cur.fetchall()]
+
+        # Centros de custo (id = id_interno; código = id_sienge)
+        cur.execute("""
+            SELECT DISTINCT pc.id_centro_custo AS id, pc.nome_centro_custo AS nome,
+                   cc.id_sienge_centrocusto AS codigo
+            FROM pedido_compra pc
+            LEFT JOIN dim_centrocusto cc ON cc.id_interno_centrocusto = pc.id_centro_custo
+            WHERE pc.id_centro_custo IS NOT NULL
+            ORDER BY nome
+        """)
+        centros = [dict(r) for r in cur.fetchall()]
+
+        # Fornecedores
+        cur.execute("""
+            SELECT DISTINCT id_fornecedor AS id,
+                   COALESCE(nome_fornecedor, 'Fornecedor ' || id_fornecedor::text) AS nome
+            FROM pedido_compra
+            WHERE id_fornecedor IS NOT NULL
+            ORDER BY nome
+        """)
+        fornecedores = [dict(r) for r in cur.fetchall()]
+
+        # Anos
+        cur.execute("""
+            SELECT DISTINCT EXTRACT(YEAR FROM data_pedido)::int AS ano
+            FROM pedido_compra
+            WHERE data_pedido IS NOT NULL
+            ORDER BY ano DESC
+        """)
+        anos = [r["ano"] for r in cur.fetchall()]
+
+        # Status
+        cur.execute("SELECT DISTINCT status FROM pedido_compra WHERE status IS NOT NULL ORDER BY status")
+        status_list = [r["status"] for r in cur.fetchall()]
+
+        cur.close()
+    finally:
+        conn.close()
+
+    return {
+        "empresas": empresas,
+        "centros_custo": centros,
+        "fornecedores": fornecedores,
+        "anos": anos,
+        "status": status_list,
+    }
+
+
+@app.post("/api/pedidos-compra/sincronizar")
+async def sincronizar_pedidos_compra_endpoint(
+    body: dict | None = None,
+    current_user: dict = Depends(get_current_user),
+):
+    """Sincroniza pedidos de compra com o Sienge. Retorna estatísticas do batch."""
+    body = body or {}
+    periodo_dias = int(body.get("periodo_dias") or 90)
+    force_full = bool(body.get("force_full", False))
+    try:
+        resultado = await sync_pedidos_compra.sincronizar_pedidos_compra(
+            periodo_dias=periodo_dias, force_full=force_full
+        )
+        try:
+            log_atividade(
+                email=current_user["email"],
+                acao="sync_pedidos_compra",
+                detalhes=json.dumps(resultado),
+            )
+        except Exception:
+            pass
+        return resultado
+    except Exception as e:
+        raise HTTPException(500, f"Falha ao sincronizar: {e}")
+
+
+@app.get("/api/pedidos-compra/{id_pedido}/itens")
+async def itens_pedido_compra(id_pedido: int, current_user: dict = Depends(get_current_user)):
+    """Retorna itens do pedido. Sincroniza on-demand se cache vazio/expirado."""
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT status FROM pedido_compra WHERE id_pedido = %s", (id_pedido,))
+        row = cur.fetchone()
+        cur.close()
+    finally:
+        conn.close()
+    if not row:
+        raise HTTPException(404, "Pedido não encontrado")
+
+    status_pedido = row["status"]
+    await sync_pedidos_compra.garantir_itens_pedido(id_pedido, status_pedido)
+
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT numero_item, codigo_recurso, descricao_recurso, quantidade,
+                   preco_unitario, preco_liquido, desconto, acrescimo_pct,
+                   icms_pct, ipi_pct, iss_pct, sincronizado_em
+            FROM pedido_compra_item
+            WHERE id_pedido = %s
+            ORDER BY numero_item
+        """, (id_pedido,))
+        itens = [dict(r) for r in cur.fetchall()]
+
+        # Cronograma agregado por item
+        cur.execute("""
+            SELECT numero_item, numero_cronograma, data_prevista,
+                   quantidade_prevista, quantidade_entregue, quantidade_aberta
+            FROM pedido_compra_entrega
+            WHERE id_pedido = %s
+            ORDER BY numero_item, numero_cronograma
+        """, (id_pedido,))
+        entregas_raw = [dict(r) for r in cur.fetchall()]
+        cur.close()
+    finally:
+        conn.close()
+
+    # Se nao temos entregas locais, busca do Sienge para cada item
+    if not entregas_raw and itens:
+        for it in itens:
+            try:
+                await sync_pedidos_compra.sincronizar_entregas_item(id_pedido, it["numero_item"])
+            except Exception as e:
+                print(f"[pedidos-compra] Falha entregas {id_pedido}/{it['numero_item']}: {e}")
+        conn = get_db_connection()
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT numero_item, numero_cronograma, data_prevista,
+                       quantidade_prevista, quantidade_entregue, quantidade_aberta
+                FROM pedido_compra_entrega
+                WHERE id_pedido = %s
+                ORDER BY numero_item, numero_cronograma
+            """, (id_pedido,))
+            entregas_raw = [dict(r) for r in cur.fetchall()]
+            cur.close()
+        finally:
+            conn.close()
+
+    # Agrupa entregas por item
+    entregas_por_item: dict[int, list] = {}
+    for e in entregas_raw:
+        entregas_por_item.setdefault(e["numero_item"], []).append(e)
+    for it in itens:
+        it["entregas"] = entregas_por_item.get(it["numero_item"], [])
+
+    return {"itens": itens, "status": status_pedido}
+
+
+@app.put("/api/pedidos-compra/{id_pedido}/autorizar")
+async def autorizar_pedido_compra(id_pedido: int, current_user: dict = Depends(require_admin)):
+    """Autoriza um pedido pendente no Sienge (admin only)."""
+    try:
+        await sync_pedidos_compra.autorizar_pedido_no_sienge(id_pedido)
+        try:
+            log_atividade(
+                email=current_user["email"],
+                acao="autorizar_pedido_compra",
+                detalhes=json.dumps({"id_pedido": id_pedido}),
+            )
+        except Exception:
+            pass
+        return {"ok": True, "id_pedido": id_pedido}
+    except Exception as e:
+        raise HTTPException(500, f"Falha ao autorizar pedido: {e}")
 
 
 @app.get("/api/titulo-detalhe/{titulo_id}")
