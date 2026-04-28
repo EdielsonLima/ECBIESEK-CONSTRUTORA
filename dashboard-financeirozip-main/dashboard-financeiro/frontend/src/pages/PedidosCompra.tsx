@@ -46,6 +46,7 @@ import {
   Building2,
   Truck,
   Users,
+  Calendar,
 } from 'lucide-react';
 
 type SortKey =
@@ -1400,46 +1401,182 @@ const DetalhePedido: React.FC<{
 
       {!loading && itens && itens.length > 0 && (
         <div className="space-y-3">
-          {itens.map(it => (
-            <div key={it.numero_item} className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-3">
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-gray-800 dark:text-slate-200">
-                    <span className="text-xs text-gray-500 mr-2">#{it.numero_item}</span>
-                    {it.descricao_recurso || '(sem descrição)'}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-slate-400 font-mono">{it.codigo_recurso || '-'}</p>
-                </div>
-                <div className="text-right text-xs">
-                  <p className="text-gray-600 dark:text-slate-400">Qtd: <strong>{it.quantidade?.toLocaleString('pt-BR')}</strong></p>
-                  <p className="text-gray-600 dark:text-slate-400">Unit: <strong>{fmtMoeda(it.preco_unitario)}</strong></p>
-                  <p className="text-gray-800 dark:text-slate-200 font-bold">{fmtMoeda(it.preco_liquido)}</p>
-                </div>
-              </div>
+          {itens.map(it => {
+            const qtdTotal = it.quantidade || 0;
+            const precoUnit = it.preco_unitario || 0;
+            const totalItem = qtdTotal * precoUnit;
+            const totalEntregue = (it.entregas || []).reduce((s, e) => s + (e.quantidade_entregue || 0), 0);
+            const totalPrevistoCron = (it.entregas || []).reduce((s, e) => s + (e.quantidade_prevista || 0), 0);
+            const baseProgresso = totalPrevistoCron > 0 ? totalPrevistoCron : qtdTotal;
+            const pctEntregue = baseProgresso > 0 ? Math.min(100, (totalEntregue / baseProgresso) * 100) : 0;
 
-              {it.entregas && it.entregas.length > 0 && (
-                <div className="mt-2 border-t border-gray-100 dark:border-slate-700 pt-2">
-                  <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-slate-400 font-semibold mb-1">
-                    Cronograma de Entrega
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {it.entregas.map(e => (
-                      <div key={`${e.numero_item}-${e.numero_cronograma}`} className="text-xs bg-slate-50 dark:bg-slate-900 rounded p-2 border border-gray-100 dark:border-slate-700">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600 dark:text-slate-400">📅 {fmtData(e.data_prevista)}</span>
-                          <span className="font-semibold text-gray-800 dark:text-slate-200">{e.quantidade_prevista?.toLocaleString('pt-BR')}</span>
-                        </div>
-                        <div className="flex justify-between mt-0.5 text-[10px]">
-                          <span className="text-green-600">✓ {e.quantidade_entregue?.toLocaleString('pt-BR') || 0}</span>
-                          <span className="text-orange-600">⏳ {e.quantidade_aberta?.toLocaleString('pt-BR') || 0}</span>
-                        </div>
-                      </div>
-                    ))}
+            return (
+              <div key={it.numero_item} className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                {/* Cabecalho do item */}
+                <div className="p-3 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <span className="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-full text-xs font-bold w-7 h-7 flex items-center justify-center flex-shrink-0">
+                      {it.numero_item}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 dark:text-slate-200">
+                        {it.descricao_recurso || '(sem descricao)'}
+                      </p>
+                      <p className="text-[11px] text-gray-500 dark:text-slate-400 font-mono">
+                        {it.codigo_recurso || '-'}
+                      </p>
+                    </div>
                   </div>
+
+                  {/* Grid: Quantidade / Preco unit. / Total */}
+                  <div className="grid grid-cols-3 gap-2 bg-slate-50 dark:bg-slate-900/40 rounded-lg p-2.5">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-slate-400 font-semibold">Quantidade</p>
+                      <p className="text-sm font-bold text-gray-800 dark:text-slate-200 mt-0.5">{qtdTotal.toLocaleString('pt-BR')}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-slate-400 font-semibold">Preco unit.</p>
+                      <p className="text-sm font-bold text-gray-800 dark:text-slate-200 mt-0.5">{fmtMoeda(precoUnit)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-slate-400 font-semibold">Total</p>
+                      <p className="text-sm font-bold text-blue-700 dark:text-blue-400 mt-0.5">{fmtMoeda(totalItem)}</p>
+                    </div>
+                  </div>
+
+                  {/* Progresso geral do item */}
+                  {baseProgresso > 0 && (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-gray-600 dark:text-slate-400">
+                          Entregue:{' '}
+                          <strong className="text-emerald-700 dark:text-emerald-400">
+                            {totalEntregue.toLocaleString('pt-BR')}
+                          </strong>
+                          {' '}de{' '}
+                          <strong className="text-gray-800 dark:text-slate-200">
+                            {baseProgresso.toLocaleString('pt-BR')}
+                          </strong>
+                        </span>
+                        <span className="font-semibold text-gray-700 dark:text-slate-300">{pctEntregue.toFixed(0)}%</span>
+                      </div>
+                      <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-500 transition-all"
+                          style={{ width: `${pctEntregue}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
+
+                {/* Cronograma */}
+                {it.entregas && it.entregas.length > 0 && (
+                  <div className="border-t border-gray-100 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900/30 px-3 py-2.5">
+                    <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-slate-400 font-semibold mb-2">
+                      Cronograma de Entrega · {it.entregas.length} {it.entregas.length === 1 ? 'parcela' : 'parcelas'}
+                    </p>
+                    <div className="space-y-2">
+                      {it.entregas.map(e => {
+                        const prev = e.quantidade_prevista || 0;
+                        const ent = e.quantidade_entregue || 0;
+                        const ab = e.quantidade_aberta || 0;
+                        const pct = prev > 0 ? Math.min(100, (ent / prev) * 100) : 0;
+
+                        // Status da parcela
+                        let statusLabel = 'Pendente';
+                        let statusClass = 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700/40';
+                        let barClass = 'bg-amber-400';
+                        if (prev > 0 && ab === 0) {
+                          statusLabel = 'Entregue';
+                          statusClass = 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700/40';
+                          barClass = 'bg-emerald-500';
+                        } else if (ent > 0 && ab > 0) {
+                          statusLabel = 'Parcial';
+                          statusClass = 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700/40';
+                          barClass = 'bg-blue-500';
+                        }
+
+                        // Urgencia (so para parcelas com qtd em aberto)
+                        let urgenciaLabel: string | null = null;
+                        let urgenciaClass = 'text-gray-500 dark:text-slate-400';
+                        if (e.data_prevista && ab > 0) {
+                          const dataPrev = new Date(e.data_prevista + 'T00:00:00');
+                          const hoje = new Date();
+                          hoje.setHours(0, 0, 0, 0);
+                          const diffDias = Math.round((dataPrev.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+                          if (diffDias < 0) {
+                            urgenciaLabel = `Atrasado ${Math.abs(diffDias)} ${Math.abs(diffDias) === 1 ? 'dia' : 'dias'}`;
+                            urgenciaClass = 'text-red-600 dark:text-red-400 font-semibold';
+                            statusLabel = 'Atrasado';
+                            statusClass = 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700/40';
+                          } else if (diffDias === 0) {
+                            urgenciaLabel = 'Entrega hoje';
+                            urgenciaClass = 'text-orange-600 dark:text-orange-400 font-semibold';
+                          } else if (diffDias <= 7) {
+                            urgenciaLabel = `em ${diffDias} ${diffDias === 1 ? 'dia' : 'dias'}`;
+                            urgenciaClass = 'text-amber-600 dark:text-amber-400';
+                          } else {
+                            urgenciaLabel = `em ${diffDias} dias`;
+                          }
+                        }
+
+                        return (
+                          <div
+                            key={`${e.numero_item}-${e.numero_cronograma}`}
+                            className="bg-white dark:bg-slate-800 rounded-md border border-gray-200 dark:border-slate-700 p-2.5"
+                          >
+                            <div className="flex items-center justify-between gap-2 mb-1.5">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <Calendar className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                                <span className="text-xs font-semibold text-gray-700 dark:text-slate-300 whitespace-nowrap">
+                                  {fmtData(e.data_prevista)}
+                                </span>
+                                {urgenciaLabel && (
+                                  <span className={`text-[10px] ${urgenciaClass} truncate`}>
+                                    · {urgenciaLabel}
+                                  </span>
+                                )}
+                              </div>
+                              <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 border whitespace-nowrap ${statusClass}`}>
+                                {statusLabel}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] mb-1.5">
+                              <span className="text-gray-600 dark:text-slate-400">
+                                Previsto:{' '}
+                                <strong className="text-gray-800 dark:text-slate-200">{prev.toLocaleString('pt-BR')}</strong>
+                              </span>
+                              <span className="text-emerald-600 dark:text-emerald-400">
+                                Entregue:{' '}
+                                <strong>{ent.toLocaleString('pt-BR')}</strong>
+                              </span>
+                              {ab > 0 && (
+                                <span className="text-amber-600 dark:text-amber-400">
+                                  Pendente:{' '}
+                                  <strong>{ab.toLocaleString('pt-BR')}</strong>
+                                </span>
+                              )}
+                            </div>
+
+                            {prev > 0 && (
+                              <div className="h-1 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full transition-all ${barClass}`}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
