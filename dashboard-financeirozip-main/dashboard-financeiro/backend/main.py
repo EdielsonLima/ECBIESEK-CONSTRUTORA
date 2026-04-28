@@ -1529,7 +1529,7 @@ def listar_pedidos_compra(
                 COALESCE(SUM(CASE WHEN status='FULLY_DELIVERED' THEN valor_total END), 0) AS valor_total_entregue,
                 COUNT(CASE WHEN status='FULLY_DELIVERED' THEN 1 END) AS qtd_total_entregue,
                 COUNT(*) AS total_geral
-            FROM pedido_compra
+            FROM pedidos_compra
             {where}
         """, params)
         kpi = cur.fetchone()
@@ -1543,10 +1543,10 @@ def listar_pedidos_compra(
                 autorizado, reprovado, entrega_atrasada,
                 valor_total, valor_desconto, valor_acrescimo, valor_frete,
                 id_comprador, notas_internas, sincronizado_em,
-                (SELECT MIN(data_prevista) FROM pedido_compra_entrega e
-                 WHERE e.id_pedido = pedido_compra.id_pedido
+                (SELECT MIN(data_prevista) FROM pedidos_compra_entregas e
+                 WHERE e.id_pedido = pedidos_compra.id_pedido
                    AND COALESCE(e.quantidade_aberta, 0) > 0) AS proxima_entrega
-            FROM pedido_compra
+            FROM pedidos_compra
             {where}
             ORDER BY data_pedido DESC NULLS LAST, id_pedido DESC
             LIMIT %s OFFSET %s
@@ -1578,7 +1578,7 @@ def filtros_pedidos_compra(current_user: dict = Depends(get_current_user)):
         # Empresas (excluindo as configuradas como excluídas em config)
         cur.execute("""
             SELECT DISTINCT pc.id_empresa AS id, COALESCE(e.nome_empresa, 'Empresa ' || pc.id_empresa::text) AS nome
-            FROM pedido_compra pc
+            FROM pedidos_compra pc
             LEFT JOIN dim_centrocusto e ON e.id_sienge_empresa = pc.id_empresa
             WHERE pc.id_empresa IS NOT NULL
             ORDER BY nome
@@ -1589,7 +1589,7 @@ def filtros_pedidos_compra(current_user: dict = Depends(get_current_user)):
         cur.execute("""
             SELECT DISTINCT pc.id_centro_custo AS id, pc.nome_centro_custo AS nome,
                    cc.id_sienge_centrocusto AS codigo
-            FROM pedido_compra pc
+            FROM pedidos_compra pc
             LEFT JOIN dim_centrocusto cc ON cc.id_interno_centrocusto = pc.id_centro_custo
             WHERE pc.id_centro_custo IS NOT NULL
             ORDER BY nome
@@ -1600,7 +1600,7 @@ def filtros_pedidos_compra(current_user: dict = Depends(get_current_user)):
         cur.execute("""
             SELECT DISTINCT id_fornecedor AS id,
                    COALESCE(nome_fornecedor, 'Fornecedor ' || id_fornecedor::text) AS nome
-            FROM pedido_compra
+            FROM pedidos_compra
             WHERE id_fornecedor IS NOT NULL
             ORDER BY nome
         """)
@@ -1609,14 +1609,14 @@ def filtros_pedidos_compra(current_user: dict = Depends(get_current_user)):
         # Anos
         cur.execute("""
             SELECT DISTINCT EXTRACT(YEAR FROM data_pedido)::int AS ano
-            FROM pedido_compra
+            FROM pedidos_compra
             WHERE data_pedido IS NOT NULL
             ORDER BY ano DESC
         """)
         anos = [r["ano"] for r in cur.fetchall()]
 
         # Status
-        cur.execute("SELECT DISTINCT status FROM pedido_compra WHERE status IS NOT NULL ORDER BY status")
+        cur.execute("SELECT DISTINCT status FROM pedidos_compra WHERE status IS NOT NULL ORDER BY status")
         status_list = [r["status"] for r in cur.fetchall()]
 
         cur.close()
@@ -1659,12 +1659,12 @@ async def sincronizar_pedidos_compra_endpoint(
 
 
 @app.get("/api/pedidos-compra/{id_pedido}/itens")
-async def itens_pedido_compra(id_pedido: int, current_user: dict = Depends(get_current_user)):
+async def itens_pedidos_compra(id_pedido: int, current_user: dict = Depends(get_current_user)):
     """Retorna itens do pedido. Sincroniza on-demand se cache vazio/expirado."""
     conn = get_db_connection()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT status FROM pedido_compra WHERE id_pedido = %s", (id_pedido,))
+        cur.execute("SELECT status FROM pedidos_compra WHERE id_pedido = %s", (id_pedido,))
         row = cur.fetchone()
         cur.close()
     finally:
@@ -1682,7 +1682,7 @@ async def itens_pedido_compra(id_pedido: int, current_user: dict = Depends(get_c
             SELECT numero_item, codigo_recurso, descricao_recurso, quantidade,
                    preco_unitario, preco_liquido, desconto, acrescimo_pct,
                    icms_pct, ipi_pct, iss_pct, sincronizado_em
-            FROM pedido_compra_item
+            FROM pedidos_compra_itens
             WHERE id_pedido = %s
             ORDER BY numero_item
         """, (id_pedido,))
@@ -1692,7 +1692,7 @@ async def itens_pedido_compra(id_pedido: int, current_user: dict = Depends(get_c
         cur.execute("""
             SELECT numero_item, numero_cronograma, data_prevista,
                    quantidade_prevista, quantidade_entregue, quantidade_aberta
-            FROM pedido_compra_entrega
+            FROM pedidos_compra_entregas
             WHERE id_pedido = %s
             ORDER BY numero_item, numero_cronograma
         """, (id_pedido,))
@@ -1714,7 +1714,7 @@ async def itens_pedido_compra(id_pedido: int, current_user: dict = Depends(get_c
             cur.execute("""
                 SELECT numero_item, numero_cronograma, data_prevista,
                        quantidade_prevista, quantidade_entregue, quantidade_aberta
-                FROM pedido_compra_entrega
+                FROM pedidos_compra_entregas
                 WHERE id_pedido = %s
                 ORDER BY numero_item, numero_cronograma
             """, (id_pedido,))
@@ -1735,7 +1735,7 @@ async def itens_pedido_compra(id_pedido: int, current_user: dict = Depends(get_c
 
 @app.post("/api/debug/pedidos-compra-rebuild")
 def debug_pedidos_compra_rebuild(admin: dict = Depends(require_admin)):
-    """DROP + recria as tabelas de pedido_compra. Usar se schema ficou inconsistente."""
+    """DROP + recria as tabelas de pedidos_compra. Usar se schema ficou inconsistente."""
     try:
         return sync_pedidos_compra.rebuild_tabelas()
     except Exception as e:
@@ -1743,14 +1743,14 @@ def debug_pedidos_compra_rebuild(admin: dict = Depends(require_admin)):
 
 
 @app.put("/api/pedidos-compra/{id_pedido}/autorizar")
-async def autorizar_pedido_compra(id_pedido: int, current_user: dict = Depends(require_admin)):
+async def autorizar_pedidos_compra(id_pedido: int, current_user: dict = Depends(require_admin)):
     """Autoriza um pedido pendente no Sienge (admin only)."""
     try:
         await sync_pedidos_compra.autorizar_pedido_no_sienge(id_pedido)
         try:
             log_atividade(
                 email=current_user["email"],
-                acao="autorizar_pedido_compra",
+                acao="autorizar_pedidos_compra",
                 detalhes=json.dumps({"id_pedido": id_pedido}),
             )
         except Exception:

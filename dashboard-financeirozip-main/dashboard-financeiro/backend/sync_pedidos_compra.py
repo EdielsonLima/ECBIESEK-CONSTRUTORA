@@ -1,9 +1,9 @@
 """ETL de Pedidos de Compra do Sienge.
 
 Sincroniza os endpoints REST do Sienge para o PostgreSQL local:
-  GET  /purchase-orders                                       -> tabela pedido_compra (header)
-  GET  /purchase-orders/{id}/items                            -> tabela pedido_compra_item (lazy)
-  GET  /purchase-orders/{id}/items/{n}/delivery-schedules     -> tabela pedido_compra_entrega (lazy)
+  GET  /purchase-orders                                       -> tabela pedidos_compra (header)
+  GET  /purchase-orders/{id}/items                            -> tabela pedidos_compra_itens (lazy)
+  GET  /purchase-orders/{id}/items/{n}/delivery-schedules     -> tabela pedidos_compra_entregas (lazy)
   PUT  /purchase-orders/{id}/authorize                        -> autoriza pedido
 
 Usa o mesmo DB principal (DB_CONFIG) onde ja vivem dim_centrocusto, contas_a_pagar etc.
@@ -53,12 +53,12 @@ def ensure_tables() -> None:
     # 1) Cria tabelas com PK mínima (CREATE TABLE IF NOT EXISTS é idempotente, mas só
     # cria a tabela se não existir — não adiciona colunas faltantes em tabela existente)
     create_sql = """
-    CREATE TABLE IF NOT EXISTS dim_fornecedor (id_fornecedor BIGINT PRIMARY KEY);
-    CREATE TABLE IF NOT EXISTS pedido_compra (id_pedido BIGINT PRIMARY KEY);
-    CREATE TABLE IF NOT EXISTS pedido_compra_item (
+    CREATE TABLE IF NOT EXISTS dim_fornecedores (id_fornecedor BIGINT PRIMARY KEY);
+    CREATE TABLE IF NOT EXISTS pedidos_compra (id_pedido BIGINT PRIMARY KEY);
+    CREATE TABLE IF NOT EXISTS pedidos_compra_itens (
         id_pedido BIGINT, numero_item INT, PRIMARY KEY (id_pedido, numero_item)
     );
-    CREATE TABLE IF NOT EXISTS pedido_compra_entrega (
+    CREATE TABLE IF NOT EXISTS pedidos_compra_entregas (
         id_pedido BIGINT, numero_item INT, numero_cronograma INT,
         PRIMARY KEY (id_pedido, numero_item, numero_cronograma)
     );
@@ -66,59 +66,59 @@ def ensure_tables() -> None:
 
     # 2) Garante todas as colunas de cada tabela
     alters = [
-        # dim_fornecedor
-        "ALTER TABLE dim_fornecedor ADD COLUMN IF NOT EXISTS nome TEXT",
-        "ALTER TABLE dim_fornecedor ADD COLUMN IF NOT EXISTS cnpj TEXT",
-        "ALTER TABLE dim_fornecedor ADD COLUMN IF NOT EXISTS ativo BOOLEAN DEFAULT TRUE",
-        "ALTER TABLE dim_fornecedor ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMPTZ DEFAULT NOW()",
-        # pedido_compra
-        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS numero_pedido TEXT",
-        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS id_fornecedor BIGINT",
-        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS nome_fornecedor TEXT",
-        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS id_empresa INT",
-        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS id_obra INT",
-        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS id_centro_custo INT",
-        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS nome_centro_custo TEXT",
-        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS data_pedido DATE",
-        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS data_envio DATE",
-        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS data_autorizacao TIMESTAMPTZ",
-        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS status TEXT",
-        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS autorizado BOOLEAN",
-        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS reprovado BOOLEAN",
-        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS entrega_atrasada BOOLEAN",
-        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS valor_total NUMERIC(14,2)",
-        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS valor_desconto NUMERIC(14,2)",
-        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS valor_acrescimo NUMERIC(14,2)",
-        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS valor_frete NUMERIC(14,2)",
-        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS id_comprador INT",
-        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS notas_internas TEXT",
-        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS sincronizado_em TIMESTAMPTZ DEFAULT NOW()",
-        # pedido_compra_item
-        "ALTER TABLE pedido_compra_item ADD COLUMN IF NOT EXISTS codigo_recurso TEXT",
-        "ALTER TABLE pedido_compra_item ADD COLUMN IF NOT EXISTS descricao_recurso TEXT",
-        "ALTER TABLE pedido_compra_item ADD COLUMN IF NOT EXISTS quantidade NUMERIC(14,4)",
-        "ALTER TABLE pedido_compra_item ADD COLUMN IF NOT EXISTS preco_unitario NUMERIC(14,4)",
-        "ALTER TABLE pedido_compra_item ADD COLUMN IF NOT EXISTS preco_liquido NUMERIC(14,2)",
-        "ALTER TABLE pedido_compra_item ADD COLUMN IF NOT EXISTS desconto NUMERIC(14,2)",
-        "ALTER TABLE pedido_compra_item ADD COLUMN IF NOT EXISTS acrescimo_pct NUMERIC(8,4)",
-        "ALTER TABLE pedido_compra_item ADD COLUMN IF NOT EXISTS icms_pct NUMERIC(8,4)",
-        "ALTER TABLE pedido_compra_item ADD COLUMN IF NOT EXISTS ipi_pct NUMERIC(8,4)",
-        "ALTER TABLE pedido_compra_item ADD COLUMN IF NOT EXISTS iss_pct NUMERIC(8,4)",
-        "ALTER TABLE pedido_compra_item ADD COLUMN IF NOT EXISTS sincronizado_em TIMESTAMPTZ DEFAULT NOW()",
-        # pedido_compra_entrega
-        "ALTER TABLE pedido_compra_entrega ADD COLUMN IF NOT EXISTS data_prevista DATE",
-        "ALTER TABLE pedido_compra_entrega ADD COLUMN IF NOT EXISTS quantidade_prevista NUMERIC(14,4)",
-        "ALTER TABLE pedido_compra_entrega ADD COLUMN IF NOT EXISTS quantidade_entregue NUMERIC(14,4)",
-        "ALTER TABLE pedido_compra_entrega ADD COLUMN IF NOT EXISTS quantidade_aberta NUMERIC(14,4)",
-        "ALTER TABLE pedido_compra_entrega ADD COLUMN IF NOT EXISTS sincronizado_em TIMESTAMPTZ DEFAULT NOW()",
+        # dim_fornecedores
+        "ALTER TABLE dim_fornecedores ADD COLUMN IF NOT EXISTS nome TEXT",
+        "ALTER TABLE dim_fornecedores ADD COLUMN IF NOT EXISTS cnpj TEXT",
+        "ALTER TABLE dim_fornecedores ADD COLUMN IF NOT EXISTS ativo BOOLEAN DEFAULT TRUE",
+        "ALTER TABLE dim_fornecedores ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMPTZ DEFAULT NOW()",
+        # pedidos_compra
+        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS numero_pedido TEXT",
+        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS id_fornecedor BIGINT",
+        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS nome_fornecedor TEXT",
+        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS id_empresa INT",
+        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS id_obra INT",
+        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS id_centro_custo INT",
+        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS nome_centro_custo TEXT",
+        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS data_pedido DATE",
+        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS data_envio DATE",
+        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS data_autorizacao TIMESTAMPTZ",
+        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS status TEXT",
+        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS autorizado BOOLEAN",
+        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS reprovado BOOLEAN",
+        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS entrega_atrasada BOOLEAN",
+        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS valor_total NUMERIC(14,2)",
+        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS valor_desconto NUMERIC(14,2)",
+        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS valor_acrescimo NUMERIC(14,2)",
+        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS valor_frete NUMERIC(14,2)",
+        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS id_comprador INT",
+        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS notas_internas TEXT",
+        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS sincronizado_em TIMESTAMPTZ DEFAULT NOW()",
+        # pedidos_compra_itens
+        "ALTER TABLE pedidos_compra_itens ADD COLUMN IF NOT EXISTS codigo_recurso TEXT",
+        "ALTER TABLE pedidos_compra_itens ADD COLUMN IF NOT EXISTS descricao_recurso TEXT",
+        "ALTER TABLE pedidos_compra_itens ADD COLUMN IF NOT EXISTS quantidade NUMERIC(14,4)",
+        "ALTER TABLE pedidos_compra_itens ADD COLUMN IF NOT EXISTS preco_unitario NUMERIC(14,4)",
+        "ALTER TABLE pedidos_compra_itens ADD COLUMN IF NOT EXISTS preco_liquido NUMERIC(14,2)",
+        "ALTER TABLE pedidos_compra_itens ADD COLUMN IF NOT EXISTS desconto NUMERIC(14,2)",
+        "ALTER TABLE pedidos_compra_itens ADD COLUMN IF NOT EXISTS acrescimo_pct NUMERIC(8,4)",
+        "ALTER TABLE pedidos_compra_itens ADD COLUMN IF NOT EXISTS icms_pct NUMERIC(8,4)",
+        "ALTER TABLE pedidos_compra_itens ADD COLUMN IF NOT EXISTS ipi_pct NUMERIC(8,4)",
+        "ALTER TABLE pedidos_compra_itens ADD COLUMN IF NOT EXISTS iss_pct NUMERIC(8,4)",
+        "ALTER TABLE pedidos_compra_itens ADD COLUMN IF NOT EXISTS sincronizado_em TIMESTAMPTZ DEFAULT NOW()",
+        # pedidos_compra_entregas
+        "ALTER TABLE pedidos_compra_entregas ADD COLUMN IF NOT EXISTS data_prevista DATE",
+        "ALTER TABLE pedidos_compra_entregas ADD COLUMN IF NOT EXISTS quantidade_prevista NUMERIC(14,4)",
+        "ALTER TABLE pedidos_compra_entregas ADD COLUMN IF NOT EXISTS quantidade_entregue NUMERIC(14,4)",
+        "ALTER TABLE pedidos_compra_entregas ADD COLUMN IF NOT EXISTS quantidade_aberta NUMERIC(14,4)",
+        "ALTER TABLE pedidos_compra_entregas ADD COLUMN IF NOT EXISTS sincronizado_em TIMESTAMPTZ DEFAULT NOW()",
     ]
 
     indexes = [
-        "CREATE INDEX IF NOT EXISTS idx_pedido_compra_status ON pedido_compra(status)",
-        "CREATE INDEX IF NOT EXISTS idx_pedido_compra_data ON pedido_compra(data_pedido)",
-        "CREATE INDEX IF NOT EXISTS idx_pedido_compra_cc ON pedido_compra(id_centro_custo)",
-        "CREATE INDEX IF NOT EXISTS idx_pedido_compra_fornecedor ON pedido_compra(id_fornecedor)",
-        "CREATE INDEX IF NOT EXISTS idx_pedido_entrega_data ON pedido_compra_entrega(data_prevista)",
+        "CREATE INDEX IF NOT EXISTS idx_pedidos_compra_status ON pedidos_compra(status)",
+        "CREATE INDEX IF NOT EXISTS idx_pedidos_compra_data ON pedidos_compra(data_pedido)",
+        "CREATE INDEX IF NOT EXISTS idx_pedidos_compra_cc ON pedidos_compra(id_centro_custo)",
+        "CREATE INDEX IF NOT EXISTS idx_pedidos_compra_fornecedor ON pedidos_compra(id_fornecedor)",
+        "CREATE INDEX IF NOT EXISTS idx_pedido_entrega_data ON pedidos_compra_entregas(data_prevista)",
     ]
 
     conn = _conn()
@@ -158,10 +158,10 @@ def rebuild_tabelas() -> dict:
     conn.autocommit = True
     cur = conn.cursor()
     try:
-        cur.execute("DROP TABLE IF EXISTS pedido_compra_entrega CASCADE")
-        cur.execute("DROP TABLE IF EXISTS pedido_compra_item CASCADE")
-        cur.execute("DROP TABLE IF EXISTS pedido_compra CASCADE")
-        cur.execute("DROP TABLE IF EXISTS dim_fornecedor CASCADE")
+        cur.execute("DROP TABLE IF EXISTS pedidos_compra_entregas CASCADE")
+        cur.execute("DROP TABLE IF EXISTS pedidos_compra_itens CASCADE")
+        cur.execute("DROP TABLE IF EXISTS pedidos_compra CASCADE")
+        cur.execute("DROP TABLE IF EXISTS dim_fornecedores CASCADE")
     finally:
         cur.close()
         conn.close()
@@ -255,7 +255,7 @@ def _enriquecer_fornecedores(pedidos: list[dict], conn) -> dict[int, str]:
 
 
 def _upsert_pedidos(pedidos: list[dict], cc_map: dict, forn_map: dict, conn) -> tuple[int, int]:
-    """UPSERT em pedido_compra. Retorna (novos, atualizados)."""
+    """UPSERT em pedidos_compra. Retorna (novos, atualizados)."""
     if not pedidos:
         return 0, 0
     rows = []
@@ -288,7 +288,7 @@ def _upsert_pedidos(pedidos: list[dict], cc_map: dict, forn_map: dict, conn) -> 
         ))
 
     sql = """
-    INSERT INTO pedido_compra (
+    INSERT INTO pedidos_compra (
         id_pedido, numero_pedido, id_fornecedor, nome_fornecedor, id_empresa,
         id_obra, id_centro_custo, nome_centro_custo, data_pedido, data_envio,
         data_autorizacao, status, autorizado, reprovado, entrega_atrasada,
@@ -298,7 +298,7 @@ def _upsert_pedidos(pedidos: list[dict], cc_map: dict, forn_map: dict, conn) -> 
     ON CONFLICT (id_pedido) DO UPDATE SET
         numero_pedido     = EXCLUDED.numero_pedido,
         id_fornecedor     = EXCLUDED.id_fornecedor,
-        nome_fornecedor   = COALESCE(EXCLUDED.nome_fornecedor, pedido_compra.nome_fornecedor),
+        nome_fornecedor   = COALESCE(EXCLUDED.nome_fornecedor, pedidos_compra.nome_fornecedor),
         id_empresa        = EXCLUDED.id_empresa,
         id_obra           = EXCLUDED.id_obra,
         id_centro_custo   = EXCLUDED.id_centro_custo,
@@ -397,7 +397,7 @@ async def sincronizar_itens_pedido(id_pedido: int) -> int:
     ) for it in itens]
 
     sql = """
-    INSERT INTO pedido_compra_item (
+    INSERT INTO pedidos_compra_itens (
         id_pedido, numero_item, codigo_recurso, descricao_recurso, quantidade,
         preco_unitario, preco_liquido, desconto, acrescimo_pct, icms_pct, ipi_pct, iss_pct, sincronizado_em
     ) VALUES %s
@@ -451,7 +451,7 @@ async def sincronizar_entregas_item(id_pedido: int, numero_item: int) -> int:
     ) for e in entregas]
 
     sql = """
-    INSERT INTO pedido_compra_entrega (
+    INSERT INTO pedidos_compra_entregas (
         id_pedido, numero_item, numero_cronograma, data_prevista,
         quantidade_prevista, quantidade_entregue, quantidade_aberta, sincronizado_em
     ) VALUES %s
@@ -480,7 +480,7 @@ def _itens_precisam_sync(id_pedido: int, status: str | None) -> bool:
     try:
         cur = conn.cursor()
         cur.execute(
-            "SELECT MAX(sincronizado_em) AS ultimo FROM pedido_compra_item WHERE id_pedido = %s",
+            "SELECT MAX(sincronizado_em) AS ultimo FROM pedidos_compra_itens WHERE id_pedido = %s",
             (id_pedido,),
         )
         row = cur.fetchone()
@@ -521,7 +521,7 @@ async def autorizar_pedido_no_sienge(id_pedido: int) -> bool:
     try:
         cur = conn.cursor()
         cur.execute(
-            "UPDATE pedido_compra SET autorizado = TRUE, data_autorizacao = NOW(), sincronizado_em = NOW() "
+            "UPDATE pedidos_compra SET autorizado = TRUE, data_autorizacao = NOW(), sincronizado_em = NOW() "
             "WHERE id_pedido = %s",
             (id_pedido,),
         )
