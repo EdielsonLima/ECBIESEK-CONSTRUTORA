@@ -86,13 +86,17 @@ export const GerenciarUsuarios: React.FC = () => {
     }
   };
 
-  const badgePermissao = (p: string) =>
-    p === 'admin'
-      ? 'bg-blue-100 text-blue-700 border border-blue-200'
-      : 'bg-gray-100 text-gray-600 dark:text-slate-400 border border-gray-200 dark:border-slate-700';
+  const badgePermissao = (p: string) => {
+    if (p === 'admin') return 'bg-blue-100 text-blue-700 border border-blue-200';
+    if (p === 'suprimentos') return 'bg-emerald-100 text-emerald-700 border border-emerald-200';
+    return 'bg-gray-100 text-gray-600 dark:text-slate-400 border border-gray-200 dark:border-slate-700';
+  };
 
-  const labelPermissao = (p: string) =>
-    p === 'admin' ? 'Admin' : 'Somente leitura';
+  const labelPermissao = (p: string) => {
+    if (p === 'admin') return 'Admin';
+    if (p === 'suprimentos') return 'Suprimentos';
+    return 'Somente leitura';
+  };
 
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
@@ -144,6 +148,7 @@ export const GerenciarUsuarios: React.FC = () => {
               className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               <option value="somente_leitura">Somente leitura</option>
+              <option value="suprimentos">Suprimentos</option>
               <option value="admin">Admin</option>
             </select>
           </div>
@@ -201,6 +206,7 @@ export const GerenciarUsuarios: React.FC = () => {
                           className="border border-blue-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
                         >
                           <option value="somente_leitura">Somente leitura</option>
+                          <option value="suprimentos">Suprimentos</option>
                           <option value="admin">Admin</option>
                         </select>
                         <button

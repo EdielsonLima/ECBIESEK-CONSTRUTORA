@@ -337,7 +337,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, isOpe
 
         {/* Menu com grupos */}
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1 scrollbar-thin scrollbar-thumb-gray-700">
-          {menuGroups.map((group) => {
+          {menuGroups.filter(g => user?.permissao === 'suprimentos' ? g.group === 'Suprimentos' : true).map((group) => {
             const key = groupKey(group.group);
             const isGroupOpen = openGroups[key] ?? true;
 

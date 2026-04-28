@@ -116,6 +116,13 @@ function App() {
   }, [isAuthenticated, user]);
 
   const isAdmin = user?.permissao === 'admin';
+  const isSuprimentos = user?.permissao === 'suprimentos';
+
+  useEffect(() => {
+    if (isAuthenticated && isSuprimentos && currentPage === 'dashboard') {
+      setCurrentPage('pedidos-compra');
+    }
+  }, [isAuthenticated, isSuprimentos, currentPage]);
 
   const AcessoNegado = () => (
     <div className="flex flex-col items-center justify-center min-h-[40vh] text-center">
@@ -145,6 +152,13 @@ function App() {
   }
 
   const renderPage = () => {
+    if (isSuprimentos) {
+      const allowedPages = ['suprimentos-dashboard', 'pedidos-compra', 'fornecedores', 'estoque', 'alterar-senha'];
+      if (!allowedPages.includes(currentPage) && currentPage !== 'dashboard') {
+        return <AcessoNegado />;
+      }
+    }
+
     switch (currentPage) {
       case 'dashboard':
         return <Dashboard onNavigate={setCurrentPage} />;

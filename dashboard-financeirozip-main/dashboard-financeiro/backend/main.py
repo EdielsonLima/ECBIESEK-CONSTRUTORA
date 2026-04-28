@@ -760,7 +760,7 @@ async def criar_usuario(dados: dict, request: Request, current_user: dict = Depe
         raise HTTPException(status_code=400, detail="Email e nome são obrigatórios")
     if len(senha) < 6:
         raise HTTPException(status_code=400, detail="Senha deve ter pelo menos 6 caracteres")
-    if permissao not in ('admin', 'somente_leitura'):
+    if permissao not in ('admin', 'somente_leitura', 'suprimentos'):
         raise HTTPException(status_code=400, detail="Permissão inválida")
     if get_user_by_email(email):
         raise HTTPException(status_code=400, detail="Email já cadastrado")
