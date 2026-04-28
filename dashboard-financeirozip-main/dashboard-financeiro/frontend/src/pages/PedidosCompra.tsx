@@ -54,6 +54,7 @@ type SortKey =
   | 'nome_fornecedor'
   | 'nome_centro_custo'
   | 'proxima_entrega'
+  | 'prazo_entrega'
   | 'urgencia'
   | 'valor_total'
   | 'status'
@@ -81,9 +82,23 @@ function fmtMoeda(v: number | null | undefined): string {
 
 function fmtData(d: string | null | undefined): string {
   if (!d) return '-';
-  const dt = new Date(d.includes('T') ? d : d + 'T12:00:00');
+  const dt = parseDataLocal(d);
   if (isNaN(dt.getTime())) return d;
   return dt.toLocaleDateString('pt-BR');
+}
+
+function parseDataLocal(d: string): Date {
+  return new Date(d.includes('T') ? d : d + 'T12:00:00');
+}
+
+function calcularPrazoEntrega(dataPedido: string | null | undefined, proximaEntrega: string | null | undefined): number | null {
+  if (!dataPedido || !proximaEntrega) return null;
+  const inicio = parseDataLocal(dataPedido);
+  const fim = parseDataLocal(proximaEntrega);
+  if (isNaN(inicio.getTime()) || isNaN(fim.getTime())) return null;
+  inicio.setHours(0, 0, 0, 0);
+  fim.setHours(0, 0, 0, 0);
+  return Math.round((fim.getTime() - inicio.getTime()) / (24 * 60 * 60 * 1000));
 }
 
 interface UrgenciaInfo {
@@ -94,7 +109,7 @@ interface UrgenciaInfo {
 
 function calcularUrgencia(dataIso: string | null | undefined): UrgenciaInfo | null {
   if (!dataIso) return null;
-  const dt = new Date(dataIso.includes('T') ? dataIso : dataIso + 'T12:00:00');
+  const dt = parseDataLocal(dataIso);
   if (isNaN(dt.getTime())) return null;
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
@@ -373,6 +388,7 @@ export const PedidosCompra: React.FC = () => {
         case 'nome_fornecedor': return (p.nome_fornecedor || '').toLowerCase();
         case 'nome_centro_custo': return (p.nome_centro_custo || '').toLowerCase();
         case 'proxima_entrega': return p.proxima_entrega || '9999-99-99';
+        case 'prazo_entrega': return calcularPrazoEntrega(p.data_pedido, p.proxima_entrega) ?? 99999;
         case 'urgencia': {
           if (!p.proxima_entrega) return 99999;
           const u = calcularUrgencia(p.proxima_entrega);
@@ -639,6 +655,7 @@ export const PedidosCompra: React.FC = () => {
                 <SortHeader label="Fornecedor" k="nome_fornecedor" sortKey={sortKey} sortOrder={sortOrder} onSort={toggleSort} />
                 <SortHeader label="Obra / CC" k="nome_centro_custo" sortKey={sortKey} sortOrder={sortOrder} onSort={toggleSort} />
                 <SortHeader label="Próx. Entrega" k="proxima_entrega" sortKey={sortKey} sortOrder={sortOrder} onSort={toggleSort} />
+                <SortHeader label="Prazo Entrega" k="prazo_entrega" sortKey={sortKey} sortOrder={sortOrder} onSort={toggleSort} align="center" />
                 <SortHeader label="Urgência" k="urgencia" sortKey={sortKey} sortOrder={sortOrder} onSort={toggleSort} />
                 <SortHeader label="Valor" k="valor_total" sortKey={sortKey} sortOrder={sortOrder} onSort={toggleSort} align="right" />
                 <SortHeader label="Status" k="status" sortKey={sortKey} sortOrder={sortOrder} onSort={toggleSort} align="center" />
@@ -675,6 +692,9 @@ export const PedidosCompra: React.FC = () => {
                     <td className="px-3 py-2">
                       <ProximaEntregaCelula data={p.proxima_entrega} qtdPendentes={(p as any)._qtd_entregas_pendentes} status={p.status} />
                     </td>
+                    <td className="px-3 py-2 text-center">
+                      <PrazoEntregaCelula dataPedido={p.data_pedido} proximaEntrega={p.proxima_entrega} />
+                    </td>
                     <td className="px-3 py-2">
                       <UrgenciaCelula data={p.proxima_entrega} status={p.status} />
                     </td>
@@ -702,7 +722,7 @@ export const PedidosCompra: React.FC = () => {
                   </tr>
                   {expandido === p.id_pedido && (
                     <tr className="bg-slate-50 dark:bg-slate-900/50">
-                      <td colSpan={10} className="px-6 py-4">
+                      <td colSpan={11} className="px-6 py-4">
                         <DetalhePedido
                           pedido={p}
                           itens={itensCache[p.id_pedido]}
@@ -717,7 +737,7 @@ export const PedidosCompra: React.FC = () => {
               ))}
               {!loading && pedidos.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="px-6 py-12 text-center text-sm text-gray-500 dark:text-slate-400">
+                  <td colSpan={11} className="px-6 py-12 text-center text-sm text-gray-500 dark:text-slate-400">
                     Nenhum pedido encontrado. Clique em "Sincronizar Sienge" para importar dados.
                   </td>
                 </tr>
@@ -894,6 +914,35 @@ const ProximaEntregaCelula: React.FC<{
         <span className="text-[10px] text-gray-500 dark:text-slate-400">+{qtdPendentes - 1} entrega{qtdPendentes - 1 === 1 ? '' : 's'} pend.</span>
       ) : null}
     </div>
+  );
+};
+
+const PrazoEntregaCelula: React.FC<{
+  dataPedido: string | null | undefined;
+  proximaEntrega: string | null | undefined;
+}> = ({ dataPedido, proximaEntrega }) => {
+  const dias = calcularPrazoEntrega(dataPedido, proximaEntrega);
+  if (dias == null) {
+    return <span className="text-sm text-gray-400 dark:text-slate-500">-</span>;
+  }
+
+  const classe = dias < 0
+    ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300'
+    : dias === 0
+      ? 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+      : dias <= 7
+        ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300'
+        : dias <= 30
+          ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+          : 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800 dark:bg-violet-900/30 dark:text-violet-300';
+
+  return (
+    <span
+      className={`inline-flex min-w-[62px] justify-center rounded-full border px-2 py-0.5 text-xs font-semibold ${classe}`}
+      title="Dias corridos entre a data do pedido e a próxima entrega prevista"
+    >
+      {dias} dia{dias === 1 ? '' : 's'}
+    </span>
   );
 };
 
