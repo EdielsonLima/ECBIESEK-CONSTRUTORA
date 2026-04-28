@@ -197,6 +197,37 @@ export const PedidosCompra: React.FC = () => {
     }
   };
 
+  const recalcularProximaEntrega = (idPedido: number, itens: ItemPedidoCompra[]) => {
+    let minDate: string | null = null;
+    let qtdPendentes = 0;
+    for (const it of itens) {
+      for (const e of (it.entregas || [])) {
+        if ((e.quantidade_aberta || 0) > 0 && e.data_prevista) {
+          qtdPendentes++;
+          if (!minDate || e.data_prevista < minDate) {
+            minDate = e.data_prevista;
+          }
+        }
+      }
+    }
+    setPedidos(prev => prev.map(p => p.id_pedido === idPedido
+      ? { ...p, proxima_entrega: minDate, _qtd_entregas_pendentes: qtdPendentes } as any
+      : p));
+  };
+
+  const carregarItens = async (idPedido: number) => {
+    setItensLoading(idPedido);
+    try {
+      const r = await apiService.getItensPedidoCompra(idPedido);
+      setItensCache(prev => ({ ...prev, [idPedido]: r.itens }));
+      recalcularProximaEntrega(idPedido, r.itens);
+    } catch {
+      setItensCache(prev => ({ ...prev, [idPedido]: [] }));
+    } finally {
+      setItensLoading(null);
+    }
+  };
+
   const expandir = async (idPedido: number) => {
     if (expandido === idPedido) {
       setExpandido(null);
@@ -204,32 +235,19 @@ export const PedidosCompra: React.FC = () => {
     }
     setExpandido(idPedido);
     if (!itensCache[idPedido]) {
-      setItensLoading(idPedido);
-      try {
-        const r = await apiService.getItensPedidoCompra(idPedido);
-        setItensCache(prev => ({ ...prev, [idPedido]: r.itens }));
-        // Recalcula proxima_entrega + qtd entregas pendentes a partir do cronograma carregado
-        let minDate: string | null = null;
-        let qtdPendentes = 0;
-        for (const it of r.itens) {
-          for (const e of (it.entregas || [])) {
-            if ((e.quantidade_aberta || 0) > 0 && e.data_prevista) {
-              qtdPendentes++;
-              if (!minDate || e.data_prevista < minDate) {
-                minDate = e.data_prevista;
-              }
-            }
-          }
-        }
-        setPedidos(prev => prev.map(p => p.id_pedido === idPedido
-          ? { ...p, proxima_entrega: minDate, _qtd_entregas_pendentes: qtdPendentes } as any
-          : p));
-      } catch {
-        setItensCache(prev => ({ ...prev, [idPedido]: [] }));
-      } finally {
-        setItensLoading(null);
-      }
+      await carregarItens(idPedido);
     }
+  };
+
+  const atualizarPedido = async (idPedido: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Limpa cache para forçar re-fetch do Sienge
+    setItensCache(prev => {
+      const novo = { ...prev };
+      delete novo[idPedido];
+      return novo;
+    });
+    await carregarItens(idPedido);
   };
 
   const solicitarAutorizacao = (pedido: PedidoCompra) => {
@@ -543,9 +561,21 @@ export const PedidosCompra: React.FC = () => {
                 <React.Fragment key={p.id_pedido}>
                   <tr className="hover:bg-gray-50 dark:hover:bg-slate-700/40 cursor-pointer" onClick={() => expandir(p.id_pedido)}>
                     <td className="px-3 py-2">
-                      {expandido === p.id_pedido
-                        ? <ChevronDown className="h-4 w-4 text-gray-500" />
-                        : <ChevronRight className="h-4 w-4 text-gray-400" />}
+                      <div className="flex items-center gap-1">
+                        {expandido === p.id_pedido
+                          ? <ChevronDown className="h-4 w-4 text-gray-500" />
+                          : <ChevronRight className="h-4 w-4 text-gray-400" />}
+                        {(!p.proxima_entrega && p.status !== 'FULLY_DELIVERED' && p.status !== 'CANCELED') && (
+                          <button
+                            type="button"
+                            onClick={(e) => atualizarPedido(p.id_pedido, e)}
+                            className="text-blue-500 hover:text-blue-700 p-0.5 rounded"
+                            title="Buscar cronograma do Sienge para este pedido"
+                          >
+                            <RefreshCw className={`h-3 w-3 ${itensLoading === p.id_pedido ? 'animate-spin' : ''}`} />
+                          </button>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-2 font-mono text-xs font-semibold text-gray-800 dark:text-slate-200">
                       {p.numero_pedido || p.id_pedido}
