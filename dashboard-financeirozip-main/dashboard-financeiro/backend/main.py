@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, status, Request
+from fastapi import FastAPI, HTTPException, Depends, status, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
@@ -1488,10 +1488,10 @@ def _filtro_in_clause(coluna: str, valores: Optional[List], params: list) -> str
 
 @app.get("/api/pedidos-compra")
 def listar_pedidos_compra(
-    empresa: Optional[List[int]] = None,
-    centro_custo: Optional[List[int]] = None,
-    fornecedor: Optional[List[int]] = None,
-    status: Optional[List[str]] = None,
+    empresa: Optional[List[int]] = Query(None),
+    centro_custo: Optional[List[int]] = Query(None),
+    fornecedor: Optional[List[int]] = Query(None),
+    status: Optional[List[str]] = Query(None),
     ano: Optional[int] = None,
     autorizacao: str = "todos",
     busca: Optional[str] = None,
