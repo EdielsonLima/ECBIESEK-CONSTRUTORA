@@ -109,16 +109,25 @@ export const PedidosCompra: React.FC = () => {
 
   const sincronizar = async () => {
     setSincronizando(true);
-    setMensagemSync(null);
+    setMensagemSync('Iniciando sincronização...');
     try {
       const r = await apiService.sincronizarPedidosCompra({ periodo_dias: 90 });
-      setMensagemSync(`Sincronizado: ${r.novos} novos, ${r.atualizados} atualizados (${r.duracao_segundos}s)`);
+      console.log('[PedidosCompra] Resposta sync:', r);
+      const totalSienge = r.total ?? 0;
+      const novos = r.novos ?? 0;
+      const atualizados = r.atualizados ?? 0;
+      if (totalSienge === 0) {
+        setMensagemSync(`Sincronização rodou mas o Sienge retornou 0 pedidos no período. (Período: ${r.periodo?.inicio} → ${r.periodo?.fim})`);
+      } else {
+        setMensagemSync(`OK - Sienge retornou ${totalSienge} pedidos. ${novos} novos + ${atualizados} atualizados (${r.duracao_segundos}s).`);
+      }
       recarregar();
     } catch (e: any) {
-      setMensagemSync(`Erro: ${e?.message || 'Falha na sincronização'}`);
+      const detalhe = e?.response?.data?.detail || e?.response?.data || e?.message || 'desconhecido';
+      console.error('[PedidosCompra] Erro sync:', e);
+      setMensagemSync(`Erro ao sincronizar: ${typeof detalhe === 'string' ? detalhe : JSON.stringify(detalhe)}`);
     } finally {
       setSincronizando(false);
-      setTimeout(() => setMensagemSync(null), 6000);
     }
   };
 

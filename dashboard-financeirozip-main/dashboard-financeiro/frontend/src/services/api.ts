@@ -1891,7 +1891,7 @@ export const apiService = {
   sincronizarPedidosCompra: async (
     body: { periodo_dias?: number; force_full?: boolean } = {}
   ): Promise<{ novos: number; atualizados: number; total: number; duracao_segundos: number; periodo: { inicio: string; fim: string } }> => {
-    const response = await api.post('/pedidos-compra/sincronizar', body);
+    const response = await api.post('/pedidos-compra/sincronizar', body, { timeout: 600000 });
     return response.data;
   },
 
