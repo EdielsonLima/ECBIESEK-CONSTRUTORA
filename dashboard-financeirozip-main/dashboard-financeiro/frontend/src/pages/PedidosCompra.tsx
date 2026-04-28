@@ -61,7 +61,7 @@ export const PedidosCompra: React.FC = () => {
   const [filtroFornecedor, setFiltroFornecedor] = useState<(number | string)[]>([]);
   const [filtroStatus, setFiltroStatus] = useState<(number | string)[]>([]);
   const [filtroAno, setFiltroAno] = useState<number | ''>('');
-  const [filtroAutorizacao, setFiltroAutorizacao] = useState<'todos' | 'autorizados' | 'nao_autorizados'>('todos');
+  const [filtroAutorizacao, setFiltroAutorizacao] = useState<'todos' | 'autorizados' | 'aguardando' | 'negados'>('todos');
   const [busca, setBusca] = useState('');
 
   // Expansão
@@ -318,7 +318,8 @@ export const PedidosCompra: React.FC = () => {
             >
               <option value="todos">Todos</option>
               <option value="autorizados">Autorizados</option>
-              <option value="nao_autorizados">Não autorizados</option>
+              <option value="aguardando">Aguardando</option>
+              <option value="negados">Negados</option>
             </select>
           </div>
         </div>
@@ -371,9 +372,19 @@ export const PedidosCompra: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-3 py-2 text-center">
-                      {p.autorizado
-                        ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border bg-green-100 text-green-700 border-green-200"><ShieldCheck className="h-3 w-3" /> Autorizado</span>
-                        : <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold border bg-amber-50 text-amber-700 border-amber-200">Não autorizado</span>}
+                      {p.autorizado ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border bg-green-100 text-green-700 border-green-200">
+                          <ShieldCheck className="h-3 w-3" /> Autorizado
+                        </span>
+                      ) : p.reprovado ? (
+                        <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold border bg-red-100 text-red-700 border-red-200">
+                          Negado
+                        </span>
+                      ) : (
+                        <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold border bg-amber-50 text-amber-700 border-amber-200">
+                          Aguardando
+                        </span>
+                      )}
                     </td>
                   </tr>
                   {expandido === p.id_pedido && (
@@ -443,7 +454,7 @@ const DetalhePedido: React.FC<{
   onAutorizar: () => void;
   autorizando: boolean;
 }> = ({ pedido, itens, loading, onAutorizar, autorizando }) => {
-  const podeAutorizar = !pedido.autorizado && pedido.status === 'PENDING';
+  const podeAutorizar = !pedido.autorizado && !pedido.reprovado && pedido.status === 'PENDING';
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">

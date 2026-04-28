@@ -503,7 +503,7 @@ export interface FiltrosPedidoCompraQuery {
   fornecedor?: number[];
   status?: string[];
   ano?: number;
-  autorizacao?: 'todos' | 'autorizados' | 'nao_autorizados';
+  autorizacao?: 'todos' | 'autorizados' | 'aguardando' | 'negados';
   busca?: string;
   limite?: number;
   offset?: number;

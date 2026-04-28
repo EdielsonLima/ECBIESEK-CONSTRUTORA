@@ -1514,7 +1514,11 @@ def listar_pedidos_compra(
 
     if autorizacao == "autorizados":
         where += " AND autorizado = TRUE"
-    elif autorizacao == "nao_autorizados":
+    elif autorizacao == "aguardando":
+        where += " AND (autorizado IS NULL OR autorizado = FALSE) AND (reprovado IS NULL OR reprovado = FALSE)"
+    elif autorizacao == "negados":
+        where += " AND reprovado = TRUE"
+    elif autorizacao == "nao_autorizados":  # backwards compat
         where += " AND (autorizado IS NULL OR autorizado = FALSE)"
 
     if busca:
