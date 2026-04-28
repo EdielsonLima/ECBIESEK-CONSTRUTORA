@@ -19,7 +19,23 @@ import {
   Search,
   X,
   ShieldCheck,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  SlidersHorizontal,
 } from 'lucide-react';
+
+type SortKey =
+  | 'numero_pedido'
+  | 'data_pedido'
+  | 'nome_fornecedor'
+  | 'nome_centro_custo'
+  | 'proxima_entrega'
+  | 'urgencia'
+  | 'valor_total'
+  | 'status'
+  | 'autorizacao';
+type SortOrder = 'asc' | 'desc';
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING: 'Pendente',
@@ -112,6 +128,11 @@ export const PedidosCompra: React.FC = () => {
   // Modal de confirmação de autorização
   const [pedidoParaAutorizar, setPedidoParaAutorizar] = useState<PedidoCompra | null>(null);
   const [textoConfirmacao, setTextoConfirmacao] = useState('');
+
+  // Mostrar/ocultar filtros + ordenação
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>('data_pedido');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   const filtrosQuery: FiltrosPedidoCompraQuery = useMemo(() => ({
     empresa: filtroEmpresa.map(Number),
@@ -244,6 +265,71 @@ export const PedidosCompra: React.FC = () => {
   const haFiltrosAtivos = filtroEmpresa.length || filtroCC.length || filtroFornecedor.length
     || filtroStatus.length || filtroAno || filtroAutorizacao !== 'todos' || busca.trim();
 
+  const filtrosAtivos = useMemo(() => {
+    const arr: string[] = [];
+    if (busca.trim()) arr.push(`Busca: "${busca}"`);
+    filtroCC.forEach(id => {
+      const cc = filtrosDisponiveis?.centros_custo.find(c => c.id === Number(id));
+      if (cc) arr.push(`CC: ${cc.nome}`);
+    });
+    filtroFornecedor.forEach(id => {
+      const f = filtrosDisponiveis?.fornecedores.find(c => c.id === Number(id));
+      if (f) arr.push(`Forn.: ${f.nome}`);
+    });
+    filtroStatus.forEach(s => {
+      arr.push(`Status: ${STATUS_LABEL[String(s)] || s}`);
+    });
+    if (filtroAno) arr.push(`Ano: ${filtroAno}`);
+    if (filtroAutorizacao !== 'todos') {
+      const lbl: Record<string, string> = { autorizados: 'Autorizados', aguardando: 'Aguardando', negados: 'Negados' };
+      arr.push(`Aut.: ${lbl[filtroAutorizacao] || filtroAutorizacao}`);
+    }
+    return arr;
+  }, [busca, filtroCC, filtroFornecedor, filtroStatus, filtroAno, filtroAutorizacao, filtrosDisponiveis]);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortOrder('asc');
+    }
+  };
+
+  const pedidosOrdenados = useMemo(() => {
+    const arr = [...pedidos];
+    const dir = sortOrder === 'asc' ? 1 : -1;
+    const valor = (p: PedidoCompra): any => {
+      switch (sortKey) {
+        case 'numero_pedido': return p.numero_pedido || String(p.id_pedido);
+        case 'data_pedido': return p.data_pedido || '';
+        case 'nome_fornecedor': return (p.nome_fornecedor || '').toLowerCase();
+        case 'nome_centro_custo': return (p.nome_centro_custo || '').toLowerCase();
+        case 'proxima_entrega': return p.proxima_entrega || '9999-99-99';
+        case 'urgencia': {
+          if (!p.proxima_entrega) return 99999;
+          const u = calcularUrgencia(p.proxima_entrega);
+          return u ? u.dias : 99999;
+        }
+        case 'valor_total': return Number(p.valor_total || 0);
+        case 'status': return p.status || '';
+        case 'autorizacao': {
+          if (p.autorizado) return 2;
+          if (p.reprovado) return 0;
+          return 1;
+        }
+        default: return '';
+      }
+    };
+    arr.sort((a, b) => {
+      const va = valor(a), vb = valor(b);
+      if (va < vb) return -1 * dir;
+      if (va > vb) return 1 * dir;
+      return 0;
+    });
+    return arr;
+  }, [pedidos, sortKey, sortOrder]);
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -318,83 +404,113 @@ export const PedidosCompra: React.FC = () => {
         />
       </div>
 
-      {/* Filtros */}
+      {/* Filtros (colapsavel) */}
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-4">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <h3 className="text-sm font-bold text-gray-700 dark:text-slate-300">Filtros</h3>
-          {haFiltrosAtivos ? (
-            <button onClick={limparFiltros} className="text-xs text-rose-600 hover:text-rose-700 font-semibold flex items-center gap-1">
-              <X className="h-3 w-3" /> Limpar todos
+          <div className="flex items-center gap-2">
+            {haFiltrosAtivos && (
+              <button onClick={limparFiltros} className="text-xs text-rose-600 hover:text-rose-700 font-semibold flex items-center gap-1">
+                <X className="h-3 w-3" /> Limpar todos
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setMostrarFiltros(!mostrarFiltros)}
+              className="flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 px-3 py-2 text-white text-sm font-semibold"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
+              {filtrosAtivos.length > 0 && (
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-xs font-bold text-blue-600">
+                  {filtrosAtivos.length}
+                </span>
+              )}
             </button>
-          ) : null}
+          </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              value={busca}
-              onChange={e => setBusca(e.target.value)}
-              placeholder="Buscar pedido, fornecedor..."
-              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-800 dark:text-slate-200"
+
+        {/* Chips de filtros ativos quando colapsado */}
+        {!mostrarFiltros && filtrosAtivos.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {filtrosAtivos.map((f, i) => (
+              <span key={i} className="inline-flex items-center rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 px-3 py-1 text-xs font-medium text-blue-800 dark:text-blue-200">
+                {f}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Painel de filtros aberto */}
+        {mostrarFiltros && (
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                value={busca}
+                onChange={e => setBusca(e.target.value)}
+                placeholder="Buscar pedido, fornecedor..."
+                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-800 dark:text-slate-200"
+              />
+            </div>
+
+            <SearchableMultiSelect
+              label="Centro de Custo"
+              options={(filtrosDisponiveis?.centros_custo || []).map(c => ({
+                id: c.id,
+                nome: c.codigo ? `${c.codigo} - ${c.nome}` : c.nome,
+              }))}
+              value={filtroCC}
+              onChange={setFiltroCC}
+              placeholder="Todos"
             />
+
+            <SearchableMultiSelect
+              label="Fornecedor"
+              options={(filtrosDisponiveis?.fornecedores || []).map(f => ({ id: f.id, nome: f.nome }))}
+              value={filtroFornecedor}
+              onChange={setFiltroFornecedor}
+              placeholder="Todos"
+            />
+
+            <SearchableMultiSelect
+              label="Status"
+              options={(filtrosDisponiveis?.status || []).map(s => ({ id: s, nome: STATUS_LABEL[s] || s }))}
+              value={filtroStatus}
+              onChange={setFiltroStatus}
+              placeholder="Todos"
+            />
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Ano</label>
+              <select
+                value={filtroAno}
+                onChange={e => setFiltroAno(e.target.value ? Number(e.target.value) : '')}
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-800 dark:text-slate-200"
+              >
+                <option value="">Todos</option>
+                {(filtrosDisponiveis?.anos || []).map(a => (
+                  <option key={a} value={a}>{a}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Autorização</label>
+              <select
+                value={filtroAutorizacao}
+                onChange={e => setFiltroAutorizacao(e.target.value as any)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-800 dark:text-slate-200"
+              >
+                <option value="todos">Todos</option>
+                <option value="autorizados">Autorizados</option>
+                <option value="aguardando">Aguardando</option>
+                <option value="negados">Negados</option>
+              </select>
+            </div>
           </div>
-
-          <SearchableMultiSelect
-            label="Centro de Custo"
-            options={(filtrosDisponiveis?.centros_custo || []).map(c => ({
-              id: c.id,
-              nome: c.codigo ? `${c.codigo} - ${c.nome}` : c.nome,
-            }))}
-            value={filtroCC}
-            onChange={setFiltroCC}
-            placeholder="Todos"
-          />
-
-          <SearchableMultiSelect
-            label="Fornecedor"
-            options={(filtrosDisponiveis?.fornecedores || []).map(f => ({ id: f.id, nome: f.nome }))}
-            value={filtroFornecedor}
-            onChange={setFiltroFornecedor}
-            placeholder="Todos"
-          />
-
-          <SearchableMultiSelect
-            label="Status"
-            options={(filtrosDisponiveis?.status || []).map(s => ({ id: s, nome: STATUS_LABEL[s] || s }))}
-            value={filtroStatus}
-            onChange={setFiltroStatus}
-            placeholder="Todos"
-          />
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Ano</label>
-            <select
-              value={filtroAno}
-              onChange={e => setFiltroAno(e.target.value ? Number(e.target.value) : '')}
-              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-800 dark:text-slate-200"
-            >
-              <option value="">Todos</option>
-              {(filtrosDisponiveis?.anos || []).map(a => (
-                <option key={a} value={a}>{a}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Autorização</label>
-            <select
-              value={filtroAutorizacao}
-              onChange={e => setFiltroAutorizacao(e.target.value as any)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-800 dark:text-slate-200"
-            >
-              <option value="todos">Todos</option>
-              <option value="autorizados">Autorizados</option>
-              <option value="aguardando">Aguardando</option>
-              <option value="negados">Negados</option>
-            </select>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Tabela */}
@@ -411,18 +527,19 @@ export const PedidosCompra: React.FC = () => {
             <thead className="bg-gray-50 dark:bg-slate-900 text-xs uppercase tracking-wider text-gray-600 dark:text-slate-400">
               <tr>
                 <th className="px-3 py-2 w-8"></th>
-                <th className="px-3 py-2 text-left">N° Pedido</th>
-                <th className="px-3 py-2 text-left">Data</th>
-                <th className="px-3 py-2 text-left">Fornecedor</th>
-                <th className="px-3 py-2 text-left">Obra / CC</th>
-                <th className="px-3 py-2 text-left">Próx. Entrega</th>
-                <th className="px-3 py-2 text-right">Valor</th>
-                <th className="px-3 py-2 text-center">Status</th>
-                <th className="px-3 py-2 text-center">Autorização</th>
+                <SortHeader label="N° Pedido" k="numero_pedido" sortKey={sortKey} sortOrder={sortOrder} onSort={toggleSort} />
+                <SortHeader label="Data" k="data_pedido" sortKey={sortKey} sortOrder={sortOrder} onSort={toggleSort} />
+                <SortHeader label="Fornecedor" k="nome_fornecedor" sortKey={sortKey} sortOrder={sortOrder} onSort={toggleSort} />
+                <SortHeader label="Obra / CC" k="nome_centro_custo" sortKey={sortKey} sortOrder={sortOrder} onSort={toggleSort} />
+                <SortHeader label="Próx. Entrega" k="proxima_entrega" sortKey={sortKey} sortOrder={sortOrder} onSort={toggleSort} />
+                <SortHeader label="Urgência" k="urgencia" sortKey={sortKey} sortOrder={sortOrder} onSort={toggleSort} />
+                <SortHeader label="Valor" k="valor_total" sortKey={sortKey} sortOrder={sortOrder} onSort={toggleSort} align="right" />
+                <SortHeader label="Status" k="status" sortKey={sortKey} sortOrder={sortOrder} onSort={toggleSort} align="center" />
+                <SortHeader label="Autorização" k="autorizacao" sortKey={sortKey} sortOrder={sortOrder} onSort={toggleSort} align="center" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-              {pedidos.map(p => (
+              {pedidosOrdenados.map(p => (
                 <React.Fragment key={p.id_pedido}>
                   <tr className="hover:bg-gray-50 dark:hover:bg-slate-700/40 cursor-pointer" onClick={() => expandir(p.id_pedido)}>
                     <td className="px-3 py-2">
@@ -438,6 +555,9 @@ export const PedidosCompra: React.FC = () => {
                     <td className="px-3 py-2 text-gray-700 dark:text-slate-300">{p.nome_centro_custo || '-'}</td>
                     <td className="px-3 py-2">
                       <ProximaEntregaCelula data={p.proxima_entrega} qtdPendentes={(p as any)._qtd_entregas_pendentes} status={p.status} />
+                    </td>
+                    <td className="px-3 py-2">
+                      <UrgenciaCelula data={p.proxima_entrega} status={p.status} />
                     </td>
                     <td className="px-3 py-2 text-right font-semibold text-gray-800 dark:text-slate-200">{fmtMoeda(p.valor_total)}</td>
                     <td className="px-3 py-2 text-center">
@@ -463,7 +583,7 @@ export const PedidosCompra: React.FC = () => {
                   </tr>
                   {expandido === p.id_pedido && (
                     <tr className="bg-slate-50 dark:bg-slate-900/50">
-                      <td colSpan={9} className="px-6 py-4">
+                      <td colSpan={10} className="px-6 py-4">
                         <DetalhePedido
                           pedido={p}
                           itens={itensCache[p.id_pedido]}
@@ -478,7 +598,7 @@ export const PedidosCompra: React.FC = () => {
               ))}
               {!loading && pedidos.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center text-sm text-gray-500 dark:text-slate-400">
+                  <td colSpan={10} className="px-6 py-12 text-center text-sm text-gray-500 dark:text-slate-400">
                     Nenhum pedido encontrado. Clique em "Sincronizar Sienge" para importar dados.
                   </td>
                 </tr>
@@ -604,14 +724,40 @@ const ModalAutorizar: React.FC<{
   );
 };
 
-// ----------- Celula Proxima Entrega (com indicador de urgencia) -----------
+// ----------- Cabecalho com sort -----------
+
+const SortHeader: React.FC<{
+  label: string;
+  k: SortKey;
+  sortKey: SortKey;
+  sortOrder: SortOrder;
+  onSort: (k: SortKey) => void;
+  align?: 'left' | 'right' | 'center';
+}> = ({ label, k, sortKey, sortOrder, onSort, align = 'left' }) => {
+  const ativo = sortKey === k;
+  const alignClass = align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start';
+  return (
+    <th
+      className={`px-3 py-2 text-${align} cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors`}
+      onClick={() => onSort(k)}
+    >
+      <div className={`flex items-center gap-1 ${alignClass}`}>
+        <span>{label}</span>
+        {ativo
+          ? (sortOrder === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)
+          : <ArrowUpDown className="h-3 w-3 opacity-30" />}
+      </div>
+    </th>
+  );
+};
+
+// ----------- Celula Proxima Entrega (so a data) -----------
 
 const ProximaEntregaCelula: React.FC<{
   data: string | null | undefined;
   qtdPendentes?: number;
   status: string | null | undefined;
 }> = ({ data, qtdPendentes, status }) => {
-  // Se totalmente entregue, mostra "Concluido"
   if (status === 'FULLY_DELIVERED') {
     return <span className="text-xs text-green-600 dark:text-green-400 font-semibold">✓ Concluído</span>;
   }
@@ -621,19 +767,32 @@ const ProximaEntregaCelula: React.FC<{
   if (!data) {
     return <span className="text-xs text-gray-400" title="Cronograma ainda não carregado — expanda o pedido para puxar do Sienge">-</span>;
   }
-  const urg = calcularUrgencia(data);
   return (
     <div className="flex flex-col gap-0.5 leading-tight">
       <span className="text-sm text-gray-700 dark:text-slate-300 whitespace-nowrap">{fmtData(data)}</span>
-      {urg && (
-        <span className={`inline-flex items-center self-start px-2 py-0.5 rounded-full text-[10px] font-semibold border whitespace-nowrap ${urg.classe}`}>
-          {urg.texto}
-        </span>
-      )}
       {qtdPendentes && qtdPendentes > 1 ? (
         <span className="text-[10px] text-gray-500 dark:text-slate-400">+{qtdPendentes - 1} entrega{qtdPendentes - 1 === 1 ? '' : 's'} pend.</span>
       ) : null}
     </div>
+  );
+};
+
+// ----------- Celula de Urgencia (badge separado, ordenavel) -----------
+
+const UrgenciaCelula: React.FC<{
+  data: string | null | undefined;
+  status: string | null | undefined;
+}> = ({ data, status }) => {
+  if (status === 'FULLY_DELIVERED' || status === 'CANCELED') {
+    return <span className="text-xs text-gray-300">-</span>;
+  }
+  if (!data) return <span className="text-xs text-gray-300">-</span>;
+  const urg = calcularUrgencia(data);
+  if (!urg) return <span className="text-xs text-gray-300">-</span>;
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border whitespace-nowrap ${urg.classe}`}>
+      {urg.texto}
+    </span>
   );
 };
 
