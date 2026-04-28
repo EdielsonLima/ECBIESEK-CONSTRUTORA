@@ -102,7 +102,9 @@ def ensure_tables() -> None:
         "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS valor_desconto NUMERIC(14,2)",
         "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS valor_acrescimo NUMERIC(14,2)",
         "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS valor_frete NUMERIC(14,2)",
-        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS id_comprador INT",
+        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS id_comprador TEXT",
+        # Migracao: se foi criada como INT antes, converte para TEXT
+        "ALTER TABLE pedidos_compra ALTER COLUMN id_comprador TYPE TEXT USING id_comprador::TEXT",
         "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS notas_internas TEXT",
         "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS sincronizado_em TIMESTAMPTZ DEFAULT NOW()",
         # pedidos_compra_itens
