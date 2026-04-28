@@ -47,82 +47,91 @@ def _auth_header() -> dict:
 # ===================== MIGRATIONS =====================
 
 def ensure_tables() -> None:
-    """Cria as 4 tabelas se ainda nao existirem. Chamada no startup."""
-    sql = """
-    CREATE TABLE IF NOT EXISTS dim_fornecedor (
-        id_fornecedor       BIGINT PRIMARY KEY,
-        nome                TEXT,
-        cnpj                TEXT,
-        ativo               BOOLEAN DEFAULT TRUE,
-        atualizado_em       TIMESTAMPTZ DEFAULT NOW()
-    );
+    """Cria/garante as 4 tabelas. Idempotente: usa ALTER TABLE ADD COLUMN IF NOT EXISTS
+    para repor colunas faltantes em tabelas que possam ter sido criadas parcialmente."""
 
-    CREATE TABLE IF NOT EXISTS pedido_compra (
-        id_pedido           BIGINT PRIMARY KEY,
-        numero_pedido       TEXT,
-        id_fornecedor       BIGINT,
-        nome_fornecedor     TEXT,
-        id_empresa          INT,
-        id_obra             INT,
-        id_centro_custo     INT,
-        nome_centro_custo   TEXT,
-        data_pedido         DATE,
-        data_envio          DATE,
-        data_autorizacao    TIMESTAMPTZ,
-        status              TEXT,
-        autorizado          BOOLEAN,
-        reprovado           BOOLEAN,
-        entrega_atrasada    BOOLEAN,
-        valor_total         NUMERIC(14,2),
-        valor_desconto      NUMERIC(14,2),
-        valor_acrescimo     NUMERIC(14,2),
-        valor_frete         NUMERIC(14,2),
-        id_comprador        INT,
-        notas_internas      TEXT,
-        sincronizado_em     TIMESTAMPTZ DEFAULT NOW()
-    );
-    CREATE INDEX IF NOT EXISTS idx_pedido_compra_status ON pedido_compra(status);
-    CREATE INDEX IF NOT EXISTS idx_pedido_compra_data ON pedido_compra(data_pedido);
-    CREATE INDEX IF NOT EXISTS idx_pedido_compra_cc ON pedido_compra(id_centro_custo);
-    CREATE INDEX IF NOT EXISTS idx_pedido_compra_fornecedor ON pedido_compra(id_fornecedor);
-
+    # 1) Cria tabelas com PK mínima (CREATE TABLE IF NOT EXISTS é idempotente, mas só
+    # cria a tabela se não existir — não adiciona colunas faltantes em tabela existente)
+    create_sql = """
+    CREATE TABLE IF NOT EXISTS dim_fornecedor (id_fornecedor BIGINT PRIMARY KEY);
+    CREATE TABLE IF NOT EXISTS pedido_compra (id_pedido BIGINT PRIMARY KEY);
     CREATE TABLE IF NOT EXISTS pedido_compra_item (
-        id_pedido           BIGINT,
-        numero_item         INT,
-        codigo_recurso      TEXT,
-        descricao_recurso   TEXT,
-        quantidade          NUMERIC(14,4),
-        preco_unitario      NUMERIC(14,4),
-        preco_liquido       NUMERIC(14,2),
-        desconto            NUMERIC(14,2),
-        acrescimo_pct       NUMERIC(8,4),
-        icms_pct            NUMERIC(8,4),
-        ipi_pct             NUMERIC(8,4),
-        iss_pct             NUMERIC(8,4),
-        sincronizado_em     TIMESTAMPTZ DEFAULT NOW(),
-        PRIMARY KEY (id_pedido, numero_item)
+        id_pedido BIGINT, numero_item INT, PRIMARY KEY (id_pedido, numero_item)
     );
-
     CREATE TABLE IF NOT EXISTS pedido_compra_entrega (
-        id_pedido               BIGINT,
-        numero_item             INT,
-        numero_cronograma       INT,
-        data_prevista           DATE,
-        quantidade_prevista     NUMERIC(14,4),
-        quantidade_entregue     NUMERIC(14,4),
-        quantidade_aberta       NUMERIC(14,4),
-        sincronizado_em         TIMESTAMPTZ DEFAULT NOW(),
+        id_pedido BIGINT, numero_item INT, numero_cronograma INT,
         PRIMARY KEY (id_pedido, numero_item, numero_cronograma)
     );
-    CREATE INDEX IF NOT EXISTS idx_pedido_entrega_data ON pedido_compra_entrega(data_prevista);
     """
+
+    # 2) Garante todas as colunas de cada tabela
+    alters = [
+        # dim_fornecedor
+        "ALTER TABLE dim_fornecedor ADD COLUMN IF NOT EXISTS nome TEXT",
+        "ALTER TABLE dim_fornecedor ADD COLUMN IF NOT EXISTS cnpj TEXT",
+        "ALTER TABLE dim_fornecedor ADD COLUMN IF NOT EXISTS ativo BOOLEAN DEFAULT TRUE",
+        "ALTER TABLE dim_fornecedor ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMPTZ DEFAULT NOW()",
+        # pedido_compra
+        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS numero_pedido TEXT",
+        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS id_fornecedor BIGINT",
+        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS nome_fornecedor TEXT",
+        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS id_empresa INT",
+        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS id_obra INT",
+        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS id_centro_custo INT",
+        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS nome_centro_custo TEXT",
+        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS data_pedido DATE",
+        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS data_envio DATE",
+        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS data_autorizacao TIMESTAMPTZ",
+        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS status TEXT",
+        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS autorizado BOOLEAN",
+        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS reprovado BOOLEAN",
+        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS entrega_atrasada BOOLEAN",
+        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS valor_total NUMERIC(14,2)",
+        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS valor_desconto NUMERIC(14,2)",
+        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS valor_acrescimo NUMERIC(14,2)",
+        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS valor_frete NUMERIC(14,2)",
+        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS id_comprador INT",
+        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS notas_internas TEXT",
+        "ALTER TABLE pedido_compra ADD COLUMN IF NOT EXISTS sincronizado_em TIMESTAMPTZ DEFAULT NOW()",
+        # pedido_compra_item
+        "ALTER TABLE pedido_compra_item ADD COLUMN IF NOT EXISTS codigo_recurso TEXT",
+        "ALTER TABLE pedido_compra_item ADD COLUMN IF NOT EXISTS descricao_recurso TEXT",
+        "ALTER TABLE pedido_compra_item ADD COLUMN IF NOT EXISTS quantidade NUMERIC(14,4)",
+        "ALTER TABLE pedido_compra_item ADD COLUMN IF NOT EXISTS preco_unitario NUMERIC(14,4)",
+        "ALTER TABLE pedido_compra_item ADD COLUMN IF NOT EXISTS preco_liquido NUMERIC(14,2)",
+        "ALTER TABLE pedido_compra_item ADD COLUMN IF NOT EXISTS desconto NUMERIC(14,2)",
+        "ALTER TABLE pedido_compra_item ADD COLUMN IF NOT EXISTS acrescimo_pct NUMERIC(8,4)",
+        "ALTER TABLE pedido_compra_item ADD COLUMN IF NOT EXISTS icms_pct NUMERIC(8,4)",
+        "ALTER TABLE pedido_compra_item ADD COLUMN IF NOT EXISTS ipi_pct NUMERIC(8,4)",
+        "ALTER TABLE pedido_compra_item ADD COLUMN IF NOT EXISTS iss_pct NUMERIC(8,4)",
+        "ALTER TABLE pedido_compra_item ADD COLUMN IF NOT EXISTS sincronizado_em TIMESTAMPTZ DEFAULT NOW()",
+        # pedido_compra_entrega
+        "ALTER TABLE pedido_compra_entrega ADD COLUMN IF NOT EXISTS data_prevista DATE",
+        "ALTER TABLE pedido_compra_entrega ADD COLUMN IF NOT EXISTS quantidade_prevista NUMERIC(14,4)",
+        "ALTER TABLE pedido_compra_entrega ADD COLUMN IF NOT EXISTS quantidade_entregue NUMERIC(14,4)",
+        "ALTER TABLE pedido_compra_entrega ADD COLUMN IF NOT EXISTS quantidade_aberta NUMERIC(14,4)",
+        "ALTER TABLE pedido_compra_entrega ADD COLUMN IF NOT EXISTS sincronizado_em TIMESTAMPTZ DEFAULT NOW()",
+    ]
+
+    indexes = [
+        "CREATE INDEX IF NOT EXISTS idx_pedido_compra_status ON pedido_compra(status)",
+        "CREATE INDEX IF NOT EXISTS idx_pedido_compra_data ON pedido_compra(data_pedido)",
+        "CREATE INDEX IF NOT EXISTS idx_pedido_compra_cc ON pedido_compra(id_centro_custo)",
+        "CREATE INDEX IF NOT EXISTS idx_pedido_compra_fornecedor ON pedido_compra(id_fornecedor)",
+        "CREATE INDEX IF NOT EXISTS idx_pedido_entrega_data ON pedido_compra_entrega(data_prevista)",
+    ]
+
     conn = _conn()
     try:
         cur = conn.cursor()
-        cur.execute(sql)
+        cur.execute(create_sql)
+        for stmt in alters:
+            cur.execute(stmt)
+        for stmt in indexes:
+            cur.execute(stmt)
         conn.commit()
         cur.close()
-        print("[pedidos-compra] Tabelas garantidas no PostgreSQL.")
+        print("[pedidos-compra] Tabelas + colunas garantidas no PostgreSQL.")
     finally:
         conn.close()
 
