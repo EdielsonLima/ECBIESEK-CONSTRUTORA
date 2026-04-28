@@ -47,6 +47,45 @@ function fmtData(d: string | null | undefined): string {
   return dt.toLocaleDateString('pt-BR');
 }
 
+interface UrgenciaInfo {
+  dias: number;
+  texto: string;
+  classe: string;
+}
+
+function calcularUrgencia(dataIso: string | null | undefined): UrgenciaInfo | null {
+  if (!dataIso) return null;
+  const dt = new Date(dataIso.includes('T') ? dataIso : dataIso + 'T12:00:00');
+  if (isNaN(dt.getTime())) return null;
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const alvo = new Date(dt);
+  alvo.setHours(0, 0, 0, 0);
+  const dias = Math.round((alvo.getTime() - hoje.getTime()) / (24 * 60 * 60 * 1000));
+
+  if (dias < 0) {
+    const abs = Math.abs(dias);
+    return {
+      dias,
+      texto: `Atrasado ${abs} dia${abs === 1 ? '' : 's'}`,
+      classe: 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900/40 dark:text-red-300 dark:border-red-700',
+    };
+  }
+  if (dias === 0) {
+    return { dias, texto: 'Hoje', classe: 'bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-900/40 dark:text-orange-300' };
+  }
+  if (dias === 1) {
+    return { dias, texto: 'Amanhã', classe: 'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/40 dark:text-amber-300' };
+  }
+  if (dias <= 7) {
+    return { dias, texto: `em ${dias} dias`, classe: 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300' };
+  }
+  if (dias <= 30) {
+    return { dias, texto: `em ${dias} dias`, classe: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300' };
+  }
+  return { dias, texto: `em ${dias} dias`, classe: 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400' };
+}
+
 export const PedidosCompra: React.FC = () => {
   const [pedidos, setPedidos] = useState<PedidoCompra[]>([]);
   const [kpis, setKpis] = useState<PedidosCompraResponse['kpis'] | null>(null);
@@ -148,6 +187,22 @@ export const PedidosCompra: React.FC = () => {
       try {
         const r = await apiService.getItensPedidoCompra(idPedido);
         setItensCache(prev => ({ ...prev, [idPedido]: r.itens }));
+        // Recalcula proxima_entrega + qtd entregas pendentes a partir do cronograma carregado
+        let minDate: string | null = null;
+        let qtdPendentes = 0;
+        for (const it of r.itens) {
+          for (const e of (it.entregas || [])) {
+            if ((e.quantidade_aberta || 0) > 0 && e.data_prevista) {
+              qtdPendentes++;
+              if (!minDate || e.data_prevista < minDate) {
+                minDate = e.data_prevista;
+              }
+            }
+          }
+        }
+        setPedidos(prev => prev.map(p => p.id_pedido === idPedido
+          ? { ...p, proxima_entrega: minDate, _qtd_entregas_pendentes: qtdPendentes } as any
+          : p));
       } catch {
         setItensCache(prev => ({ ...prev, [idPedido]: [] }));
       } finally {
@@ -381,7 +436,9 @@ export const PedidosCompra: React.FC = () => {
                     <td className="px-3 py-2 text-gray-700 dark:text-slate-300">{fmtData(p.data_pedido)}</td>
                     <td className="px-3 py-2 text-gray-700 dark:text-slate-300">{p.nome_fornecedor || `# ${p.id_fornecedor || '-'}`}</td>
                     <td className="px-3 py-2 text-gray-700 dark:text-slate-300">{p.nome_centro_custo || '-'}</td>
-                    <td className="px-3 py-2 text-gray-700 dark:text-slate-300">{fmtData(p.proxima_entrega)}</td>
+                    <td className="px-3 py-2">
+                      <ProximaEntregaCelula data={p.proxima_entrega} qtdPendentes={(p as any)._qtd_entregas_pendentes} status={p.status} />
+                    </td>
                     <td className="px-3 py-2 text-right font-semibold text-gray-800 dark:text-slate-200">{fmtMoeda(p.valor_total)}</td>
                     <td className="px-3 py-2 text-center">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${STATUS_BADGE[p.status || ''] || 'bg-gray-100 text-gray-600'}`}>
@@ -543,6 +600,39 @@ const ModalAutorizar: React.FC<{
           </button>
         </div>
       </div>
+    </div>
+  );
+};
+
+// ----------- Celula Proxima Entrega (com indicador de urgencia) -----------
+
+const ProximaEntregaCelula: React.FC<{
+  data: string | null | undefined;
+  qtdPendentes?: number;
+  status: string | null | undefined;
+}> = ({ data, qtdPendentes, status }) => {
+  // Se totalmente entregue, mostra "Concluido"
+  if (status === 'FULLY_DELIVERED') {
+    return <span className="text-xs text-green-600 dark:text-green-400 font-semibold">✓ Concluído</span>;
+  }
+  if (status === 'CANCELED') {
+    return <span className="text-xs text-gray-400">Cancelado</span>;
+  }
+  if (!data) {
+    return <span className="text-xs text-gray-400" title="Cronograma ainda não carregado — expanda o pedido para puxar do Sienge">-</span>;
+  }
+  const urg = calcularUrgencia(data);
+  return (
+    <div className="flex flex-col gap-0.5 leading-tight">
+      <span className="text-sm text-gray-700 dark:text-slate-300 whitespace-nowrap">{fmtData(data)}</span>
+      {urg && (
+        <span className={`inline-flex items-center self-start px-2 py-0.5 rounded-full text-[10px] font-semibold border whitespace-nowrap ${urg.classe}`}>
+          {urg.texto}
+        </span>
+      )}
+      {qtdPendentes && qtdPendentes > 1 ? (
+        <span className="text-[10px] text-gray-500 dark:text-slate-400">+{qtdPendentes - 1} entrega{qtdPendentes - 1 === 1 ? '' : 's'} pend.</span>
+      ) : null}
     </div>
   );
 };

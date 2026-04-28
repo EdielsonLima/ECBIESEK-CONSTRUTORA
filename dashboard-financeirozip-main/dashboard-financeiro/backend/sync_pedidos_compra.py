@@ -381,21 +381,36 @@ async def sincronizar_pedidos_compra(periodo_dias: int = 90, force_full: bool = 
         finally:
             conn.close()
 
-        # Pre-carrega itens + cronograma de entregas dos pedidos abertos
-        # (PENDING / PARTIALLY_DELIVERED). Isso popula a coluna "Proxima Entrega" da listagem.
-        abertos = [p for p in pedidos if (p.get("status") or "").upper() in ("PENDING", "PARTIALLY_DELIVERED")]
+        # Pre-carrega itens + cronograma de entregas dos pedidos abertos.
+        # Inclui TODOS os PENDING/PARTIALLY_DELIVERED do banco (nao so os do Sienge nesta sync),
+        # para garantir que pedidos parciais antigos tambem atualizem o cronograma.
+        c = _conn()
+        try:
+            cur = c.cursor()
+            cur.execute("""
+                SELECT id_pedido, status FROM pedidos_compra
+                WHERE status IN ('PENDING', 'PARTIALLY_DELIVERED')
+                ORDER BY data_pedido DESC NULLS LAST
+                LIMIT 300
+            """)
+            abertos_db = [(r["id_pedido"], r["status"]) for r in cur.fetchall()]
+            cur.close()
+        finally:
+            c.close()
+
         cronogramas_carregados = 0
-        for p in abertos[:200]:  # cap por seguranca
+        pedidos_pre_carregados = 0
+        for id_pedido, _status in abertos_db:
             try:
-                qtd_itens = await sincronizar_itens_pedido(p["id"])
+                qtd_itens = await sincronizar_itens_pedido(id_pedido)
+                pedidos_pre_carregados += 1
                 if qtd_itens > 0:
-                    # Le numeros dos itens recem-inseridos para buscar suas entregas
                     c = _conn()
                     try:
                         cur = c.cursor()
                         cur.execute(
                             "SELECT numero_item FROM pedidos_compra_itens WHERE id_pedido = %s",
-                            (p["id"],),
+                            (id_pedido,),
                         )
                         nums = [r["numero_item"] for r in cur.fetchall()]
                         cur.close()
@@ -403,19 +418,19 @@ async def sincronizar_pedidos_compra(periodo_dias: int = 90, force_full: bool = 
                         c.close()
                     for n in nums:
                         try:
-                            await sincronizar_entregas_item(p["id"], n)
+                            await sincronizar_entregas_item(id_pedido, n)
                             cronogramas_carregados += 1
                         except Exception as e:
-                            print(f"[pedidos-compra] entrega {p['id']}/{n}: {e}")
+                            print(f"[pedidos-compra] entrega {id_pedido}/{n}: {e}")
             except Exception as e:
-                print(f"[pedidos-compra] pre-load {p.get('id')}: {e}")
+                print(f"[pedidos-compra] pre-load {id_pedido}: {e}")
 
         duracao = (datetime.now() - inicio).total_seconds()
         return {
             "novos": novos,
             "atualizados": atualizados,
             "total": len(pedidos),
-            "abertos_pre_carregados": len(abertos[:200]),
+            "abertos_pre_carregados": pedidos_pre_carregados,
             "cronogramas_carregados": cronogramas_carregados,
             "duracao_segundos": round(duracao, 2),
             "periodo": {"inicio": start_date, "fim": end_date},
