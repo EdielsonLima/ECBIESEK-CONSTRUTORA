@@ -1866,6 +1866,44 @@ export const apiService = {
     const response = await api.post('/manual/seed', {});
     return response.data;
   },
+
+  // ============ PEDIDOS DE COMPRA ============
+  getPedidosCompra: async (filtros: FiltrosPedidoCompraQuery = {}): Promise<PedidosCompraResponse> => {
+    const params = new URLSearchParams();
+    filtros.empresa?.forEach(v => params.append('empresa', String(v)));
+    filtros.centro_custo?.forEach(v => params.append('centro_custo', String(v)));
+    filtros.fornecedor?.forEach(v => params.append('fornecedor', String(v)));
+    filtros.status?.forEach(v => params.append('status', v));
+    if (filtros.ano) params.append('ano', String(filtros.ano));
+    if (filtros.autorizacao) params.append('autorizacao', filtros.autorizacao);
+    if (filtros.busca) params.append('busca', filtros.busca);
+    if (filtros.limite) params.append('limite', String(filtros.limite));
+    if (filtros.offset) params.append('offset', String(filtros.offset));
+    const response = await api.get(`/pedidos-compra?${params.toString()}`);
+    return response.data;
+  },
+
+  getFiltrosPedidosCompra: async (): Promise<PedidosCompraFiltros> => {
+    const response = await api.get('/pedidos-compra/filtros');
+    return response.data;
+  },
+
+  sincronizarPedidosCompra: async (
+    body: { periodo_dias?: number; force_full?: boolean } = {}
+  ): Promise<{ novos: number; atualizados: number; total: number; duracao_segundos: number; periodo: { inicio: string; fim: string } }> => {
+    const response = await api.post('/pedidos-compra/sincronizar', body);
+    return response.data;
+  },
+
+  getItensPedidoCompra: async (idPedido: number): Promise<{ itens: ItemPedidoCompra[]; status: string | null }> => {
+    const response = await api.get(`/pedidos-compra/${idPedido}/itens`);
+    return response.data;
+  },
+
+  autorizarPedidoCompra: async (idPedido: number): Promise<{ ok: boolean; id_pedido: number }> => {
+    const response = await api.put(`/pedidos-compra/${idPedido}/autorizar`);
+    return response.data;
+  },
 };
 
 // ============ WHATSAPP SERVICE ============
@@ -1991,44 +2029,6 @@ export const validacaoService = {
     const queryStr = new URLSearchParams(params).toString();
     const url = endpoint.replace('/api/', '/') + (queryStr ? `?${queryStr}` : '');
     const response = await api.get(url);
-    return response.data;
-  },
-
-  // ============ PEDIDOS DE COMPRA ============
-  getPedidosCompra: async (filtros: FiltrosPedidoCompraQuery = {}): Promise<PedidosCompraResponse> => {
-    const params = new URLSearchParams();
-    filtros.empresa?.forEach(v => params.append('empresa', String(v)));
-    filtros.centro_custo?.forEach(v => params.append('centro_custo', String(v)));
-    filtros.fornecedor?.forEach(v => params.append('fornecedor', String(v)));
-    filtros.status?.forEach(v => params.append('status', v));
-    if (filtros.ano) params.append('ano', String(filtros.ano));
-    if (filtros.autorizacao) params.append('autorizacao', filtros.autorizacao);
-    if (filtros.busca) params.append('busca', filtros.busca);
-    if (filtros.limite) params.append('limite', String(filtros.limite));
-    if (filtros.offset) params.append('offset', String(filtros.offset));
-    const response = await api.get(`/pedidos-compra?${params.toString()}`);
-    return response.data;
-  },
-
-  getFiltrosPedidosCompra: async (): Promise<PedidosCompraFiltros> => {
-    const response = await api.get('/pedidos-compra/filtros');
-    return response.data;
-  },
-
-  sincronizarPedidosCompra: async (
-    body: { periodo_dias?: number; force_full?: boolean } = {}
-  ): Promise<{ novos: number; atualizados: number; total: number; duracao_segundos: number; periodo: { inicio: string; fim: string } }> => {
-    const response = await api.post('/pedidos-compra/sincronizar', body);
-    return response.data;
-  },
-
-  getItensPedidoCompra: async (idPedido: number): Promise<{ itens: ItemPedidoCompra[]; status: string | null }> => {
-    const response = await api.get(`/pedidos-compra/${idPedido}/itens`);
-    return response.data;
-  },
-
-  autorizarPedidoCompra: async (idPedido: number): Promise<{ ok: boolean; id_pedido: number }> => {
-    const response = await api.put(`/pedidos-compra/${idPedido}/autorizar`);
     return response.data;
   },
 };
