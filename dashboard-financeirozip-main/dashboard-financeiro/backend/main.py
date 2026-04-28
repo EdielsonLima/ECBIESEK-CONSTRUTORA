@@ -13148,6 +13148,120 @@ def get_documentacao_fluxo_dados():
                         "descricao": "Tempo que a solicitacao esta esperando o autor validar a entrega. Calculado no frontend."
                     }
                 ]
+            },
+            {
+                "nome": "Pedidos de Compra",
+                "icone": "file-text",
+                "valores": [
+                    {
+                        "nome": "Lista de Pedidos",
+                        "fonte": "SELECT id_pedido, numero_pedido, fornecedor, centro_custo, status, valor_total, proxima_entrega FROM pedidos_compra ORDER BY data_pedido DESC",
+                        "endpoint": "GET /api/pedidos-compra",
+                        "filtros": ["empresa", "centro_custo (id_interno)", "fornecedor", "status", "ano", "autorizacao (todos/autorizados/aguardando/negados)", "busca (numero/fornecedor/notas)", "limite/offset"],
+                        "referencia_cruzada": "Aba 'Lista' da pagina Pedidos de Compra",
+                        "arquivo": "main.py",
+                        "descricao": "Tabela paginada de pedidos. Cada linha tem proxima_entrega calculada via subquery em pedidos_compra_entregas (MIN(data_prevista) com quantidade_aberta>0)."
+                    },
+                    {
+                        "nome": "KPIs por Status",
+                        "fonte": "SUM/COUNT por status (PENDING, PARTIALLY_DELIVERED, FULLY_DELIVERED) sobre o resultado dos filtros",
+                        "endpoint": "GET /api/pedidos-compra",
+                        "filtros": ["mesmos filtros da listagem"],
+                        "referencia_cruzada": "Cards no topo da aba Lista: Pendente, Parcialmente Entregue, Totalmente Entregue",
+                        "arquivo": "main.py",
+                        "descricao": "Tres cards com valor + quantidade por status. Recalculados a cada mudanca de filtro."
+                    },
+                    {
+                        "nome": "Filtros Disponiveis",
+                        "fonte": "SELECT DISTINCT empresas, centros_custo, fornecedores, anos, status FROM pedidos_compra (+ JOIN dim_centrocusto para enriquecer codigo Sienge dos CCs)",
+                        "endpoint": "GET /api/pedidos-compra/filtros",
+                        "filtros": [],
+                        "referencia_cruzada": "Dropdowns dos filtros no topo da pagina",
+                        "arquivo": "main.py",
+                        "descricao": "Dropdowns de filtros. CC traz tanto o id interno (usado no filtro) quanto o codigo Sienge (mostrado ao usuario). Cross-DB: pedidos_compra esta em DB_CONFIG, dim_centrocusto em DB."
+                    },
+                    {
+                        "nome": "Painel - Semaforos de Entrega",
+                        "fonte": "Classifica pedidos abertos (PENDING/PARTIALLY) por proxima_entrega vs CURRENT_DATE: Atrasado (<hoje), Vencendo 7d (hoje a +7d), No Prazo (>+7d), Sem Data (NULL)",
+                        "endpoint": "GET /api/pedidos-compra/painel",
+                        "filtros": ["mesmos filtros da listagem"],
+                        "referencia_cruzada": "4 cards superiores da aba 'Painel'",
+                        "arquivo": "main.py",
+                        "descricao": "Visao gerencial de risco de entrega. Top 10 atrasados detalhados, com dias_atraso = CURRENT_DATE - proxima_entrega."
+                    },
+                    {
+                        "nome": "Painel - Aguardando Autorizacao",
+                        "fonte": "COUNT/SUM de pedidos com status='PENDING' AND autorizado != TRUE AND reprovado != TRUE",
+                        "endpoint": "GET /api/pedidos-compra/painel",
+                        "filtros": ["mesmos filtros da listagem"],
+                        "referencia_cruzada": "Card 'Aguardando autorizacao' + tabela de top 10 por valor",
+                        "arquivo": "main.py",
+                        "descricao": "Pedidos PENDING que aguardam aprovacao do gestor. Top 10 ordenados por valor para priorizar autorizacao."
+                    },
+                    {
+                        "nome": "Painel - Distribuicao por Status",
+                        "fonte": "GROUP BY status (todos os pedidos no filtro)",
+                        "endpoint": "GET /api/pedidos-compra/painel",
+                        "filtros": ["mesmos filtros da listagem"],
+                        "referencia_cruzada": "Grafico/legenda 'Por Status' (modo valor ou qtd)",
+                        "arquivo": "main.py",
+                        "descricao": "Distribuicao geral de pedidos por status, alternavel entre valor (R$) e quantidade."
+                    },
+                    {
+                        "nome": "Painel - Top Fornecedores",
+                        "fonte": "GROUP BY id_fornecedor com SUM(valor_total) onde status IN (PENDING, PARTIALLY) - top 10",
+                        "endpoint": "GET /api/pedidos-compra/painel",
+                        "filtros": ["mesmos filtros da listagem"],
+                        "referencia_cruzada": "Tabela 'Top Fornecedores' do painel",
+                        "arquivo": "main.py",
+                        "descricao": "Fornecedores com maior valor pendente (em aberto + parcial). Usado para priorizar contato/cobranca de entrega."
+                    },
+                    {
+                        "nome": "Painel - Por Centro de Custo",
+                        "fonte": "GROUP BY id_centro_custo com SUM(valor_total) onde status IN (PENDING, PARTIALLY) - top 10",
+                        "endpoint": "GET /api/pedidos-compra/painel",
+                        "filtros": ["mesmos filtros da listagem"],
+                        "referencia_cruzada": "Tabela 'Por Centro de Custo' do painel",
+                        "arquivo": "main.py",
+                        "descricao": "Distribuicao do valor pendente por obra. Usa id_centro_custo INTERNO (do banco), nao id Sienge."
+                    },
+                    {
+                        "nome": "Painel - Entregas Previstas (30 dias)",
+                        "fonte": "SUM(quantidade_aberta * preco_unitario) GROUP BY data_prevista FROM pedidos_compra_entregas JOIN pedidos_compra_itens, com data_prevista entre hoje e +30 dias",
+                        "endpoint": "GET /api/pedidos-compra/painel",
+                        "filtros": ["mesmos filtros da listagem"],
+                        "referencia_cruzada": "Grafico de barras 'Entregas Previstas Proximos 30 dias'",
+                        "arquivo": "main.py",
+                        "descricao": "Volume financeiro de entregas previstas dia-a-dia para os proximos 30 dias. Util para previsao de chegada de material em obra."
+                    },
+                    {
+                        "nome": "Itens e Cronograma do Pedido",
+                        "fonte": "SELECT FROM pedidos_compra_itens + pedidos_compra_entregas WHERE id_pedido = ? (com sync on-demand do Sienge se cache vazio)",
+                        "endpoint": "GET /api/pedidos-compra/{id_pedido}/itens",
+                        "filtros": [],
+                        "referencia_cruzada": "Linha expandida na aba Lista (botao chevron)",
+                        "arquivo": "main.py",
+                        "descricao": "Itens do pedido com codigo, descricao, qtd, preco unit, impostos, e cronograma de entregas por item (data_prevista, qtd_prevista/entregue/aberta). Sincroniza com Sienge se nao tem dados locais."
+                    },
+                    {
+                        "nome": "Sincronizar Pedidos com Sienge",
+                        "fonte": "API Sienge -> UPSERT em pedidos_compra (cabecalho)",
+                        "endpoint": "POST /api/pedidos-compra/sincronizar",
+                        "filtros": ["Body: periodo_dias (padrao 90), force_full (bool)"],
+                        "referencia_cruzada": "Botao 'Sincronizar' no topo da pagina",
+                        "arquivo": "main.py",
+                        "descricao": "Busca pedidos novos/atualizados no Sienge para o cache local. Itens e entregas sao sincronizados sob demanda. Registra log_atividade."
+                    },
+                    {
+                        "nome": "Autorizar Pedido",
+                        "fonte": "UPDATE pedidos_compra SET autorizado=TRUE + chamada PUT no Sienge",
+                        "endpoint": "PUT /api/pedidos-compra/{id_pedido}/autorizar",
+                        "filtros": ["admin only"],
+                        "referencia_cruzada": "Botao 'Autorizar' (modal de confirmacao com 'digite AUTORIZAR')",
+                        "arquivo": "main.py",
+                        "descricao": "Aprova um pedido PENDING diretamente no Sienge. Acao irreversivel pelo dashboard. Registra log_atividade."
+                    }
+                ]
             }
         ],
         "endpoints_resumo": [
@@ -13193,6 +13307,13 @@ def get_documentacao_fluxo_dados():
             {"area": "Comercial", "rota": "GET /api/comercial/dashboard", "descricao": "Indicadores: VGV, unidades vendidas/disponiveis, status dos imoveis", "tabelas": "imovel_unidade, contas_a_receber, contas_recebidas"},
             {"area": "Comercial", "rota": "GET /api/comercial/contratos", "descricao": "Lista contratos com valor total (soma de todas as parcelas)", "tabelas": "contas_a_receber, contas_recebidas, imovel_unidade"},
             {"area": "Comercial", "rota": "GET /api/comercial/tipos-imovel", "descricao": "Dropdown de tipos (Lote, Apartamento, etc)", "tabelas": "tipo_imovel"},
+            {"area": "Suprimentos", "rota": "GET /api/pedidos-compra", "descricao": "Lista pedidos de compra com filtros (empresa, centro_custo, fornecedor, status, ano, autorizacao, busca, limite, offset). Retorna {data, total, kpis} com KPIs por status (PENDING, PARTIALLY_DELIVERED, FULLY_DELIVERED) e proxima_entrega calculada via subquery em pedidos_compra_entregas (MIN(data_prevista) com quantidade_aberta>0)", "tabelas": "pedidos_compra, pedidos_compra_entregas", "filtros_auto": "autorizado, reprovado, status"},
+            {"area": "Suprimentos", "rota": "GET /api/pedidos-compra/filtros", "descricao": "Dropdowns para filtros da pagina de Pedidos: empresas, centros_custo (enriquecidos com codigo Sienge via dim_centrocusto), fornecedores, anos, status. CC e cross-DB: id local em pedidos_compra + JOIN externo com dim_centrocusto", "tabelas": "pedidos_compra, dim_centrocusto"},
+            {"area": "Suprimentos", "rota": "GET /api/pedidos-compra/painel", "descricao": "Painel visual agregado: semaforos (atrasados/vencendo_7d/no_prazo/sem_data) com top 10 atrasados, aguardando_autorizacao (qtd+valor+top 10), por_status, top_fornecedores (10), por_centro_custo (10), entregas_30d (agrupado por data). Aplica os mesmos filtros do endpoint de listagem", "tabelas": "pedidos_compra, pedidos_compra_entregas, pedidos_compra_itens", "filtros_auto": "autorizado, reprovado, status, proxima_entrega vs CURRENT_DATE"},
+            {"area": "Suprimentos", "rota": "POST /api/pedidos-compra/sincronizar", "descricao": "Sincroniza pedidos de compra com a API do Sienge. Body: {periodo_dias=90, force_full=false}. Retorna estatisticas do batch (criados, atualizados, erros). Registra log_atividade", "tabelas": "pedidos_compra, pedidos_compra_itens, pedidos_compra_entregas, log_atividades"},
+            {"area": "Suprimentos", "rota": "GET /api/pedidos-compra/{id_pedido}/itens", "descricao": "Retorna itens do pedido + cronograma de entregas agrupado por item. Sincroniza on-demand com Sienge se cache local vazio (chama garantir_itens_pedido). Se entregas vazias, busca por item via sincronizar_entregas_item", "tabelas": "pedidos_compra, pedidos_compra_itens, pedidos_compra_entregas"},
+            {"area": "Suprimentos", "rota": "PUT /api/pedidos-compra/{id_pedido}/autorizar", "descricao": "Autoriza um pedido pendente diretamente no Sienge (admin only). Acao irreversivel pelo dashboard. Registra log_atividade", "tabelas": "pedidos_compra, log_atividades"},
+            {"area": "Suprimentos", "rota": "POST /api/debug/pedidos-compra-rebuild", "descricao": "DROP + recria as tabelas de pedidos_compra/itens/entregas (admin only). Usar se schema ficou inconsistente apos migracao", "tabelas": "pedidos_compra, pedidos_compra_itens, pedidos_compra_entregas"},
         ],
         "glossario": [
             {"termo": "CUB/RO", "definicao": "Custo Unitário Básico da Construção Civil do estado de Rondônia. Índice mensal publicado pelo SINDUSCON que representa o custo por metro quadrado de construção. Usado para calcular o orçamento dos empreendimentos."},
@@ -13211,7 +13332,14 @@ def get_documentacao_fluxo_dados():
             {"termo": "VGV", "definicao": "Valor Geral de Vendas. Soma do preço de todas as unidades de um empreendimento imobiliário."},
             {"termo": "Status da Solicitacao", "definicao": "Ciclo de vida de uma solicitacao de melhoria: pendente -> em_analise -> em_desenvolvimento -> aguardando_validacao -> implementado (apos aprovacao do autor). De 'aguardando_validacao' o autor pode pedir correcao, voltando para 'pendente' com um comentario."},
             {"termo": "Validacao de Entrega", "definicao": "Processo em que o autor da solicitacao (nao a equipe dev) aprova ou rejeita a entrega. Endpoint POST /api/solicitacoes/{id}/validar. Apenas o autor original ou admin pode validar."},
-            {"termo": "entregue_em", "definicao": "Timestamp gravado automaticamente quando uma solicitacao muda para status 'aguardando_validacao'. Usado para calcular o tempo que a equipe dev levou e quanto tempo esta aguardando validacao."}
+            {"termo": "entregue_em", "definicao": "Timestamp gravado automaticamente quando uma solicitacao muda para status 'aguardando_validacao'. Usado para calcular o tempo que a equipe dev levou e quanto tempo esta aguardando validacao."},
+            {"termo": "Pedido de Compra", "definicao": "Documento gerado no Sienge que formaliza uma compra de material/servico para uma obra. No banco local fica em 'pedidos_compra' (cabecalho), 'pedidos_compra_itens' (itens) e 'pedidos_compra_entregas' (cronograma de entregas por item). Cada pedido tem id_pedido, id_fornecedor, id_centro_custo (interno), id_empresa, valor_total e status."},
+            {"termo": "Status do Pedido de Compra", "definicao": "Ciclo de entrega do pedido no Sienge: PENDING (aberto, nada entregue), PARTIALLY_DELIVERED (parcialmente entregue), FULLY_DELIVERED (totalmente entregue). Usado para os KPIs e o painel de Suprimentos."},
+            {"termo": "Autorizacao de Pedido", "definicao": "Acao pela qual um pedido PENDING e aprovado para o fornecedor iniciar a entrega. Campos: 'autorizado' (TRUE quando aprovado), 'reprovado' (TRUE quando negado), 'data_autorizacao'. A autorizacao via PUT /api/pedidos-compra/{id}/autorizar e feita diretamente no Sienge e e irreversivel pelo dashboard."},
+            {"termo": "Proxima Entrega", "definicao": "Data minima de entrega prevista entre as parcelas de cronograma de um pedido com quantidade_aberta>0. Calculada via subquery em pedidos_compra_entregas. No frontend e mostrada como 'Atrasado X dias' / 'Hoje' / 'em N dias' com cor por urgencia."},
+            {"termo": "Cronograma de Entrega", "definicao": "Tabela 'pedidos_compra_entregas' com uma linha por (id_pedido, numero_item, numero_cronograma). Campos: data_prevista, quantidade_prevista, quantidade_entregue, quantidade_aberta. Sincronizacao on-demand quando o usuario expande um pedido na lista."},
+            {"termo": "Sincronizacao de Pedidos", "definicao": "Processo de buscar pedidos novos/atualizados na API do Sienge para o cache local. Acionado por POST /api/pedidos-compra/sincronizar com 'periodo_dias' (padrao 90) e 'force_full' (recarrega todos). Itens e entregas sao sincronizados sob demanda quando o usuario expande um pedido."},
+            {"termo": "Permissao Suprimentos", "definicao": "Perfil de usuario restrito ao modulo Suprimentos. Usuarios com permissao='suprimentos' so veem o grupo 'Suprimentos' no menu lateral e sao redirecionados para 'Pedidos de Compra' ao logar. Nao tem acesso a dados financeiros."}
         ]
     }
 
