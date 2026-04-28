@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ContaPagar, TituloDetalhe, DashboardMetrics, GraficoMensal, GraficoPorCategoria, EmpresaOption, CentroCustoOption, TipoDocumentoOption, OrigemDadoOption, TipoBaixaOption, ContaCorrenteOption, OrigemTituloOption, KPI, KPICreate, KPIHistorico, KPIResumo, CalculoDisponivel, TipoDocumento, ContaReceber, MetricasReceber, KPIVariacaoDiaria, KPIHistoricoVariacaoResponse, SnapshotDiarioResponse, PainelExecutivoData, ExposicaoMensal, EmpreendimentoOption, SaldoBancarioResumo, SaldoBancarioRegistro } from '../types';
+import { ContaPagar, TituloDetalhe, DashboardMetrics, GraficoMensal, GraficoPorCategoria, EmpresaOption, CentroCustoOption, TipoDocumentoOption, OrigemDadoOption, TipoBaixaOption, ContaCorrenteOption, OrigemTituloOption, KPI, KPICreate, KPIHistorico, KPIResumo, CalculoDisponivel, TipoDocumento, ContaReceber, MetricasReceber, KPIVariacaoDiaria, KPIHistoricoVariacaoResponse, SnapshotDiarioResponse, PainelExecutivoData, ExposicaoMensal, EmpreendimentoOption, EstoqueDetalhe, SaldoBancarioResumo, SaldoBancarioRegistro } from '../types';
 
 const API_URL = '/api';
 
@@ -1484,6 +1484,14 @@ export const apiService = {
     const estoque = estoqueData.estoque_disponivel ?? 0;
     // VGV = Vendido + Estoque (todas as unidades do empreendimento)
     const vgv = estoqueData.total_geral ?? 0;
+    // Total Vendido = soma das unidades com flag V (Vendido) e C (Pre-Contrato)
+    const detalhesEstoque: EstoqueDetalhe[] = estoqueData.detalhes ?? [];
+    const total_vendido = detalhesEstoque
+      .filter(d => d.flag === 'V' || d.flag === 'C')
+      .reduce((s, d) => s + (d.valor || 0), 0);
+    const qtd_vendido = detalhesEstoque
+      .filter(d => d.flag === 'V' || d.flag === 'C')
+      .reduce((s, d) => s + (d.quantidade || 0), 0);
 
     const anos = '2023,2024,2025,2026';
 
@@ -1570,9 +1578,11 @@ export const apiService = {
 
     return {
       vgv,
+      total_vendido,
+      qtd_vendido,
       saldo_a_receber,
       estoque,
-      estoque_detalhes: estoqueData.detalhes ?? [],
+      estoque_detalhes: detalhesEstoque,
       qtd_disponivel: estoqueData.qtd_disponivel ?? 0,
       qtd_total_unidades: estoqueData.qtd_geral ?? 0,
       realizado,

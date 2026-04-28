@@ -361,6 +361,8 @@ export interface EstoqueDetalhe {
 
 export interface PainelExecutivoData {
   vgv: number;
+  total_vendido: number;
+  qtd_vendido: number;
   saldo_a_receber: number;
   estoque: number;
   estoque_detalhes: EstoqueDetalhe[];

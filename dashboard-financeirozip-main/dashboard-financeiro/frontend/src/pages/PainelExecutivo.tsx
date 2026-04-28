@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { apiService } from '../services/api';
 import { PainelExecutivoData, ExposicaoMensal, EmpreendimentoOption, EstoqueDetalhe, TipoBaixaOption } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { DollarSign, CheckCircle, FileText, Clock, Building2, Wallet, TrendingDown, Calculator, TrendingUp, Package, HandCoins } from 'lucide-react';
+import { DollarSign, CheckCircle, FileText, Clock, Building2, Wallet, TrendingDown, Calculator, TrendingUp, Package, HandCoins, ShoppingCart } from 'lucide-react';
 import { criarPDFBase, adicionarResumoCards, finalizarPDF, gerarNomeArquivo } from '../utils/pdfExport';
 
 interface PainelExecutivoProps {
@@ -169,6 +169,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
     let y = startY;
     y = adicionarResumoCards(doc, [
       { label: 'VGV', valor: data.vgv, cor: [59, 130, 246] },
+      { label: 'Total Vendido', valor: data.total_vendido, cor: [16, 185, 129] },
       { label: 'Realizado', valor: data.realizado, cor: [34, 197, 94] },
       { label: 'Orçamento Total', valor: data.orcamento_total, cor: [100, 116, 139] },
       { label: 'Saldo a Realizar', valor: data.saldo_a_realizar, cor: [249, 115, 22] },
@@ -371,7 +372,7 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
           <span className="h-2 w-2 rounded-full bg-blue-500"></span>
           Vendas
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="rounded-2xl border border-blue-100 bg-white dark:bg-slate-800 p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
               <div className="rounded-lg p-2 bg-gradient-to-br from-blue-400 to-blue-600 text-white">
@@ -381,6 +382,16 @@ export const PainelExecutivo: React.FC<PainelExecutivoProps> = ({ onNavigate }) 
             </div>
             <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100">{formatCurrency(data.vgv)}</p>
             <p className="text-xs text-gray-400 mt-1">Total Vendido + Estoque</p>
+          </div>
+          <div className="rounded-2xl border border-emerald-100 bg-white dark:bg-slate-800 p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="rounded-lg p-2 bg-gradient-to-br from-emerald-400 to-emerald-600 text-white">
+                <ShoppingCart className="h-4 w-4" />
+              </div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Total Vendido</p>
+            </div>
+            <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100">{formatCurrency(data.total_vendido)}</p>
+            <p className="text-xs text-gray-400 mt-1">{data.qtd_vendido} unidade{data.qtd_vendido === 1 ? '' : 's'} vendida{data.qtd_vendido === 1 ? '' : 's'} (Vendido + Pré-Contrato)</p>
           </div>
           <div className="rounded-2xl border border-sky-100 bg-white dark:bg-slate-800 p-5 shadow-sm">
             <div className="flex items-center gap-3 mb-3">
