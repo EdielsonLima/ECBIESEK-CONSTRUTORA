@@ -1572,20 +1572,21 @@ def _filtro_in_clause(coluna: str, valores: Optional[List], params: list) -> str
     return ""
 
 
-@app.get("/api/pedidos-compra")
-def listar_pedidos_compra(
-    empresa: Optional[List[int]] = Query(None),
-    centro_custo: Optional[List[int]] = Query(None),
-    fornecedor: Optional[List[int]] = Query(None),
-    status: Optional[List[str]] = Query(None),
-    ano: Optional[int] = None,
-    autorizacao: str = "todos",
-    busca: Optional[str] = None,
-    limite: int = 200,
-    offset: int = 0,
-    current_user: dict = Depends(get_current_user),
-):
-    """Lista pedidos de compra com filtros e KPIs por status."""
+def _aplicar_filtros_pedidos_compra(
+    empresa: Optional[List[int]],
+    centro_custo: Optional[List[int]],
+    fornecedor: Optional[List[int]],
+    status: Optional[List[str]],
+    ano: Optional[int],
+    autorizacao: str,
+    busca: Optional[str],
+    numero_pedido: Optional[List[str]],
+    titulo: Optional[str],
+    tabela: str = "pedidos_compra",
+) -> tuple[str, list]:
+    """Monta a clausula WHERE e a lista de params compartilhada entre listar/painel/etc.
+    `tabela` e o alias/nome usado para a tabela pedidos_compra na query (ex: 'pc').
+    """
     where = "WHERE 1=1"
     params: list = []
 
@@ -1593,6 +1594,7 @@ def listar_pedidos_compra(
     where += _filtro_in_clause("id_centro_custo", centro_custo, params)
     where += _filtro_in_clause("id_fornecedor", fornecedor, params)
     where += _filtro_in_clause("status", status, params)
+    where += _filtro_in_clause("numero_pedido", numero_pedido, params)
 
     if ano:
         where += " AND EXTRACT(YEAR FROM data_pedido) = %s"
@@ -1607,10 +1609,48 @@ def listar_pedidos_compra(
     elif autorizacao == "nao_autorizados":  # backwards compat
         where += " AND (autorizado IS NULL OR autorizado = FALSE)"
 
+    if titulo:
+        where += " AND notas_internas ILIKE %s"
+        params.append(f"%{titulo}%")
+
     if busca:
-        where += " AND (numero_pedido ILIKE %s OR nome_fornecedor ILIKE %s OR notas_internas ILIKE %s)"
+        # Busca generalista: numero do pedido, fornecedor, notas internas OU descricao/codigo do insumo
+        where += f""" AND (
+            numero_pedido ILIKE %s
+            OR nome_fornecedor ILIKE %s
+            OR notas_internas ILIKE %s
+            OR EXISTS (
+                SELECT 1 FROM pedidos_compra_itens pci
+                WHERE pci.id_pedido = {tabela}.id_pedido
+                  AND (pci.descricao_recurso ILIKE %s OR pci.codigo_recurso ILIKE %s)
+            )
+        )"""
         like = f"%{busca}%"
-        params += [like, like, like]
+        params += [like, like, like, like, like]
+
+    return where, params
+
+
+@app.get("/api/pedidos-compra")
+def listar_pedidos_compra(
+    empresa: Optional[List[int]] = Query(None),
+    centro_custo: Optional[List[int]] = Query(None),
+    fornecedor: Optional[List[int]] = Query(None),
+    status: Optional[List[str]] = Query(None),
+    numero_pedido: Optional[List[str]] = Query(None),
+    titulo: Optional[str] = None,
+    ano: Optional[int] = None,
+    autorizacao: str = "todos",
+    busca: Optional[str] = None,
+    limite: int = 200,
+    offset: int = 0,
+    current_user: dict = Depends(get_current_user),
+):
+    """Lista pedidos de compra com filtros e KPIs por status."""
+    where, params = _aplicar_filtros_pedidos_compra(
+        empresa, centro_custo, fornecedor, status, ano, autorizacao, busca,
+        numero_pedido, titulo,
+    )
 
     conn = _pc_conn()
     try:
@@ -1714,6 +1754,16 @@ def filtros_pedidos_compra(current_user: dict = Depends(get_current_user)):
         cur.execute("SELECT DISTINCT status FROM pedidos_compra WHERE status IS NOT NULL ORDER BY status")
         status_list = [r["status"] for r in cur.fetchall()]
 
+        # Numeros de pedido (dropdown do filtro 'Pedido')
+        cur.execute("""
+            SELECT numero_pedido, MAX(data_pedido) AS data_pedido
+            FROM pedidos_compra
+            WHERE numero_pedido IS NOT NULL
+            GROUP BY numero_pedido
+            ORDER BY data_pedido DESC NULLS LAST, numero_pedido DESC
+        """)
+        pedidos_lista = [r["numero_pedido"] for r in cur.fetchall()]
+
         cur.close()
     finally:
         conn.close()
@@ -1747,6 +1797,7 @@ def filtros_pedidos_compra(current_user: dict = Depends(get_current_user)):
         "fornecedores": fornecedores,
         "anos": anos,
         "status": status_list,
+        "pedidos": pedidos_lista,
     }
 
 
@@ -1756,6 +1807,8 @@ def painel_pedidos_compra(
     centro_custo: Optional[List[int]] = Query(None),
     fornecedor: Optional[List[int]] = Query(None),
     status: Optional[List[str]] = Query(None),
+    numero_pedido: Optional[List[str]] = Query(None),
+    titulo: Optional[str] = None,
     ano: Optional[int] = None,
     autorizacao: str = "todos",
     busca: Optional[str] = None,
@@ -1764,26 +1817,11 @@ def painel_pedidos_compra(
     """Agrega dados visuais para o painel de controle de pedidos de compra.
     Aplica os mesmos filtros do endpoint de listagem para coerencia."""
 
-    # Reaproveita o WHERE da listagem
-    where_pc = "WHERE 1=1"
-    params: list = []
-    where_pc += _filtro_in_clause("id_empresa", empresa, params)
-    where_pc += _filtro_in_clause("id_centro_custo", centro_custo, params)
-    where_pc += _filtro_in_clause("id_fornecedor", fornecedor, params)
-    where_pc += _filtro_in_clause("status", status, params)
-    if ano:
-        where_pc += " AND EXTRACT(YEAR FROM data_pedido) = %s"
-        params.append(ano)
-    if autorizacao == "autorizados":
-        where_pc += " AND autorizado = TRUE"
-    elif autorizacao == "aguardando":
-        where_pc += " AND (autorizado IS NULL OR autorizado = FALSE) AND (reprovado IS NULL OR reprovado = FALSE)"
-    elif autorizacao == "negados":
-        where_pc += " AND reprovado = TRUE"
-    if busca:
-        where_pc += " AND (numero_pedido ILIKE %s OR nome_fornecedor ILIKE %s OR notas_internas ILIKE %s)"
-        like = f"%{busca}%"
-        params += [like, like, like]
+    # Reaproveita o WHERE da listagem (alias 'pc' por causa da CTE)
+    where_pc, params = _aplicar_filtros_pedidos_compra(
+        empresa, centro_custo, fornecedor, status, ano, autorizacao, busca,
+        numero_pedido, titulo, tabela="pc",
+    )
 
     conn = _pc_conn()
     try:

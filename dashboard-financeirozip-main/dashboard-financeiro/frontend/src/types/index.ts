@@ -495,6 +495,7 @@ export interface PedidosCompraFiltros {
   fornecedores: { id: number; nome: string }[];
   anos: number[];
   status: string[];
+  pedidos: string[];
 }
 
 export interface FiltrosPedidoCompraQuery {
@@ -502,6 +503,8 @@ export interface FiltrosPedidoCompraQuery {
   centro_custo?: number[];
   fornecedor?: number[];
   status?: string[];
+  numero_pedido?: string[];
+  titulo?: string;
   ano?: number;
   autorizacao?: 'todos' | 'autorizados' | 'aguardando' | 'negados';
   busca?: string;

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { apiService } from '../services/api';
-import { SearchableMultiSelect } from '../components/SearchableMultiSelect';
+import { FilterPillButton } from '../components/FilterPillButton';
 import {
   PedidoCompra,
   PedidosCompraFiltros,
@@ -36,7 +36,7 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
-  SlidersHorizontal,
+  Filter,
   AlertTriangle,
   Clock3,
   CheckCircle,
@@ -154,8 +154,10 @@ export const PedidosCompra: React.FC = () => {
   const [filtroCC, setFiltroCC] = useState<(number | string)[]>([]);
   const [filtroFornecedor, setFiltroFornecedor] = useState<(number | string)[]>([]);
   const [filtroStatus, setFiltroStatus] = useState<(number | string)[]>([]);
+  const [filtroPedido, setFiltroPedido] = useState<(number | string)[]>([]);
   const [filtroAno, setFiltroAno] = useState<number | ''>('');
   const [filtroAutorizacao, setFiltroAutorizacao] = useState<'todos' | 'autorizados' | 'aguardando' | 'negados'>('todos');
+  const [filtroTitulo, setFiltroTitulo] = useState('');
   const [busca, setBusca] = useState('');
 
   // Expansão
@@ -168,8 +170,7 @@ export const PedidosCompra: React.FC = () => {
   const [pedidoParaAutorizar, setPedidoParaAutorizar] = useState<PedidoCompra | null>(null);
   const [textoConfirmacao, setTextoConfirmacao] = useState('');
 
-  // Mostrar/ocultar filtros + ordenação
-  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  // Ordenação
   const [sortKey, setSortKey] = useState<SortKey>('data_pedido');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
@@ -184,11 +185,13 @@ export const PedidosCompra: React.FC = () => {
     centro_custo: filtroCC.map(Number),
     fornecedor: filtroFornecedor.map(Number),
     status: filtroStatus.map(String),
+    numero_pedido: filtroPedido.map(String),
+    titulo: filtroTitulo.trim() || undefined,
     ano: filtroAno || undefined,
     autorizacao: filtroAutorizacao,
     busca: busca.trim() || undefined,
     limite: 500,
-  }), [filtroEmpresa, filtroCC, filtroFornecedor, filtroStatus, filtroAno, filtroAutorizacao, busca]);
+  }), [filtroEmpresa, filtroCC, filtroFornecedor, filtroStatus, filtroPedido, filtroTitulo, filtroAno, filtroAutorizacao, busca]);
 
   // Carrega filtros uma vez
   useEffect(() => {
@@ -342,33 +345,58 @@ export const PedidosCompra: React.FC = () => {
 
   const limparFiltros = () => {
     setFiltroEmpresa([]); setFiltroCC([]); setFiltroFornecedor([]);
-    setFiltroStatus([]); setFiltroAno(''); setFiltroAutorizacao('todos'); setBusca('');
+    setFiltroStatus([]); setFiltroPedido([]); setFiltroAno('');
+    setFiltroAutorizacao('todos'); setFiltroTitulo(''); setBusca('');
   };
 
-  const haFiltrosAtivos = filtroEmpresa.length || filtroCC.length || filtroFornecedor.length
-    || filtroStatus.length || filtroAno || filtroAutorizacao !== 'todos' || busca.trim();
+  const haFiltrosAtivos = !!(filtroEmpresa.length || filtroCC.length || filtroFornecedor.length
+    || filtroStatus.length || filtroPedido.length || filtroAno
+    || filtroAutorizacao !== 'todos' || filtroTitulo.trim() || busca.trim());
 
   const filtrosAtivos = useMemo(() => {
-    const arr: string[] = [];
-    if (busca.trim()) arr.push(`Busca: "${busca}"`);
+    const arr: { label: string; onRemove: () => void }[] = [];
+    if (busca.trim()) arr.push({ label: `Insumo: "${busca}"`, onRemove: () => setBusca('') });
+    filtroPedido.forEach(p => {
+      arr.push({
+        label: `Pedido: ${p}`,
+        onRemove: () => setFiltroPedido(prev => prev.filter(v => v !== p)),
+      });
+    });
     filtroCC.forEach(id => {
       const cc = filtrosDisponiveis?.centros_custo.find(c => c.id === Number(id));
-      if (cc) arr.push(`CC: ${cc.nome}`);
+      arr.push({
+        label: `CC: ${cc ? cc.nome : id}`,
+        onRemove: () => setFiltroCC(prev => prev.filter(v => v !== id)),
+      });
     });
     filtroFornecedor.forEach(id => {
       const f = filtrosDisponiveis?.fornecedores.find(c => c.id === Number(id));
-      if (f) arr.push(`Forn.: ${f.nome}`);
+      arr.push({
+        label: `Forn.: ${f ? f.nome : id}`,
+        onRemove: () => setFiltroFornecedor(prev => prev.filter(v => v !== id)),
+      });
     });
     filtroStatus.forEach(s => {
-      arr.push(`Status: ${STATUS_LABEL[String(s)] || s}`);
+      arr.push({
+        label: `Status: ${STATUS_LABEL[String(s)] || s}`,
+        onRemove: () => setFiltroStatus(prev => prev.filter(v => v !== s)),
+      });
     });
-    if (filtroAno) arr.push(`Ano: ${filtroAno}`);
+    if (filtroAno) {
+      arr.push({ label: `Ano: ${filtroAno}`, onRemove: () => setFiltroAno('') });
+    }
     if (filtroAutorizacao !== 'todos') {
       const lbl: Record<string, string> = { autorizados: 'Autorizados', aguardando: 'Aguardando', negados: 'Negados' };
-      arr.push(`Aut.: ${lbl[filtroAutorizacao] || filtroAutorizacao}`);
+      arr.push({
+        label: `Aut.: ${lbl[filtroAutorizacao] || filtroAutorizacao}`,
+        onRemove: () => setFiltroAutorizacao('todos'),
+      });
+    }
+    if (filtroTitulo.trim()) {
+      arr.push({ label: `Titulo: "${filtroTitulo}"`, onRemove: () => setFiltroTitulo('') });
     }
     return arr;
-  }, [busca, filtroCC, filtroFornecedor, filtroStatus, filtroAno, filtroAutorizacao, filtrosDisponiveis]);
+  }, [busca, filtroPedido, filtroCC, filtroFornecedor, filtroStatus, filtroAno, filtroAutorizacao, filtroTitulo, filtrosDisponiveis]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -488,111 +516,129 @@ export const PedidosCompra: React.FC = () => {
         />
       </div>
 
-      {/* Filtros (colapsavel) */}
+      {/* Lista de Pedidos: barra de filtros sempre visivel */}
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-4">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <h3 className="text-sm font-bold text-gray-700 dark:text-slate-300">Filtros</h3>
-          <div className="flex items-center gap-2">
-            {haFiltrosAtivos && (
-              <button onClick={limparFiltros} className="text-xs text-rose-600 hover:text-rose-700 font-semibold flex items-center gap-1">
-                <X className="h-3 w-3" /> Limpar todos
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setMostrarFiltros(!mostrarFiltros)}
-              className="flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 px-3 py-2 text-white text-sm font-semibold"
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
-              {filtrosAtivos.length > 0 && (
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-xs font-bold text-blue-600">
-                  {filtrosAtivos.length}
-                </span>
-              )}
-            </button>
-          </div>
+        <div className="mb-3">
+          <h3 className="text-sm font-bold text-gray-800 dark:text-slate-200">Lista de Pedidos</h3>
+          <p className="text-xs text-gray-500 dark:text-slate-400">
+            Mostrando {pedidos.length} pedidos. Clique em um pedido para ver as múltiplas datas de entrega e o saldo do material.
+          </p>
         </div>
 
-        {/* Chips de filtros ativos quando colapsado */}
-        {!mostrarFiltros && filtrosAtivos.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Busca por insumo */}
+          <div className="relative flex-1 min-w-[240px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              value={busca}
+              onChange={e => setBusca(e.target.value)}
+              placeholder="Buscar insumo (ex: cinto, óculos, cimento...)"
+              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-800 dark:text-slate-200 focus:border-rose-500 focus:outline-none"
+            />
+          </div>
+
+          <FilterPillButton
+            label="Pedido"
+            options={(filtrosDisponiveis?.pedidos || []).map(p => ({ id: p, nome: p }))}
+            value={filtroPedido}
+            onChange={setFiltroPedido}
+            emptySearchPlaceholder="Buscar pedido..."
+          />
+
+          <FilterPillButton
+            label="Obra / C. Custo"
+            options={(filtrosDisponiveis?.centros_custo || []).map(c => ({
+              id: c.id,
+              nome: c.codigo ? `${c.codigo} - ${c.nome}` : c.nome,
+            }))}
+            value={filtroCC}
+            onChange={setFiltroCC}
+            emptySearchPlaceholder="Buscar obra..."
+          />
+
+          <FilterPillButton
+            label="Fornecedor"
+            options={(filtrosDisponiveis?.fornecedores || []).map(f => ({ id: f.id, nome: f.nome }))}
+            value={filtroFornecedor}
+            onChange={setFiltroFornecedor}
+            emptySearchPlaceholder="Buscar fornecedor..."
+          />
+
+          <FilterPillButton
+            label="Status"
+            options={(filtrosDisponiveis?.status || []).map(s => ({ id: s, nome: STATUS_LABEL[s] || s }))}
+            value={filtroStatus}
+            onChange={setFiltroStatus}
+            searchable={false}
+          />
+
+          <FilterPillButton
+            label="Ano"
+            options={(filtrosDisponiveis?.anos || []).map(a => ({ id: a, nome: String(a) }))}
+            value={filtroAno ? [filtroAno] : []}
+            onChange={vals => setFiltroAno(vals.length ? Number(vals[vals.length - 1]) : '')}
+            searchable={false}
+          />
+
+          <FilterPillButton
+            label="Autorização"
+            options={[
+              { id: 'autorizados', nome: 'Autorizados' },
+              { id: 'aguardando', nome: 'Aguardando' },
+              { id: 'negados', nome: 'Negados' },
+            ]}
+            value={filtroAutorizacao !== 'todos' ? [filtroAutorizacao] : []}
+            onChange={vals => setFiltroAutorizacao(vals.length ? (vals[vals.length - 1] as any) : 'todos')}
+            searchable={false}
+          />
+
+          {/* Titulo (texto livre - notas internas) */}
+          <div className="relative">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+            <input
+              type="text"
+              value={filtroTitulo}
+              onChange={e => setFiltroTitulo(e.target.value)}
+              placeholder="Título"
+              className={`pl-8 pr-3 py-2 text-sm border rounded-lg w-32 focus:outline-none ${
+                filtroTitulo.trim()
+                  ? 'border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-700/40 dark:bg-rose-900/30 dark:text-rose-300 placeholder:text-rose-400'
+                  : 'border-gray-300 bg-white text-gray-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300'
+              }`}
+            />
+          </div>
+
+          {haFiltrosAtivos && (
+            <button
+              type="button"
+              onClick={limparFiltros}
+              className="ml-auto flex items-center gap-1 text-xs font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300"
+            >
+              <X className="h-3 w-3" /> Limpar todos
+            </button>
+          )}
+        </div>
+
+        {/* Chips de filtros ativos */}
+        {filtrosAtivos.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
             {filtrosAtivos.map((f, i) => (
-              <span key={i} className="inline-flex items-center rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 px-3 py-1 text-xs font-medium text-blue-800 dark:text-blue-200">
-                {f}
+              <span
+                key={i}
+                className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-xs font-medium text-rose-700 dark:border-rose-700/40 dark:bg-rose-900/30 dark:text-rose-300"
+              >
+                {f.label}
+                <button
+                  type="button"
+                  onClick={f.onRemove}
+                  className="ml-0.5 inline-flex items-center justify-center rounded-full hover:bg-rose-200 dark:hover:bg-rose-800/40 p-0.5"
+                  aria-label="Remover filtro"
+                >
+                  <X className="h-3 w-3" />
+                </button>
               </span>
             ))}
-          </div>
-        )}
-
-        {/* Painel de filtros aberto */}
-        {mostrarFiltros && (
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                value={busca}
-                onChange={e => setBusca(e.target.value)}
-                placeholder="Buscar pedido, fornecedor..."
-                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-800 dark:text-slate-200"
-              />
-            </div>
-
-            <SearchableMultiSelect
-              label="Centro de Custo"
-              options={(filtrosDisponiveis?.centros_custo || []).map(c => ({
-                id: c.id,
-                nome: c.codigo ? `${c.codigo} - ${c.nome}` : c.nome,
-              }))}
-              value={filtroCC}
-              onChange={setFiltroCC}
-              placeholder="Todos"
-            />
-
-            <SearchableMultiSelect
-              label="Fornecedor"
-              options={(filtrosDisponiveis?.fornecedores || []).map(f => ({ id: f.id, nome: f.nome }))}
-              value={filtroFornecedor}
-              onChange={setFiltroFornecedor}
-              placeholder="Todos"
-            />
-
-            <SearchableMultiSelect
-              label="Status"
-              options={(filtrosDisponiveis?.status || []).map(s => ({ id: s, nome: STATUS_LABEL[s] || s }))}
-              value={filtroStatus}
-              onChange={setFiltroStatus}
-              placeholder="Todos"
-            />
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Ano</label>
-              <select
-                value={filtroAno}
-                onChange={e => setFiltroAno(e.target.value ? Number(e.target.value) : '')}
-                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-800 dark:text-slate-200"
-              >
-                <option value="">Todos</option>
-                {(filtrosDisponiveis?.anos || []).map(a => (
-                  <option key={a} value={a}>{a}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Autorização</label>
-              <select
-                value={filtroAutorizacao}
-                onChange={e => setFiltroAutorizacao(e.target.value as any)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-800 dark:text-slate-200"
-              >
-                <option value="todos">Todos</option>
-                <option value="autorizados">Autorizados</option>
-                <option value="aguardando">Aguardando</option>
-                <option value="negados">Negados</option>
-              </select>
-            </div>
           </div>
         )}
       </div>

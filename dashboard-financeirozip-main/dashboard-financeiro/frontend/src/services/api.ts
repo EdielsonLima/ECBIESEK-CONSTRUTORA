@@ -1921,6 +1921,8 @@ export const apiService = {
     filtros.centro_custo?.forEach(v => params.append('centro_custo', String(v)));
     filtros.fornecedor?.forEach(v => params.append('fornecedor', String(v)));
     filtros.status?.forEach(v => params.append('status', v));
+    filtros.numero_pedido?.forEach(v => params.append('numero_pedido', v));
+    if (filtros.titulo) params.append('titulo', filtros.titulo);
     if (filtros.ano) params.append('ano', String(filtros.ano));
     if (filtros.autorizacao) params.append('autorizacao', filtros.autorizacao);
     if (filtros.busca) params.append('busca', filtros.busca);
@@ -1963,6 +1965,8 @@ export const apiService = {
     filtros.centro_custo?.forEach(v => params.append('centro_custo', String(v)));
     filtros.fornecedor?.forEach(v => params.append('fornecedor', String(v)));
     filtros.status?.forEach(v => params.append('status', v));
+    filtros.numero_pedido?.forEach(v => params.append('numero_pedido', v));
+    if (filtros.titulo) params.append('titulo', filtros.titulo);
     if (filtros.ano) params.append('ano', String(filtros.ano));
     if (filtros.autorizacao) params.append('autorizacao', filtros.autorizacao);
     if (filtros.busca) params.append('busca', filtros.busca);
