@@ -10946,7 +10946,11 @@ def get_saldos_bancarios(
             conc = conciliacao_map.get(conta_key)
             valor_conciliado = float(conc['valor_conciliado']) if conc else 0.0
             tem_conciliacao = conc is not None
-            valor_nao_conciliado = (saldo_atual - valor_conciliado) if tem_conciliacao else 0.0
+            # IMPORTANTE: 'nao conciliado' deve comparar duas grandezas da MESMA
+            # fonte (Sienge live), nao misturar com posicao_saldos local. Senao
+            # qualquer desalinhamento do replica vira ruido no card 'Nao Conciliado'.
+            saldo_total_sienge = float(conc['saldo_total_sienge']) if conc else 0.0
+            valor_nao_conciliado = (saldo_total_sienge - valor_conciliado) if tem_conciliacao else 0.0
 
             saldo_total += saldo_atual
             if tipo == 'bancaria':
