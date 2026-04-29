@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ContaPagar, TituloDetalhe, DashboardMetrics, GraficoMensal, GraficoPorCategoria, EmpresaOption, CentroCustoOption, TipoDocumentoOption, OrigemDadoOption, TipoBaixaOption, ContaCorrenteOption, OrigemTituloOption, KPI, KPICreate, KPIHistorico, KPIResumo, CalculoDisponivel, TipoDocumento, ContaReceber, MetricasReceber, KPIVariacaoDiaria, KPIHistoricoVariacaoResponse, SnapshotDiarioResponse, PainelExecutivoData, ExposicaoMensal, EmpreendimentoOption, EstoqueDetalhe, SaldoBancarioResumo, SaldoBancarioRegistro, MovimentosNaoConciliadosResponse, PedidosCompraResponse, PedidosCompraFiltros, FiltrosPedidoCompraQuery, ItemPedidoCompra, PainelPedidosCompra } from '../types';
+import { ContaPagar, TituloDetalhe, DashboardMetrics, GraficoMensal, GraficoPorCategoria, EmpresaOption, CentroCustoOption, TipoDocumentoOption, OrigemDadoOption, TipoBaixaOption, ContaCorrenteOption, OrigemTituloOption, KPI, KPICreate, KPIHistorico, KPIResumo, CalculoDisponivel, TipoDocumento, ContaReceber, MetricasReceber, KPIVariacaoDiaria, KPIHistoricoVariacaoResponse, SnapshotDiarioResponse, PainelExecutivoData, ExposicaoMensal, EmpreendimentoOption, EstoqueDetalhe, SaldoBancarioResumo, SaldoBancarioRegistro, MovimentosNaoConciliadosResponse, PedidosCompraResponse, PedidosCompraFiltros, FiltrosPedidoCompraQuery, ItemPedidoCompra, PainelPedidosCompra, FinanceiroPedidoCompra } from '../types';
 
 const API_URL = '/api';
 
@@ -1946,6 +1946,11 @@ export const apiService = {
 
   getItensPedidoCompra: async (idPedido: number): Promise<{ itens: ItemPedidoCompra[]; status: string | null }> => {
     const response = await api.get(`/pedidos-compra/${idPedido}/itens`);
+    return response.data;
+  },
+
+  getFinanceiroPedidoCompra: async (idPedido: number): Promise<FinanceiroPedidoCompra> => {
+    const response = await api.get(`/pedidos-compra/${idPedido}/financeiro`);
     return response.data;
   },
 

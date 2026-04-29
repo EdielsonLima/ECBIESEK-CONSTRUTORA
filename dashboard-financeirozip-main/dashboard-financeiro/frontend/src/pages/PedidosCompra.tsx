@@ -6,6 +6,7 @@ import {
   PedidosCompraFiltros,
   PedidosCompraResponse,
   ItemPedidoCompra,
+  FinanceiroPedidoCompra,
   FiltrosPedidoCompraQuery,
   PainelPedidosCompra,
 } from '../types';
@@ -47,6 +48,8 @@ import {
   Truck,
   Users,
   Calendar,
+  FileText,
+  Wallet,
 } from 'lucide-react';
 
 type SortKey =
@@ -1412,6 +1415,16 @@ const DetalhePedido: React.FC<{
 }> = ({ pedido, itens, loading, onAutorizar, autorizando }) => {
   const podeAutorizar = !pedido.autorizado && !pedido.reprovado && pedido.status === 'PENDING';
 
+  const [financeiro, setFinanceiro] = useState<FinanceiroPedidoCompra | null>(null);
+
+  useEffect(() => {
+    let cancelado = false;
+    apiService.getFinanceiroPedidoCompra(pedido.id_pedido)
+      .then(r => { if (!cancelado) setFinanceiro(r); })
+      .catch(() => { if (!cancelado) setFinanceiro({ notas_fiscais: [], parcelas: [] }); });
+    return () => { cancelado = true; };
+  }, [pedido.id_pedido]);
+
   const fmtDataCurta = (d: string | null | undefined): string => {
     if (!d) return '-';
     const dt = parseDataLocal(d);
@@ -1421,6 +1434,15 @@ const DetalhePedido: React.FC<{
     const yy = String(dt.getFullYear()).slice(-2);
     return `${dd}/${mm}/${yy}`;
   };
+
+  const fmtDataLonga = (d: string | null | undefined): string => {
+    if (!d) return '-';
+    const dt = parseDataLocal(d);
+    if (isNaN(dt.getTime())) return d;
+    return dt.toLocaleDateString('pt-BR');
+  };
+
+  const totalParcelas = (financeiro?.parcelas || []).reduce((s, p) => s + (p.valor || 0), 0);
 
   return (
     <div className="space-y-4">
@@ -1559,6 +1581,106 @@ const DetalhePedido: React.FC<{
                         ) : (
                           <span className="text-xs italic text-gray-400 dark:text-slate-500">Sem cronograma</span>
                         )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Notas Fiscais Recebidas */}
+      {financeiro && financeiro.notas_fiscais.length > 0 && (
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+          <div className="bg-gray-50 dark:bg-slate-900/40 px-4 py-2.5 border-b border-gray-200 dark:border-slate-700">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-blue-500" />
+              <h4 className="text-sm font-bold text-gray-700 dark:text-slate-300">
+                Notas Fiscais Recebidas
+              </h4>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50/50 dark:bg-slate-900/30 border-b border-gray-200 dark:border-slate-700">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400">Número</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400">Tipo</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400">Série</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400">Emissão</th>
+                  <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 dark:text-slate-400">Valor</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                {financeiro.notas_fiscais.map((nf, i) => (
+                  <tr key={`${nf.numero}-${i}`}>
+                    <td className="px-4 py-2 font-medium text-gray-800 dark:text-slate-200">{nf.numero}</td>
+                    <td className="px-4 py-2 text-gray-700 dark:text-slate-300">{nf.tipo || '-'}</td>
+                    <td className="px-4 py-2 text-gray-700 dark:text-slate-300">{nf.serie || '-'}</td>
+                    <td className="px-4 py-2 text-gray-700 dark:text-slate-300">{fmtDataLonga(nf.emissao)}</td>
+                    <td className="px-4 py-2 text-right font-semibold text-gray-800 dark:text-slate-200 whitespace-nowrap">
+                      {nf.valor_total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-4 py-2 text-[11px] italic text-gray-400 dark:text-slate-500 border-t border-gray-100 dark:border-slate-700">
+            NFs candidatas: mesmo fornecedor + mesma obra a partir da data do pedido.
+          </div>
+        </div>
+      )}
+
+      {/* Parcelas Previstas */}
+      {financeiro && financeiro.parcelas.length > 0 && (
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+          <div className="bg-gray-50 dark:bg-slate-900/40 px-4 py-2.5 border-b border-gray-200 dark:border-slate-700">
+            <div className="flex items-center gap-2">
+              <Wallet className="h-4 w-4 text-emerald-500" />
+              <h4 className="text-sm font-bold text-gray-700 dark:text-slate-300">
+                Parcelas Previstas
+              </h4>
+              <span className="text-xs text-gray-500 dark:text-slate-400">
+                ({financeiro.parcelas.length} {financeiro.parcelas.length === 1 ? 'parcela' : 'parcelas'} ·{' '}
+                total {totalParcelas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})
+              </span>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50/50 dark:bg-slate-900/30 border-b border-gray-200 dark:border-slate-700">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400">Parcela</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400">Vencimento</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400">Situação</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400">Banco</th>
+                  <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 dark:text-slate-400">Valor</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                {financeiro.parcelas.map((p, i) => {
+                  const paga = p.situacao === 'totalmente_paga';
+                  return (
+                    <tr key={`${p.numero_documento}-${p.numero_parcela}-${i}`}>
+                      <td className="px-4 py-2 text-gray-700 dark:text-slate-300">{p.numero_parcela ?? '-'}</td>
+                      <td className="px-4 py-2 text-gray-700 dark:text-slate-300">{fmtDataLonga(p.data_vencimento)}</td>
+                      <td className="px-4 py-2">
+                        {paga ? (
+                          <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:border-emerald-700/40 dark:bg-emerald-900/30 dark:text-emerald-300">
+                            Totalmente paga
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:border-amber-700/40 dark:bg-amber-900/30 dark:text-amber-300">
+                            Não paga
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-gray-700 dark:text-slate-300">{p.banco || 'Não enviado'}</td>
+                      <td className="px-4 py-2 text-right font-semibold text-gray-800 dark:text-slate-200 whitespace-nowrap">
+                        {p.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                       </td>
                     </tr>
                   );

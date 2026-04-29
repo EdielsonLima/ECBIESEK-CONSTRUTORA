@@ -2281,6 +2281,140 @@ async def itens_pedidos_compra(id_pedido: int, current_user: dict = Depends(get_
     return {"itens": itens, "status": status_pedido}
 
 
+@app.get("/api/pedidos-compra/{id_pedido}/financeiro")
+def financeiro_pedido_compra(id_pedido: int, current_user: dict = Depends(get_current_user)):
+    """Notas fiscais recebidas e parcelas previstas vinculadas ao pedido.
+
+    Heuristica: mesmo fornecedor + mesmo centro de custo + cadastrado a
+    partir da data do pedido. Vasculha contas_a_pagar (em aberto) e
+    contas_pagas (ja quitadas).
+    """
+    # Busca metadados do pedido (mora em CONFIG_DB)
+    conn_pc = _pc_conn()
+    try:
+        cur = conn_pc.cursor()
+        cur.execute("""
+            SELECT id_fornecedor, id_centro_custo, data_pedido
+            FROM pedidos_compra
+            WHERE id_pedido = %s
+        """, (id_pedido,))
+        pedido = cur.fetchone()
+        cur.close()
+    finally:
+        conn_pc.close()
+
+    if not pedido:
+        raise HTTPException(404, "Pedido não encontrado")
+
+    if not pedido["id_fornecedor"] or not pedido["id_centro_custo"] or not pedido["data_pedido"]:
+        return {"notas_fiscais": [], "parcelas": []}
+
+    params = [pedido["id_fornecedor"], pedido["id_centro_custo"], pedido["data_pedido"]]
+
+    # contas_a_pagar + contas_pagas vivem no DB principal (Sienge replica)
+    conn_db = get_db_connection()
+    try:
+        cur = conn_db.cursor()
+
+        # Em aberto
+        cur.execute("""
+            SELECT cap.numero_documento, TRIM(cap.id_documento) AS id_documento,
+                   cap.numero_parcela, cap.data_vencimento, cap.data_cadastro,
+                   cap.valor_total, cap.id_conta_corrente,
+                   eccc.nome_conta_corrente, t.data_emissao
+            FROM contas_a_pagar cap
+            LEFT JOIN ecadcontacorrente eccc
+              ON cap.id_conta_corrente = eccc.id_conta_corrente
+            LEFT JOIN ecpgtitulo t
+              ON t.id_pg_titulo = CAST(SPLIT_PART(cap.lancamento, '/', 1) AS INTEGER)
+             AND t.id_credor = cap.id_credor
+            WHERE cap.id_credor = %s
+              AND cap.id_interno_centro_custo = %s
+              AND cap.data_cadastro >= %s
+              AND cap.numero_documento IS NOT NULL
+              AND TRIM(cap.numero_documento) <> ''
+        """, params)
+        em_aberto = [dict(r) for r in cur.fetchall()]
+
+        # Pagas
+        cur.execute("""
+            SELECT cp.numero_documento, TRIM(cp.id_documento) AS id_documento,
+                   CAST(SPLIT_PART(cp.lancamento, '/', 2) AS INTEGER) AS numero_parcela,
+                   pp.data_vencimento,
+                   cp.data_pagamento AS data_cadastro,
+                   cp.valor_liquido AS valor_total,
+                   cp.id_conta_corrente,
+                   eccc.nome_conta_corrente, t.data_emissao
+            FROM contas_pagas cp
+            LEFT JOIN ecadcontacorrente eccc
+              ON cp.id_conta_corrente = eccc.id_conta_corrente
+            LEFT JOIN ecpgtitulo t
+              ON t.id_pg_titulo = CAST(SPLIT_PART(cp.lancamento, '/', 1) AS INTEGER)
+             AND t.id_credor = cp.id_credor
+            LEFT JOIN ecpgparcela pp
+              ON pp.id_pg_titulo = CAST(SPLIT_PART(cp.lancamento, '/', 1) AS INTEGER)
+             AND pp.numero_parcela = CAST(SPLIT_PART(cp.lancamento, '/', 2) AS INTEGER)
+            WHERE cp.id_credor = %s
+              AND cp.id_interno_centro_custo = %s
+              AND cp.data_pagamento >= %s
+              AND cp.numero_documento IS NOT NULL
+              AND TRIM(cp.numero_documento) <> ''
+        """, params)
+        pagas = [dict(r) for r in cur.fetchall()]
+
+        cur.close()
+    finally:
+        conn_db.close()
+
+    def _iso(v):
+        if v is None:
+            return None
+        if hasattr(v, "isoformat"):
+            return v.isoformat()
+        return str(v)
+
+    # Agrupa NFs distintas (uma linha por numero_documento)
+    nf_map: dict[str, dict] = {}
+    for r in em_aberto + pagas:
+        numero = (r.get("numero_documento") or "").strip()
+        if not numero:
+            continue
+        if numero not in nf_map:
+            nf_map[numero] = {
+                "numero": numero,
+                "tipo": (r.get("id_documento") or "").strip() or None,
+                "serie": None,
+                "emissao": _iso(r.get("data_emissao") or r.get("data_cadastro")),
+                "valor_total": 0.0,
+            }
+        nf_map[numero]["valor_total"] += float(r.get("valor_total") or 0)
+    notas_fiscais = sorted(nf_map.values(), key=lambda x: x["numero"])
+
+    # Lista parcelas (uma linha por parcela)
+    parcelas = []
+    for r in em_aberto:
+        parcelas.append({
+            "numero_parcela": r.get("numero_parcela"),
+            "numero_documento": (r.get("numero_documento") or "").strip(),
+            "data_vencimento": _iso(r.get("data_vencimento")),
+            "situacao": "nao_paga",
+            "banco": (r.get("nome_conta_corrente") or "").strip() or None,
+            "valor": float(r.get("valor_total") or 0),
+        })
+    for r in pagas:
+        parcelas.append({
+            "numero_parcela": r.get("numero_parcela"),
+            "numero_documento": (r.get("numero_documento") or "").strip(),
+            "data_vencimento": _iso(r.get("data_vencimento")),
+            "situacao": "totalmente_paga",
+            "banco": (r.get("nome_conta_corrente") or "").strip() or None,
+            "valor": float(r.get("valor_total") or 0),
+        })
+    parcelas.sort(key=lambda x: (x.get("numero_parcela") or 0))
+
+    return {"notas_fiscais": notas_fiscais, "parcelas": parcelas}
+
+
 @app.post("/api/debug/pedidos-compra-rebuild")
 def debug_pedidos_compra_rebuild(admin: dict = Depends(require_admin)):
     """DROP + recria as tabelas de pedidos_compra. Usar se schema ficou inconsistente."""

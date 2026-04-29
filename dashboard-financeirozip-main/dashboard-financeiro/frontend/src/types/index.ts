@@ -474,6 +474,28 @@ export interface EntregaItemPedido {
   quantidade_aberta: number | null;
 }
 
+export interface NotaFiscalPedido {
+  numero: string;
+  tipo: string | null;
+  serie: string | null;
+  emissao: string | null;
+  valor_total: number;
+}
+
+export interface ParcelaPedido {
+  numero_parcela: number | null;
+  numero_documento: string | null;
+  data_vencimento: string | null;
+  situacao: 'nao_paga' | 'totalmente_paga' | string;
+  banco: string | null;
+  valor: number;
+}
+
+export interface FinanceiroPedidoCompra {
+  notas_fiscais: NotaFiscalPedido[];
+  parcelas: ParcelaPedido[];
+}
+
 export interface KPIBucket {
   valor: number;
   qtd: number;
