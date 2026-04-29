@@ -487,6 +487,7 @@ export interface ParcelaPedido {
   numero_documento: string | null;
   data_vencimento: string | null;
   situacao: 'nao_paga' | 'totalmente_paga' | string;
+  situacao_label?: string | null;
   banco: string | null;
   valor: number;
 }
@@ -494,6 +495,7 @@ export interface ParcelaPedido {
 export interface FinanceiroPedidoCompra {
   notas_fiscais: NotaFiscalPedido[];
   parcelas: ParcelaPedido[];
+  tem_forecast?: boolean;
 }
 
 export interface KPIBucket {

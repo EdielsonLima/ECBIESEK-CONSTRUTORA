@@ -1663,18 +1663,19 @@ const DetalhePedido: React.FC<{
               <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
                 {financeiro.parcelas.map((p, i) => {
                   const paga = p.situacao === 'totalmente_paga';
+                  const label = p.situacao_label || (paga ? 'Totalmente paga' : 'Não paga');
                   return (
-                    <tr key={`${p.numero_documento}-${p.numero_parcela}-${i}`}>
+                    <tr key={`${p.numero_documento ?? 'sem-doc'}-${p.numero_parcela}-${i}`}>
                       <td className="px-4 py-2 text-gray-700 dark:text-slate-300">{p.numero_parcela ?? '-'}</td>
                       <td className="px-4 py-2 text-gray-700 dark:text-slate-300">{fmtDataLonga(p.data_vencimento)}</td>
                       <td className="px-4 py-2">
                         {paga ? (
                           <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:border-emerald-700/40 dark:bg-emerald-900/30 dark:text-emerald-300">
-                            Totalmente paga
+                            {label}
                           </span>
                         ) : (
                           <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:border-amber-700/40 dark:bg-amber-900/30 dark:text-amber-300">
-                            Não paga
+                            {label}
                           </span>
                         )}
                       </td>

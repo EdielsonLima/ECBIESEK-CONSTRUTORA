@@ -22,6 +22,7 @@ import json
 from dotenv import load_dotenv
 import anthropic
 import httpx
+import asyncio
 from rate_limiter import RateLimiter, RateLimitExcedido
 import bridge_http
 import sync_pedidos_compra
@@ -2281,20 +2282,49 @@ async def itens_pedidos_compra(id_pedido: int, current_user: dict = Depends(get_
     return {"itens": itens, "status": status_pedido}
 
 
-@app.get("/api/pedidos-compra/{id_pedido}/financeiro")
-def financeiro_pedido_compra(id_pedido: int, current_user: dict = Depends(get_current_user)):
-    """Notas fiscais recebidas e parcelas previstas vinculadas ao pedido.
+async def _sienge_get(client: httpx.AsyncClient, url: str, params: dict | None = None,
+                      max_retries: int = 4) -> httpx.Response | None:
+    """GET na API v1 do Sienge com retry exponencial em 429 (1s, 2s, 4s, 8s).
+    Respeita Retry-After se vier no header. Retorna None em 404."""
+    auth = base64.b64encode(f"{SIENGE_USERNAME}:{SIENGE_PASSWORD}".encode()).decode()
+    headers = {"Authorization": f"Basic {auth}", "Content-Type": "application/json"}
+    for tentativa in range(max_retries + 1):
+        resp = await client.get(url, params=params, headers=headers)
+        if resp.status_code == 429 and tentativa < max_retries:
+            ra = resp.headers.get("Retry-After")
+            try:
+                espera = float(ra) if ra else (2 ** tentativa)
+            except (TypeError, ValueError):
+                espera = 2 ** tentativa
+            print(f"[sienge] 429 em {url} — aguardando {espera}s (tentativa {tentativa+1}/{max_retries})")
+            await asyncio.sleep(espera)
+            continue
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        return resp
+    raise HTTPException(429, "Limite de consultas do Sienge atingido. Tente novamente em instantes.")
 
-    Heuristica: mesmo fornecedor + mesmo centro de custo + cadastrado a
-    partir da data do pedido. Vasculha contas_a_pagar (em aberto) e
-    contas_pagas (ja quitadas).
+
+@app.get("/api/pedidos-compra/{id_pedido}/financeiro")
+async def financeiro_pedido_compra(id_pedido: int, current_user: dict = Depends(get_current_user)):
+    """Notas fiscais recebidas e parcelas previstas vinculadas ao pedido,
+    consultadas direto na API do Sienge (sem cache local).
+
+    - NFs (heuristica do proprio Sienge): GET /purchase-invoices?supplierId&buildingId&startDate&endDate.
+      A API NAO devolve purchaseOrderId nas NFs e ignora ?purchaseOrderId no filtro,
+      entao casamos por mesmo fornecedor + mesma obra + janela de data.
+    - Parcelas: cada pedido tem (ou nao) um titulo financeiro em forecastBillId.
+      Quando existe, GET /bills/{forecastBillId}/installments traz as parcelas.
+      Pedidos sem PPC (ex: faturamento direto) nao tem parcelas.
     """
-    # Busca metadados do pedido (mora em CONFIG_DB)
+    # 1) Pedido (CONFIG_DB)
     conn_pc = _pc_conn()
     try:
         cur = conn_pc.cursor()
         cur.execute("""
-            SELECT id_fornecedor, id_centro_custo, data_pedido
+            SELECT id_fornecedor, id_obra, id_centro_custo, data_pedido,
+                   id_forecast_bill, forecast_document_id
             FROM pedidos_compra
             WHERE id_pedido = %s
         """, (id_pedido,))
@@ -2306,113 +2336,121 @@ def financeiro_pedido_compra(id_pedido: int, current_user: dict = Depends(get_cu
     if not pedido:
         raise HTTPException(404, "Pedido não encontrado")
 
-    if not pedido["id_fornecedor"] or not pedido["id_centro_custo"] or not pedido["data_pedido"]:
-        return {"notas_fiscais": [], "parcelas": []}
+    supplier_id = pedido.get("id_fornecedor")
+    building_id = pedido.get("id_obra") or pedido.get("id_centro_custo")
+    data_pedido = pedido.get("data_pedido")
+    forecast_bill_id = pedido.get("id_forecast_bill")
 
-    params = [pedido["id_fornecedor"], pedido["id_centro_custo"], pedido["data_pedido"]]
+    notas_fiscais: list[dict] = []
+    parcelas: list[dict] = []
 
-    # contas_a_pagar + contas_pagas vivem no DB principal (Sienge replica)
-    conn_db = get_db_connection()
-    try:
-        cur = conn_db.cursor()
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        # 2) Se nao temos forecastBillId no banco, consulta o pedido no Sienge
+        # para descobrir e cacheia. Tambem confirma supplier/buildingId atualizados.
+        if forecast_bill_id is None:
+            try:
+                resp = await _sienge_get(client, f"{SIENGE_API_URL}/purchase-orders/{id_pedido}")
+                if resp is not None:
+                    detalhe = resp.json() or {}
+                    fb = detalhe.get("forecastBillId")
+                    fdoc = (detalhe.get("forecastDocumentId") or "").strip() or None
+                    forecast_bill_id = fb
+                    if not supplier_id:
+                        supplier_id = detalhe.get("supplierId")
+                    if not building_id:
+                        building_id = detalhe.get("buildingId") or detalhe.get("costCenterId")
+                    # Persiste pra proximas chamadas
+                    try:
+                        conn2 = _pc_conn()
+                        try:
+                            cur2 = conn2.cursor()
+                            cur2.execute(
+                                """UPDATE pedidos_compra
+                                   SET id_forecast_bill = COALESCE(%s, id_forecast_bill),
+                                       forecast_document_id = COALESCE(%s, forecast_document_id)
+                                   WHERE id_pedido = %s""",
+                                (fb, fdoc, id_pedido),
+                            )
+                            conn2.commit()
+                            cur2.close()
+                        finally:
+                            conn2.close()
+                    except Exception as e:
+                        print(f"[financeiro] Falha ao salvar forecastBillId {id_pedido}: {e}")
+            except Exception as e:
+                print(f"[financeiro] Falha em GET /purchase-orders/{id_pedido}: {e}")
 
-        # Em aberto
-        cur.execute("""
-            SELECT cap.numero_documento, TRIM(cap.id_documento) AS id_documento,
-                   cap.numero_parcela, cap.data_vencimento, cap.data_cadastro,
-                   cap.valor_total, cap.id_conta_corrente,
-                   eccc.nome_conta_corrente, t.data_emissao
-            FROM contas_a_pagar cap
-            LEFT JOIN ecadcontacorrente eccc
-              ON cap.id_conta_corrente = eccc.id_conta_corrente
-            LEFT JOIN ecpgtitulo t
-              ON t.id_pg_titulo = CAST(SPLIT_PART(cap.lancamento, '/', 1) AS INTEGER)
-             AND t.id_credor = cap.id_credor
-            WHERE cap.id_credor = %s
-              AND cap.id_interno_centro_custo = %s
-              AND cap.data_cadastro >= %s
-              AND cap.numero_documento IS NOT NULL
-              AND TRIM(cap.numero_documento) <> ''
-        """, params)
-        em_aberto = [dict(r) for r in cur.fetchall()]
+        # 3) NFs candidatas (heuristica supplier + building + janela de data)
+        if supplier_id and building_id and data_pedido:
+            try:
+                hoje = datetime.now().strftime("%Y-%m-%d")
+                params_nf = {
+                    "supplierId": supplier_id,
+                    "buildingId": building_id,
+                    "startDate": data_pedido.isoformat() if hasattr(data_pedido, "isoformat") else str(data_pedido),
+                    "endDate": hoje,
+                    "limit": 200,
+                }
+                resp = await _sienge_get(client, f"{SIENGE_API_URL}/purchase-invoices", params=params_nf)
+                if resp is not None:
+                    payload = resp.json() or {}
+                    results = payload.get("results") or payload.get("data") or []
+                    for nf in results:
+                        valor = nf.get("itemsTotalAmount")
+                        if valor is None:
+                            valor = nf.get("totalAmount")
+                        notas_fiscais.append({
+                            "numero": str(nf.get("number") or "").strip(),
+                            "tipo": (nf.get("documentId") or "").strip() or None,
+                            "serie": (nf.get("series") or "").strip() or None,
+                            "emissao": nf.get("issueDate"),
+                            "valor_total": float(valor or 0),
+                            "sequential_number": nf.get("sequentialNumber"),
+                        })
+            except Exception as e:
+                print(f"[financeiro] Falha em GET /purchase-invoices para pedido {id_pedido}: {e}")
 
-        # Pagas
-        cur.execute("""
-            SELECT cp.numero_documento, TRIM(cp.id_documento) AS id_documento,
-                   CAST(SPLIT_PART(cp.lancamento, '/', 2) AS INTEGER) AS numero_parcela,
-                   pp.data_vencimento,
-                   cp.data_pagamento AS data_cadastro,
-                   cp.valor_liquido AS valor_total,
-                   cp.id_conta_corrente,
-                   eccc.nome_conta_corrente, t.data_emissao
-            FROM contas_pagas cp
-            LEFT JOIN ecadcontacorrente eccc
-              ON cp.id_conta_corrente = eccc.id_conta_corrente
-            LEFT JOIN ecpgtitulo t
-              ON t.id_pg_titulo = CAST(SPLIT_PART(cp.lancamento, '/', 1) AS INTEGER)
-             AND t.id_credor = cp.id_credor
-            LEFT JOIN ecpgparcela pp
-              ON pp.id_pg_titulo = CAST(SPLIT_PART(cp.lancamento, '/', 1) AS INTEGER)
-             AND pp.numero_parcela = CAST(SPLIT_PART(cp.lancamento, '/', 2) AS INTEGER)
-            WHERE cp.id_credor = %s
-              AND cp.id_interno_centro_custo = %s
-              AND cp.data_pagamento >= %s
-              AND cp.numero_documento IS NOT NULL
-              AND TRIM(cp.numero_documento) <> ''
-        """, params)
-        pagas = [dict(r) for r in cur.fetchall()]
+        # 4) Parcelas (apenas se tiver titulo financeiro de previsao)
+        if forecast_bill_id:
+            try:
+                resp = await _sienge_get(
+                    client,
+                    f"{SIENGE_API_URL}/bills/{forecast_bill_id}/installments",
+                    params={"limit": 200},
+                )
+                if resp is not None:
+                    payload = resp.json() or {}
+                    results = payload.get("results") or payload.get("data") or []
+                    for ip in results:
+                        situacao_raw = (ip.get("situation") or "").strip()
+                        situacao_lc = situacao_raw.lower()
+                        if "paga" in situacao_lc and "n" not in situacao_lc.split()[0:1]:
+                            # 'Paga' / 'Totalmente paga'
+                            situacao_norm = "totalmente_paga"
+                        elif situacao_lc.startswith("não") or situacao_lc.startswith("nao"):
+                            situacao_norm = "nao_paga"
+                        else:
+                            situacao_norm = situacao_raw or "nao_paga"
+                        parcelas.append({
+                            "numero_parcela": ip.get("installmentNumber"),
+                            "numero_documento": None,
+                            "data_vencimento": ip.get("dueDate"),
+                            "situacao": situacao_norm,
+                            "situacao_label": situacao_raw or None,
+                            "banco": "Enviado ao banco" if ip.get("sentToBank") else None,
+                            "valor": float(ip.get("amount") or 0),
+                        })
+            except Exception as e:
+                print(f"[financeiro] Falha em GET /bills/{forecast_bill_id}/installments: {e}")
 
-        cur.close()
-    finally:
-        conn_db.close()
-
-    def _iso(v):
-        if v is None:
-            return None
-        if hasattr(v, "isoformat"):
-            return v.isoformat()
-        return str(v)
-
-    # Agrupa NFs distintas (uma linha por numero_documento)
-    nf_map: dict[str, dict] = {}
-    for r in em_aberto + pagas:
-        numero = (r.get("numero_documento") or "").strip()
-        if not numero:
-            continue
-        if numero not in nf_map:
-            nf_map[numero] = {
-                "numero": numero,
-                "tipo": (r.get("id_documento") or "").strip() or None,
-                "serie": None,
-                "emissao": _iso(r.get("data_emissao") or r.get("data_cadastro")),
-                "valor_total": 0.0,
-            }
-        nf_map[numero]["valor_total"] += float(r.get("valor_total") or 0)
-    notas_fiscais = sorted(nf_map.values(), key=lambda x: x["numero"])
-
-    # Lista parcelas (uma linha por parcela)
-    parcelas = []
-    for r in em_aberto:
-        parcelas.append({
-            "numero_parcela": r.get("numero_parcela"),
-            "numero_documento": (r.get("numero_documento") or "").strip(),
-            "data_vencimento": _iso(r.get("data_vencimento")),
-            "situacao": "nao_paga",
-            "banco": (r.get("nome_conta_corrente") or "").strip() or None,
-            "valor": float(r.get("valor_total") or 0),
-        })
-    for r in pagas:
-        parcelas.append({
-            "numero_parcela": r.get("numero_parcela"),
-            "numero_documento": (r.get("numero_documento") or "").strip(),
-            "data_vencimento": _iso(r.get("data_vencimento")),
-            "situacao": "totalmente_paga",
-            "banco": (r.get("nome_conta_corrente") or "").strip() or None,
-            "valor": float(r.get("valor_total") or 0),
-        })
+    notas_fiscais.sort(key=lambda x: x["numero"])
     parcelas.sort(key=lambda x: (x.get("numero_parcela") or 0))
 
-    return {"notas_fiscais": notas_fiscais, "parcelas": parcelas}
+    return {
+        "notas_fiscais": notas_fiscais,
+        "parcelas": parcelas,
+        "tem_forecast": bool(forecast_bill_id),
+    }
 
 
 @app.post("/api/debug/pedidos-compra-rebuild")

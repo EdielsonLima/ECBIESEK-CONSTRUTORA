@@ -106,6 +106,8 @@ def ensure_tables() -> None:
         # Migracao: se foi criada como INT antes, converte para TEXT
         "ALTER TABLE pedidos_compra ALTER COLUMN id_comprador TYPE TEXT USING id_comprador::TEXT",
         "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS notas_internas TEXT",
+        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS id_forecast_bill BIGINT",
+        "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS forecast_document_id TEXT",
         "ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS sincronizado_em TIMESTAMPTZ DEFAULT NOW()",
         # pedidos_compra_itens
         "ALTER TABLE pedidos_compra_itens ADD COLUMN IF NOT EXISTS codigo_recurso TEXT",
@@ -299,6 +301,8 @@ def _upsert_pedidos(pedidos: list[dict], cc_map: dict, forn_map: dict, conn) -> 
             p.get("totalFreight"),
             p.get("buyerId"),
             p.get("internalNotes"),
+            p.get("forecastBillId"),
+            (p.get("forecastDocumentId") or "").strip() or None,
         ))
 
     sql = """
@@ -307,35 +311,37 @@ def _upsert_pedidos(pedidos: list[dict], cc_map: dict, forn_map: dict, conn) -> 
         id_obra, id_centro_custo, nome_centro_custo, data_pedido, data_envio,
         data_autorizacao, status, autorizado, reprovado, entrega_atrasada,
         valor_total, valor_desconto, valor_acrescimo, valor_frete, id_comprador,
-        notas_internas, sincronizado_em
+        notas_internas, id_forecast_bill, forecast_document_id, sincronizado_em
     ) VALUES %s
     ON CONFLICT (id_pedido) DO UPDATE SET
-        numero_pedido     = EXCLUDED.numero_pedido,
-        id_fornecedor     = EXCLUDED.id_fornecedor,
-        nome_fornecedor   = COALESCE(EXCLUDED.nome_fornecedor, pedidos_compra.nome_fornecedor),
-        id_empresa        = EXCLUDED.id_empresa,
-        id_obra           = EXCLUDED.id_obra,
-        id_centro_custo   = EXCLUDED.id_centro_custo,
-        nome_centro_custo = EXCLUDED.nome_centro_custo,
-        data_pedido       = EXCLUDED.data_pedido,
-        data_envio        = EXCLUDED.data_envio,
-        data_autorizacao  = EXCLUDED.data_autorizacao,
-        status            = EXCLUDED.status,
-        autorizado        = EXCLUDED.autorizado,
-        reprovado         = EXCLUDED.reprovado,
-        entrega_atrasada  = EXCLUDED.entrega_atrasada,
-        valor_total       = EXCLUDED.valor_total,
-        valor_desconto    = EXCLUDED.valor_desconto,
-        valor_acrescimo   = EXCLUDED.valor_acrescimo,
-        valor_frete       = EXCLUDED.valor_frete,
-        id_comprador      = EXCLUDED.id_comprador,
-        notas_internas    = EXCLUDED.notas_internas,
-        sincronizado_em   = NOW()
+        numero_pedido        = EXCLUDED.numero_pedido,
+        id_fornecedor        = EXCLUDED.id_fornecedor,
+        nome_fornecedor      = COALESCE(EXCLUDED.nome_fornecedor, pedidos_compra.nome_fornecedor),
+        id_empresa           = EXCLUDED.id_empresa,
+        id_obra              = EXCLUDED.id_obra,
+        id_centro_custo      = EXCLUDED.id_centro_custo,
+        nome_centro_custo    = EXCLUDED.nome_centro_custo,
+        data_pedido          = EXCLUDED.data_pedido,
+        data_envio           = EXCLUDED.data_envio,
+        data_autorizacao     = EXCLUDED.data_autorizacao,
+        status               = EXCLUDED.status,
+        autorizado           = EXCLUDED.autorizado,
+        reprovado            = EXCLUDED.reprovado,
+        entrega_atrasada     = EXCLUDED.entrega_atrasada,
+        valor_total          = EXCLUDED.valor_total,
+        valor_desconto       = EXCLUDED.valor_desconto,
+        valor_acrescimo      = EXCLUDED.valor_acrescimo,
+        valor_frete          = EXCLUDED.valor_frete,
+        id_comprador         = EXCLUDED.id_comprador,
+        notas_internas       = EXCLUDED.notas_internas,
+        id_forecast_bill     = COALESCE(EXCLUDED.id_forecast_bill, pedidos_compra.id_forecast_bill),
+        forecast_document_id = COALESCE(EXCLUDED.forecast_document_id, pedidos_compra.forecast_document_id),
+        sincronizado_em      = NOW()
     RETURNING (xmax = 0) AS inserido
     """
     cur = conn.cursor()
     try:
-        valores_template = "(" + ",".join(["%s"] * 21) + ", NOW())"
+        valores_template = "(" + ",".join(["%s"] * 23) + ", NOW())"
         execute_values(cur, sql, rows, template=valores_template)
         resultados = cur.fetchall()
         novos = sum(1 for r in resultados if r["inserido"])
