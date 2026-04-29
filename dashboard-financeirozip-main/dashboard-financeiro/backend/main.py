@@ -1330,7 +1330,7 @@ _TITULO_CACHE_TTL = 300  # 5 minutos
 
 # Cache em memória para autorizações bulk
 _autorizacoes_bulk_cache: dict = {"data": None, "timestamp": 0}
-_AUTORIZACOES_CACHE_TTL = 600  # 10 minutos
+_AUTORIZACOES_CACHE_TTL = 180  # 3 minutos
 
 SIENGE_API_URL = "https://api.sienge.com.br/biesek/public/api/v1"
 SIENGE_BULK_API_URL = "https://api.sienge.com.br/biesek/public/api/bulk-data/v1"

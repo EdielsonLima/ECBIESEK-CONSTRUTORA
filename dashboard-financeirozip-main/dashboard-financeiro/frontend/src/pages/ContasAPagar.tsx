@@ -178,6 +178,8 @@ export const ContasAPagar: React.FC = () => {
   const [detalheCache, setDetalheCache] = useState<Record<number, TituloDetalhe>>({});
   const [autorizacoesBulk, setAutorizacoesBulk] = useState<Record<string, string>>({});
   const [autorizacoesLoading, setAutorizacoesLoading] = useState(false);
+  const [autorizacoesAtualizadasEm, setAutorizacoesAtualizadasEm] = useState<Date | null>(null);
+  const [agora, setAgora] = useState<Date>(new Date());
   const autorizacoesTitulosConsultados = useRef<Set<string>>(new Set());
   const [anoDropdownAberto, setAnoDropdownAberto] = useState(false);
   const [feriados, setFeriados] = useState<Set<string>>(new Set());
@@ -491,6 +493,7 @@ export const ContasAPagar: React.FC = () => {
       }
       const data = await apiService.getAutorizacoesBulk(refresh);
       setAutorizacoesBulk(data);
+      setAutorizacoesAtualizadasEm(new Date());
     } catch (err) {
       console.error('Erro ao carregar autorizações:', err);
     } finally {
@@ -498,12 +501,12 @@ export const ContasAPagar: React.FC = () => {
     }
   };
 
-  const conferirAutorizacoesTitulos = async (lista: ContaPagar[]) => {
+  const conferirAutorizacoesTitulos = async (lista: ContaPagar[], forcar: boolean = false) => {
     const lancamentos = Array.from(new Set(
       lista
         .map(c => c.lancamento)
         .filter((l): l is string => Boolean(l))
-        .filter(l => !autorizacoesTitulosConsultados.current.has(l))
+        .filter(l => forcar || !autorizacoesTitulosConsultados.current.has(l))
     ));
     if (lancamentos.length === 0) return;
 
@@ -512,6 +515,7 @@ export const ContasAPagar: React.FC = () => {
       const data = await apiService.getAutorizacoesTitulos(lancamentos);
       if (Object.keys(data).length > 0) {
         setAutorizacoesBulk(prev => ({ ...prev, ...data }));
+        setAutorizacoesAtualizadasEm(new Date());
       }
     } catch (err) {
       console.error('Erro ao conferir autorizações por título:', err);
@@ -520,6 +524,22 @@ export const ContasAPagar: React.FC = () => {
 
   useEffect(() => {
     carregarAutorizacoes();
+  }, []);
+
+  // Polling automatico: a cada 3 minutos, refaz o bulk e libera nova rodada
+  // de verificacao por titulo (o filter useEffect dispara per-titulo apos o
+  // setAutorizacoesBulk via dependencia).
+  useEffect(() => {
+    const id = setInterval(() => {
+      carregarAutorizacoes(true);
+    }, 3 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Tick a cada 30s para o indicador "Atualizado ha X min" se manter vivo
+  useEffect(() => {
+    const id = setInterval(() => setAgora(new Date()), 30 * 1000);
+    return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
@@ -1343,17 +1363,35 @@ export const ContasAPagar: React.FC = () => {
           </svg>
           Salvar Padrão
         </button>
-        <button
-          type="button"
-          onClick={() => carregarAutorizacoes(true)}
-          disabled={autorizacoesLoading}
-          className="flex items-center rounded-lg border border-blue-200 px-4 py-2 text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-900/20"
-        >
-          <svg className={`mr-2 h-4 w-4 ${autorizacoesLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v6h6M20 20v-6h-6M20 8a8 8 0 00-14.32-3.91L4 6M4 16a8 8 0 0014.32 3.91L20 18" />
-          </svg>
-          {autorizacoesLoading ? 'Atualizando...' : 'Atualizar Autorizações'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => carregarAutorizacoes(true)}
+            disabled={autorizacoesLoading}
+            className="flex items-center rounded-lg border border-blue-200 px-4 py-2 text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-900/20"
+          >
+            <svg className={`mr-2 h-4 w-4 ${autorizacoesLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v6h6M20 20v-6h-6M20 8a8 8 0 00-14.32-3.91L4 6M4 16a8 8 0 0014.32 3.91L20 18" />
+            </svg>
+            {autorizacoesLoading ? 'Atualizando...' : 'Atualizar Autorizações'}
+          </button>
+          {autorizacoesAtualizadasEm && (
+            <span
+              title={`Ultima atualizacao: ${autorizacoesAtualizadasEm.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' })}. Atualiza sozinho a cada 3 minutos.`}
+              className="text-[11px] text-gray-500 dark:text-slate-400 whitespace-nowrap"
+            >
+              {(() => {
+                const diffSeg = Math.max(0, Math.floor((agora.getTime() - autorizacoesAtualizadasEm.getTime()) / 1000));
+                if (diffSeg < 60) return 'Atualizado agora';
+                const diffMin = Math.floor(diffSeg / 60);
+                if (diffMin === 1) return 'Atualizado há 1 min';
+                if (diffMin < 60) return `Atualizado há ${diffMin} min`;
+                const diffH = Math.floor(diffMin / 60);
+                return diffH === 1 ? 'Atualizado há 1h' : `Atualizado há ${diffH}h`;
+              })()}
+            </span>
+          )}
+        </div>
         {temFiltrosPadrao() && (
           <button
             type="button"
