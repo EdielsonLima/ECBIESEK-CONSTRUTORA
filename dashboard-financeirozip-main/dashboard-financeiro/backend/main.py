@@ -10744,23 +10744,43 @@ def get_saldos_bancarios(
     - `empresas`: lista de id_sienge_empresa separados por virgula (ex: 3,5,11).
     - `contas`: lista de id_conta_corrente separados por virgula.
     Retorna: saldo_total, cards (bancario/permuta/mutuo), empresas, contas detalhadas e serie 30 dias.
+
+    Quando a data pedida ainda nao foi sincronizada localmente (ex: hoje, antes
+    do batch noturno rodar), automaticamente reusa o ultimo dia disponivel em
+    posicao_saldos. A resposta inclui `data_efetiva` (a data que foi de fato
+    consultada) e `data_solicitada` (o que veio no parametro) para o frontend
+    poder mostrar 'Mostrando saldo do dia X'.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
         exclusoes = get_exclusoes()
 
-        # Descobre a data de referencia (ultima disponivel se nao informada)
-        if data:
-            data_ref = data
-        else:
-            cursor.execute("SELECT MAX(data_movimento) as ultima FROM posicao_saldos")
-            row = cursor.fetchone()
-            data_ref = row['ultima'].strftime('%Y-%m-%d') if row and row['ultima'] else None
+        # Ultima data disponivel em posicao_saldos
+        cursor.execute("SELECT MAX(data_movimento) as ultima FROM posicao_saldos")
+        row = cursor.fetchone()
+        ultima_db = row['ultima'] if row else None
+        ultima_db_str = ultima_db.strftime('%Y-%m-%d') if ultima_db else None
 
-        if not data_ref:
+        # Descobre a data de referencia (ultima disponivel se nao informada)
+        data_solicitada = data or ultima_db_str
+
+        if not data_solicitada:
             return {'saldo_total': 0, 'empresas': [], 'contas': [], 'serie': [],
                     'cards': {'bancario': 0, 'permuta': 0, 'mutuo': 0}, 'data_referencia': None}
+
+        # Verifica se a data solicitada tem registros. Se nao, faz fallback para
+        # a ultima data disponivel <= data solicitada (assim o usuario sempre
+        # ve algo, ainda que do dia anterior).
+        cursor.execute("""
+            SELECT MAX(data_movimento) AS d
+            FROM posicao_saldos
+            WHERE data_movimento <= %s::date
+        """, [data_solicitada])
+        fallback_row = cursor.fetchone()
+        data_efetiva = fallback_row['d'].strftime('%Y-%m-%d') if fallback_row and fallback_row['d'] else ultima_db_str
+        data_ref = data_efetiva or data_solicitada
+        usou_fallback = data_ref != data_solicitada
 
         # Mapa id_interno_empresa -> (id_sienge_empresa, nome_empresa)
         cursor.execute("""
@@ -11042,6 +11062,9 @@ def get_saldos_bancarios(
         return {
             'saldo_total': saldo_total,
             'data_referencia': data_ref,
+            'data_solicitada': data_solicitada,
+            'data_efetiva': data_efetiva,
+            'usou_fallback': usou_fallback,
             'empresas': empresas_list,
             'contas': contas_list,
             'serie': serie,
@@ -11068,6 +11091,9 @@ def get_saldos_bancarios(
             'cards': {'bancario': 0, 'permuta': 0, 'mutuo': 0, 'reapropriacao': 0,
                       'conciliado': 0, 'nao_conciliado': 0},
             'data_referencia': None,
+            'data_solicitada': None,
+            'data_efetiva': None,
+            'usou_fallback': False,
             'conciliacao_sincronizada_em': None,
             'tem_dados_conciliacao': False,
         }

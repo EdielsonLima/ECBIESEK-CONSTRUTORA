@@ -239,6 +239,9 @@ export interface SaldoBancarioRegistro {
 export interface SaldoBancarioResumo {
   saldo_total: number;
   data_referencia?: string | null;
+  data_solicitada?: string | null;
+  data_efetiva?: string | null;
+  usou_fallback?: boolean;
   empresas: Array<{ empresa_nome: string; empresa_id: number; saldo: number }>;
   contas: Array<{
     empresa_nome: string;

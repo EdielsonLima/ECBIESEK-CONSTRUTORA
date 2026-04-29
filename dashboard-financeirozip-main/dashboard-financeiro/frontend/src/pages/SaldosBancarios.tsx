@@ -516,6 +516,24 @@ export const SaldosBancarios: React.FC = () => {
         </div>
       </div>
 
+      {/* Aviso de fallback: dado da data pedida ainda nao foi sincronizado, mostrando o ultimo dia disponivel */}
+      {resumo?.usou_fallback && resumo?.data_efetiva && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-700/40 dark:bg-amber-900/20 px-4 py-3">
+          <div className="flex items-start gap-2">
+            <svg className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="text-xs text-amber-800 dark:text-amber-300">
+              <strong>Mostrando saldo do dia {new Date(resumo.data_efetiva + 'T00:00:00').toLocaleDateString('pt-BR')}</strong>
+              {resumo.data_solicitada && resumo.data_solicitada !== resumo.data_efetiva && (
+                <> (você selecionou {new Date(resumo.data_solicitada + 'T00:00:00').toLocaleDateString('pt-BR')}, mas a sincronização do Sienge para esse dia ainda não rodou)</>
+              )}
+              . Os valores conciliado e não conciliado também são desse dia.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Grid de cards: Bancario, Permuta, Total, Nao Conciliado */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card Saldo Bancario */}
