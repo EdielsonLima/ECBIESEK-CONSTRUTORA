@@ -687,7 +687,9 @@ export const ContasAPagar: React.FC = () => {
 
     const contasFiltradas = aplicarFiltrosLocais(todasContas, filtroEmpresa, filtroCentroCusto, filtroClassificacao, classificacoesCentrosCusto, filtroPrazo, filtroAno, filtroMes, filtroTipoDocumento, filtroCredor, filtroDias, filtroPlanoFinanceiro, filtroTipoPagamento, filtroAutorizacao, autorizacoesBulk, filtroTitulo);
     setContas(contasFiltradas);
-    conferirAutorizacoesTitulos(contasFiltradas.slice(0, 100).filter(c => getAutorizacaoConta(c) !== 'S'));
+    // Confere TODOS os titulos visiveis no Sienge (nao so os que aparecem como 'N'),
+    // para detectar tambem falsos 'S' vindos do replica local ou do bulk.
+    conferirAutorizacoesTitulos(contasFiltradas.slice(0, 100));
 
     // Card "Total a Pagar" usa as contas filtradas (hoje + futuro, com lógica de segunda-feira)
     const stats: Estatisticas = {

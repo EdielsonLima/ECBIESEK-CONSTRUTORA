@@ -1435,7 +1435,14 @@ async def get_autorizacoes_bulk(refresh: bool = False):
 
 @app.get("/api/autorizacoes-titulos")
 async def get_autorizacoes_titulos(lancamentos: List[str] = Query(...)):
-    """Confere autorizacao diretamente no endpoint /bills/{id} do Sienge para titulos visiveis."""
+    """Confere autorizacao diretamente no endpoint /bills/{id} do Sienge para titulos visiveis.
+
+    IMPORTANTE: o /bills/{id} retorna varios campos 'status', mas apenas
+    'authorizationStatus' e a lista 'authorizations' refletem a autorizacao
+    do titulo. O 'status' top-level e o status do TITULO (ex: 'A' = Ativo),
+    nao da autorizacao - usa-lo aqui mascarava titulos sem autorizacao como
+    autorizados.
+    """
     credentials = base64.b64encode(f"{SIENGE_USERNAME}:{SIENGE_PASSWORD}".encode()).decode()
     headers = {
         "Authorization": f"Basic {credentials}",
@@ -1461,12 +1468,7 @@ async def get_autorizacoes_titulos(lancamentos: List[str] = Query(...)):
                     raise HTTPException(status_code=429, detail="Limite de consultas do Sienge atingido. Tente novamente em instantes.")
                 resp.raise_for_status()
                 item = resp.json()
-                status = (
-                    _normalizar_status_autorizacao_sienge(item.get("status"))
-                    or _normalizar_status_autorizacao_sienge(item.get("authorizationStatus"))
-                    or "N"
-                )
-                status = "S" if status == "S" else "N"
+                status = _extrair_status_autorizacao_sienge(item)
                 for chave in chaves:
                     resultado[chave] = status
             except HTTPException:
